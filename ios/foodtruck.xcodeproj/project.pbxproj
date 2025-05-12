@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		1DB882D6F1054B1EBF32AB10 /* P22 Arts And Crafts Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 49D3964E54F24AED8BD3A713 /* P22 Arts And Crafts Regular.ttf */; };
+		24222FA391C04E0E942801DB /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9748BFB62EF949839BDFC183 /* BootSplash.storyboard */; };
+		53C6AA5DE00347CEA18B3097 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8EA67132F89541659E4F3980 /* Colors.xcassets */; };
 		5646852ED1A8A5FEBE4E24BF /* libPods-foodtruck.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCF844A29D541478FF174759 /* libPods-foodtruck.a */; };
 		5D0C1D186C10E51B21286BFE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		74AD18CCB9EB4E898495D7ED /* IMFellEnglish-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 899C85C7676A4EC78F325C0F /* IMFellEnglish-Regular.ttf */; };
@@ -26,6 +28,8 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = foodtruck/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = foodtruck/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		899C85C7676A4EC78F325C0F /* IMFellEnglish-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "IMFellEnglish-Regular.ttf"; path = "../src/assets/fonts/IMFellEnglish-Regular.ttf"; sourceTree = "<group>"; };
+		8EA67132F89541659E4F3980 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = foodtruck/Colors.xcassets; sourceTree = "<group>"; };
+		9748BFB62EF949839BDFC183 /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = foodtruck/BootSplash.storyboard; sourceTree = "<group>"; };
 		9EC6DCA14C58461671A87772 /* Pods-foodtruck.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-foodtruck.release.xcconfig"; path = "Target Support Files/Pods-foodtruck/Pods-foodtruck.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FCF844A29D541478FF174759 /* libPods-foodtruck.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-foodtruck.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -51,6 +55,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				9748BFB62EF949839BDFC183 /* BootSplash.storyboard */,
+				8EA67132F89541659E4F3980 /* Colors.xcassets */,
 			);
 			name = foodtruck;
 			sourceTree = "<group>";
@@ -177,6 +183,8 @@
 				5D0C1D186C10E51B21286BFE /* PrivacyInfo.xcprivacy in Resources */,
 				74AD18CCB9EB4E898495D7ED /* IMFellEnglish-Regular.ttf in Resources */,
 				1DB882D6F1054B1EBF32AB10 /* P22 Arts And Crafts Regular.ttf in Resources */,
+				24222FA391C04E0E942801DB /* BootSplash.storyboard in Resources */,
+				53C6AA5DE00347CEA18B3097 /* Colors.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,11 +283,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = VW9SSJWZP7;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = foodtruck/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Food Truck";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -310,10 +317,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = VW9SSJWZP7;
 				INFOPLIST_FILE = foodtruck/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Food Truck";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -406,10 +412,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -478,10 +481,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

@@ -15,6 +15,7 @@ export const AppColor = {
   black: "#000000",
   gray: "#8E8E93",
   red: "#FF0000",
+  yellow: "#FFCC00",
 
   snackbarInfo: "#2196F3",
   snackbarSuccess: "#4CAF50",

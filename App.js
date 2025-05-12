@@ -7,7 +7,7 @@ import {
   Image,
   Platform,
 } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SigninScreen from "./src/screens/signinScreen";
 import SignupScreen from "./src/screens/signupScreen";
@@ -55,6 +55,7 @@ const AuthNavigator = () => (
 const BottomNavigator = ({ insets }) => (
   <BottomTab.Navigator
     screenOptions={{
+      tabBarHideOnKeyboard: true,
       headerShown: false,
       tabBarStyle: {
         height: Platform.OS === "ios" ? insets.bottom + 60 : 60,
@@ -142,7 +143,7 @@ const App = () => {
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={DefaultTheme}>
       {isSignedIn ? (
         <AppNavigator insets={insets} />
       ) : isGuest ? (

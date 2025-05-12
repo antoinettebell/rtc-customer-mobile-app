@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   View,
   StyleSheet,
-  StatusBar,
   Platform,
   KeyboardAvoidingView,
   ScrollView,
@@ -25,6 +24,7 @@ import { useDispatch } from "react-redux";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { emailRegex } from "../utils/constants";
 import { forgotPassword_API } from "../apiFolder/authAPI";
+import StatusBarManager from "../components/StatusBarManager";
 
 const ForgetPasswordScreen = () => {
   const insets = useSafeAreaInsets();
@@ -84,7 +84,7 @@ const ForgetPasswordScreen = () => {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <StatusBar backgroundColor={AppColor.primary} barStyle="light-content" />
+      <StatusBarManager barStyle="light-content" />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -184,8 +184,8 @@ const ForgetPasswordScreen = () => {
               snackbar.type === "success"
                 ? AppColor.snackbarSuccess
                 : snackbar.type === "error"
-                ? AppColor.snackbarError
-                : AppColor.snackbarDefault,
+                  ? AppColor.snackbarError
+                  : AppColor.snackbarDefault,
           }}
         >
           {snackbar.message}

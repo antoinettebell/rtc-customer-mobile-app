@@ -26,6 +26,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import { register_API } from "../apiFolder/authAPI";
+import StatusBarManager from "../components/StatusBarManager";
 
 const SignupScreen = () => {
   const insets = useSafeAreaInsets();
@@ -56,6 +57,26 @@ const SignupScreen = () => {
 
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
+  };
+
+  const resetStates = () => {
+    setFname("");
+    setLname("");
+    setEmail("");
+    setPassword("");
+    setPasswordVisible(false);
+    setCountryPickerVisible(false);
+    setCountryCode("+1");
+    setMobileNumber("");
+    setAgreed(false);
+    setErrors({
+      fname: "",
+      lname: "",
+      email: "",
+      password: "",
+      mobileNumber: "",
+    });
+    const [loading, setLoading] = useState(false);
   };
 
   // Validation functions
@@ -135,9 +156,14 @@ const SignupScreen = () => {
     }
   };
 
+  const handleSigninPress = () => {
+    // resetStates();
+    navigation.navigate("signin");
+  };
+
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <StatusBar backgroundColor={AppColor.primary} barStyle="light-content" />
+      <StatusBarManager barStyle="light-content" />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -400,11 +426,13 @@ const SignupScreen = () => {
                   modal: {
                     height: "70%",
                   },
-                  backdrop: {},
+                  backdrop: {
+                    backgroundColor: "rgba(0,0,0,0.1)",
+                  },
                   line: {},
                   itemsList: {},
                   textInput: {},
-                  countryButtonStyles: {},
+                  countryButtonStyles: { paddingVertical: 0 },
                   searchMessageText: {},
                   countryMessageContainer: {},
                   flag: {},
@@ -455,7 +483,7 @@ const SignupScreen = () => {
                   {"Already have an account? "}{" "}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("signin")}
+                  onPress={handleSigninPress}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.signUpLink}>{"Sign In"}</Text>
@@ -485,8 +513,8 @@ const SignupScreen = () => {
                   snackbar.type === "success"
                     ? AppColor.snackbarSuccess
                     : snackbar.type === "error"
-                    ? AppColor.snackbarError
-                    : AppColor.snackbarDefault,
+                      ? AppColor.snackbarError
+                      : AppColor.snackbarDefault,
               }}
             >
               {snackbar.message}

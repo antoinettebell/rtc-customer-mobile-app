@@ -10,6 +10,7 @@ import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useDispatch, useSelector } from "react-redux";
 import { onSignOut } from "../redux/slices/authSlice";
 import { clearUserSlice } from "../redux/slices/userSlice";
+import StatusBarManager from "../components/StatusBarManager";
 
 const ProfileMenuScreen = () => {
   const dispatch = useDispatch();
@@ -27,7 +28,7 @@ const ProfileMenuScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={AppColor.white} barStyle="dark-content" />
+      <StatusBarManager />
 
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         {isSignedIn ? (

@@ -1,203 +1,9 @@
-// import React, { useState, useRef } from "react";
-// import { View, StyleSheet } from "react-native";
-// import {
-//   TextInput,
-//   Button,
-//   Text,
-//   HelperText,
-//   IconButton,
-// } from "react-native-paper";
-// import Ionicons from "react-native-vector-icons/Ionicons";
-// import { Mulish700 } from "../utils/theme";
-
-// const SignInScreen = ({ navigation }) => {
-//   const passwordRef = useRef(null);
-
-//   const [email, setEmail] = useState("");
-//   const [emailError, setEmailError] = useState("");
-
-//   const [password, setPassword] = useState("");
-//   const [passwordError, setPasswordError] = useState("");
-//   const [showPassword, setShowPassword] = useState(false);
-
-//   const validateEmail = (email) => {
-//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//     return emailRegex.test(email);
-//   };
-
-//   const validatePassword = (password) => {
-//     const passwordRegex =
-//       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,15}$/;
-//     return passwordRegex.test(password);
-//   };
-
-//   const handleSignIn = () => {
-//     let isValid = true;
-
-//     if (!validateEmail(email)) {
-//       setEmailError("Enter a valid email!");
-//       isValid = false;
-//     } else {
-//       setEmailError("");
-//     }
-
-//     if (!validatePassword(password)) {
-//       setPasswordError(
-//         "Password must be 8–15 chars with 1 uppercase, 1 lowercase, 1 number, and 1 special char."
-//       );
-//       isValid = false;
-//     } else {
-//       setPasswordError("");
-//     }
-
-//     if (isValid) {
-//       console.log("✨ Logging in with:", email);
-//       // Trigger login logic here
-//       navigation.navigate("otpVerification");
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Text variant="headlineMedium" style={styles.header}>
-//         👋 Welcome Back!
-//       </Text>
-//       <Text variant="bodyMedium" style={styles.subHeader}>
-//         Log in to continue exploring.
-//       </Text>
-
-//       <TextInput
-//         label="Email"
-//         value={email}
-//         onChangeText={(text) => {
-//           setEmail(text);
-//           setEmailError(validateEmail(text) ? "" : "Enter a valid email!");
-//         }}
-//         autoCapitalize="none"
-//         keyboardType="email-address"
-//         style={styles.input}
-//         mode="outlined"
-//         error={!!emailError}
-//         returnKeyType="next"
-//         onSubmitEditing={() => passwordRef.current?.focus()}
-//       />
-//       <HelperText type="error" visible={!!emailError} style={styles.helper}>
-//         {emailError}
-//       </HelperText>
-
-//       <TextInput
-//         ref={passwordRef}
-//         label="Password"
-//         value={password}
-//         onChangeText={(text) => {
-//           setPassword(text);
-//           setPasswordError(
-//             validatePassword(text)
-//               ? ""
-//               : "Password must be 8–15 chars with 1 uppercase, 1 lowercase, 1 number, and 1 special char."
-//           );
-//         }}
-//         secureTextEntry={!showPassword}
-//         style={styles.input}
-//         mode="outlined"
-//         error={!!passwordError}
-//         returnKeyType="done"
-//         onSubmitEditing={handleSignIn}
-//         right={
-//           <TextInput.Icon
-//             icon={showPassword ? "eye-off" : "eye"}
-//             onPress={() => setShowPassword(!showPassword)}
-//           />
-//         }
-//       />
-//       <HelperText type="error" visible={!!passwordError} style={styles.helper}>
-//         {passwordError}
-//       </HelperText>
-
-//       <Button
-//         mode="contained"
-//         onPress={handleSignIn}
-//         style={styles.button}
-//         contentStyle={styles.buttonContent}
-//         labelStyle={{ fontWeight: "bold" }}
-//       >
-//         Let’s Go 🚀
-//       </Button>
-
-//       <View style={styles.signUpContainer}>
-//         <Text variant="bodyMedium" style={styles.signUpText}>
-//           Don’t have an account?
-//         </Text>
-//         <Button
-//           mode="text"
-//           onPress={() => {
-//             // TODO: navigate to SignUp screen
-//             console.log("📝 Navigate to Sign Up");
-//             navigation.navigate("signup");
-//           }}
-//           labelStyle={{ fontWeight: "bold", color: "#007BFF" }}
-//           contentStyle={{ marginLeft: 4 }}
-//         >
-//           Sign Up
-//         </Button>
-//       </View>
-//     </View>
-//   );
-// };
-
-// export default SignInScreen;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 24,
-//     justifyContent: "center",
-//     backgroundColor: "#F7F9FC",
-//   },
-//   header: {
-//     textAlign: "center",
-//     marginBottom: 8,
-//     fontFamily: Mulish700,
-//   },
-//   subHeader: {
-//     textAlign: "center",
-//     marginBottom: 24,
-//     color: "#666",
-//   },
-//   input: {
-//     backgroundColor: "white",
-//     marginBottom: 0,
-//   },
-//   helper: {
-//     marginBottom: 8,
-//     marginTop: 0,
-//     paddingTop: 0,
-//   },
-//   button: {
-//     marginTop: 16,
-//     borderRadius: 8,
-//   },
-//   buttonContent: {
-//     paddingVertical: 8,
-//   },
-//   signUpContainer: {
-//     flexDirection: "row",
-//     justifyContent: "center",
-//     alignItems: "center",
-//     marginTop: 16,
-//   },
-//   signUpText: {
-//     color: "#555",
-//   },
-// });
-
 import React, { useState } from "react";
 import {
   View,
   StyleSheet,
   Text,
   TouchableOpacity,
-  StatusBar,
   Image,
   ScrollView,
   KeyboardAvoidingView,
@@ -220,6 +26,7 @@ import { login_API } from "../apiFolder/authAPI";
 import { setAuthToken, setUser } from "../redux/slices/userSlice";
 import { onGuest, onSignin } from "../redux/slices/authSlice";
 import { emailRegex, passwordRegex } from "../utils/constants";
+import StatusBarManager from "../components/StatusBarManager";
 
 const SignInScreen = () => {
   const insets = useSafeAreaInsets();
@@ -237,6 +44,14 @@ const SignInScreen = () => {
     message: "",
     type: "info",
   });
+
+  const resetStates = () => {
+    setEmail("");
+    setEmailError("");
+    setPassword("");
+    setPasswordError("");
+    setPasswordVisible(false);
+  };
 
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
@@ -302,12 +117,26 @@ const SignInScreen = () => {
     dispatch(onGuest(true));
   };
 
+  const handleSignUpPress = () => {
+    navigation.navigate("signup");
+    // setTimeout(() => {
+    //   resetStates();
+    // }, 1000);
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={AppColor.primary} barStyle="light-content" />
+      <StatusBarManager barStyle="light-content" />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+          },
+        ]}
+      >
         <IconButton
           icon="arrow-left"
           iconColor={AppColor.white}
@@ -451,7 +280,7 @@ const SignInScreen = () => {
               <View style={styles.signUpContainer}>
                 <Text style={styles.signUpText}>{"Don't have account?"} </Text>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("signup")}
+                  onPress={handleSignUpPress}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.signUpLink}>{"Sign Up"}</Text>
@@ -481,8 +310,8 @@ const SignInScreen = () => {
                   snackbar.type === "success"
                     ? AppColor.snackbarSuccess
                     : snackbar.type === "error"
-                    ? AppColor.snackbarError
-                    : AppColor.snackbarDefault,
+                      ? AppColor.snackbarError
+                      : AppColor.snackbarDefault,
               }}
             >
               {snackbar.message}

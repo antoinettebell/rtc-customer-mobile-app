@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-  StatusBar,
   TouchableOpacity,
 } from "react-native";
 import PagerView from "react-native-pager-view";
@@ -14,14 +13,18 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useDispatch } from "react-redux";
+import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { onGuest } from "../redux/slices/authSlice";
 
 import Screen1Svg from "../assets/images/intro1.svg";
 import Screen2Svg from "../assets/images/intro2.svg";
 import Screen3Svg from "../assets/images/intro3.svg";
-import { useDispatch } from "react-redux";
-import { onGuest } from "../redux/slices/authSlice";
 
 const { width, height } = Dimensions.get("window");
 
@@ -57,6 +60,7 @@ const AuthIntroScreen = ({ navigation }) => {
   const pagerRef = useRef(null);
   const activeIndex = useSharedValue(0);
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
   const onPageSelected = (e) => {
     activeIndex.value = e.nativeEvent.position;
@@ -67,12 +71,8 @@ const AuthIntroScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar
-        animated
-        backgroundColor={AppColor.white}
-        barStyle="dark-content"
-      />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBarManager />
 
       <PagerView
         style={styles.pagerView}
@@ -156,7 +156,7 @@ const AuthIntroScreen = ({ navigation }) => {
           {"SIGN IN LATER"}
         </Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 5,
     justifyContent: "center",
-    marginTop: 14,
+    marginVertical: 20,
   },
   buttonLabel: {
     fontFamily: Secondary400,
