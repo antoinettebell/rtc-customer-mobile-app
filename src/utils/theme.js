@@ -2,6 +2,8 @@ import { Platform } from "react-native";
 
 export const AppColor = {
   primary: "#FC7B03",
+  primaryLight: "#FFAE62",
+  orderProgressbar: "#C25D00",
   text: "#111520",
   subText: "#9A9FAC",
   textHighlighter: "#606268",
@@ -10,6 +12,7 @@ export const AppColor = {
   likePlaceholder: "#C7C7CC",
   ratingStar: "#FFE101",
   placeholderTextColor: "#D1D1D6",
+  borderColor: "#E5E5EA",
 
   white: "#FFFFFF",
   black: "#000000",

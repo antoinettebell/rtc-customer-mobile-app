@@ -545,6 +545,7 @@ import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
+import { useNavigation } from "@react-navigation/native";
 
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
@@ -578,9 +579,10 @@ const FT4Data = [
   { id: 4, name: "Taco Express", uri: FT02 },
 ];
 
-const ExploreScreen = () => {
+const ExploreScreen = (props) => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
+  const navigation = useNavigation();
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
@@ -590,7 +592,9 @@ const ExploreScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleLocationTextPress = () => {};
-  const handleNotificationBellPress = () => {};
+  const handleNotificationBellPress = () => {
+    props.navigation.navigate("authMapScreen");
+  };
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -786,7 +790,13 @@ const ExploreScreen = () => {
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
               renderItem={({ item, index }) => (
-                <FoodTruckListComponent title={item.name} uri={item.uri} />
+                <FoodTruckListComponent
+                  title={item.name}
+                  uri={item.uri}
+                  onContainerPress={() =>
+                    navigation.navigate("foodTruckDetailScreen", { item })
+                  }
+                />
               )}
             />
           </View>
@@ -837,7 +847,13 @@ const ExploreScreen = () => {
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item, index }) => (
-                <FoodTruckGridComponent title={item.name} uri={item.uri} />
+                <FoodTruckGridComponent
+                  title={item.name}
+                  uri={item.uri}
+                  onContainerPress={() =>
+                    navigation.navigate("foodTruckDetailScreen", { item })
+                  }
+                />
               )}
               contentContainerStyle={{
                 gap: 20,
@@ -891,7 +907,13 @@ const ExploreScreen = () => {
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item, index }) => (
-                <FoodTruckGridComponent title={item.name} uri={item.uri} />
+                <FoodTruckGridComponent
+                  title={item.name}
+                  uri={item.uri}
+                  onContainerPress={() =>
+                    navigation.navigate("foodTruckDetailScreen", { item })
+                  }
+                />
               )}
               contentContainerStyle={{
                 gap: 20,
@@ -947,7 +969,13 @@ const ExploreScreen = () => {
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item, index }) => (
-                <FoodTruckGridComponent title={item.name} uri={item.uri} />
+                <FoodTruckGridComponent
+                  title={item.name}
+                  uri={item.uri}
+                  onContainerPress={() =>
+                    navigation.navigate("foodTruckDetailScreen", { item })
+                  }
+                />
               )}
               contentContainerStyle={{
                 gap: 20,

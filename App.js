@@ -16,6 +16,7 @@ import AuthIntroScreen from "./src/screens/authIntroScreen";
 import ResetPasswordScreen from "./src/screens/resetPasswordScreen";
 import SplashScreen from "./src/screens/splashScreen";
 import ExploreScreen from "./src/screens/exploreScreen";
+import FoodTruckDetailScreen from "./src/screens/foodTruckDetailScreen";
 import { useSelector } from "react-redux";
 import ForgetPasswordScreen from "./src/screens/forgetPasswordScreen";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -24,6 +25,7 @@ import OrdersScreen from "./src/screens/ordersScreen";
 import ProfileMenuScreen from "./src/screens/profileMenuScreen";
 import { AppColor, Secondary400 } from "./src/utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AuthMapScreen from "./src/screens/authMapScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -131,9 +133,16 @@ const AppNavigator = ({ insets }) => (
     initialRouteName="splash"
   >
     <Stack.Screen name="splash" component={SplashScreen} />
+
+    <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
     <Stack.Screen
       name="bottomRoot"
       component={() => <BottomNavigator insets={insets} />}
+    />
+
+    <Stack.Screen
+      name="foodTruckDetailScreen"
+      component={FoodTruckDetailScreen}
     />
   </Stack.Navigator>
 );
