@@ -24,6 +24,7 @@
     "react-native-config": "^1.5.5",
     "react-native-country-codes-picker": "^2.3.5",
     "react-native-google-places-autocomplete": "2.5.6",
+    "react-native-image-crop-picker": "^0.41.5",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-maps": "1.20.1",
     "react-native-modal": "^14.0.0-rc.1",

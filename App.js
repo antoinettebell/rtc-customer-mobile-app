@@ -23,6 +23,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import NearMeScreen from "./src/screens/nearMeScreen";
 import OrdersScreen from "./src/screens/ordersScreen";
 import ProfileMenuScreen from "./src/screens/profileMenuScreen";
+import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
+import AddressScreen from "./src/screens/addressScreen";
 import { AppColor, Secondary400 } from "./src/utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AuthMapScreen from "./src/screens/authMapScreen";
@@ -133,17 +135,20 @@ const AppNavigator = ({ insets }) => (
     initialRouteName="splash"
   >
     <Stack.Screen name="splash" component={SplashScreen} />
-
     <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
     <Stack.Screen
       name="bottomRoot"
       component={() => <BottomNavigator insets={insets} />}
     />
-
     <Stack.Screen
       name="foodTruckDetailScreen"
       component={FoodTruckDetailScreen}
     />
+    <Stack.Screen
+      name="favoriteFoodTrucksScreen"
+      component={FavoriteFoodTrucksScreen}
+    />
+    <Stack.Screen name="addressScreen" component={AddressScreen} />
   </Stack.Navigator>
 );
 
