@@ -28,6 +28,10 @@ import AddressScreen from "./src/screens/addressScreen";
 import { AppColor, Secondary400 } from "./src/utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AuthMapScreen from "./src/screens/authMapScreen";
+import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
+import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
+import CancelOrderScreen from "./src/screens/cancelOrderScreen";
+import RateTruckScreen from "./src/screens/rateTruckScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -149,6 +153,10 @@ const AppNavigator = ({ insets }) => (
       component={FavoriteFoodTrucksScreen}
     />
     <Stack.Screen name="addressScreen" component={AddressScreen} />
+    <Stack.Screen name="orderDetailsScreen" component={OrderDetailsScreen} />
+    <Stack.Screen name="orderTrackingScreen" component={OrderTrackingScreen} />
+    <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
+    <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
   </Stack.Navigator>
 );
 
