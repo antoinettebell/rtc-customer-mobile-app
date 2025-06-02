@@ -35,17 +35,10 @@ const OrderDetailsScreen = (props) => {
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ORDER DETAILS</Text>
-        <View style={{ width: 28 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: 16,
-          paddingVertical: 20,
-          backgroundColor: "#F0F1F2",
-        }}
-      >
+      <View style={[styles.contentWrap]}>
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.9}
@@ -56,35 +49,23 @@ const OrderDetailsScreen = (props) => {
           </View>
 
           <View style={styles.truckRow}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                flex: 1,
-              }}
-            >
+            <View style={styles.truckRowLeft}>
               <Image source={order.image} style={styles.truckImg} />
-              <View style={{ marginLeft: 10, gap: 4 }}>
+              <View style={styles.truckInfo}>
                 <Text style={styles.truckName}>{order.truck}</Text>
                 <Text style={styles.itemsCount}>
                   {order.items.length} Items
                 </Text>
               </View>
             </View>
-
-            <View style={{ gap: 4, alignItems: "flex-end" }}>
+            <View style={styles.truckRowRight}>
               <Text style={styles.orderDate}>{order.date}</Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
+              <View style={styles.timeRow}>
                 <MaterialIcons
                   name="access-time"
                   size={14}
-                  color={"#6F6F6F"}
-                  style={{ marginRight: 8 }}
+                  color={AppColor.grayText}
+                  style={styles.timeIcon}
                 />
                 <Text style={styles.orderDate}>{order.time}</Text>
               </View>
@@ -93,14 +74,8 @@ const OrderDetailsScreen = (props) => {
           <HR />
           <View style={styles.itemsList}>
             {order.items.map((itm, idx) => (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <View style={{ gap: 4 }}>
+              <View style={styles.itemRow}>
+                <View style={styles.itemInfo}>
                   <Text
                     key={idx}
                     style={styles.itemText}
@@ -110,7 +85,6 @@ const OrderDetailsScreen = (props) => {
                     style={styles.itemDesc}
                   >{`${itm.desc}`}</Text>
                 </View>
-
                 <Text key={itm.price} style={styles.itemText}>
                   ${`${itm.price}`}
                 </Text>
@@ -121,10 +95,10 @@ const OrderDetailsScreen = (props) => {
 
           <View style={styles.footerRow}>
             <Text style={styles.total}>${order.total.toFixed(2)}</Text>
-            <View style={{ flexDirection: "row" }}>
+            <View style={styles.actionRow}>
               <TouchableOpacity
                 style={styles.trackBtn}
-                onTrack={() =>
+                onPress={() =>
                   props.navigation.navigate("orderTrackingScreen", {
                     order: item,
                   })
@@ -132,7 +106,7 @@ const OrderDetailsScreen = (props) => {
               >
                 <FastImage
                   source={require("../assets/images/trackOrder.png")}
-                  style={{ width: 20, height: 20 }}
+                  style={styles.actionIcon}
                 />
                 <Text style={styles.trackBtnText}>Track</Text>
               </TouchableOpacity>
@@ -140,7 +114,7 @@ const OrderDetailsScreen = (props) => {
           </View>
         </TouchableOpacity>
 
-        <View style={{}}>
+        <View style={styles.bottomSection}>
           <View style={styles.totalSection}>
             <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
               <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
@@ -210,6 +184,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 1.5,
   },
+  headerSpacer: {
+    width: 28,
+  },
 
   orderCard: {
     backgroundColor: AppColor.white,
@@ -261,10 +238,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   trackBtn: {
+    flexDirection: "row",
+    borderRadius: 5,
+    paddingVertical: 10,
+    width: 100,
     backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
   trackBtnText: {
     color: AppColor.white,
@@ -339,63 +320,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6F6F6F",
   },
-  orderDate: {
-    fontFamily: Secondary400,
-    fontSize: 14,
-    color: "#6F6F6F",
-  },
   truckRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 15,
   },
-  truckImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  truckRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
-  truckName: {
-    fontFamily: Primary400,
-    fontSize: 16,
+  truckInfo: {
+    marginLeft: 10,
+    gap: 4,
+  },
+  truckRowRight: {
+    gap: 4,
+    alignItems: "flex-end",
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timeIcon: {
+    marginRight: 8,
+  },
+  itemsList: {
+    marginVertical: 15,
+    gap: 15,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemInfo: {
+    gap: 4,
   },
   itemsCount: {
     fontFamily: Secondary400,
     fontSize: 14,
     color: "#6F6F6F",
   },
-
   orderDetailsTxt: {
     fontFamily: Secondary400,
     fontSize: 14,
   },
-  trackBtn: {
+  actionRow: {
     flexDirection: "row",
-    borderRadius: 5,
-    paddingVertical: 10,
-    width: 100,
-    justifyContent: "center",
-    backgroundColor: AppColor.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
   },
-  trackBtnText: {
-    color: AppColor.white,
-    fontFamily: Secondary400,
-    fontSize: 15,
-  },
-  itemsList: {
-    marginVertical: 15,
-    gap: 15,
-  },
-  itemText: {
-    fontFamily: Secondary400,
-    fontSize: 16,
-  },
-  itemDesc: {
-    fontFamily: Secondary400,
-    fontSize: 14,
-    color: "#1D1D1D",
+  actionIcon: {
+    width: 20,
+    height: 20,
   },
   footerRow: {
     flexDirection: "row",
@@ -461,6 +437,15 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
+  },
+  contentWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: AppColor.screenBg,
+  },
+  bottomSection: {
+    marginTop: 16,
   },
 });
 

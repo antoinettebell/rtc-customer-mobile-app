@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useRoute } from "@react-navigation/native";
@@ -35,26 +42,19 @@ const OrderTrackingScreen = (props) => {
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ORDER TRACKING</Text>
-        <View style={{ width: 28 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: 16,
-          paddingVertical: 20,
-          backgroundColor: "#F0F1F2",
-        }}
-      >
+      <View style={[styles.contentWrap]}>
         <Image
           source={require("../assets/images/location.png")}
           style={styles.mapImg}
         />
 
         <View style={styles.orderCard}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={styles.orderCardRow}>
             <Image source={order.image} style={styles.truckImg} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
+            <View style={styles.orderCardInfo}>
               <Text style={styles.truckName}>{order.truck}</Text>
               <Text style={styles.orderItems}>{order.items.length} Items</Text>
             </View>
@@ -76,15 +76,15 @@ const OrderTrackingScreen = (props) => {
             <View style={styles.progressFill} />
           </View>
           <View style={styles.estimateRow}>
-            <Text>10:19 AM</Text>
-            <Text>10:39 AM</Text>
+            <Text style={styles.estimateTime}>10:19 AM</Text>
+            <Text style={styles.estimateTime}>10:39 AM</Text>
           </View>
           <TouchableOpacity>
             <Text style={styles.viewOrder}>View Order</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.bottomCard}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={styles.bottomCardRow}>
             <Image source={order.image} style={styles.truckImg} />
             <Text style={styles.truckName}>{order.truck}</Text>
             <TouchableOpacity style={styles.phoneBtn}>
@@ -126,6 +126,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 1.5,
   },
+  headerSpacer: {
+    width: 28,
+  },
   mapImg: {
     width: "100%",
     height: 120,
@@ -136,6 +139,14 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
     borderRadius: 12,
     padding: 16,
+  },
+  orderCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  orderCardInfo: {
+    flex: 1,
+    marginLeft: 10,
   },
   truckImg: {
     width: 40,
@@ -199,6 +210,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 4,
   },
+  estimateTime: {
+    fontFamily: Secondary400,
+    fontSize: 14,
+    color: AppColor.grayText,
+  },
   viewOrder: {
     color: AppColor.primary,
     fontFamily: Secondary400,
@@ -209,10 +225,24 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
     borderRadius: 12,
     padding: 16,
-    shadowColor: AppColor.black,
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  bottomCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   phoneBtn: {
     marginLeft: "auto",
@@ -221,6 +251,12 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   phoneIcon: { width: 24, height: 24, tintColor: AppColor.white },
+  contentWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: AppColor.screenBg,
+  },
 });
 
 export default OrderTrackingScreen;

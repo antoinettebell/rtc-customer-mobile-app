@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  Platform,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
@@ -66,14 +67,7 @@ const OrdersScreen = () => {
         <Text style={styles.header}>MY ORDERS</Text>
       </View>
 
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: 16,
-          paddingVertical: 20,
-          backgroundColor: "#F0F1F2",
-        }}
-      >
+      <View style={[styles.contentWrap]}>
         <View style={styles.segmentRow}>
           <TouchableOpacity
             style={[
@@ -157,6 +151,7 @@ const styles = StyleSheet.create({
   header: {
     fontFamily: Primary400,
     fontSize: 22,
+    color: AppColor.text,
   },
   segmentRow: {
     flexDirection: "row",
@@ -193,6 +188,12 @@ const styles = StyleSheet.create({
     color: AppColor.subText,
     marginTop: 40,
     fontFamily: Secondary400,
+  },
+  contentWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: AppColor.screenBg,
   },
 });
 

@@ -25,6 +25,11 @@ export const AppColor = {
   snackbarError: "#F44336",
   snackbarWarning: "#FF9800",
   snackbarDefault: "#323232",
+
+  grayText: "#6F6F6F",
+  darkText: "#1D1D1D",
+
+  screenBg: "#F0F1F2",
 };
 
 // export const Mulish200 = "Mulish-ExtraLight";

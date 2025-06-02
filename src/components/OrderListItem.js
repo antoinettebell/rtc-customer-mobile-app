@@ -25,33 +25,21 @@ const OrderListItem = ({
       </View>
 
       <View style={styles.truckRow}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            flex: 1,
-          }}
-        >
+        <View style={styles.truckRowLeft}>
           <Image source={order.image} style={styles.truckImg} />
-          <View style={{ marginLeft: 10, gap: 4 }}>
+          <View style={styles.truckInfo}>
             <Text style={styles.truckName}>{order.truck}</Text>
             <Text style={styles.itemsCount}>{order.items.length} Items</Text>
           </View>
         </View>
-
-        <View style={{ gap: 4, alignItems: "flex-end" }}>
+        <View style={styles.truckRowRight}>
           <Text style={styles.orderDate}>{order.date}</Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
+          <View style={styles.timeRow}>
             <MaterialIcons
               name="access-time"
               size={14}
-              color={"#6F6F6F"}
-              style={{ marginRight: 8 }}
+              color={AppColor.grayText}
+              style={styles.timeIcon}
             />
             <Text style={styles.orderDate}>{order.time}</Text>
           </View>
@@ -60,21 +48,14 @@ const OrderListItem = ({
       <HR />
       <View style={styles.itemsList}>
         {order.items.map((itm, idx) => (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ gap: 4 }}>
+          <View style={styles.itemRow}>
+            <View style={styles.itemInfo}>
               <Text key={idx} style={styles.itemText}>{`1 x ${itm.name}`}</Text>
               <Text
                 key={itm.desc}
                 style={styles.itemDesc}
               >{`${itm.desc}`}</Text>
             </View>
-
             <Text key={itm.price} style={styles.itemText}>
               ${`${itm.price}`}
             </Text>
@@ -86,35 +67,28 @@ const OrderListItem = ({
       <View style={styles.footerRow}>
         <Text style={styles.total}>${order.total.toFixed(2)}</Text>
         {type === "current" ? (
-          <View style={{ flexDirection: "row" }}>
+          <View style={styles.actionRow}>
             <TouchableOpacity style={styles.trackBtn} onPress={onTrack}>
               <FastImage
                 source={require("../assets/images/trackOrder.png")}
-                style={{ width: 20, height: 20 }}
+                style={styles.actionIcon}
               />
               <Text style={styles.trackBtnText}>Track</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
+          <View style={styles.actionRowPast}>
             <TouchableOpacity style={styles.rateBtn} onPress={onRate}>
               <FastImage
                 source={require("../assets/images/rateOrder.png")}
-                style={{ width: 20, height: 20 }}
+                style={styles.actionIcon}
               />
               <Text style={styles.rateBtnText}>Rate</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.rateBtn} onPress={onReorder}>
               <FastImage
                 source={require("../assets/images/reOrder.png")}
-                style={{ width: 20, height: 20 }}
+                style={styles.actionIcon}
               />
               <Text style={styles.rateBtnText}>Reorder</Text>
             </TouchableOpacity>
@@ -157,12 +131,12 @@ const styles = StyleSheet.create({
   orderId: {
     fontFamily: Secondary400,
     fontSize: 14,
-    color: "#6F6F6F",
+    color: AppColor.grayText,
   },
   orderDate: {
     fontFamily: Secondary400,
     fontSize: 14,
-    color: "#6F6F6F",
+    color: AppColor.grayText,
   },
   truckRow: {
     flexDirection: "row",
@@ -181,7 +155,7 @@ const styles = StyleSheet.create({
   itemsCount: {
     fontFamily: Secondary400,
     fontSize: 14,
-    color: "#6F6F6F",
+    color: AppColor.grayText,
   },
 
   trackBtn: {
@@ -211,7 +185,7 @@ const styles = StyleSheet.create({
   itemDesc: {
     fontFamily: Secondary400,
     fontSize: 14,
-    color: "#1D1D1D",
+    color: AppColor.darkText,
   },
   footerRow: {
     flexDirection: "row",
@@ -241,20 +215,49 @@ const styles = StyleSheet.create({
     fontFamily: Secondary400,
     fontSize: 15,
   },
-  reorderBtn: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-  },
-  reorderBtnText: {
-    color: AppColor.white,
-    fontFamily: Secondary400,
-    fontSize: 15,
-  },
   HR: {
     height: 1,
-    backgroundColor: "#E5E5EA",
+    backgroundColor: AppColor.borderColor,
+  },
+  truckRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  truckInfo: {
+    marginLeft: 10,
+    gap: 4,
+  },
+  truckRowRight: {
+    gap: 4,
+    alignItems: "flex-end",
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timeIcon: {
+    marginRight: 8,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemInfo: {
+    gap: 4,
+  },
+  actionRow: {
+    flexDirection: "row",
+  },
+  actionRowPast: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  actionIcon: {
+    width: 20,
+    height: 20,
   },
 });
 

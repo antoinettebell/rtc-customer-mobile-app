@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Image,
+  Platform,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
@@ -44,7 +44,7 @@ const CancelOrderScreen = () => {
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>CANCEL ORDER</Text>
-        <View style={{ width: 28 }} />
+        <View style={styles.headerSpacer} />
       </View>
       <View style={styles.iconWrap}>
         {/* <Image
@@ -116,6 +116,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 1.5,
   },
+  headerSpacer: {
+    width: 28,
+  },
   iconWrap: {
     height: 110,
     width: 110,
@@ -137,6 +140,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 15,
     marginBottom: 30,
+    color: AppColor.text,
   },
   card: {
     borderWidth: 1,
@@ -180,6 +184,7 @@ const styles = StyleSheet.create({
   reasonText: {
     fontFamily: Secondary400,
     fontSize: 15,
+    color: AppColor.text,
   },
   input: {
     borderWidth: 1,
@@ -195,6 +200,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
     marginHorizontal: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   submitBtnText: {
     color: AppColor.white,

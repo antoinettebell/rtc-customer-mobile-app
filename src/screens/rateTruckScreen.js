@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Platform,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import StatusBarManager from "../components/StatusBarManager";
@@ -33,7 +34,7 @@ const RateTruckScreen = (props) => {
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>RATE TRUCK</Text>
-        <View style={{ width: 28 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.iconWrap}>
@@ -100,6 +101,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 1.5,
   },
+  headerSpacer: {
+    width: 28,
+  },
   iconWrap: { alignItems: "center", marginTop: 16 },
   icon: { width: 64, height: 64, borderRadius: 32 },
   title: {
@@ -107,6 +111,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     marginVertical: 8,
+    color: AppColor.text,
   },
   starsRow: {
     flexDirection: "row",
@@ -151,6 +156,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginHorizontal: 16,
     marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   submitBtnText: {
     color: AppColor.white,
