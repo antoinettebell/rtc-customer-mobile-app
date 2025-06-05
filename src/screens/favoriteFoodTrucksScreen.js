@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,8 +6,8 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  Image,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import Entypo from "react-native-vector-icons/Entypo";
@@ -16,46 +16,139 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FastImage from "@d11/react-native-fast-image";
 import StatusBarManager from "../components/StatusBarManager";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  getFavoriteFoodTruck_API,
+  removeFavoriteFoodTruck_API,
+} from "../apiFolder/appAPI";
+import { Snackbar } from "react-native-paper";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
-const favTruck2 = require("../assets/images/FT-Demo-02.png");
-
-const trucksData = [
-  {
-    id: 1,
-    name: "BURGER EXPRESS",
-    image: favTruck1,
-    reviews: "4.1 (200+ reviews)",
-    distance: "0.3 miles away",
-    favorite: true,
-  },
-  {
-    id: 2,
-    name: "BURGER KING",
-    image: favTruck2,
-    reviews: "4.1 (200+ reviews)",
-    distance: "0.4 miles away",
-    favorite: true,
-  },
-  {
-    id: 3,
-    name: "BURGER EXPRESS",
-    image: favTruck1,
-    reviews: "4.1 (200+ reviews)",
-    distance: "0.5 miles away",
-    favorite: true,
-  },
-];
 
 const HR = () => <View style={styles.HR} />;
 
 const FavoriteFoodTrucksScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
+  const [favoriteTrucks, setFavoriteTrucks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: "",
+    type: "info",
+  });
   const insets = useSafeAreaInsets();
 
-  const filteredTrucks = trucksData.filter((truck) =>
-    truck.name.toLowerCase().includes(search.toLowerCase())
+  const fetchFavoriteTrucks = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getFavoriteFoodTruck_API({
+        search: search || undefined,
+      });
+      if (response?.success && response?.data?.favoriteList) {
+        setFavoriteTrucks(response.data.favoriteList);
+      } else {
+        setError("Failed to fetch favorite trucks");
+      }
+    } catch (error) {
+      console.log("Error fetching favorite trucks:", error);
+      setError(error?.message || "Failed to fetch favorite trucks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveFavorite = async (foodTruckId) => {
+    try {
+      const response = await removeFavoriteFoodTruck_API(foodTruckId);
+      if (response?.success) {
+        setSnackbar({
+          visible: true,
+          message: "Removed from favorites",
+          type: "success",
+        });
+        // Refresh the list
+        fetchFavoriteTrucks();
+      } else {
+        setSnackbar({
+          visible: true,
+          message: response?.message || "Failed to remove from favorites",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.log("Error removing favorite:", error);
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Failed to remove from favorites",
+        type: "error",
+      });
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavoriteTrucks();
+    }, [search])
   );
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={AppColor.primary} />
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      );
+    }
+
+    if (favoriteTrucks.length === 0) {
+      return (
+        <View style={styles.centerContainer}>
+          <Text style={styles.noDataText}>No favorite trucks found</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={favoriteTrucks}
+        keyExtractor={(item) => item._id.toString()}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <View style={styles.truckCard}>
+            <FastImage
+              source={item.image ? { uri: item.image } : favTruck1}
+              style={styles.truckImg}
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.truckName}>{item.name}</Text>
+              <Text style={styles.truckReview}>
+                <Text style={{ color: AppColor.ratingStar }}>★ </Text>
+                {item.reviews || "0"} reviews - {item.distance || "0"} miles
+                away
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleRemoveFavorite(item._id)}
+              style={{ marginLeft: 8 }}
+            >
+              <Entypo name="heart" size={24} color={AppColor.red} />
+            </TouchableOpacity>
+          </View>
+        )}
+        ItemSeparatorComponent={<HR />}
+      />
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -69,7 +162,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
         >
           <MaterialIcons name="arrow-back" size={24} color={AppColor.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>FAVORITE FooD TRUCKS</Text>
+        <Text style={styles.headerTitle}>FAVORITE FOOD TRUCKS</Text>
       </View>
       <View
         style={{
@@ -90,35 +183,26 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
             onChangeText={setSearch}
           />
         </View>
-        {/* List */}
 
-        <View style={styles.favTrucksCard}>
-          <FlatList
-            data={filteredTrucks}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item, index }) => (
-              <View style={styles.truckCard}>
-                <FastImage source={item.image} style={styles.truckImg} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.truckName}>{item.name}</Text>
-                  <Text style={styles.truckReview}>
-                    <Text style={{ color: AppColor.ratingStar }}>★ </Text>
-                    {item.reviews} - {item.distance}
-                  </Text>
-                </View>
-                <Entypo
-                  name={item.favorite ? "heart" : "heart-outlined"}
-                  size={24}
-                  color={AppColor.red}
-                  style={{ marginLeft: 8 }}
-                />
-              </View>
-            )}
-            ItemSeparatorComponent={<HR />}
-          />
-        </View>
+        {/* List */}
+        {renderContent()}
       </View>
+
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+        duration={4000}
+        style={{
+          backgroundColor:
+            snackbar.type === "success"
+              ? AppColor.snackbarSuccess
+              : snackbar.type === "error"
+                ? AppColor.snackbarError
+                : AppColor.snackbarDefault,
+        }}
+      >
+        {snackbar.message}
+      </Snackbar>
     </View>
   );
 };
@@ -152,6 +236,7 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
     borderRadius: 20,
     paddingHorizontal: 16,
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
@@ -159,6 +244,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: AppColor.text,
     marginLeft: 8,
+    height: 40,
   },
   truckCard: {
     flexDirection: "row",
@@ -182,28 +268,23 @@ const styles = StyleSheet.create({
     color: AppColor.textHighlighter,
     marginTop: 4,
   },
-  favTrucksCard: {
-    borderWidth: 1,
-    borderColor: AppColor.borderColor,
-    borderRadius: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 16,
-    marginVertical: 16,
-    backgroundColor: AppColor.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    color: AppColor.snackbarError,
+    fontFamily: Secondary400,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  noDataText: {
+    color: AppColor.textHighlighter,
+    fontFamily: Secondary400,
+    fontSize: 14,
+    textAlign: "center",
   },
   HR: {
     height: 1,

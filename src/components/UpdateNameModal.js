@@ -6,7 +6,7 @@ import {
   View,
   Platform,
 } from "react-native";
-import { TextInput } from "react-native-paper";
+import { TextInput, HelperText } from "react-native-paper";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
@@ -17,6 +17,7 @@ const UpdateNameModal = ({
   onChangeText,
   onUpdate,
   onCancel,
+  error,
 }) => (
   <Modal
     isVisible={isVisible}
@@ -48,11 +49,16 @@ const UpdateNameModal = ({
         placeholder=""
         placeholderTextColor={AppColor.placeholderTextColor}
         mode="outlined"
-        outlineColor={AppColor.border}
+        outlineColor={error ? AppColor.red : AppColor.border}
         activeOutlineColor={AppColor.primary}
         outlineStyle={{ borderRadius: 8 }}
         theme={{ colors: { onSurfaceVariant: "#777" } }}
       />
+      {error ? (
+        <HelperText type="error" visible={!!error} style={styles.helper}>
+          {error}
+        </HelperText>
+      ) : null}
       <TouchableOpacity
         style={styles.updateBtn}
         activeOpacity={0.7}
@@ -140,6 +146,11 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
     fontFamily: Secondary400,
     fontSize: 16,
+  },
+  helper: {
+    marginBottom: 8,
+    paddingLeft: 0,
+    paddingTop: 0,
   },
 });
 

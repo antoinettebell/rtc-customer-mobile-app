@@ -591,10 +591,11 @@ const ExploreScreen = (props) => {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleLocationTextPress = () => {};
-  const handleNotificationBellPress = () => {
+  const handleLocationTextPress = () => {
     props.navigation.navigate("authMapScreen");
   };
+
+  const handleNotificationBellPress = () => {};
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -793,9 +794,17 @@ const ExploreScreen = (props) => {
                 <FoodTruckListComponent
                   title={item.name}
                   uri={item.uri}
+                  isLiked={item.isLiked}
+                  foodTruckId={item._id}
+                  reviews={item.reviews}
+                  distance={item.distance}
                   onContainerPress={() =>
                     navigation.navigate("foodTruckDetailScreen", { item })
                   }
+                  onLikePress={() => {
+                    // Refresh the list if needed
+                    // You can add a refresh function here
+                  }}
                 />
               )}
             />
@@ -850,9 +859,17 @@ const ExploreScreen = (props) => {
                 <FoodTruckGridComponent
                   title={item.name}
                   uri={item.uri}
+                  isLiked={item.isLiked}
+                  foodTruckId={item._id}
+                  reviews={item.reviews}
+                  distance={item.distance}
                   onContainerPress={() =>
                     navigation.navigate("foodTruckDetailScreen", { item })
                   }
+                  onLikePress={() => {
+                    // Refresh the list if needed
+                    // You can add a refresh function here
+                  }}
                 />
               )}
               contentContainerStyle={{
@@ -910,9 +927,17 @@ const ExploreScreen = (props) => {
                 <FoodTruckGridComponent
                   title={item.name}
                   uri={item.uri}
+                  isLiked={item.isLiked}
+                  foodTruckId={item._id}
+                  reviews={item.reviews}
+                  distance={item.distance}
                   onContainerPress={() =>
                     navigation.navigate("foodTruckDetailScreen", { item })
                   }
+                  onLikePress={() => {
+                    // Refresh the list if needed
+                    // You can add a refresh function here
+                  }}
                 />
               )}
               contentContainerStyle={{
@@ -972,9 +997,17 @@ const ExploreScreen = (props) => {
                 <FoodTruckGridComponent
                   title={item.name}
                   uri={item.uri}
+                  isLiked={item.isLiked}
+                  foodTruckId={item._id}
+                  reviews={item.reviews}
+                  distance={item.distance}
                   onContainerPress={() =>
                     navigation.navigate("foodTruckDetailScreen", { item })
                   }
+                  onLikePress={() => {
+                    // Refresh the list if needed
+                    // You can add a refresh function here
+                  }}
                 />
               )}
               contentContainerStyle={{

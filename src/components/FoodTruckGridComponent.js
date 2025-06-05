@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,11 +6,16 @@ import {
   View,
   Platform,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import {
+  addFavoriteFoodTruck_API,
+  removeFavoriteFoodTruck_API,
+} from "../apiFolder/appAPI";
 
 const FoodTruckGridComponent = ({
   title,
@@ -18,7 +23,29 @@ const FoodTruckGridComponent = ({
   isLiked,
   onLikePress,
   onContainerPress,
+  foodTruckId,
+  reviews,
+  distance,
 }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleLikePress = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      if (isLiked) {
+        await removeFavoriteFoodTruck_API(foodTruckId);
+      } else {
+        await addFavoriteFoodTruck_API(foodTruckId);
+      }
+      onLikePress && onLikePress();
+    } catch (error) {
+      console.log("Error toggling favorite:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -32,25 +59,30 @@ const FoodTruckGridComponent = ({
           <View style={styles.iconContainer}>
             <FontAwesome name="star" size={16} color={AppColor.yellow} />
           </View>
-          <Text style={styles.ratingText}>{"4.8 (200+ reviews)"}</Text>
+          <Text style={styles.ratingText}>{reviews || "0 reviews"}</Text>
         </View>
         <View style={styles.reatingContainer}>
           <View style={styles.iconContainer}>
             <FontAwesome6 name="location-dot" size={16} color={AppColor.gray} />
           </View>
-          <Text style={styles.ratingText}>{"- 0.5 miles away"}</Text>
+          <Text style={styles.ratingText}>{distance || "0 miles away"}</Text>
         </View>
       </View>
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={onLikePress}
+        onPress={handleLikePress}
         style={styles.likeContainer}
+        disabled={loading}
       >
-        <MaterialCommunityIcons
-          name={isLiked ? "heart" : "heart-outline"}
-          color={isLiked ? AppColor.primary : AppColor.white}
-          size={30}
-        />
+        {loading ? (
+          <ActivityIndicator size="small" color={AppColor.primary} />
+        ) : (
+          <MaterialCommunityIcons
+            name={isLiked ? "heart" : "heart-outline"}
+            color={isLiked ? AppColor.primary : AppColor.white}
+            size={30}
+          />
+        )}
       </TouchableOpacity>
     </TouchableOpacity>
   );

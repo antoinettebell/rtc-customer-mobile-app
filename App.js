@@ -6,6 +6,7 @@ import {
   View,
   Image,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -17,7 +18,7 @@ import ResetPasswordScreen from "./src/screens/resetPasswordScreen";
 import SplashScreen from "./src/screens/splashScreen";
 import ExploreScreen from "./src/screens/exploreScreen";
 import FoodTruckDetailScreen from "./src/screens/foodTruckDetailScreen";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import ForgetPasswordScreen from "./src/screens/forgetPasswordScreen";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import NearMeScreen from "./src/screens/nearMeScreen";
@@ -32,6 +33,7 @@ import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
 import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
 import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
+import { onGuest } from "./src/redux/slices/authSlice";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -44,6 +46,29 @@ const ordersActive = require("./src/assets/images/ordersMenuActive.png");
 const ordersInactive = require("./src/assets/images/ordersMenuInactive.png");
 const profileActive = require("./src/assets/images/profileMenuActive.png");
 const profileInactive = require("./src/assets/images/profileMenuInactive.png");
+
+// Auth Required Screen Component
+const AuthRequiredScreen = ({ title }) => {
+  const dispatch = useDispatch();
+
+  const handleSignIn = () => {
+    dispatch(onGuest(false));
+  };
+
+  return (
+    <SafeAreaView style={styles.authRequiredContainer}>
+      <View style={styles.authRequiredContent}>
+        <Text style={styles.authRequiredTitle}>Sign In Required</Text>
+        <Text style={styles.authRequiredMessage}>
+          Please sign in to access {title}
+        </Text>
+        <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+          <Text style={styles.signInButtonText}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const AuthNavigator = () => (
   <Stack.Navigator
@@ -60,78 +85,90 @@ const AuthNavigator = () => (
   </Stack.Navigator>
 );
 
-const BottomNavigator = ({ insets }) => (
-  <BottomTab.Navigator
-    screenOptions={{
-      tabBarHideOnKeyboard: true,
-      headerShown: false,
-      tabBarStyle: {
-        height: Platform.OS === "ios" ? insets.bottom + 60 : 60,
-      },
-      tabBarLabelStyle: {
-        // fontFamily: Secondary400,
-        fontSize: 12,
-        fontWeight: "500",
-        bottom: 5,
-      },
-      tabBarActiveTintColor: AppColor.primary,
-      tabBarInactiveTintColor: AppColor.gray,
-    }}
-  >
-    <BottomTab.Screen
-      name="exploreScreen"
-      component={ExploreScreen}
-      options={{
-        tabBarLabel: "Explore",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? exploreActive : exploreInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
+const BottomNavigator = ({ insets }) => {
+  const { isSignedIn } = useSelector((state) => state.authReducer);
+
+  return (
+    <BottomTab.Navigator
+      screenOptions={{
+        tabBarHideOnKeyboard: true,
+        headerShown: false,
+        tabBarStyle: {
+          height: Platform.OS === "ios" ? insets.bottom + 60 : 60,
+        },
+        tabBarLabelStyle: {
+          // fontFamily: Secondary400,
+          fontSize: 12,
+          fontWeight: "500",
+          bottom: 5,
+        },
+        tabBarActiveTintColor: AppColor.primary,
+        tabBarInactiveTintColor: AppColor.gray,
       }}
-    />
-    <BottomTab.Screen
-      name="nearMeScreen"
-      component={NearMeScreen}
-      options={{
-        tabBarLabel: "Near Me",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? nearmeActive : nearmeInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-    <BottomTab.Screen
-      name="ordersScreen"
-      component={OrdersScreen}
-      options={{
-        tabBarLabel: "Orders",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? ordersActive : ordersInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-    <BottomTab.Screen
-      name="profileMenuScreen"
-      component={ProfileMenuScreen}
-      options={{
-        tabBarLabel: "Profile",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? profileActive : profileInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-  </BottomTab.Navigator>
-);
+    >
+      <BottomTab.Screen
+        name="exploreScreen"
+        component={ExploreScreen}
+        options={{
+          tabBarLabel: "Explore",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? exploreActive : exploreInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="nearMeScreen"
+        component={NearMeScreen}
+        options={{
+          tabBarLabel: "Near Me",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? nearmeActive : nearmeInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="ordersScreen"
+        component={
+          isSignedIn
+            ? OrdersScreen
+            : () => <AuthRequiredScreen title="Orders" />
+        }
+        options={{
+          tabBarLabel: "Orders",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? ordersActive : ordersInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="profileMenuScreen"
+        component={
+          isSignedIn
+            ? ProfileMenuScreen
+            : () => <AuthRequiredScreen title="Profile" />
+        }
+        options={{
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? profileActive : profileInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+    </BottomTab.Navigator>
+  );
+};
 
 const AppNavigator = ({ insets }) => (
   <Stack.Navigator
@@ -180,5 +217,44 @@ const App = () => {
 export default App;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+  authRequiredContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  authRequiredContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  authRequiredTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: AppColor.primary,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  authRequiredMessage: {
+    fontSize: 16,
+    color: AppColor.gray,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  signInButton: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  signInButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 });

@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import {
@@ -26,7 +27,11 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../utils/permissions";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import { getLocationName } from "../apiFolder/appAPI";
+import {
+  getLocationName,
+  addAddress_API,
+  updateAddress_API,
+} from "../apiFolder/appAPI";
 import { RESULTS } from "react-native-permissions";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
@@ -43,7 +48,8 @@ const initialRegion = {
   longitudeDelta: 0.0421,
 };
 
-const AuthMapScreen = () => {
+const AuthMapScreen = ({ route }) => {
+  const { mode } = route.params || { mode: "add" };
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const dispatch = useDispatch();
@@ -229,21 +235,65 @@ const AuthMapScreen = () => {
     }
   };
 
-  const handleSaveBtn = () => {
+  const handleSaveBtn = async () => {
     if (!locationName) return;
+
     const payload = {
       title: title,
       address: locationName,
       lat: String(currentRegion.latitude),
       long: String(currentRegion.longitude),
     };
-    dispatch(setSelectedLocations([...(selectedLocations || []), payload]));
-    navigation.goBack();
+
+    try {
+      setLoading(true);
+      if (mode === "edit" && selectedLocations?.[0]?._id) {
+        // Update existing address
+        const response = await updateAddress_API({
+          addressId: selectedLocations[0]._id,
+          payload: payload,
+        });
+        if (response?.success) {
+          navigation.goBack();
+        }
+      } else {
+        // Add new address
+        const response = await addAddress_API(payload);
+        if (response?.success) {
+          navigation.goBack();
+        }
+      }
+    } catch (error) {
+      Alert.alert("Error", error?.message || "Failed to save address");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    onMapReadyCall("manually");
-  }, []);
+    if (mode === "edit" && selectedLocations?.[0]) {
+      // Set initial region to the address being edited
+      const address = selectedLocations[0];
+      const region = {
+        latitude: parseFloat(address.lat),
+        longitude: parseFloat(address.long),
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      };
+      setCurrentRegion(region);
+      setTitle(address.title);
+      setLocationName(address.address);
+
+      // Animate to the location
+      setTimeout(() => {
+        if (mapRef?.current) {
+          mapRef.current.animateToRegion(region, 1500);
+        }
+      }, 500);
+    } else {
+      onMapReadyCall("manually");
+    }
+  }, [mode, selectedLocations]);
 
   return (
     <View style={styles.container}>

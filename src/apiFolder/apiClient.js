@@ -1,6 +1,8 @@
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import Config from "react-native-config";
 
+import { clearUserSlice } from "../redux/slices/userSlice";
+import { onSignOut } from "../redux/slices/authSlice";
 import { store } from "../redux/store";
 
 const API_URL = Config.API_URL;
@@ -46,17 +48,20 @@ apiClient.interceptors.response.use(
   },
   function (error) {
     // Handle 403 Forbidden (session expired)
-    // if (error?.response?.status === 403) {
-    //   // Perform action for 403 code [accestoken expire, not found]
-    //     store.dispatch(logout());
+    if (error?.response?.status === 401) {
+      //   // Perform action for 403 code [accestoken expire, not found]
+      //     store.dispatch(logout());
 
-    //     showToast({
-    //       type: "error",
-    //       title: "Logged Out",
-    //       message: "Your session has expired. Please login again.",
-    //     });
-    //   return Promise.reject(error);
-    // }
+      store.dispatch(clearUserSlice());
+      store.dispatch(onSignOut());
+
+      //     showToast({
+      //       type: "error",
+      //       title: "Logged Out",
+      //       message: "Your session has expired. Please login again.",
+      //     });
+      return Promise.reject(error);
+    }
 
     return Promise.reject(error);
   }

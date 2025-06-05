@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,32 +6,105 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Entypo from "react-native-vector-icons/Entypo";
+import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
 import FastImage from "@d11/react-native-fast-image";
-
-const addressesData = [
-  {
-    id: 1,
-    label: "Location 1",
-    address: "13th Street",
-    address2: "47 W 13th St, New York, NY 10011, USA",
-  },
-  {
-    id: 2,
-    label: "Location 2",
-    address: "13th Street",
-    address2: "47 W 13th St, New York, NY 10011, USA",
-  },
-];
+import { Snackbar } from "react-native-paper";
+import {
+  getAddress_API,
+  addAddress_API,
+  updateAddress_API,
+  deleteAddress_API,
+} from "../apiFolder/appAPI";
+import { useDispatch } from "react-redux";
+import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
 
 const AddressScreen = ({ navigation }) => {
-  const [addresses, setAddresses] = useState(addressesData);
+  const [addresses, setAddresses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: "",
+    type: "success",
+  });
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+
+  // Fetch addresses on component mount and when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchAddresses();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const showSnackbar = (message, type = "success") => {
+    setSnackbar({
+      visible: true,
+      message,
+      type,
+    });
+  };
+
+  // Fetch addresses from API
+  const fetchAddresses = async () => {
+    try {
+      setLoading(true);
+      const response = await getAddress_API({ page: 1, limit: 50 });
+      if (response?.success) {
+        setAddresses(response.data.addressList);
+      }
+    } catch (error) {
+      showSnackbar(error?.message || "Failed to fetch addresses", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle delete address
+  const handleDeleteAddress = async (addressId) => {
+    try {
+      const response = await deleteAddress_API(addressId);
+      if (response?.success) {
+        showSnackbar("Address deleted successfully");
+        // Optimize: Remove only the deleted item
+        setAddresses((prevAddresses) =>
+          prevAddresses.filter((addr) => addr._id !== addressId)
+        );
+      }
+    } catch (error) {
+      showSnackbar(error?.message || "Failed to delete address", "error");
+    }
+  };
+
+  // Handle edit address
+  const handleEditAddress = (address) => {
+    dispatch(
+      setSelectedLocations([
+        {
+          title: address.title,
+          address: address.address,
+          lat: address.lat,
+          long: address.long,
+          _id: address._id,
+        },
+      ])
+    );
+    navigation.navigate("authMapScreen", { mode: "edit" });
+  };
+
+  // Handle add new address
+  const handleAddAddress = () => {
+    dispatch(setSelectedLocations([]));
+    navigation.navigate("authMapScreen", { mode: "add" });
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -45,7 +118,7 @@ const AddressScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ADDRESS</Text>
-        <TouchableOpacity style={styles.addBtn}>
+        <TouchableOpacity style={styles.addBtn} onPress={handleAddAddress}>
           <Entypo name="plus" size={24} color={AppColor.primary} />
         </TouchableOpacity>
       </View>
@@ -57,22 +130,59 @@ const AddressScreen = ({ navigation }) => {
           backgroundColor: "#F0F1F2",
         }}
       >
-        {/* Address List */}
-        <FlatList
-          data={addresses}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.addressCard}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
-                }}
-              >
-                <View style={styles.locationLabelContainer}>
-                  <Text style={styles.locationLabel}>{item.label}</Text>
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={AppColor.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={addresses}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <View style={styles.addressCard}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={styles.locationLabelContainer}>
+                    <Text style={styles.locationLabel}>{item.title}</Text>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={styles.iconBtn}
+                      onPress={() => handleDeleteAddress(item._id)}
+                    >
+                      <FastImage
+                        source={require("../assets/images/bgBin.png")}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          marginRight: 12,
+                        }}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.iconBtn}
+                      onPress={() => handleEditAddress(item)}
+                    >
+                      <FastImage
+                        source={require("../assets/images/bgEdit.png")}
+                        style={{
+                          width: 24,
+                          height: 24,
+                        }}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <View
                   style={{
@@ -80,50 +190,43 @@ const AddressScreen = ({ navigation }) => {
                     alignItems: "center",
                   }}
                 >
-                  <TouchableOpacity style={styles.iconBtn}>
-                    <FastImage
-                      source={require("../assets/images/bgEdit.png")}
-                      style={{
-                        width: 24,
-                        height: 24,
-                        marginRight: 12,
-                      }}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.iconBtn}>
-                    <FastImage
-                      source={require("../assets/images/bgBin.png")}
-                      style={{ width: 24, height: 24 }}
-                    />
-                  </TouchableOpacity>
+                  <EvilIcons
+                    name="location"
+                    size={18}
+                    color={AppColor.primary}
+                    style={{ marginRight: 8 }}
+                  />
+                  <View style={{}}>
+                    <Text style={styles.addressText}>{item.title}</Text>
+                    <Text style={styles.addressText2}>{item.address}</Text>
+                  </View>
                 </View>
               </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                <Entypo
-                  name="location-pin"
-                  size={18}
-                  color={AppColor.primary}
-                  style={{ marginRight: 8 }}
-                />
-                <View style={{}}>
-                  <Text style={styles.addressText}>{item.address}</Text>
-                  <Text style={styles.addressText2}>{item.address2}</Text>
-                </View>
-              </View>
-            </View>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-        />
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveBtn}>
-          <Text style={styles.saveBtnText}>Save</Text>
-        </TouchableOpacity>
+            )}
+            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          />
+        )}
       </View>
+
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+        duration={3000}
+        style={[
+          styles.snackbar,
+          {
+            backgroundColor:
+              snackbar.type === "success" ? AppColor.primary : "#FF5252",
+          },
+        ]}
+        action={{
+          label: "Dismiss",
+          onPress: () => setSnackbar({ ...snackbar, visible: false }),
+          textColor: AppColor.white,
+        }}
+      >
+        {snackbar.message}
+      </Snackbar>
     </View>
   );
 };
@@ -195,24 +298,23 @@ const styles = StyleSheet.create({
   addressText: {
     fontFamily: Primary400,
     fontSize: 16,
-    // color: AppColor.text,
   },
   addressText2: {
     fontFamily: Primary400,
     fontSize: 12,
-    // color: AppColor.text,
   },
-  saveBtn: {
-    height: 48,
-    borderRadius: 5,
+  loaderContainer: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: AppColor.primary,
   },
-  saveBtnText: {
-    fontFamily: Secondary400,
-    fontSize: 16,
-    color: AppColor.white,
+  snackbar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    margin: 16,
+    borderRadius: 8,
   },
 });
 

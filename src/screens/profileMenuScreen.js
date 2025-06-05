@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   FlatList,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,7 +17,7 @@ import usePermission from "../hooks/usePermission";
 import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
 import { permission } from "../utils/permissions";
-import { clearUserSlice } from "../redux/slices/userSlice";
+import { clearUserSlice, setUser } from "../redux/slices/userSlice";
 import StatusBarManager from "../components/StatusBarManager";
 import FastImage from "@d11/react-native-fast-image";
 import Entypo from "react-native-vector-icons/Entypo";
@@ -29,6 +30,14 @@ import LogoutModal from "../components/LogoutModal";
 import UpdateNameModal from "../components/UpdateNameModal";
 import UpdateContactModal from "../components/UpdateContactModal";
 import MediaPickerDialog from "../components/MediaPickerDialog";
+import {
+  getUserDetail_API,
+  updateUserDetail_API,
+  uploadImage_API,
+  getFavoriteFoodTruck_API,
+} from "../apiFolder/appAPI";
+import { useFocusEffect } from "@react-navigation/native";
+import { Snackbar, Portal } from "react-native-paper";
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
@@ -46,29 +55,35 @@ const ProfileMenuScreen = ({ navigation }) => {
     permission.camera
   );
 
+  const [getDataLoading, setGetDataLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedMediaType, setSelectedMediaType] = useState(null);
-  const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [updateNameModalVisible, setUpdateNameModalVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [updateContactModalVisible, setUpdateContactModalVisible] =
     useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: "",
+    type: "info",
+  });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const { user } = useSelector((state) => state.userReducer);
   const insets = useSafeAreaInsets();
 
   // Local state for name editing
-  const [editedName, setEditedName] = useState(user?.firstName || "John Doe");
-  const [displayName, setDisplayName] = useState(user?.firstName || "John Doe");
+  const [editedName, setEditedName] = useState(user?.firstName || "");
+  const [displayName, setDisplayName] = useState(user?.firstName || "");
+  const [nameError, setNameError] = useState("");
 
   // Local state for contact editing
-  const [countryCode, setCountryCode] = useState(user?.countryCode || "+91");
+  const [countryCode, setCountryCode] = useState(user?.countryCode || "+1");
   const [mobileNumber, setMobileNumber] = useState(
     user?.phone?.replace(/^\+\d+\s*/, "") || ""
   );
   const [displayContact, setDisplayContact] = useState(
-    user?.phone || "+91 9542454455"
+    user?.phone || "+1 000 000 0000"
   );
   const [contactError, setContactError] = useState("");
 
@@ -76,9 +91,12 @@ const ProfileMenuScreen = ({ navigation }) => {
   const totalOrders = 10;
   const progress = ordersCompleted / totalOrders;
 
+  const [favoriteTrucks, setFavoriteTrucks] = useState([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [favoritesError, setFavoritesError] = useState(null);
+
   const onMediaModalClose = () => {
     setModalVisible(false);
-    setSelectedMediaType(null);
   };
 
   const handleCameraPress = async () => {
@@ -91,21 +109,21 @@ const ProfileMenuScreen = ({ navigation }) => {
         async () => {
           // Permission granted, open the camera
           await ImagePicker.openCamera({
-            cropping: false,
+            cropping: true,
             mediaType: "photo",
+            width: 500,
+            height: 500,
           })
             .then(async (image) => {
               try {
-                const imagedata = {
-                  mode: "camera",
-                  uri: image?.path,
-                  name: `${image?.path?.split("/").pop()}`, // did this because not able to get filename in ios
-                  type: image.mime,
-                };
-
-                setSelectedPhotos((prev) => [...prev, imagedata]);
+                await uploadAndUpdateProfilePic(image);
               } catch (error) {
                 console.log("error => ", error);
+                setSnackbar({
+                  visible: true,
+                  message: error?.message || "Failed to upload image",
+                  type: "error",
+                });
               }
             })
             .catch((error) => {
@@ -116,11 +134,10 @@ const ProfileMenuScreen = ({ navigation }) => {
       );
     } catch (error) {
       console.error("error => ", error);
-    } finally {
     }
   };
 
-  const handleGalleryPress = async (mediaType) => {
+  const handleGalleryPress = async () => {
     setModalVisible(false);
     try {
       const photosStatus = await photosPermissionStatus();
@@ -130,29 +147,21 @@ const ProfileMenuScreen = ({ navigation }) => {
       setTimeout(
         async () => {
           await ImagePicker.openPicker({
-            multiple: true,
+            cropping: true,
             mediaType: "photo",
+            width: 500,
+            height: 500,
           })
-            .then((images) => {
+            .then(async (image) => {
               try {
-                const tempImages = images.map((i) =>
-                  Platform.OS == "ios"
-                    ? {
-                        mode: "media",
-                        uri: i?.sourceURL,
-                        name: i?.filename,
-                        type: i.mime,
-                      }
-                    : {
-                        mode: "media",
-                        uri: i?.path,
-                        name: i?.filename,
-                        type: i.mime,
-                      }
-                );
-                setSelectedPhotos((prev) => [...prev, ...tempImages]);
+                await uploadAndUpdateProfilePic(image);
               } catch (error) {
                 console.log("error => ", error);
+                setSnackbar({
+                  visible: true,
+                  message: error?.message || "Failed to upload image",
+                  type: "error",
+                });
               }
             })
             .catch((error) => {
@@ -163,29 +172,157 @@ const ProfileMenuScreen = ({ navigation }) => {
       );
     } catch (error) {
       console.error("error => ", error);
-    } finally {
     }
   };
 
-  const handleUpdateName = () => {
-    setDisplayName(editedName);
-    setUpdateNameModalVisible(false);
-    // Here you can also dispatch an action to update the name in redux/backend if needed
+  const uploadAndUpdateProfilePic = async (image) => {
+    setUploadingImage(true);
+    try {
+      // Create form data for image upload
+      const formData = new FormData();
+      formData.append("file", {
+        uri: Platform.OS === "ios" ? image.sourceURL : image.path,
+        type: image.mime,
+        name: image.filename || `profile_${Date.now()}.jpg`,
+      });
+
+      // Upload image
+      const uploadResponse = await uploadImage_API(formData);
+
+      if (uploadResponse?.success && uploadResponse?.data?.file) {
+        // Update user profile with the new image URL
+        const updateResponse = await updateUserDetail_API({
+          user_id: user._id,
+          payload: { profilePic: uploadResponse.data.file },
+        });
+
+        if (updateResponse?.success) {
+          setSnackbar({
+            visible: true,
+            message: "Profile picture updated successfully",
+            type: "success",
+          });
+          // Refresh user data
+          getUserDetailFromAPI();
+        } else {
+          throw new Error(
+            updateResponse?.message || "Failed to update profile picture"
+          );
+        }
+      } else {
+        throw new Error(uploadResponse?.message || "Failed to upload image");
+      }
+    } catch (error) {
+      console.log("Error uploading image:", error);
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Failed to update profile picture",
+        type: "error",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
-  const validateMobileNumber = (value) => {
-    if (!value) return "Mobile number is required.";
-    if (!/^\d{10}$/.test(value)) return "Enter a valid 10-digit mobile number.";
+  const validateName = (name) => {
+    if (!name || !name.trim()) {
+      return "Name cannot be empty";
+    }
     return "";
   };
 
-  const handleUpdateContact = () => {
+  const handleUpdateName = async () => {
+    const error = validateName(editedName);
+    setNameError(error);
+    if (error) {
+      return;
+    }
+
+    try {
+      const response = await updateUserDetail_API({
+        user_id: user._id,
+        payload: { firstName: editedName },
+      });
+
+      if (response?.success) {
+        setDisplayName(editedName);
+        setUpdateNameModalVisible(false);
+        setSnackbar({
+          visible: true,
+          message: "Name updated successfully",
+          type: "success",
+        });
+        // Refresh user data
+        getUserDetailFromAPI();
+      } else {
+        setSnackbar({
+          visible: true,
+          message: response?.message || "Failed to update name",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.log("Error updating name:", error);
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Failed to update name",
+        type: "error",
+      });
+    }
+  };
+
+  const validateMobileNumber = (value) => {
+    if (!value) return "Mobile number is required";
+    if (!/^\d{10}$/.test(value)) return "Enter a valid 10-digit mobile number";
+    return "";
+  };
+
+  const handleUpdateContact = async () => {
     const error = validateMobileNumber(mobileNumber);
-    setContactError(error);
-    if (error) return;
-    setDisplayContact(`${countryCode} ${mobileNumber}`);
-    setUpdateContactModalVisible(false);
-    // Here you can also dispatch an action to update the contact in redux/backend if needed
+    if (error) {
+      setContactError(error);
+      setSnackbar({
+        visible: true,
+        message: error,
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      const response = await updateUserDetail_API({
+        user_id: user._id,
+        payload: {
+          countryCode: countryCode,
+          mobileNumber: mobileNumber,
+        },
+      });
+
+      if (response?.success) {
+        setDisplayContact(`${countryCode} ${mobileNumber}`);
+        setUpdateContactModalVisible(false);
+        setSnackbar({
+          visible: true,
+          message: "Contact updated successfully",
+          type: "success",
+        });
+        // Refresh user data
+        getUserDetailFromAPI();
+      } else {
+        setSnackbar({
+          visible: true,
+          message: response?.message || "Failed to update contact",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.log("Error updating contact:", error);
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Failed to update contact",
+        type: "error",
+      });
+    }
   };
 
   const handleLogout = () => {
@@ -193,22 +330,107 @@ const ProfileMenuScreen = ({ navigation }) => {
     dispatch(onSignOut());
   };
 
-  const favoriteTrucks = [
-    {
-      id: 1,
-      name: "BURGER EXPRESS",
-      image: favTruck1,
-      reviews: "200+ reviews",
-      distance: "0.3 miles away",
-    },
-    {
-      id: 2,
-      name: "BURGER EXPRESS",
-      image: favTruck2,
-      reviews: "200+ reviews",
-      distance: "0.5 miles away",
-    },
-  ];
+  const fetchFavoriteTrucks = async () => {
+    setLoadingFavorites(true);
+    setFavoritesError(null);
+    try {
+      const response = await getFavoriteFoodTruck_API({
+        lat: 1,
+        long: 2,
+      });
+      if (response?.success && response?.data?.favoriteList) {
+        setFavoriteTrucks(response.data.favoriteList);
+      } else {
+        setFavoritesError("Failed to fetch favorite trucks");
+      }
+    } catch (error) {
+      console.log("Error fetching favorite trucks:", error);
+      setFavoritesError(error?.message || "Failed to fetch favorite trucks");
+    } finally {
+      setLoadingFavorites(false);
+    }
+  };
+
+  const getUserDetailFromAPI = async () => {
+    console.log("getUserDetailFromAPI => called");
+    setGetDataLoading(true);
+    try {
+      const user_id = user._id;
+      const response = await getUserDetail_API(user_id);
+      if (response?.success && response.data) {
+        const USER_DATA = response.data.user;
+        console.log("USER_DATA => ", USER_DATA);
+
+        dispatch(setUser(USER_DATA));
+      }
+    } catch (error) {
+      console.log("error => ", error);
+    } finally {
+      setGetDataLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      getUserDetailFromAPI();
+      fetchFavoriteTrucks();
+    }, [])
+  );
+
+  // useEffect(() => {
+  //   getUserDetailFromAPI();
+  // }, []);
+
+  // Replace the static favoriteTrucks array with the dynamic data
+  const renderFavoriteTrucks = () => {
+    if (loadingFavorites) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={AppColor.primary} />
+        </View>
+      );
+    }
+
+    if (favoritesError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{favoritesError}</Text>
+        </View>
+      );
+    }
+
+    if (favoriteTrucks.length === 0) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No favorite trucks yet</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={favoriteTrucks}
+        keyExtractor={(item) => item._id.toString()}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <View style={styles.favTruckRow}>
+            <FastImage
+              source={item.image ? { uri: item.image } : favTruck1}
+              style={styles.favTruckImg}
+            />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.favTruckName}>{item.name}</Text>
+              <Text style={styles.favTruckReview}>
+                ⭐ {item.reviews || "0"} reviews - {item.distance || "0"} miles
+                away
+              </Text>
+            </View>
+          </View>
+        )}
+        ItemSeparatorComponent={<HR />}
+      />
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -217,16 +439,33 @@ const ProfileMenuScreen = ({ navigation }) => {
         {/* Profile Header */}
         <View style={styles.headerWrap}>
           <View style={{ width: 20 }} />
-          <Text style={styles.profileTitle}>PRoFILE</Text>
+          <Text
+            style={styles.profileTitle}
+            onPress={() => getUserDetailFromAPI()}
+          >
+            PRoFILE
+          </Text>
           <Entypo name="dots-three-vertical" size={20} color={AppColor.text} />
         </View>
         <View style={styles.avatarWrap}>
-          <FastImage source={avatarImg} style={styles.avatarImg} />
+          <FastImage
+            source={user?.profilePic ? { uri: user.profilePic } : avatarImg}
+            style={styles.avatarImg}
+          />
           <TouchableOpacity
             style={styles.cameraIcon}
             onPress={() => setModalVisible(true)}
+            disabled={uploadingImage}
           >
-            <MaterialIcons name="camera-alt" size={18} color={AppColor.white} />
+            {uploadingImage ? (
+              <ActivityIndicator size="small" color={AppColor.white} />
+            ) : (
+              <MaterialIcons
+                name="camera-alt"
+                size={18}
+                color={AppColor.white}
+              />
+            )}
           </TouchableOpacity>
         </View>
         <View
@@ -313,30 +552,7 @@ const ProfileMenuScreen = ({ navigation }) => {
               color={AppColor.black}
             />
           </TouchableOpacity>
-          <View style={styles.favTrucksCard}>
-            <FlatList
-              data={favoriteTrucks}
-              keyExtractor={(item) => item.id.toString()}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item, index }) => (
-                <View key={item.id} style={styles.favTruckRow}>
-                  <FastImage source={item.image} style={styles.favTruckImg} />
-                  <View
-                    style={{
-                      flex: 1,
-                      marginLeft: 10,
-                    }}
-                  >
-                    <Text style={styles.favTruckName}>{item.name}</Text>
-                    <Text style={styles.favTruckReview}>
-                      ⭐ {item.reviews} - {item.distance}
-                    </Text>
-                  </View>
-                </View>
-              )}
-              ItemSeparatorComponent={<HR />}
-            />
-          </View>
+          <View style={styles.favTrucksCard}>{renderFavoriteTrucks()}</View>
           {/* Menu Items */}
           <View style={styles.infoCard}>
             <CustomProfileItem
@@ -381,9 +597,16 @@ const ProfileMenuScreen = ({ navigation }) => {
         <UpdateNameModal
           isVisible={updateNameModalVisible}
           value={editedName}
-          onChangeText={setEditedName}
+          onChangeText={(text) => {
+            setEditedName(text);
+            setNameError(""); // Clear error when user types
+          }}
           onUpdate={handleUpdateName}
-          onCancel={() => setUpdateNameModalVisible(false)}
+          onCancel={() => {
+            setUpdateNameModalVisible(false);
+            setNameError(""); // Clear error when modal is closed
+          }}
+          error={nameError}
         />
 
         {/* Update PhoneNo Modal */}
@@ -411,6 +634,24 @@ const ProfileMenuScreen = ({ navigation }) => {
           onNoLogoutPress={() => setLogoutModalVisible(false)}
         />
       </ScrollView>
+
+      <Portal>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+          duration={4000}
+          style={{
+            backgroundColor:
+              snackbar.type === "success"
+                ? AppColor.snackbarSuccess
+                : snackbar.type === "error"
+                  ? AppColor.snackbarError
+                  : AppColor.snackbarDefault,
+          }}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </Portal>
     </View>
   );
 };
@@ -590,5 +831,27 @@ const styles = StyleSheet.create({
   HR: {
     height: 1,
     backgroundColor: "#E5E5EA",
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  errorContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  errorText: {
+    color: AppColor.snackbarError,
+    fontFamily: Secondary400,
+    fontSize: 14,
+  },
+  noDataContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  noDataText: {
+    color: AppColor.textHighlighter,
+    fontFamily: Secondary400,
+    fontSize: 14,
   },
 });
