@@ -80,10 +80,10 @@ const ProfileMenuScreen = ({ navigation }) => {
   // Local state for contact editing
   const [countryCode, setCountryCode] = useState(user?.countryCode || "+1");
   const [mobileNumber, setMobileNumber] = useState(
-    user?.phone?.replace(/^\+\d+\s*/, "") || ""
+    user?.mobileNumber?.replace(/^\+\d+\s*/, "") || ""
   );
   const [displayContact, setDisplayContact] = useState(
-    user?.phone || "+1 000 000 0000"
+    user?.mobileNumber || "+1 000 000 0000"
   );
   const [contactError, setContactError] = useState("");
 
@@ -496,32 +496,34 @@ const ProfileMenuScreen = ({ navigation }) => {
           {/* Dessert Progress */}
           <LinearGradient
             colors={[AppColor.primary, AppColor.primaryLight]}
-            style={styles.dessertCard}
+            style={{ borderRadius: 10 }}
           >
-            <Text style={styles.dessertTitle}>GET FREE DESSERT!</Text>
-            <View
-              style={{
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text style={styles.dessertSub}>
-                {ordersCompleted}/{totalOrders} Orders completed
-              </Text>
-              <Text style={styles.dessertSub}>{`${progress * 100}%`}</Text>
-            </View>
-            <View style={styles.progressBarBg}>
+            <View style={styles.dessertCard}>
+              <Text style={styles.dessertTitle}>GET FREE DESSERT!</Text>
               <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${progress * 100}%` },
-                ]}
-              />
+                style={{
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={styles.dessertSub}>
+                  {ordersCompleted}/{totalOrders} Orders completed
+                </Text>
+                <Text style={styles.dessertSub}>{`${progress * 100}%`}</Text>
+              </View>
+              <View style={styles.progressBarBg}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${progress * 100}%` },
+                  ]}
+                />
+              </View>
+              <Text
+                style={styles.dessertRemain}
+              >{`${totalOrders - ordersCompleted} more orders remaining`}</Text>
             </View>
-            <Text
-              style={styles.dessertRemain}
-            >{`${totalOrders - ordersCompleted} more orders remaining`}</Text>
           </LinearGradient>
 
           {/* Contact Info */}
@@ -559,7 +561,8 @@ const ProfileMenuScreen = ({ navigation }) => {
               imageUri={require("../assets/images/lock.png")}
               label="Privacy Policy"
               rightIcon={true}
-              onPress={() => {}}
+              onPress={() => navigation.navigate("privacyPolicy")}
+
             />
             <HR />
             <CustomProfileItem
@@ -716,7 +719,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   dessertCard: {
-    borderRadius: 10,
     paddingVertical: 20,
     paddingHorizontal: 15,
   },

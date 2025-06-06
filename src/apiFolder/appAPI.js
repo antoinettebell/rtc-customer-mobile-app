@@ -12,6 +12,7 @@ import {
   ADD_ADDRESS,
   UPDATE_ADDRESS,
   DELETE_ADDRESS,
+  PRIVACY_POLICY,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 
@@ -176,6 +177,17 @@ export const deleteAddress_API = async (addressId) => {
   try {
     const URL = `${DELETE_ADDRESS}/${addressId}`;
     const response = await apiClient.delete(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// privacy pollicy API
+export const privacyPolicy_API = async () => {
+  try {
+    const URL = `${PRIVACY_POLICY}`;
+    const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

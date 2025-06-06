@@ -296,20 +296,11 @@ const AuthMapScreen = ({ route }) => {
   }, [mode, selectedLocations]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top,
-            borderBottomWidth: 1,
-            borderColor: "#E5E5EA",
-          },
-        ]}
-      >
+      <View style={styles.header}>
         <IconButton
           icon="arrow-left"
           iconColor={AppColor.black}
@@ -561,8 +552,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: AppColor.white,
-    paddingHorizontal: 8,
-    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.borderColor,
   },
   headerTitle: {
     color: AppColor.black,

@@ -9,13 +9,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import Entypo from "react-native-vector-icons/Entypo";
+import AntDesign from "react-native-vector-icons/AntDesign";
 import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
 import FastImage from "@d11/react-native-fast-image";
-import { Snackbar } from "react-native-paper";
+import { IconButton, Snackbar } from "react-native-paper";
 import {
   getAddress_API,
   addAddress_API,
@@ -109,18 +108,25 @@ const AddressScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
+
       {/* Header */}
-      <View style={styles.headerWrap}>
-        <TouchableOpacity
+      <View style={styles.header}>
+        <IconButton
+          icon="arrow-left"
+          iconColor={AppColor.black}
+          size={24}
           onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>ADDRESS</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={handleAddAddress}>
-          <Entypo name="plus" size={24} color={AppColor.primary} />
-        </TouchableOpacity>
+        />
+        <Text style={styles.headerTitle}>{"Address"}</Text>
+        <View style={styles.headerIconContainer}>
+          <TouchableOpacity
+            hitSlop={10}
+            onPress={handleAddAddress}
+            activeOpacity={0.7}
+          >
+            <AntDesign name="plussquareo" size={20} color={AppColor.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
       <View
         style={{
@@ -236,30 +242,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  headerWrap: {
+  // Header
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 60 : 24,
-    paddingBottom: 16,
+    justifyContent: "space-between",
     backgroundColor: AppColor.white,
+    paddingHorizontal: 8,
+    paddingBottom: 5,
     borderBottomWidth: 1,
-    borderBottomColor: AppColor.borderColor,
-  },
-  backBtn: {
-    marginRight: 8,
+    borderColor: "#E5E5EA",
   },
   headerTitle: {
-    flex: 1,
-    fontFamily: Primary400,
+    color: AppColor.black,
     fontSize: 20,
-    color: AppColor.text,
-    textAlign: "center",
-    letterSpacing: 1.5,
+    fontFamily: Primary400,
   },
-  addBtn: {
-    marginLeft: 8,
+  headerIconContainer: {
+    width: 48,
+    alignItems: "center",
   },
+
   addressCard: {
     borderWidth: 1,
     borderColor: AppColor.borderColor,

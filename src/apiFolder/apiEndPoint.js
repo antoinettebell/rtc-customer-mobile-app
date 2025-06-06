@@ -28,3 +28,8 @@ export const GET_ADDRESS = "/user/address";
 export const ADD_ADDRESS = "/user/address";
 export const UPDATE_ADDRESS = "/user/address";
 export const DELETE_ADDRESS = "/user/address";
+
+// TnC & Privacy-Policy & agreement
+export const TNC = "/public/terms-conditions";
+export const PRIVACY_POLICY = "/public/privacy-policy";
+export const AGREEMENT = "/public/agreement";

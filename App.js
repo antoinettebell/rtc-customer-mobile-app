@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -27,12 +26,16 @@ import ProfileMenuScreen from "./src/screens/profileMenuScreen";
 import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
 import AddressScreen from "./src/screens/addressScreen";
 import { AppColor, Secondary400 } from "./src/utils/theme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import AuthMapScreen from "./src/screens/authMapScreen";
 import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
 import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
 import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
+import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
 import { onGuest } from "./src/redux/slices/authSlice";
 
 const Stack = createNativeStackNavigator();
@@ -193,6 +196,7 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="orderDetailsScreen" component={OrderDetailsScreen} />
     <Stack.Screen name="orderTrackingScreen" component={OrderTrackingScreen} />
     <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
+    <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
   </Stack.Navigator>
 );

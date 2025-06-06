@@ -145,7 +145,6 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
     borderBottomWidth: 1,
     borderBottomColor: AppColor.borderColor,
-    paddingTop: Platform.OS === "ios" ? 60 : 24,
     paddingBottom: 10,
   },
   header: {

@@ -216,7 +216,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 60 : 24,
     paddingBottom: 16,
     backgroundColor: AppColor.white,
     borderBottomWidth: 1,
