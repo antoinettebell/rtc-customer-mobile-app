@@ -6,13 +6,11 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FastImage from "@d11/react-native-fast-image";
 import StatusBarManager from "../components/StatusBarManager";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +20,7 @@ import {
   removeFavoriteFoodTruck_API,
 } from "../apiFolder/appAPI";
 import { Snackbar } from "react-native-paper";
+import AppHeader from "../components/AppHeader";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -154,16 +153,8 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      {/* Header */}
-      <View style={styles.headerWrap}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <MaterialIcons name="arrow-back" size={24} color={AppColor.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>FAVORITE FOOD TRUCKS</Text>
-      </View>
+      <AppHeader headerTitle="FAVORITE FOOD TRUCKS" />
+
       <View
         style={{
           flex: 1,
@@ -211,23 +202,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
-  },
-  headerWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: AppColor.white,
-    borderBottomWidth: 1,
-    borderBottomColor: AppColor.borderColor,
-  },
-  backBtn: {},
-  headerTitle: {
-    flex: 1,
-    fontFamily: Primary400,
-    fontSize: 20,
-    color: AppColor.text,
-    textAlign: "center",
   },
   searchBarWrap: {
     flexDirection: "row",

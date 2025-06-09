@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Platform,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
@@ -141,11 +140,14 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   headerWrap: {
+    height: 56,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
     backgroundColor: AppColor.white,
     borderBottomWidth: 1,
     borderBottomColor: AppColor.borderColor,
-    paddingBottom: 10,
   },
   header: {
     fontFamily: Primary400,

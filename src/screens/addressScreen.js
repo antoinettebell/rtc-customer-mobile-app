@@ -23,6 +23,7 @@ import {
 } from "../apiFolder/appAPI";
 import { useDispatch } from "react-redux";
 import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
+import AppHeader from "../components/AppHeader";
 
 const AddressScreen = ({ navigation }) => {
   const [addresses, setAddresses] = useState([]);
@@ -109,25 +110,16 @@ const AddressScreen = ({ navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={AppColor.black}
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
-        <Text style={styles.headerTitle}>{"Address"}</Text>
-        <View style={styles.headerIconContainer}>
-          <TouchableOpacity
-            hitSlop={10}
-            onPress={handleAddAddress}
-            activeOpacity={0.7}
-          >
-            <AntDesign name="plussquareo" size={20} color={AppColor.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <AppHeader headerTitle="Address" rightSide={true}>
+        <TouchableOpacity
+          hitSlop={10}
+          onPress={handleAddAddress}
+          activeOpacity={0.7}
+        >
+          <AntDesign name="plussquareo" size={20} color={AppColor.primary} />
+        </TouchableOpacity>
+      </AppHeader>
+
       <View
         style={{
           flex: 1,
@@ -144,6 +136,7 @@ const AddressScreen = ({ navigation }) => {
           <FlatList
             data={addresses}
             keyExtractor={(item) => item._id}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View style={styles.addressCard}>
                 <View
@@ -242,27 +235,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: AppColor.white,
-    paddingHorizontal: 8,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderColor: "#E5E5EA",
-  },
-  headerTitle: {
-    color: AppColor.black,
-    fontSize: 20,
-    fontFamily: Primary400,
-  },
-  headerIconContainer: {
-    width: 48,
-    alignItems: "center",
-  },
-
   addressCard: {
     borderWidth: 1,
     borderColor: AppColor.borderColor,

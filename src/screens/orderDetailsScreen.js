@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import StatusBarManager from "../components/StatusBarManager";
@@ -13,6 +15,7 @@ import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FastImage from "@d11/react-native-fast-image";
+import AppHeader from "../components/AppHeader";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -20,139 +23,156 @@ const OrderDetailsScreen = (props) => {
   const navigation = useNavigation();
   const { params } = useRoute();
   const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(false);
 
   const order = params?.order;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      {/* Header */}
-      <View style={styles.headerWrap}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-        >
-          <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>ORDER DETAILS</Text>
-        <View style={styles.headerSpacer} />
-      </View>
 
-      <View style={[styles.contentWrap]}>
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.9}
-          // onPress={onDetails}
-        >
-          <View style={styles.headerRow}>
-            <Text style={styles.orderId}>Order #{order.id}</Text>
-          </View>
+      <AppHeader headerTitle="ORDER DETAILS" />
 
-          <View style={styles.truckRow}>
-            <View style={styles.truckRowLeft}>
-              <Image source={order.image} style={styles.truckImg} />
-              <View style={styles.truckInfo}>
-                <Text style={styles.truckName}>{order.truck}</Text>
-                <Text style={styles.itemsCount}>
-                  {order.items.length} Items
-                </Text>
-              </View>
+      <ScrollView
+        style={styles.scrollViewContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentWrap}>
+          <View style={styles.card}>
+            <View style={styles.headerRow}>
+              <Text style={styles.orderId}>Order #{order.id}</Text>
             </View>
-            <View style={styles.truckRowRight}>
-              <Text style={styles.orderDate}>{order.date}</Text>
-              <View style={styles.timeRow}>
-                <MaterialIcons
-                  name="access-time"
-                  size={14}
-                  color={AppColor.grayText}
-                  style={styles.timeIcon}
-                />
-                <Text style={styles.orderDate}>{order.time}</Text>
-              </View>
-            </View>
-          </View>
-          <HR />
-          <View style={styles.itemsList}>
-            {order.items.map((itm, idx) => (
-              <View style={styles.itemRow}>
-                <View style={styles.itemInfo}>
-                  <Text
-                    key={idx}
-                    style={styles.itemText}
-                  >{`1 x ${itm.name}`}</Text>
-                  <Text
-                    key={itm.desc}
-                    style={styles.itemDesc}
-                  >{`${itm.desc}`}</Text>
+
+            <View style={styles.truckRow}>
+              <View style={styles.truckRowLeft}>
+                <Image source={order.image} style={styles.truckImg} />
+                <View style={styles.truckInfo}>
+                  <Text style={styles.truckName}>{order.truck}</Text>
+                  <Text style={styles.itemsCount}>
+                    {order.items.length} Items
+                  </Text>
                 </View>
-                <Text key={itm.price} style={styles.itemText}>
-                  ${`${itm.price}`}
-                </Text>
               </View>
-            ))}
-          </View>
-          <HR />
-
-          <View style={styles.footerRow}>
-            <Text style={styles.total}>${order.total.toFixed(2)}</Text>
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.trackBtn}
-                onPress={() =>
-                  props.navigation.navigate("orderTrackingScreen", {
-                    order: order,
-                  })
-                }
-              >
-                <FastImage
-                  source={require("../assets/images/trackOrder.png")}
-                  style={styles.actionIcon}
-                />
-                <Text style={styles.trackBtnText}>Track</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.bottomSection}>
-          <View style={styles.totalSection}>
-            <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
-              <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
-              <Text style={styles.sectionTitle}>$27.79</Text>
+              <View style={styles.truckRowRight}>
+                <Text style={styles.orderDate}>{order.date}</Text>
+                <View style={styles.timeRow}>
+                  <MaterialIcons
+                    name="access-time"
+                    size={14}
+                    color={AppColor.grayText}
+                    style={styles.timeIcon}
+                  />
+                  <Text style={styles.orderDate}>{order.time}</Text>
+                </View>
+              </View>
             </View>
             <HR />
-            <View style={styles.row}>
-              <Text style={styles.orderDetailsTxt}>Sales Tax</Text>
-              <Text style={styles.orderDetailsTxt}>7%</Text>
+            <View style={styles.itemsList}>
+              {order.items.map((itm, idx) => (
+                <View style={styles.itemRow}>
+                  <View style={styles.itemInfo}>
+                    <Text
+                      key={idx}
+                      style={styles.itemText}
+                    >{`1 x ${itm.name}`}</Text>
+                    <Text
+                      key={itm.desc}
+                      style={styles.itemDesc}
+                    >{`${itm.desc}`}</Text>
+                  </View>
+                  <Text key={itm.price} style={styles.itemText}>
+                    ${`${itm.price}`}
+                  </Text>
+                </View>
+              ))}
             </View>
-            <View style={styles.row}>
-              <Text style={styles.orderDetailsTxt}>Discount</Text>
-              <Text style={styles.orderDetailsTxt}>$5.00</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
-              <Text style={styles.orderDetailsTxt}>
-                ${order.total.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.orderDetailsTxt}>Payment Processing Fee</Text>
-              <Text style={styles.orderDetailsTxt}>$0.42</Text>
+            <HR />
+
+            <View style={styles.footerRow}>
+              <Text style={styles.total}>${order.total.toFixed(2)}</Text>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.trackBtn}
+                  onPress={() =>
+                    props.navigation.navigate("orderTrackingScreen", {
+                      order: order,
+                    })
+                  }
+                >
+                  <FastImage
+                    source={require("../assets/images/trackOrder.png")}
+                    style={styles.actionIcon}
+                  />
+                  <Text style={styles.trackBtnText}>Track</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-          <View style={styles.totalAmountRow}>
-            <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-            <Text style={styles.totalAmountValue}>
-              ${order.total.toFixed(2)}
-            </Text>
+
+          <View style={styles.bottomSection}>
+            <View style={styles.totalSection}>
+              <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
+                <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
+                <Text style={styles.sectionTitle}>$27.79</Text>
+              </View>
+              <HR />
+              <View style={styles.row}>
+                <Text style={styles.orderDetailsTxt}>Sales Tax</Text>
+                <Text style={styles.orderDetailsTxt}>7%</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.orderDetailsTxt}>Discount</Text>
+                <Text style={styles.orderDetailsTxt}>$5.00</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
+                <Text style={styles.orderDetailsTxt}>
+                  ${order.total.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.orderDetailsTxt}>
+                  Payment Processing Fee
+                </Text>
+                <Text style={styles.orderDetailsTxt}>$0.42</Text>
+              </View>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => navigation.navigate("cancelOrderScreen", { order })}
-          >
-            <Text style={styles.cancelBtnText}>Cancel Order</Text>
-          </TouchableOpacity>
         </View>
+      </ScrollView>
+
+      <View
+        style={{
+          // paddingVertical: 20,
+          // paddingHorizontal: 16,
+          padding: 16,
+        }}
+      >
+        <View style={styles.totalAmountRow}>
+          <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
+          <Text style={styles.totalAmountValue}>${order.total.toFixed(2)}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.cancelBtn]}
+          activeOpacity={0.7}
+          onPress={() => {
+            setTimeout(() => {
+              setLoading(true);
+            }, 100);
+            setTimeout(() => {
+              setLoading(false);
+              navigation.navigate("cancelOrderScreen", { order });
+            }, 200);
+          }}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={AppColor.white} />
+          ) : (
+            <Text style={styles.cancelBtnText}>{"Cancel Order"}</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -162,40 +182,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
-  },
-  headerWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: AppColor.white,
-    borderBottomWidth: 1,
-    borderBottomColor: AppColor.borderColor,
-  },
-  backBtn: {
-    marginRight: 8,
-  },
-  headerTitle: {
-    flex: 1,
-    fontFamily: Primary400,
-    fontSize: 20,
-    color: AppColor.text,
-    textAlign: "center",
-    letterSpacing: 1.5,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-
-  orderCard: {
-    backgroundColor: AppColor.white,
-    borderRadius: 12,
-    padding: 16,
-    margin: 16,
-    shadowColor: AppColor.black,
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   truckImg: {
     width: 48,
@@ -286,7 +272,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 18,
   },
   totalAmountLabel: {
     fontFamily: Primary400,
@@ -297,16 +283,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   cancelBtn: {
-    backgroundColor: AppColor.snackbarError,
+    height: 48,
     borderRadius: 5,
-    paddingVertical: 14,
-    marginBottom: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: AppColor.snackbarError,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   cancelBtnText: {
-    color: AppColor.white,
     fontFamily: Secondary400,
     fontSize: 16,
-    textAlign: "center",
+    color: AppColor.white,
   },
   headerRow: {
     flexDirection: "row",
@@ -437,11 +437,14 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  scrollViewContainer: {
+    flex: 1,
+    backgroundColor: AppColor.screenBg,
+  },
   contentWrap: {
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 20,
-    backgroundColor: AppColor.screenBg,
   },
   bottomSection: {
     marginTop: 16,
