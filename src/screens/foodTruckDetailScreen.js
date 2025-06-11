@@ -18,6 +18,8 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImageCarousel from "../components/ImageCarousel";
+import AppHeader from "../components/AppHeader";
+import MapView, { Marker } from "react-native-maps";
 
 const { width } = Dimensions.get("window");
 
@@ -25,7 +27,9 @@ const { width } = Dimensions.get("window");
 const DEMO_IMAGES = [
   require("../assets/images/FT-Demo-01.png"),
   require("../assets/images/FT-Demo-02.png"),
+  require("../assets/images/FT-Demo-01.png"),
 ];
+const HR = () => <View style={styles.HR} />;
 
 const INFO_ROWS = [
   {
@@ -33,17 +37,25 @@ const INFO_ROWS = [
       <FontAwesome6 name="location-dot" size={20} color={AppColor.primary} />
     ),
     title: "Truck Location",
-    value: "47 W 13th St, New York, NY 10011, USA",
+    value: "47 W 13th St, New York, NY",
+    value2: "10011, USA",
   },
   {
     icon: (
-      <MaterialIcons name="access-time" size={20} color={AppColor.primary} />
+      <MaterialIcons name="watch-later" size={20} color={AppColor.primary} />
     ),
     title: "Open Hours",
     value: "11:00 AM - 9:00 PM",
+    icon2: <MaterialIcons name="info" size={20} color={AppColor.black} />,
   },
   {
-    icon: <FontAwesome6 name="circle-info" size={20} color={AppColor.black} />,
+    icon: (
+      <MaterialIcons
+        name="event-available"
+        size={20}
+        color={AppColor.primary}
+      />
+    ),
     title: "Status",
     value: "Open Now",
     onPress: () => console.log("Info icon pressed"),
@@ -82,7 +94,6 @@ const MENU_TABS = [
   { key: "combo", label: "Combo", items: [] },
   { key: "chips", label: "Chips & Drinks", items: [] },
   { key: "sandwiches", label: "Sandwiches", items: [] },
-  { key: "asdad", label: "Asdad", items: [] },
 ];
 
 const FoodTruckDetailScreen = () => {
@@ -111,86 +122,148 @@ const FoodTruckDetailScreen = () => {
     tabListRef.current?.scrollToIndex({ index: idx, animated: true });
   };
 
+  // Demo location for MapView
+  const truckLocation = {
+    latitude: 40.7397,
+    longitude: -74.0059,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.headerIcon}
-        >
-          <MaterialIcons name="arrow-back" size={24} color={AppColor.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>DETAILS</Text>
-        </View>
-        <View style={styles.headerIcon} />
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <AppHeader headerTitle="DETAILS" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: 120,
+          backgroundColor: "#F0F1F2",
+        }}
+      >
         {/* Image Carousel */}
-        <ImageCarousel images={images} imageStyle={styles.image} />
-        {/* Name & Subname */}
-        <View style={styles.nameRow}>
-          <Text style={styles.title}>{item.name || "BURGER EXPRESS"}</Text>
-          <Text style={styles.subname}>Food Truck</Text>
+        <ImageCarousel images={images} />
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            backgroundColor: AppColor.white,
+            gap: 10,
+          }}
+        >
+          {/* Name & Subname */}
+          <View style={styles.nameRow}>
+            <Text style={styles.title}>{item.name || "BURGER EXPRESS"}</Text>
+            <Text style={styles.subname}>Food Truck</Text>
+          </View>
+          {/* Ratings & Food Types */}
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexDirection: "row",
+            }}
+          >
+            <View style={styles.ratingsRow}>
+              <FontAwesome name="star" size={16} color={AppColor.ratingStar} />
+              <Text style={styles.ratingText}>4.8 (200+ reviews)</Text>
+              <Text style={styles.dot}>|</Text>
+              <Text style={styles.cuisineText}>Mexican, American</Text>
+            </View>
+            <TouchableOpacity>
+              <FontAwesome name="heart-o" size={22} color={AppColor.red} />
+            </TouchableOpacity>
+          </View>
+          {/* Social Media Icons */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity>
+              <FontAwesome
+                name="facebook-square"
+                size={22}
+                color={AppColor.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <FontAwesome
+                name="instagram"
+                size={22}
+                color={AppColor.primary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-        {/* Ratings & Food Types */}
-        <View style={styles.ratingsRow}>
-          <FontAwesome name="star" size={16} color={AppColor.ratingStar} />
-          <Text style={styles.ratingText}>4.8 (200+ reviews)</Text>
-          <Text style={styles.dot}>|</Text>
-          <Text style={styles.cuisineText}>Mexican, American</Text>
-        </View>
-        {/* Social Media Icons */}
-        <View style={styles.socialRow}>
-          <TouchableOpacity>
-            <FontAwesome
-              name="facebook-square"
-              size={22}
-              color={AppColor.primary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <FontAwesome name="instagram" size={22} color={AppColor.primary} />
-          </TouchableOpacity>
-        </View>
+
         {/* Location Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
-            <TouchableOpacity style={styles.getDirectionBtn}>
-              <Text style={styles.getDirectionText}>Get Direction</Text>
-            </TouchableOpacity>
+            {/* <TouchableOpacity
+              style={styles.getDirectionBtn}
+              onPress={() => {
+                // Open maps with direction
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${truckLocation.latitude},${truckLocation.longitude}`;
+                if (Platform.OS === "web") {
+                  window.open(url, "_blank");
+                } else {
+                  // Use Linking for mobile
+                  import("react-native").then(({ Linking }) =>
+                    Linking.openURL(url)
+                  );
+                }
+              }}
+            > */}
+            <Text style={styles.getDirectionBtn}>Get Direction</Text>
+            {/* </TouchableOpacity> */}
           </View>
-          {/* Map Placeholder */}
-          <View style={styles.mapPlaceholder}>
-            <FontAwesome6
-              name="location-dot"
-              size={32}
-              color={AppColor.primary}
-            />
-            <Text style={styles.mapText}>Map Placeholder</Text>
+          <View style={styles.mapViewWrap}>
+            <MapView
+              style={styles.mapView}
+              initialRegion={truckLocation}
+              region={truckLocation}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pitchEnabled={false}
+              rotateEnabled={false}
+              pointerEvents="none"
+            >
+              <Marker coordinate={truckLocation}>
+                <FontAwesome6
+                  name="location-dot"
+                  size={32}
+                  color={AppColor.primary}
+                />
+              </Marker>
+            </MapView>
           </View>
         </View>
+
         {/* Dynamic Info Rows */}
         <View style={styles.infoRowsWrap}>
           {INFO_ROWS.map((row, idx) => (
             <View key={idx} style={styles.infoRowContainer}>
-              <View style={styles.infoRowLeft}>
-                {row.icon}
-                <Text style={styles.infoRowTitle}>{row.title}</Text>
+              <View key={idx} style={[styles.infoRowContainer, { flex: 1 }]}>
+                <View style={styles.infoRowLeft}>
+                  {row.icon}
+                  <Text style={styles.infoRowTitle}>{row.title}</Text>
+                </View>
               </View>
               <TouchableOpacity
-                style={styles.infoRowRight}
-                onPress={row.onPress}
-                activeOpacity={row.onPress ? 0.7 : 1}
+                style={{
+                  flex: 1,
+                  alignItems: "flex-end",
+                }}
               >
-                <Text style={styles.infoRowValue}>{row.value}</Text>
+                <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
+                  {row.value}
+                </Text>
+                {row.value2 && (
+                  <Text style={styles.infoRowValue}>{row.value2}</Text>
+                )}
               </TouchableOpacity>
             </View>
           ))}
         </View>
+
         {/* Dynamic Tabs (swipeable & tappable) */}
         <View style={styles.tabsWrap}>
           <FlatList
@@ -234,7 +307,7 @@ const FoodTruckDetailScreen = () => {
             index,
           })}
           renderItem={({ item: tab }) => (
-            <View style={{ width }}>
+            <View style={{ width, backgroundColor: AppColor.white }}>
               {tab.items.length === 0 ? (
                 <Text style={styles.noMenuText}>
                   No items available in this section.
@@ -243,9 +316,11 @@ const FoodTruckDetailScreen = () => {
                 tab.items.map((menu) => (
                   <View key={menu.id} style={styles.menuItemRow}>
                     <Image source={menu.img} style={styles.menuImg} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
                       <Text style={styles.menuTitle}>{menu.name}</Text>
-                      <Text style={styles.menuDesc}>{menu.desc}</Text>
+                      <Text style={styles.menuDesc}>
+                        {menu.desc + menu.desc}
+                      </Text>
                       <Text style={styles.menuPrice}>{menu.price}</Text>
                     </View>
                     <View style={styles.menuQtyBox}>
@@ -263,6 +338,7 @@ const FoodTruckDetailScreen = () => {
                         <Text style={styles.qtyBtnText}>+</Text>
                       </TouchableOpacity>
                     </View>
+                    <HR />
                   </View>
                 ))
               )}
@@ -271,7 +347,19 @@ const FoodTruckDetailScreen = () => {
         />
       </ScrollView>
       {/* Bottom Bar */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom || 12 }]}>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            paddingBottom: insets.bottom || 12,
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.bottomBarBtn}>
           <Text style={styles.bottomBarText}>1 ITEM ADDED</Text>
           <Text style={styles.bottomBarSubText}>View your order-list</Text>
@@ -286,64 +374,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: AppColor.white,
-  },
-  headerIcon: {
-    width: 32,
-    alignItems: "center",
-  },
-  headerTitleWrap: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontFamily: Primary400,
-    fontSize: 16,
-    color: AppColor.text,
-    letterSpacing: 1.5,
-  },
-  image: {
-    width: "100%",
-    height: 180,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    resizeMode: "cover",
-  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    marginHorizontal: 16,
+    justifyContent: "space-between",
   },
   title: {
     fontFamily: Primary400,
-    fontSize: 20,
+    fontSize: 18,
     color: AppColor.text,
-    marginBottom: 2,
   },
   subname: {
     fontFamily: Secondary400,
-    fontSize: 13,
-    color: AppColor.textHighlighter,
+    fontSize: 14,
   },
   ratingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 2,
-    marginHorizontal: 16,
-    gap: 6,
   },
   ratingText: {
     fontFamily: Secondary400,
-    fontSize: 13,
+    fontSize: 14,
     color: AppColor.textHighlighter,
-    marginLeft: 4,
   },
   dot: {
     color: AppColor.textHighlighter,
@@ -351,18 +403,19 @@ const styles = StyleSheet.create({
   },
   cuisineText: {
     fontFamily: Secondary400,
-    fontSize: 13,
+    fontSize: 14,
     color: AppColor.textHighlighter,
   },
   socialRow: {
     flexDirection: "row",
-    gap: 12,
-    marginLeft: 16,
-    marginTop: 8,
+    alignItems: "center",
+    gap: 10,
   },
   section: {
+    padding: 16,
     marginTop: 18,
-    marginHorizontal: 16,
+    backgroundColor: AppColor.white,
+    gap: 10,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -371,138 +424,94 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: Primary400,
-    fontSize: 15,
-    color: AppColor.text,
-    letterSpacing: 1,
+    fontSize: 18,
   },
   getDirectionBtn: {
-    backgroundColor: AppColor.yellow,
+    backgroundColor: "#FC7B0338",
+    color: AppColor.primary,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  getDirectionText: {
+    padding: 6,
     fontFamily: Secondary400,
-    fontSize: 12,
-    color: AppColor.text,
+    fontSize: 14,
   },
-  mapPlaceholder: {
-    height: 110,
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
-    marginBottom: 8,
+  mapViewWrap: {
+    height: 170,
   },
-  mapText: {
-    fontFamily: Secondary400,
-    fontSize: 13,
-    color: AppColor.textHighlighter,
-    marginTop: 4,
+  mapView: {
+    flex: 1,
   },
   infoRowsWrap: {
-    marginTop: 18,
-    marginHorizontal: 16,
+    padding: 16,
+    marginVertical: 18,
+    backgroundColor: AppColor.white,
+    gap: 10,
   },
   infoRowContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
   },
   infoRowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 8,
+    gap: 10,
   },
   infoRowTitle: {
     fontFamily: Primary400,
-    fontSize: 15,
-    color: AppColor.text,
-  },
-  infoRowRight: {
-    flexDirection: "row",
-    alignItems: "center",
+    fontSize: 16,
   },
   infoRowValue: {
     fontFamily: Secondary400,
-    fontSize: 13,
-    color: AppColor.text,
+    fontSize: 14,
   },
   tabsWrap: {
-    marginTop: 18,
-    marginBottom: 6,
-    marginHorizontal: 0,
-    paddingLeft: 8,
+    paddingHorizontal: 16,
+    backgroundColor: AppColor.white,
   },
   tabsRow: {
     flexDirection: "row",
-    marginTop: 18,
-    marginBottom: 6,
-    marginHorizontal: 0,
-    paddingLeft: 8,
+    borderBlockColor: AppColor.borderColor,
+    borderBottomWidth: 1,
   },
   tabBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
     marginRight: 8,
+    paddingVertical: 18,
   },
   tabBtnActive: {
     borderBottomColor: AppColor.primary,
   },
   tabText: {
     fontFamily: Secondary400,
-    fontSize: 15,
-    color: AppColor.textHighlighter,
+    fontSize: 16,
   },
   tabTextActive: {
     color: AppColor.primary,
-    // fontFamily: Primary400,
   },
   menuItemRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: AppColor.white,
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: AppColor.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
+    paddingHorizontal: 16,
+    paddingVertical: 15,
   },
   menuImg: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: "#D1D5DB",
+    width: 80,
+    height: 80,
+    borderRadius: 10,
   },
   menuTitle: {
     fontFamily: Primary400,
-    fontSize: 15,
-    color: AppColor.text,
+    fontSize: 16,
   },
   menuDesc: {
     fontFamily: Secondary400,
-    fontSize: 12,
-    color: AppColor.textHighlighter,
-    marginTop: 2,
+    fontSize: 14,
   },
   menuPrice: {
     fontFamily: Primary400,
     fontSize: 14,
     color: AppColor.primary,
-    marginTop: 2,
   },
   menuQtyBox: {
     flexDirection: "row",
@@ -558,6 +567,10 @@ const styles = StyleSheet.create({
     color: AppColor.textHighlighter,
     marginHorizontal: 16,
     marginTop: 10,
+  },
+  HR: {
+    height: 1,
+    backgroundColor: "#E5E5EA",
   },
 });
 

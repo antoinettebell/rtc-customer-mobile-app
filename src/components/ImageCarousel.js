@@ -1,47 +1,34 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
-  FlatList,
   Image,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
 } from "react-native";
+import Carousel from "react-native-reanimated-carousel";
 import { AppColor } from "../utils/theme";
 
 const { width } = Dimensions.get("window");
 
 const ImageCarousel = ({ images, imageStyle, dotStyle, dotActiveStyle }) => {
-  const flatListRef = useRef();
   const [activeIndex, setActiveIndex] = useState(0);
-
-  const onViewRef = useRef(({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      setActiveIndex(viewableItems[0].index);
-    }
-  });
-  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
-
-  const handleDotPress = (idx) => {
-    flatListRef.current?.scrollToIndex({ index: idx, animated: true });
-  };
 
   if (!images || images.length === 0) return null;
 
   return (
     <View style={styles.carouselContainer}>
-      <FlatList
-        ref={flatListRef}
+      <Carousel
+        width={width}
+        height={210}
         data={images}
-        keyExtractor={(_, idx) => idx.toString()}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
+        scrollAnimationDuration={500}
+        onSnapToItem={setActiveIndex}
         renderItem={({ item }) => (
           <Image source={item} style={[styles.image, imageStyle]} />
         )}
-        onViewableItemsChanged={onViewRef.current}
-        viewabilityConfig={viewConfigRef.current}
+        panGestureHandlerProps={{ activeOffsetX: [-10, 10] }}
+        loop={false}
       />
       {images.length > 1 && (
         <View style={styles.dotsRow}>
@@ -53,7 +40,7 @@ const ImageCarousel = ({ images, imageStyle, dotStyle, dotActiveStyle }) => {
                 dotStyle,
                 activeIndex === idx && [styles.dotActive, dotActiveStyle],
               ]}
-              onPress={() => handleDotPress(idx)}
+              onPress={() => setActiveIndex(idx)}
               activeOpacity={0.7}
             />
           ))}
@@ -72,7 +59,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: width,
-    height: 180,
+    height: 210,
     resizeMode: "cover",
   },
   dotsRow: {
@@ -81,7 +68,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "absolute",
     bottom: 10,
-    left: 0,
     right: 0,
   },
   dot: {
