@@ -19,7 +19,7 @@ import {
 
 const FoodTruckGridComponent = ({
   title,
-  uri,
+  uris,
   isLiked,
   onLikePress,
   onContainerPress,
@@ -52,7 +52,12 @@ const FoodTruckGridComponent = ({
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <Image source={uri} style={styles.image} />
+      <Image
+        source={{
+          uri: uris,
+        }}
+        style={styles.image}
+      />
       <View style={styles.subContainer}>
         <Text style={styles.titleText}>{title}</Text>
         <View style={styles.reatingContainer}>

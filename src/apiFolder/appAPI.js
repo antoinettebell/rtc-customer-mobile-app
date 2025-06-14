@@ -13,6 +13,8 @@ import {
   UPDATE_ADDRESS,
   DELETE_ADDRESS,
   PRIVACY_POLICY,
+  GET_NEARBY_FOODTRUCK,
+  GET_FOOD_TRUCK_DETAIL_BY_ID,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 
@@ -94,10 +96,8 @@ export const getFavoriteFoodTruck_API = async (params = {}) => {
     if (queryParams.length > 0) {
       URL += `?${queryParams.join("&")}`;
     }
-    console.log("URl---->>>>", URL);
 
     const response = await apiClient.get(URL, { skipToken: false });
-    console.log("responseresponse---->>>>", response);
 
     return response?.data;
   } catch (error) {
@@ -187,6 +187,45 @@ export const deleteAddress_API = async (addressId) => {
 export const privacyPolicy_API = async () => {
   try {
     const URL = `${PRIVACY_POLICY}`;
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get Nearby Food Trucks
+export const getNearbyFoodTrucks_API = async (params = {}) => {
+  try {
+    const { day, time, userLat, userLong, search, distanceInMeters } = params;
+    let URL = `${GET_NEARBY_FOODTRUCK}`;
+
+    // Build query string with required and optional parameters
+    const queryParams = [
+      `day=${day}`,
+      `time=${time}`,
+      `userLat=${userLat}`,
+      `userLong=${userLong}`,
+    ];
+
+    // Add optional parameters if they exist
+    if (search) queryParams.push(`search=${search}`);
+    if (distanceInMeters)
+      queryParams.push(`distanceInMeters=${distanceInMeters}`);
+
+    URL += `?${queryParams.join("&")}`;
+
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get FoodTruckDetails By Id
+export const getFoodTruckDetailById_API = async (foodTruck_id) => {
+  try {
+    const URL = `${GET_FOOD_TRUCK_DETAIL_BY_ID}/${foodTruck_id}`;
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {

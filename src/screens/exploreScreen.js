@@ -520,7 +520,7 @@
 //   },
 // });
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -529,6 +529,7 @@ import {
   Image,
   Platform,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Searchbar } from "react-native-paper";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -546,8 +547,9 @@ import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
 import { useNavigation } from "@react-navigation/native";
-
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
+import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
+
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
 const FT01 = require("../assets/images/FT-Demo-01.png");
@@ -565,13 +567,6 @@ const FT2Data = [
   { id: 4, name: "Taco Express", uri: FT02 },
 ];
 
-const FT3Data = [
-  { id: 1, name: "Taco Express", uri: FT02 },
-  { id: 2, name: "Burger King", uri: FT01 },
-  { id: 3, name: "Taco Express", uri: FT02 },
-  { id: 4, name: "Burger King", uri: FT01 },
-];
-
 const FT4Data = [
   { id: 1, name: "Burger King", uri: FT01 },
   { id: 2, name: "Taco Express", uri: FT02 },
@@ -583,6 +578,8 @@ const ExploreScreen = (props) => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const navigation = useNavigation();
+  const [loading, setLoading] = useState(false);
+  const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
@@ -596,6 +593,32 @@ const ExploreScreen = (props) => {
   };
 
   const handleNotificationBellPress = () => {};
+
+  const fetchNearByFoodTrucks = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        day: "mon",
+        time: "11:17",
+        userLat: "123",
+        userLong: "456",
+      };
+
+      const response = await getNearbyFoodTrucks_API(params);
+
+      if (response?.success) {
+        setPopularFoodTrucks(response.data.foodtruckList);
+      }
+    } catch (error) {
+      console.error("Error fetching popular food trucks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNearByFoodTrucks();
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -905,7 +928,10 @@ const ExploreScreen = (props) => {
               >
                 {"Nearby Food Trucks"}
               </Text>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => {}}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("nearbyFoodTrucksScreen")}
+              >
                 <Text
                   style={{
                     fontFamily: Secondary400,
@@ -918,34 +944,42 @@ const ExploreScreen = (props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            <FlatList
-              horizontal
-              data={FT3Data}
-              keyExtractor={(item) => item.id.toString()}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item, index }) => (
-                <FoodTruckGridComponent
-                  title={item.name}
-                  uri={item.uri}
-                  isLiked={item.isLiked}
-                  foodTruckId={item._id}
-                  reviews={item.reviews}
-                  distance={item.distance}
-                  onContainerPress={() =>
-                    navigation.navigate("foodTruckDetailScreen", { item })
-                  }
-                  onLikePress={() => {
-                    // Refresh the list if needed
-                    // You can add a refresh function here
-                  }}
-                />
-              )}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
-            />
+            {loading ? (
+              <ActivityIndicator
+                size="small"
+                color={AppColor.primary}
+                style={{ marginVertical: 20 }}
+              />
+            ) : (
+              <FlatList
+                horizontal
+                data={popularFoodTrucks}
+                keyExtractor={(item) => item._id.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item, index }) => (
+                  <FoodTruckGridComponent
+                    title={item.name}
+                    uris={item.logo}
+                    isLiked={item.isLiked}
+                    foodTruckId={item._id}
+                    reviews={item.reviews}
+                    distance={item.distanceInMeters}
+                    onContainerPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", { item })
+                    }
+                    onLikePress={() => {
+                      // Refresh the list if needed
+                      // You can add a refresh function here
+                    }}
+                  />
+                )}
+                contentContainerStyle={{
+                  gap: 20,
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                }}
+              />
+            )}
           </View>
 
           {/* Featured foodtruck container */}

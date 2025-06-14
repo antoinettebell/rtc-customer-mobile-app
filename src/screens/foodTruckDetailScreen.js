@@ -20,6 +20,11 @@ import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImageCarousel from "../components/ImageCarousel";
 import AppHeader from "../components/AppHeader";
 import MapView, { Marker } from "react-native-maps";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addItemToOrder,
+  removeItemFromOrder,
+} from "../redux/slices/orderSlice";
 
 const { width } = Dimensions.get("window");
 
@@ -100,11 +105,14 @@ const FoodTruckDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const { item } = route.params;
   const [selectedTab, setSelectedTab] = useState(0);
-  const [cartCount, setCartCount] = useState(1);
   const tabListRef = useRef();
   const tabContentRef = useRef();
+
+  // Get current order from Redux
+  const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
 
   // For demo, use DEMO_IMAGES. In real, use item.images or similar.
   const images =
@@ -120,6 +128,38 @@ const FoodTruckDetailScreen = () => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / width);
     if (selectedTab !== idx) setSelectedTab(idx);
     tabListRef.current?.scrollToIndex({ index: idx, animated: true });
+  };
+
+  // Handle adding item to order
+  const handleAddItem = (menuItem) => {
+    dispatch(
+      addItemToOrder({
+        foodTruckId: item.id,
+        foodTruckName: item.name,
+        item: {
+          id: menuItem.id,
+          name: menuItem.name,
+          desc: menuItem.desc,
+          price: parseFloat(menuItem.price.replace("$", "")),
+          img: menuItem.img,
+        },
+      })
+    );
+  };
+
+  // Handle removing item from order
+  const handleRemoveItem = (menuItem) => {
+    dispatch(
+      removeItemFromOrder({
+        itemId: menuItem.id,
+      })
+    );
+  };
+
+  // Get item quantity from current order
+  const getItemQuantity = (itemId) => {
+    const orderItem = currentOrder.items.find((item) => item.id === itemId);
+    return orderItem ? orderItem.quantity : 0;
   };
 
   // Demo location for MapView
@@ -164,12 +204,16 @@ const FoodTruckDetailScreen = () => {
               flexDirection: "row",
             }}
           >
-            <View style={styles.ratingsRow}>
+            <TouchableOpacity
+              style={styles.ratingsRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("rateReviewScreen")}
+            >
               <FontAwesome name="star" size={16} color={AppColor.ratingStar} />
               <Text style={styles.ratingText}>4.8 (200+ reviews)</Text>
               <Text style={styles.dot}>|</Text>
               <Text style={styles.cuisineText}>Mexican, American</Text>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity>
               <FontAwesome name="heart-o" size={22} color={AppColor.red} />
             </TouchableOpacity>
@@ -313,58 +357,86 @@ const FoodTruckDetailScreen = () => {
                   No items available in this section.
                 </Text>
               ) : (
-                tab.items.map((menu) => (
-                  <View key={menu.id} style={styles.menuItemRow}>
-                    <Image source={menu.img} style={styles.menuImg} />
-                    <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
-                      <Text style={styles.menuTitle}>{menu.name}</Text>
-                      <Text style={styles.menuDesc}>
-                        {menu.desc + menu.desc}
-                      </Text>
-                      <Text style={styles.menuPrice}>{menu.price}</Text>
+                tab.items.map((menu) => {
+                  const quantity = getItemQuantity(menu.id);
+                  return (
+                    <View key={menu.id} style={styles.menuItemRow}>
+                      <Image source={menu.img} style={styles.menuImg} />
+                      <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
+                        <Text style={styles.menuTitle}>{menu.name}</Text>
+                        <Text style={styles.menuDesc}>{menu.desc}</Text>
+                        <Text style={styles.menuPrice}>{menu.price}</Text>
+                      </View>
+                      {quantity === 0 ? (
+                        <TouchableOpacity
+                          style={styles.addButton}
+                          onPress={() => handleAddItem(menu)}
+                        >
+                          <Text style={styles.addButtonText}>Add</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.quantityContainer}>
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleRemoveItem(menu)}
+                          >
+                            {quantity === 1 ? (
+                              <MaterialIcons
+                                name="delete-outline"
+                                size={20}
+                                color={AppColor.primary}
+                              />
+                            ) : (
+                              <Text style={styles.quantityButtonText}>-</Text>
+                            )}
+                          </TouchableOpacity>
+                          <Text style={styles.quantityText}>{quantity}</Text>
+                          <TouchableOpacity
+                            style={styles.quantityButton}
+                            onPress={() => handleAddItem(menu)}
+                          >
+                            <Text style={styles.quantityButtonText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      <HR />
                     </View>
-                    <View style={styles.menuQtyBox}>
-                      <TouchableOpacity
-                        onPress={() => setCartCount(Math.max(1, cartCount - 1))}
-                        style={styles.qtyBtn}
-                      >
-                        <Text style={styles.qtyBtnText}>-</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.qtyText}>{cartCount}</Text>
-                      <TouchableOpacity
-                        onPress={() => setCartCount(cartCount + 1)}
-                        style={styles.qtyBtn}
-                      >
-                        <Text style={styles.qtyBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <HR />
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
           )}
         />
       </ScrollView>
       {/* Bottom Bar */}
-      <View
-        style={[
-          styles.bottomBar,
-          {
-            paddingBottom: insets.bottom || 12,
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 10,
-          },
-        ]}
-      >
-        <TouchableOpacity style={styles.bottomBarBtn}>
-          <Text style={styles.bottomBarText}>1 ITEM ADDED</Text>
-          <Text style={styles.bottomBarSubText}>View your order-list</Text>
-        </TouchableOpacity>
-      </View>
+      {currentOrder.totalItems > 0 && (
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              paddingBottom: insets.bottom || 12,
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.bottomBarBtn}
+            onPress={() =>
+              navigation.navigate("checkoutScreen", { order: currentOrder })
+            }
+          >
+            <Text style={styles.bottomBarText}>
+              {currentOrder.totalItems}{" "}
+              {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
+            </Text>
+            <Text style={styles.bottomBarSubText}>View your order-list</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -456,7 +528,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   infoRowTitle: {
-    fontFamily: Primary400,
+    fontFamily: Secondary400,
     fontSize: 16,
   },
   infoRowValue: {
@@ -513,25 +585,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.primary,
   },
-  menuQtyBox: {
+  addButton: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: AppColor.white,
+    fontFamily: Primary400,
+    fontSize: 14,
+  },
+  quantityContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F2F2F7",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    marginLeft: 10,
   },
-  qtyBtn: {
+  quantityButton: {
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  qtyBtnText: {
+  quantityButtonText: {
     fontFamily: Primary400,
     fontSize: 18,
     color: AppColor.primary,
   },
-  qtyText: {
+  quantityText: {
     fontFamily: Primary400,
     fontSize: 15,
     color: AppColor.text,

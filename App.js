@@ -37,6 +37,11 @@ import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
 import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
 import { onGuest } from "./src/redux/slices/authSlice";
+import CheckoutScreen from "./src/screens/CheckoutScreen";
+import CouponCodeScreen from "./src/screens/CouponCodeScreen";
+import PaymentScreen from "./src/screens/PaymentScreen";
+import OrderPlacedScreen from "./src/screens/OrderPlacedScreen";
+import RateReviewScreen from "./src/screens/RateReviewScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -195,6 +200,11 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="addressScreen" component={AddressScreen} />
     <Stack.Screen name="orderDetailsScreen" component={OrderDetailsScreen} />
     <Stack.Screen name="orderTrackingScreen" component={OrderTrackingScreen} />
+    <Stack.Screen name="checkoutScreen" component={CheckoutScreen} />
+    <Stack.Screen name="couponCodeScreen" component={CouponCodeScreen} />
+    <Stack.Screen name="paymentScreen" component={PaymentScreen} />
+    <Stack.Screen name="orderPlacedScreen" component={OrderPlacedScreen} />
+    <Stack.Screen name="rateReviewScreen" component={RateReviewScreen} />
     <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
     <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
