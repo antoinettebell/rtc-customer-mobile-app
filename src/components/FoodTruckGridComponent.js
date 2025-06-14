@@ -70,7 +70,10 @@ const FoodTruckGridComponent = ({
           <View style={styles.iconContainer}>
             <FontAwesome6 name="location-dot" size={16} color={AppColor.gray} />
           </View>
-          <Text style={styles.ratingText}>{distance || "0 miles away"}</Text>
+          <Text style={styles.ratingText} numberOfLines={1}>
+            {(distance * 0.000621371).toFixed(2) + " miles away" ||
+              "0 miles away"}
+          </Text>
         </View>
       </View>
       <TouchableOpacity

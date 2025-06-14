@@ -22,11 +22,13 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 
 // HomeScreen
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
-export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/food-truck";
 
 // FoodTruck Detail Screen
-export const GET_FOOD_TRUCK_MENU = "/food-truck/";
-export const GET_FOOD_TRUCK_MENU_BY_ID = "/menu";
+export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/public/food-truck";
+export const GET_FOOD_TRUCK_MENU_BY_ID = (foodTruck_id) =>
+  `/food-truck/${foodTruck_id}/menu`;
+export const GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC = (foodTruck_id) =>
+  `/public/food-truck/${foodTruck_id}/menu`;
 
 // Address
 export const GET_ADDRESS = "/user/address";

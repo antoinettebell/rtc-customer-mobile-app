@@ -15,10 +15,11 @@ import {
   PRIVACY_POLICY,
   GET_NEARBY_FOODTRUCK,
   GET_FOOD_TRUCK_DETAIL_BY_ID,
-  GET_FOOD_TRUCK_MENU,
   GET_FOOD_TRUCK_MENU_BY_ID,
+  GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
+import { store } from "../redux/store";
 
 // Reverse Location
 export const getLocationName = async (payload) => {
@@ -199,6 +200,7 @@ export const privacyPolicy_API = async () => {
 // Get Nearby Food Trucks
 export const getNearbyFoodTrucks_API = async (params = {}) => {
   try {
+    const { authToken } = store.getState().userReducer;
     const { day, time, userLat, userLong, search, distanceInMeters } = params;
     let URL = `${GET_NEARBY_FOODTRUCK}`;
 
@@ -217,7 +219,9 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
 
     URL += `?${queryParams.join("&")}`;
 
-    const response = await apiClient.get(URL, { skipToken: true });
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
@@ -227,8 +231,12 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
 // Get FoodTruckDetails By Id
 export const getFoodTruckDetailById_API = async (foodTruck_id) => {
   try {
+    const { authToken } = store.getState().userReducer;
+
     const URL = `${GET_FOOD_TRUCK_DETAIL_BY_ID}/${foodTruck_id}`;
-    const response = await apiClient.get(URL, { skipToken: false });
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
@@ -238,8 +246,14 @@ export const getFoodTruckDetailById_API = async (foodTruck_id) => {
 // Get FoodTruckMenu Details By Id
 export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
   try {
-    const response = await apiClient.get(URL, { skipToken: false });
-    const URL = `${GET_FOOD_TRUCK_MENU}${foodTruck_id}${GET_FOOD_TRUCK_MENU_BY_ID}`;
+    const { authToken } = store.getState().userReducer;
+
+    const URL = authToken
+      ? GET_FOOD_TRUCK_MENU_BY_ID(foodTruck_id)
+      : GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
