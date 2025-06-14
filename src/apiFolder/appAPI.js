@@ -15,6 +15,8 @@ import {
   PRIVACY_POLICY,
   GET_NEARBY_FOODTRUCK,
   GET_FOOD_TRUCK_DETAIL_BY_ID,
+  GET_FOOD_TRUCK_MENU,
+  GET_FOOD_TRUCK_MENU_BY_ID,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 
@@ -226,7 +228,18 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
 export const getFoodTruckDetailById_API = async (foodTruck_id) => {
   try {
     const URL = `${GET_FOOD_TRUCK_DETAIL_BY_ID}/${foodTruck_id}`;
-    const response = await apiClient.get(URL, { skipToken: true });
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get FoodTruckMenu Details By Id
+export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
+  try {
+    const response = await apiClient.get(URL, { skipToken: false });
+    const URL = `${GET_FOOD_TRUCK_MENU}${foodTruck_id}${GET_FOOD_TRUCK_MENU_BY_ID}`;
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

@@ -24,6 +24,10 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
 export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/food-truck";
 
+// FoodTruck Detail Screen
+export const GET_FOOD_TRUCK_MENU = "/food-truck/";
+export const GET_FOOD_TRUCK_MENU_BY_ID = "/menu";
+
 // Address
 export const GET_ADDRESS = "/user/address";
 export const ADD_ADDRESS = "/user/address";

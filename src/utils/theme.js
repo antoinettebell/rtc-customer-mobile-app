@@ -30,6 +30,8 @@ export const AppColor = {
   darkText: "#1D1D1D",
 
   screenBg: "#F0F1F2",
+  lightGreenBG: "#CDFFC2",
+  lightRedBG: "#f8d7da",
 };
 
 // export const Mulish200 = "Mulish-ExtraLight";

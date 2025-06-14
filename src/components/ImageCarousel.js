@@ -1,13 +1,8 @@
 import React, { useState } from "react";
-import {
-  View,
-  Image,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-} from "react-native";
+import { View, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { AppColor } from "../utils/theme";
+import FastImage from "@d11/react-native-fast-image";
 
 const { width } = Dimensions.get("window");
 
@@ -25,7 +20,14 @@ const ImageCarousel = ({ images, imageStyle, dotStyle, dotActiveStyle }) => {
         scrollAnimationDuration={500}
         onSnapToItem={setActiveIndex}
         renderItem={({ item }) => (
-          <Image source={item} style={[styles.image, imageStyle]} />
+          <FastImage
+            source={{
+              uri: item,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
+            style={[styles.image, imageStyle]}
+          />
         )}
         panGestureHandlerProps={{ activeOffsetX: [-10, 10] }}
         loop={false}

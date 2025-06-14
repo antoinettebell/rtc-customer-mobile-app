@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Platform,
   FlatList,
   Dimensions,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -25,47 +25,123 @@ import {
   addItemToOrder,
   removeItemFromOrder,
 } from "../redux/slices/orderSlice";
+import {
+  getFoodTruckDetailById_API,
+  getFoodTruckMenuDetailById_API,
+} from "../apiFolder/appAPI";
+import facebookIcon from "../assets/images/facebook.png";
+import instagramIcon from "../assets/images/instagram.png";
+import twitterIcon from "../assets/images/twitter.png";
+import webIcon from "../assets/images/global.png";
+import FastImage from "@d11/react-native-fast-image";
+import moment from "moment";
+import FoodTruckAvailabilityModal from "../components/FoodTruckAvailabilityModal";
+
+const socialMediaIcons = {
+  FACEBOOK: facebookIcon,
+  INSTAGRAM: instagramIcon,
+  TWITTER: twitterIcon,
+  WEB: webIcon,
+};
 
 const { width } = Dimensions.get("window");
 
-// Example data for demonstration
-const DEMO_IMAGES = [
-  require("../assets/images/FT-Demo-01.png"),
-  require("../assets/images/FT-Demo-02.png"),
-  require("../assets/images/FT-Demo-01.png"),
-];
 const HR = () => <View style={styles.HR} />;
 
-const INFO_ROWS = [
-  {
-    icon: (
-      <FontAwesome6 name="location-dot" size={20} color={AppColor.primary} />
-    ),
-    title: "Truck Location",
-    value: "47 W 13th St, New York, NY",
-    value2: "10011, USA",
-  },
-  {
-    icon: (
-      <MaterialIcons name="watch-later" size={20} color={AppColor.primary} />
-    ),
-    title: "Open Hours",
-    value: "11:00 AM - 9:00 PM",
-    icon2: <MaterialIcons name="info" size={20} color={AppColor.black} />,
-  },
-  {
-    icon: (
-      <MaterialIcons
-        name="event-available"
-        size={20}
-        color={AppColor.primary}
-      />
-    ),
-    title: "Status",
-    value: "Open Now",
-    onPress: () => console.log("Info icon pressed"),
-  },
-];
+const formatCuisines = (cuisines, maxDisplay = 2) => {
+  if (!cuisines?.length) return "";
+
+  const names = cuisines.map((c) => c.name);
+
+  if (names.length <= maxDisplay) {
+    return names.join(", ");
+  }
+
+  return `${names.slice(0, maxDisplay).join(", ")} & more`;
+};
+
+const handleSocialPress = (url) => {
+  // Ensure URL has a protocol (e.g., https://)
+  const formattedUrl = url.startsWith("http") ? url : `https://${url}`;
+  Linking.openURL(formattedUrl).catch((err) => {
+    console.error("Failed to open URL:", err);
+  });
+};
+
+const getCurrentLocation = (currentLocation, locations) => {
+  if (!currentLocation) return null;
+
+  const matchedLocation = locations.find((loc) => loc._id === currentLocation);
+
+  if (!matchedLocation) return null;
+
+  return {
+    latitude: parseFloat(matchedLocation.lat),
+    longitude: parseFloat(matchedLocation.long),
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+};
+
+const getLocationInfo = (currentLocation, locations) => {
+  if (!currentLocation) return null;
+
+  const matchedLocation = locations.find((loc) => loc._id === currentLocation);
+  if (!matchedLocation) return null;
+
+  return {
+    _id: matchedLocation._id, // Store for future use
+    title: matchedLocation.title,
+    address: matchedLocation.address,
+  };
+};
+
+const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+const getTodaysAvailability = (availability) => {
+  if (!availability?.length) return "Closed Today";
+  const today = days[new Date().getDay()];
+
+  const todaysSlots = availability.filter(
+    (slot) => slot.day === today && slot.available
+  );
+
+  if (!todaysSlots.length) return "Closed Today";
+
+  const formattedSlots = todaysSlots.map((slot) => {
+    const start = formatTime(slot.startTime);
+    const end = formatTime(slot.endTime);
+    return `${start} - ${end}`;
+  });
+
+  return formattedSlots.join(", ");
+};
+
+// Simplified with moment.js
+const formatTime = (timeStr) => {
+  if (!timeStr || timeStr === "00:00") return "12:00 AM"; // Handle midnight
+  return moment(timeStr, "HH:mm").format("h:mm A");
+};
+
+const getCurrentStatus = (availability) => {
+  const todaysHours = getTodaysAvailability(availability);
+  if (todaysHours === "Closed Today") return "Closed Now";
+
+  const now = moment();
+  const isOpen = availability.some((slot) => {
+    if (slot?.day !== days[new Date().getDay()] || !slot.available)
+      return false;
+
+    const start = moment(slot.startTime, "HH:mm");
+    const end = moment(
+      slot.endTime === "00:00" ? "23:59" : slot.endTime,
+      "HH:mm"
+    );
+    return now.isBetween(start, end);
+  });
+
+  return isOpen ? "Open Now" : "Closed Now";
+};
 
 const MENU_TABS = [
   {
@@ -110,13 +186,84 @@ const FoodTruckDetailScreen = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const tabListRef = useRef();
   const tabContentRef = useRef();
+  const [loading, setLoading] = useState(true);
+  const [foodTruckDetail, setFoodTruckDetail] = useState(null);
+  const [isScheduleVisible, setIsScheduleVisible] = useState(false);
+
+  useEffect(() => {
+    fetchFoodTruckDetails();
+  }, []);
+
+  const fetchFoodTruckDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await getFoodTruckDetailById_API(item._id);
+      if (response?.success) {
+        setFoodTruckDetail(response?.data?.foodtruck);
+      }
+    } catch (error) {
+      console.error("Error fetching food truck details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentLocationInfo = getLocationInfo(
+    foodTruckDetail?.currentLocation,
+    foodTruckDetail?.locations
+  );
+
+  const todaysHours = getTodaysAvailability(foodTruckDetail?.availability);
+
+  const currentStatus = getCurrentStatus(foodTruckDetail?.availability);
+
+  const INFO_ROWS = [
+    {
+      icon: (
+        <FontAwesome6 name="location-dot" size={20} color={AppColor.primary} />
+      ),
+      title: "Truck Location",
+      value: currentLocationInfo?.title || "Not Available",
+      value2: currentLocationInfo?.address || "",
+      metadata: { locationId: currentLocationInfo?._id }, // Store _id for future use
+    },
+    {
+      icon: (
+        <MaterialIcons name="watch-later" size={20} color={AppColor.primary} />
+      ),
+      title: "Open Hours",
+      value: todaysHours,
+      icon2: (
+        <TouchableOpacity
+          onPress={() => setIsScheduleVisible(true)}
+          hitSlop={12}
+        >
+          <MaterialIcons name="info" size={20} color={AppColor.black} />
+        </TouchableOpacity>
+      ),
+    },
+    {
+      icon: (
+        <MaterialIcons
+          name="event-available"
+          size={20}
+          color={AppColor.primary}
+        />
+      ),
+      title: "Status",
+      value: currentStatus,
+      onPress: () => {}, // Open modal on press
+    },
+  ];
 
   // Get current order from Redux
   const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
 
   // For demo, use DEMO_IMAGES. In real, use item.images or similar.
   const images =
-    item.images && item.images.length > 0 ? item.images : DEMO_IMAGES;
+    foodTruckDetail?.photos && foodTruckDetail?.photos?.length > 0
+      ? foodTruckDetail?.photos
+      : [];
 
   // Tab change by tap
   const handleTabPress = (idx) => {
@@ -162,13 +309,10 @@ const FoodTruckDetailScreen = () => {
     return orderItem ? orderItem.quantity : 0;
   };
 
-  // Demo location for MapView
-  const truckLocation = {
-    latitude: 40.7397,
-    longitude: -74.0059,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  };
+  const truckLocation = getCurrentLocation(
+    foodTruckDetail?.currentLocation,
+    foodTruckDetail?.locations
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -193,8 +337,12 @@ const FoodTruckDetailScreen = () => {
         >
           {/* Name & Subname */}
           <View style={styles.nameRow}>
-            <Text style={styles.title}>{item.name || "BURGER EXPRESS"}</Text>
-            <Text style={styles.subname}>Food Truck</Text>
+            <Text style={styles.title}>{foodTruckDetail?.name}</Text>
+            <Text style={styles.subname}>
+              {foodTruckDetail?.infoType === "caterer"
+                ? "Food Caterer"
+                : "Food Truck"}
+            </Text>
           </View>
           {/* Ratings & Food Types */}
           <View
@@ -212,7 +360,9 @@ const FoodTruckDetailScreen = () => {
               <FontAwesome name="star" size={16} color={AppColor.ratingStar} />
               <Text style={styles.ratingText}>4.8 (200+ reviews)</Text>
               <Text style={styles.dot}>|</Text>
-              <Text style={styles.cuisineText}>Mexican, American</Text>
+              <Text style={styles.cuisineText}>
+                {formatCuisines(foodTruckDetail?.cuisine)}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity>
               <FontAwesome name="heart-o" size={22} color={AppColor.red} />
@@ -220,20 +370,19 @@ const FoodTruckDetailScreen = () => {
           </View>
           {/* Social Media Icons */}
           <View style={styles.socialRow}>
-            <TouchableOpacity>
-              <FontAwesome
-                name="facebook-square"
-                size={22}
-                color={AppColor.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <FontAwesome
-                name="instagram"
-                size={22}
-                color={AppColor.primary}
-              />
-            </TouchableOpacity>
+            {foodTruckDetail?.socialMedia?.map((social, index) => {
+              const iconSource = socialMediaIcons[social.mediaType];
+              if (!iconSource) return null;
+
+              return (
+                <TouchableOpacity
+                  key={`${social.mediaType}-${index}`}
+                  onPress={() => handleSocialPress(social.mediaUrl)}
+                >
+                  <FastImage source={iconSource} style={styles.socialIcon} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -260,52 +409,99 @@ const FoodTruckDetailScreen = () => {
             {/* </TouchableOpacity> */}
           </View>
           <View style={styles.mapViewWrap}>
-            <MapView
-              style={styles.mapView}
-              initialRegion={truckLocation}
-              region={truckLocation}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-              pointerEvents="none"
-            >
-              <Marker coordinate={truckLocation}>
-                <FontAwesome6
-                  name="location-dot"
-                  size={32}
-                  color={AppColor.primary}
-                />
-              </Marker>
-            </MapView>
+            {truckLocation ? (
+              <MapView
+                style={styles.mapView}
+                initialRegion={truckLocation}
+                region={truckLocation}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+                pointerEvents="none"
+              >
+                <Marker coordinate={truckLocation}>
+                  <FontAwesome6
+                    name="location-dot"
+                    size={32}
+                    color={AppColor.primary}
+                  />
+                </Marker>
+              </MapView>
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <Text>No location available</Text>
+              </View>
+            )}
           </View>
         </View>
 
         {/* Dynamic Info Rows */}
         <View style={styles.infoRowsWrap}>
-          {INFO_ROWS.map((row, idx) => (
-            <View key={idx} style={styles.infoRowContainer}>
-              <View key={idx} style={[styles.infoRowContainer, { flex: 1 }]}>
-                <View style={styles.infoRowLeft}>
-                  {row.icon}
-                  <Text style={styles.infoRowTitle}>{row.title}</Text>
+          {INFO_ROWS.map((row, idx) => {
+            const isAvailabilityRow = row.title === "Open Hours";
+            const isStatusRow = row.title === "Status";
+            const isOpen = row.value === "Open Now";
+            const isClosed = row.value === "Closed Now";
+
+            return (
+              <View key={idx} style={styles.infoRowContainer}>
+                <View style={[styles.infoRowContainer, { flex: 1 }]}>
+                  <View style={styles.infoRowLeft}>
+                    {row.icon}
+                    <Text style={styles.infoRowTitle}>{row.title}</Text>
+                  </View>
+                </View>
+                <View style={{ flex: 1, alignItems: "flex-end" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.infoRowValue,
+                        {
+                          textAlign: "right",
+                          backgroundColor: isStatusRow
+                            ? isOpen
+                              ? AppColor.lightGreenBG
+                              : isClosed
+                                ? AppColor.lightRedBG
+                                : "transparent"
+                            : "transparent",
+                          color: isStatusRow
+                            ? isOpen
+                              ? AppColor.snackbarSuccess
+                              : isClosed
+                                ? AppColor.snackbarError
+                                : AppColor.black
+                            : AppColor.black,
+                          padding: isStatusRow ? 6 : 0,
+                          borderRadius: isStatusRow ? 4 : 0,
+                          marginRight: isAvailabilityRow ? 10 : 0,
+                        },
+                      ]}
+                    >
+                      {row.value}
+                    </Text>
+                    {isAvailabilityRow && row.icon2}
+                  </View>
+                  {row.value2 && (
+                    <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
+                      {row.value2}
+                    </Text>
+                  )}
                 </View>
               </View>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  alignItems: "flex-end",
-                }}
-              >
-                <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
-                  {row.value}
-                </Text>
-                {row.value2 && (
-                  <Text style={styles.infoRowValue}>{row.value2}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ))}
+            );
+          })}
+          <FoodTruckAvailabilityModal
+            visible={isScheduleVisible}
+            onClose={() => setIsScheduleVisible(false)}
+            availability={foodTruckDetail?.availability || []}
+          />
         </View>
 
         {/* Dynamic Tabs (swipeable & tappable) */}
@@ -483,6 +679,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  socialIcon: {
+    width: 22,
+    height: 22,
+  },
   section: {
     padding: 16,
     marginTop: 18,
@@ -511,6 +711,12 @@ const styles = StyleSheet.create({
   },
   mapView: {
     flex: 1,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
   },
   infoRowsWrap: {
     padding: 16,
