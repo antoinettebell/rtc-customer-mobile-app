@@ -10,6 +10,7 @@ import {
   Dimensions,
   Linking,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -25,6 +26,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   addItemToOrder,
   removeItemFromOrder,
+  clearOrder,
 } from "../redux/slices/orderSlice";
 import {
   getFoodTruckDetailById_API,
@@ -157,6 +159,8 @@ const FoodTruckDetailScreen = () => {
   const [menuTabs, setMenuTabs] = useState([]);
   const [isScheduleVisible, setIsScheduleVisible] = useState(false);
 
+  const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
+
   useEffect(() => {
     fetchFoodTruckDetails();
     fetchMenuDetails();
@@ -192,12 +196,9 @@ const FoodTruckDetailScreen = () => {
   };
 
   const processMenuItems = (menuItems) => {
-    // Group items by category
     const categoriesMap = {};
 
     menuItems.forEach((item) => {
-      if (!item.available) return; // Skip unavailable items
-
       if (!categoriesMap[item.categoryId]) {
         categoriesMap[item.categoryId] = {
           key: item.categoryId,
@@ -215,11 +216,16 @@ const FoodTruckDetailScreen = () => {
           item.imgUrls && item.imgUrls.length > 0
             ? { uri: item.imgUrls[0] }
             : null,
-        originalItem: item, // Store the original item for reference
+        originalItem: item,
+        available: item.available,
+        minQty: item.minQty || 1,
+        maxQty: item.maxQty || 10,
+        allowCustomize: item.allowCustomize || false,
+        diet: item.diet || [],
+        discount: item.discount || 0,
       });
     });
 
-    // Convert to array and set state
     const tabs = Object.values(categoriesMap);
     setMenuTabs(tabs);
   };
@@ -272,8 +278,6 @@ const FoodTruckDetailScreen = () => {
     },
   ];
 
-  const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
-
   const images =
     foodTruckDetail?.photos && foodTruckDetail?.photos?.length > 0
       ? foodTruckDetail?.photos
@@ -291,6 +295,80 @@ const FoodTruckDetailScreen = () => {
   };
 
   const handleAddItem = (menuItem) => {
+    // Check if ordering from different food truck
+    if (currentOrder.foodTruckId && currentOrder.foodTruckId !== item._id) {
+      Alert.alert(
+        "Different Food Truck",
+        `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${item.name}?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Clear & Add",
+            onPress: () => {
+              dispatch(clearOrder());
+              addItemToOrderHandler(menuItem);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    addItemToOrderHandler(menuItem);
+  };
+
+  const addItemToOrderHandler = (menuItem) => {
+    const currentQuantity = getItemQuantity(menuItem.id);
+
+    // Check max quantity
+    if (currentQuantity >= menuItem.maxQty) {
+      Alert.alert(
+        "Maximum Quantity Reached",
+        `You can only add up to ${menuItem.maxQty} of this item.`
+      );
+      return;
+    }
+
+    // Check if adding first item and meets min quantity
+    if (currentQuantity === 0 && menuItem.minQty > 1) {
+      Alert.alert(
+        "Minimum Quantity Required",
+        `You need to add at least ${menuItem.minQty} of this item.`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: `Add ${menuItem.minQty}`,
+            onPress: () => {
+              dispatch(
+                addItemToOrder({
+                  foodTruckId: item._id,
+                  foodTruckName: item.name,
+                  item: {
+                    id: menuItem.id,
+                    name: menuItem.name,
+                    desc: menuItem.desc,
+                    price: parseFloat(menuItem.price.replace("$", "")),
+                    img: menuItem.img,
+                    originalItem: menuItem.originalItem,
+                    minQty: menuItem.minQty,
+                    maxQty: menuItem.maxQty,
+                  },
+                  quantity: menuItem.minQty,
+                })
+              );
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     dispatch(
       addItemToOrder({
         foodTruckId: item._id,
@@ -302,12 +380,41 @@ const FoodTruckDetailScreen = () => {
           price: parseFloat(menuItem.price.replace("$", "")),
           img: menuItem.img,
           originalItem: menuItem.originalItem,
+          minQty: menuItem.minQty,
+          maxQty: menuItem.maxQty,
         },
       })
     );
   };
 
   const handleRemoveItem = (menuItem) => {
+    const currentQuantity = getItemQuantity(menuItem.id);
+
+    // Check min quantity
+    if (currentQuantity <= menuItem.minQty) {
+      Alert.alert(
+        "Minimum Quantity",
+        `You need to keep at least ${menuItem.minQty} of this item or remove it completely.`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Remove Item",
+            onPress: () => {
+              dispatch(
+                removeItemFromOrder({
+                  itemId: menuItem.id,
+                })
+              );
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     dispatch(
       removeItemFromOrder({
         itemId: menuItem.id,
@@ -356,13 +463,7 @@ const FoodTruckDetailScreen = () => {
             </Text>
           </View>
           {/* Ratings & Food Types */}
-          <View
-            style={{
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexDirection: "row",
-            }}
-          >
+          <View style={styles.ratingAndHeartContainer}>
             <TouchableOpacity
               style={styles.ratingsRow}
               activeOpacity={0.7}
@@ -401,23 +502,19 @@ const FoodTruckDetailScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.getDirectionBtn}
               onPress={() => {
-                // Open maps with direction
-                const url = `https://www.google.com/maps/dir/?api=1&destination=${truckLocation.latitude},${truckLocation.longitude}`;
-                if (Platform.OS === "web") {
-                  window.open(url, "_blank");
-                } else {
-                  // Use Linking for mobile
-                  import("react-native").then(({ Linking }) =>
-                    Linking.openURL(url)
+                if (truckLocation) {
+                  const url = `https://www.google.com/maps/dir/?api=1&destination=${truckLocation.latitude},${truckLocation.longitude}`;
+                  Linking.openURL(url).catch((err) =>
+                    console.error("Failed to open maps:", err)
                   );
                 }
               }}
-            > */}
-            <Text style={styles.getDirectionBtn}>Get Direction</Text>
-            {/* </TouchableOpacity> */}
+            >
+              <Text style={styles.getDirectionBtnText}>Get Direction</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.mapViewWrap}>
             {truckLocation ? (
@@ -557,7 +654,7 @@ const FoodTruckDetailScreen = () => {
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ backgroundColor: "red" }}
+              contentContainerStyle={styles.tabContentContainer}
               onMomentumScrollEnd={handleTabContentScroll}
               getItemLayout={(_, index) => ({
                 length: width,
@@ -565,12 +662,7 @@ const FoodTruckDetailScreen = () => {
                 index,
               })}
               renderItem={({ item: tab }) => (
-                <View
-                  style={{
-                    width,
-                    backgroundColor: AppColor.white,
-                  }}
-                >
+                <View style={styles.tabContent}>
                   {tab.items.length === 0 ? (
                     <Text style={styles.noMenuText}>
                       No items available in this section.
@@ -578,67 +670,112 @@ const FoodTruckDetailScreen = () => {
                   ) : (
                     tab?.items?.map((menu, index) => {
                       const quantity = getItemQuantity(menu.id);
-                      const isLastItem = index === tab?.item?.length - 1;
+                      const isLastItem = index === tab.items.length - 1;
+                      const isDisabled = !menu.available;
+
                       return (
                         <View
                           key={menu.id}
                           style={[
                             styles.menuItemRow,
-                            !isLastItem && {
-                              borderBottomWidth: 1,
-                              borderBottomColor: AppColor.borderColor,
-                            },
+                            !isLastItem && styles.menuItemBorder,
+                            isDisabled && styles.disabledMenuItem,
                           ]}
                         >
                           {menu.img ? (
-                            <Image source={menu.img} style={styles.menuImg} />
+                            <Image
+                              source={menu.img}
+                              style={[
+                                styles.menuImg,
+                                isDisabled && styles.disabledImage,
+                              ]}
+                            />
                           ) : (
-                            <View style={styles.menuImgPlaceholder} />
+                            <View
+                              style={[
+                                styles.menuImgPlaceholder,
+                                isDisabled && styles.disabledImage,
+                              ]}
+                            />
                           )}
-                          <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
-                            <Text style={styles.menuTitle}>{menu.name}</Text>
-                            <Text style={styles.menuDesc}>{menu.desc}</Text>
-                            <Text style={styles.menuPrice}>{menu.price}</Text>
-                          </View>
-                          {quantity === 0 ? (
-                            <TouchableOpacity
-                              style={styles.addButton}
-                              onPress={() => handleAddItem(menu)}
+                          <View style={styles.menuDetails}>
+                            <Text
+                              style={[
+                                styles.menuTitle,
+                                isDisabled && styles.disabledText,
+                              ]}
                             >
-                              <Text style={styles.addButtonText}>Add</Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={styles.quantityContainer}>
-                              <TouchableOpacity
-                                style={styles.quantityButton}
-                                onPress={() => handleRemoveItem(menu)}
-                              >
-                                {quantity === 1 ? (
-                                  <MaterialIcons
-                                    name="delete-outline"
-                                    size={20}
-                                    color={AppColor.primary}
-                                  />
-                                ) : (
-                                  <Text style={styles.quantityButtonText}>
-                                    -
-                                  </Text>
-                                )}
-                              </TouchableOpacity>
-                              <Text style={styles.quantityText}>
-                                {quantity}
+                              {menu.name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.menuDesc,
+                                isDisabled && styles.disabledText,
+                              ]}
+                            >
+                              {menu.desc}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.menuPrice,
+                                isDisabled && styles.disabledText,
+                              ]}
+                            >
+                              {menu.price}
+                            </Text>
+                            {isDisabled && (
+                              <Text style={styles.unavailableText}>
+                                Currently Unavailable
                               </Text>
+                            )}
+                          </View>
+                          {!isDisabled ? (
+                            quantity === 0 ? (
                               <TouchableOpacity
-                                style={styles.quantityButton}
+                                style={styles.addButton}
                                 onPress={() => handleAddItem(menu)}
                               >
-                                <Text style={styles.quantityButtonText}>+</Text>
+                                <Text style={styles.addButtonText}>Add</Text>
                               </TouchableOpacity>
-                            </View>
-                          )}
-                          <View
-                            style={{ backgroundColor: "green", height: 10 }}
-                          />
+                            ) : (
+                              <View style={styles.quantityContainer}>
+                                <TouchableOpacity
+                                  style={styles.quantityButton}
+                                  onPress={() => handleRemoveItem(menu)}
+                                >
+                                  {quantity === 1 ? (
+                                    <MaterialIcons
+                                      name="delete-outline"
+                                      size={20}
+                                      color={AppColor.primary}
+                                    />
+                                  ) : (
+                                    <Text style={styles.quantityButtonText}>
+                                      -
+                                    </Text>
+                                  )}
+                                </TouchableOpacity>
+                                <Text style={styles.quantityText}>
+                                  {quantity}
+                                </Text>
+                                <TouchableOpacity
+                                  style={styles.quantityButton}
+                                  onPress={() => handleAddItem(menu)}
+                                  disabled={quantity >= menu.maxQty}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.quantityButtonText,
+                                      quantity >= menu.maxQty &&
+                                        styles.disabledButtonText,
+                                    ]}
+                                  >
+                                    +
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            )
+                          ) : null}
                         </View>
                       );
                     })
@@ -660,11 +797,6 @@ const FoodTruckDetailScreen = () => {
             styles.bottomBar,
             {
               paddingBottom: insets.bottom || 12,
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
             },
           ]}
         >
@@ -704,6 +836,11 @@ const styles = StyleSheet.create({
   subname: {
     fontFamily: Secondary400,
     fontSize: 14,
+  },
+  ratingAndHeartContainer: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexDirection: "row",
   },
   ratingsRow: {
     flexDirection: "row",
@@ -749,9 +886,11 @@ const styles = StyleSheet.create({
   },
   getDirectionBtn: {
     backgroundColor: "#FC7B0338",
-    color: AppColor.primary,
     borderRadius: 8,
     padding: 6,
+  },
+  getDirectionBtnText: {
+    color: AppColor.primary,
     fontFamily: Secondary400,
     fontSize: 14,
   },
@@ -791,7 +930,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   tabsWrap: {
-    // paddingHorizontal: 16,
     backgroundColor: AppColor.white,
   },
   tabsRow: {
@@ -817,11 +955,22 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: AppColor.primary,
   },
+  tabContentContainer: {
+    backgroundColor: AppColor.white,
+  },
+  tabContent: {
+    width,
+    backgroundColor: AppColor.white,
+  },
   menuItemRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 15,
+  },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.borderColor,
   },
   menuImg: {
     width: 80,
@@ -833,6 +982,11 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 10,
     backgroundColor: "#f0f0f0",
+  },
+  menuDetails: {
+    flex: 1,
+    marginLeft: 10,
+    gap: 6,
   },
   menuTitle: {
     fontFamily: Primary400,
@@ -889,6 +1043,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     marginTop: 4,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
   },
   bottomBarBtn: {
     alignItems: "center",
@@ -926,7 +1085,25 @@ const styles = StyleSheet.create({
   },
   HR: {
     height: 1,
-    backgroundColor: "#E5E5EA",
+    backgroundColor: AppColor.borderColor,
+  },
+  disabledMenuItem: {
+    opacity: 0.6,
+  },
+  disabledImage: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    color: AppColor.textHighlighter,
+  },
+  disabledButtonText: {
+    color: AppColor.textHighlighter,
+  },
+  unavailableText: {
+    fontFamily: Secondary400,
+    fontSize: 12,
+    color: AppColor.snackbarError,
+    marginTop: 4,
   },
 });
 

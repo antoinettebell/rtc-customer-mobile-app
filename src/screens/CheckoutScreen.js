@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -17,6 +19,7 @@ import {
   removeItemFromOrder,
   clearCurrentOrder,
 } from "../redux/slices/orderSlice";
+import { placeFoodOrder_API } from "../apiFolder/appAPI"; // ✅ import your API
 
 const foodImg = require("../assets/images/FoodImage.png");
 
@@ -25,11 +28,11 @@ const CheckoutScreen = () => {
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
 
-  // Coupon and payment logic
   const [coupon, setCoupon] = React.useState(null);
   const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
+  const [loading, setLoading] = React.useState(false);
 
-  // Totals
+  // Financial calculations
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -39,7 +42,14 @@ const CheckoutScreen = () => {
   const paymentFee = 0.4;
   const total = subtotal + salesTax + paymentFee - discount;
 
-  // Item modification handlers
+  // Utility: get current time + 30 minutes
+  const getDeliveryTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    return now.toTimeString().slice(0, 5); // format "HH:MM"
+  };
+
+  // Add/Remove item from cart
   const handleAdd = (item) => {
     dispatch(
       addItemToOrder({
@@ -55,14 +65,42 @@ const CheckoutScreen = () => {
       })
     );
   };
+
   const handleRemove = (item) => {
     dispatch(removeItemFromOrder({ itemId: item.id }));
   };
 
-  // Confirm order handler
-  const handleConfirmOrder = () => {
-    dispatch(clearCurrentOrder());
-    navigation.navigate("paymentScreen", { total });
+  // Confirm Order
+  const handleConfirmOrder = async () => {
+    if (order.items.length === 0) {
+      Alert.alert("No Items", "Please add items to your order first.");
+      return;
+    }
+
+    const payload = {
+      foodTruckId: order.foodTruckId,
+      deliveryTime: getDeliveryTime(),
+      items: order.items.map((item) => ({
+        menuItemId: item.originalItem._id,
+        qty: item.quantity,
+      })),
+    };
+
+    try {
+      setLoading(true);
+      const response = await placeFoodOrder_API(payload);
+      console.log("✅ Order placed:", response);
+
+      dispatch(clearCurrentOrder());
+      Alert.alert("Success", "Your order has been placed!");
+
+      navigation.navigate("paymentScreen", { total });
+    } catch (error) {
+      console.error("❌ Order failed:", error);
+      Alert.alert("Error", error?.message || "Failed to place order.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +111,7 @@ const CheckoutScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
+
         <FlatList
           data={order.items}
           keyExtractor={(item) => item.id.toString()}
@@ -107,7 +146,7 @@ const CheckoutScreen = () => {
             <Text style={styles.emptyText}>No items in your order.</Text>
           }
         />
-        {/* Coupon */}
+
         <TouchableOpacity
           style={styles.couponBox}
           onPress={() => navigation.navigate("couponCodeScreen", { setCoupon })}
@@ -116,35 +155,26 @@ const CheckoutScreen = () => {
             {coupon ? `Coupon: ${coupon}` : "Apply Coupon"}
           </Text>
         </TouchableOpacity>
-        {/* Payment Method */}
+
         <View style={styles.paymentBox}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          <TouchableOpacity
-            onPress={() => setPaymentMethod("Google Pay")}
-            style={[
-              styles.paymentOption,
-              paymentMethod === "Google Pay" && styles.paymentOptionActive,
-            ]}
-          >
-            <Text style={styles.radio}>
-              {paymentMethod === "Google Pay" ? "◉" : "○"}
-            </Text>
-            <Text style={styles.paymentText}>Google Pay</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setPaymentMethod("Apple Pay")}
-            style={[
-              styles.paymentOption,
-              paymentMethod === "Apple Pay" && styles.paymentOptionActive,
-            ]}
-          >
-            <Text style={styles.radio}>
-              {paymentMethod === "Apple Pay" ? "◉" : "○"}
-            </Text>
-            <Text style={styles.paymentText}>Apple Pay</Text>
-          </TouchableOpacity>
+          {["Google Pay", "Apple Pay"].map((method) => (
+            <TouchableOpacity
+              key={method}
+              onPress={() => setPaymentMethod(method)}
+              style={[
+                styles.paymentOption,
+                paymentMethod === method && styles.paymentOptionActive,
+              ]}
+            >
+              <Text style={styles.radio}>
+                {paymentMethod === method ? "◉" : "○"}
+              </Text>
+              <Text style={styles.paymentText}>{method}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        {/* Order Total */}
+
         <View style={styles.totalBox}>
           <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
           <View style={styles.totalRow}>
@@ -168,17 +198,22 @@ const CheckoutScreen = () => {
             <Text style={styles.totalText}>${total.toFixed(2)}</Text>
           </View>
         </View>
+
         <TouchableOpacity
           style={[
             styles.confirmBtn,
-            order.items.length === 0 && {
+            (order.items.length === 0 || loading) && {
               backgroundColor: AppColor.textHighlighter,
             },
           ]}
           onPress={handleConfirmOrder}
-          disabled={order.items.length === 0}
+          disabled={order.items.length === 0 || loading}
         >
-          <Text style={styles.confirmBtnText}>Confirm Order</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.confirmBtnText}>Confirm Order</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -269,7 +304,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-  confirmBtnText: { color: "#fff", fontFamily: Primary400, fontSize: 16 },
+  confirmBtnText: {
+    color: "#fff",
+    fontFamily: Primary400,
+    fontSize: 16,
+  },
 });
 
 export default CheckoutScreen;

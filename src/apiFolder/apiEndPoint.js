@@ -30,6 +30,9 @@ export const GET_FOOD_TRUCK_MENU_BY_ID = (foodTruck_id) =>
 export const GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC = (foodTruck_id) =>
   `/public/food-truck/${foodTruck_id}/menu`;
 
+// Food Order
+export const PLACE_FOOD_ORDER = "/order";
+
 // Address
 export const GET_ADDRESS = "/user/address";
 export const ADD_ADDRESS = "/user/address";

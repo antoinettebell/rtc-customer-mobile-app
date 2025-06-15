@@ -17,6 +17,7 @@ import {
   GET_FOOD_TRUCK_DETAIL_BY_ID,
   GET_FOOD_TRUCK_MENU_BY_ID,
   GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC,
+  PLACE_FOOD_ORDER,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -254,6 +255,17 @@ export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
     const response = await apiClient.get(URL, {
       skipToken: authToken ? false : true,
     });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Place Food Order
+export const placeFoodOrder_API = async (payload) => {
+  try {
+    const URL = `${PLACE_FOOD_ORDER}`;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
