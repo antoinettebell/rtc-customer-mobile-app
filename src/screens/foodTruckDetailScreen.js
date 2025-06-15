@@ -26,7 +26,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   addItemToOrder,
   removeItemFromOrder,
-  clearOrder,
+  clearCurrentOrder,
 } from "../redux/slices/orderSlice";
 import {
   getFoodTruckDetailById_API,
@@ -223,6 +223,8 @@ const FoodTruckDetailScreen = () => {
         allowCustomize: item.allowCustomize || false,
         diet: item.diet || [],
         discount: item.discount || 0,
+        itemType: item.itemType,
+        subItem: item.subItem || [],
       });
     });
 
@@ -308,7 +310,7 @@ const FoodTruckDetailScreen = () => {
           {
             text: "Clear & Add",
             onPress: () => {
-              dispatch(clearOrder());
+              dispatch(clearCurrentOrder());
               addItemToOrderHandler(menuItem);
             },
           },
@@ -336,7 +338,7 @@ const FoodTruckDetailScreen = () => {
     if (currentQuantity === 0 && menuItem.minQty > 1) {
       Alert.alert(
         "Minimum Quantity Required",
-        `You need to add at least ${menuItem.minQty} of this item.`,
+        `To order this item, you must add at least ${menuItem.minQty} quantity.`,
         [
           {
             text: "Cancel",
@@ -358,6 +360,11 @@ const FoodTruckDetailScreen = () => {
                     originalItem: menuItem.originalItem,
                     minQty: menuItem.minQty,
                     maxQty: menuItem.maxQty,
+                    allowCustomize: menuItem.allowCustomize,
+                    diet: menuItem.diet,
+                    discount: menuItem.discount,
+                    itemType: menuItem.itemType,
+                    subItem: menuItem.subItem,
                   },
                   quantity: menuItem.minQty,
                 })
@@ -382,39 +389,17 @@ const FoodTruckDetailScreen = () => {
           originalItem: menuItem.originalItem,
           minQty: menuItem.minQty,
           maxQty: menuItem.maxQty,
+          allowCustomize: menuItem.allowCustomize,
+          diet: menuItem.diet,
+          discount: menuItem.discount,
+          itemType: menuItem.itemType,
+          subItem: menuItem.subItem,
         },
       })
     );
   };
 
   const handleRemoveItem = (menuItem) => {
-    const currentQuantity = getItemQuantity(menuItem.id);
-
-    // Check min quantity
-    if (currentQuantity <= menuItem.minQty) {
-      Alert.alert(
-        "Minimum Quantity",
-        `You need to keep at least ${menuItem.minQty} of this item or remove it completely.`,
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: "Remove Item",
-            onPress: () => {
-              dispatch(
-                removeItemFromOrder({
-                  itemId: menuItem.id,
-                })
-              );
-            },
-          },
-        ]
-      );
-      return;
-    }
-
     dispatch(
       removeItemFromOrder({
         itemId: menuItem.id,
@@ -476,9 +461,15 @@ const FoodTruckDetailScreen = () => {
                 {formatCuisines(foodTruckDetail?.cuisine)}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity>
-              <FontAwesome name="heart-o" size={22} color={AppColor.red} />
-            </TouchableOpacity>
+            {typeof item?.isFavorite === "boolean" && (
+              <TouchableOpacity>
+                <FontAwesome
+                  name={item?.isFavorite ? "heart" : "heart-o"}
+                  size={22}
+                  color={AppColor.red}
+                />
+              </TouchableOpacity>
+            )}
           </View>
           {/* Social Media Icons */}
           <View style={styles.socialRow}>
@@ -743,17 +734,9 @@ const FoodTruckDetailScreen = () => {
                                   style={styles.quantityButton}
                                   onPress={() => handleRemoveItem(menu)}
                                 >
-                                  {quantity === 1 ? (
-                                    <MaterialIcons
-                                      name="delete-outline"
-                                      size={20}
-                                      color={AppColor.primary}
-                                    />
-                                  ) : (
-                                    <Text style={styles.quantityButtonText}>
-                                      -
-                                    </Text>
-                                  )}
+                                  <Text style={styles.quantityButtonText}>
+                                    -
+                                  </Text>
                                 </TouchableOpacity>
                                 <Text style={styles.quantityText}>
                                   {quantity}
@@ -1003,11 +986,11 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: AppColor.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     color: AppColor.white,
     fontFamily: Primary400,
     fontSize: 14,
@@ -1015,23 +998,22 @@ const styles = StyleSheet.create({
   quantityContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
     borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
   },
   quantityButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
   },
   quantityButtonText: {
     fontFamily: Primary400,
-    fontSize: 18,
+    fontSize: 14,
     color: AppColor.primary,
   },
   quantityText: {
     fontFamily: Primary400,
-    fontSize: 15,
+    fontSize: 14,
     color: AppColor.text,
     marginHorizontal: 4,
   },
@@ -1040,8 +1022,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
     marginTop: 4,
     position: "absolute",
     left: 0,

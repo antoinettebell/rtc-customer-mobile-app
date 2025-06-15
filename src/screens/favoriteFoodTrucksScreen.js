@@ -122,14 +122,17 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
         data={favoriteTrucks}
         keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.favTrucksCard}
         renderItem={({ item }) => (
           <View style={styles.truckCard}>
             <FastImage
-              source={item.image ? { uri: item.image } : favTruck1}
+              source={
+                item.foodTruck?.logo ? { uri: item.foodTruck?.logo } : favTruck1
+              }
               style={styles.truckImg}
             />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.truckName}>{item.name}</Text>
+              <Text style={styles.truckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.truckReview}>
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
                 {item.reviews || "0"} reviews - {item.distance || "0"} miles
@@ -137,7 +140,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => handleRemoveFavorite(item._id)}
+              onPress={() => handleRemoveFavorite(item.foodTruck?._id)}
               style={{ marginLeft: 8 }}
             >
               <Entypo name="heart" size={24} color={AppColor.red} />
@@ -219,10 +222,32 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     height: 40,
   },
+  favTrucksCard: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    backgroundColor: AppColor.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
   truckCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 15,
   },
   truckImg: {
     width: 54,

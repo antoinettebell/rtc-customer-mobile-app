@@ -28,17 +28,25 @@ const FoodTruckGridComponent = ({
   distance,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [localIsLiked, setLocalIsLiked] = useState(isLiked);
 
   const handleLikePress = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      if (isLiked) {
-        await removeFavoriteFoodTruck_API(foodTruckId);
+      if (localIsLiked) {
+        const response = await removeFavoriteFoodTruck_API(foodTruckId);
+        if (response?.success) {
+          setLocalIsLiked(false);
+          onLikePress && onLikePress(false);
+        }
       } else {
-        await addFavoriteFoodTruck_API(foodTruckId);
+        const response = await addFavoriteFoodTruck_API(foodTruckId);
+        if (response?.success) {
+          setLocalIsLiked(true);
+          onLikePress && onLikePress(true);
+        }
       }
-      onLikePress && onLikePress();
     } catch (error) {
       console.log("Error toggling favorite:", error);
     } finally {
@@ -86,8 +94,8 @@ const FoodTruckGridComponent = ({
           <ActivityIndicator size="small" color={AppColor.primary} />
         ) : (
           <MaterialCommunityIcons
-            name={isLiked ? "heart" : "heart-outline"}
-            color={isLiked ? AppColor.primary : AppColor.white}
+            name={localIsLiked ? "heart" : "heart-outline"}
+            color={localIsLiked ? AppColor.snackbarError : AppColor.white}
             size={30}
           />
         )}

@@ -164,6 +164,14 @@ const ExploreScreen = (props) => {
     };
   });
 
+  const handleLikeUpdate = (foodTruckId, isLiked) => {
+    setPopularFoodTrucks((prevTrucks) =>
+      prevTrucks.map((truck) =>
+        truck._id === foodTruckId ? { ...truck, isFavorite: isLiked } : truck
+      )
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBarManager barStyle="light-content" />
@@ -438,17 +446,16 @@ const ExploreScreen = (props) => {
                   <FoodTruckGridComponent
                     title={item.name}
                     uris={item.logo}
-                    isLiked={item.isLiked}
+                    isLiked={item.isFavorite}
                     foodTruckId={item._id}
                     reviews={item.reviews}
                     distance={item.distanceInMeters}
                     onContainerPress={() =>
                       navigation.navigate("foodTruckDetailScreen", { item })
                     }
-                    onLikePress={() => {
-                      // Refresh the list if needed
-                      // You can add a refresh function here
-                    }}
+                    onLikePress={(isLiked) =>
+                      handleLikeUpdate(item._id, isLiked)
+                    }
                   />
                 )}
                 contentContainerStyle={{

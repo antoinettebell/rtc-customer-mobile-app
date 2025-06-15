@@ -41,7 +41,6 @@ import { Snackbar, Portal } from "react-native-paper";
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
-const favTruck2 = require("../assets/images/FT-Demo-02.png");
 
 const HR = () => <View style={styles.HR} />;
 
@@ -83,7 +82,7 @@ const ProfileMenuScreen = ({ navigation }) => {
     user?.mobileNumber?.replace(/^\+\d+\s*/, "") || ""
   );
   const [displayContact, setDisplayContact] = useState(
-    user?.mobileNumber || "+1 000 000 0000"
+    user?.countryCode + " " + user?.mobileNumber || "+1 000 000 0000"
   );
   const [contactError, setContactError] = useState("");
 
@@ -409,17 +408,19 @@ const ProfileMenuScreen = ({ navigation }) => {
 
     return (
       <FlatList
-        data={favoriteTrucks}
+        data={favoriteTrucks.slice(0, 2)}
         keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.favTruckRow}>
             <FastImage
-              source={item.image ? { uri: item.image } : favTruck1}
+              source={
+                item.foodTruck?.logo ? { uri: item.foodTruck?.logo } : favTruck1
+              }
               style={styles.favTruckImg}
             />
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.favTruckName}>{item.name}</Text>
+              <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.favTruckReview}>
                 ⭐ {item.reviews || "0"} reviews - {item.distance || "0"} miles
                 away
@@ -562,7 +563,6 @@ const ProfileMenuScreen = ({ navigation }) => {
               label="Privacy Policy"
               rightIcon={true}
               onPress={() => navigation.navigate("privacyPolicy")}
-
             />
             <HR />
             <CustomProfileItem

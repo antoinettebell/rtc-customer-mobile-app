@@ -102,7 +102,7 @@ const BottomNavigator = ({ insets }) => {
         tabBarHideOnKeyboard: true,
         headerShown: false,
         tabBarStyle: {
-          height: Platform.OS === "ios" ? insets.bottom + 60 : 60,
+          height:  insets.bottom + 60,
         },
         tabBarLabelStyle: {
           // fontFamily: Secondary400,
