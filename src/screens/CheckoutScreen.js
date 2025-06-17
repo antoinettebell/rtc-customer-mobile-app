@@ -19,11 +19,17 @@ import {
   removeItemFromOrder,
   clearCurrentOrder,
 } from "../redux/slices/orderSlice";
-import { placeFoodOrder_API } from "../apiFolder/appAPI"; // ✅ import your API
+import Icon from "react-native-vector-icons/FontAwesome";
+import { placeFoodOrder_API } from "../apiFolder/appAPI";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import StatusBarManager from "../components/StatusBarManager";
 
 const foodImg = require("../assets/images/FoodImage.png");
 
+const HR = () => <View style={styles.HR} />;
+
 const CheckoutScreen = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
@@ -104,10 +110,16 @@ const CheckoutScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <AppHeader headerTitle="CHECKOUT" />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBarManager barStyle="dark-content" />
+
+      <AppHeader headerTitle="CHECKoUT" />
+
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{
+          paddingBottom: 30,
+          paddingHorizontal: 16,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
@@ -115,10 +127,11 @@ const CheckoutScreen = () => {
         <FlatList
           data={order.items}
           keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.screenGenericCard}
           renderItem={({ item }) => (
             <View style={styles.itemRow}>
               <Image source={foodImg} style={styles.foodImg} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
                 <Text style={styles.itemTitle}>{item.name}</Text>
                 <Text style={styles.itemDesc}>{item.desc}</Text>
                 <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
@@ -128,20 +141,19 @@ const CheckoutScreen = () => {
                   style={styles.qtyBtnBox}
                   onPress={() => handleRemove(item)}
                 >
-                  <Text style={styles.qtyBtnText}>
-                    {item.quantity === 1 ? "🗑️" : "-"}
-                  </Text>
+                  <Text style={styles.qtyBtnText}>{"-"}</Text>
                 </TouchableOpacity>
                 <Text style={styles.qtyText}>{item.quantity}</Text>
                 <TouchableOpacity
                   style={styles.qtyBtnBox}
                   onPress={() => handleAdd(item)}
                 >
-                  <Text style={styles.qtyBtnText}>+</Text>
+                  <Text style={styles.qtyBtnText}>{"+"}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+          ItemSeparatorComponent={() => <HR />}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No items in your order.</Text>
           }
@@ -157,101 +169,212 @@ const CheckoutScreen = () => {
         </TouchableOpacity>
 
         <View style={styles.paymentBox}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          {["Google Pay", "Apple Pay"].map((method) => (
+          <Text style={styles.paymentTitleTxt}>Payment Method</Text>
+          {[
+            { method: "Google Pay", icon: "google" },
+            { method: "Apple Pay", icon: "apple" },
+          ].map(({ method, icon }) => (
             <TouchableOpacity
               key={method}
               onPress={() => setPaymentMethod(method)}
+              activeOpacity={0.9}
               style={[
                 styles.paymentOption,
                 paymentMethod === method && styles.paymentOptionActive,
               ]}
             >
-              <Text style={styles.radio}>
-                {paymentMethod === method ? "◉" : "○"}
-              </Text>
+              <View style={styles.radioContainer}>
+                <View
+                  style={[
+                    styles.radioOuter,
+                    paymentMethod === method && styles.radioOuterActive,
+                  ]}
+                >
+                  {paymentMethod === method && (
+                    <View style={styles.radioInner} />
+                  )}
+                </View>
+              </View>
+              <Icon
+                name={icon}
+                size={18}
+                style={[
+                  styles.paymentIcon,
+                  paymentMethod === method && styles.paymentIconActive,
+                ]}
+              />
               <Text style={styles.paymentText}>{method}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={styles.totalBox}>
-          <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
+        <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
           <View style={styles.totalRow}>
-            <Text>Subtotal</Text>
-            <Text>${subtotal.toFixed(2)}</Text>
+            <Text
+              style={{ fontFamily: Primary400, fontSize: 18, marginBottom: 15 }}
+            >
+              ToTAL ORDER
+            </Text>
+          </View>
+          <HR />
+          <View style={{ marginVertical: 15, gap: 15 }}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
+              <Text style={styles.totalRowItemValueTxt}>
+                {salesTax.toFixed(2)}%
+              </Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalRowItemTxt}>Discount</Text>
+              <Text style={styles.totalRowItemValueTxt}>
+                - ${discount.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalRowItemTxt}>Total With Tax</Text>
+              <Text style={styles.totalRowItemValueTxt}>
+                ${paymentFee.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalRowItemTxt}>Payment Processing Fee</Text>
+              <Text style={styles.totalRowItemValueTxt}>
+                ${paymentFee.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.totalRow}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
+                <View
+                  style={{
+                    backgroundColor: "#C2FFFF",
+                    borderRadius: 4,
+                    marginLeft: 16,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#008B8B",
+                      paddingVertical: 2,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    Free
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.totalRowItemValueTxt}>${"0.00"}</Text>
+            </View>
           </View>
           <View style={styles.totalRow}>
-            <Text>Sales Tax</Text>
-            <Text>${salesTax.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text>Discount</Text>
-            <Text>- ${discount.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text>Payment Fee</Text>
-            <Text>${paymentFee.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalText}>TOTAL AMOUNT</Text>
+            <Text style={styles.totalText}>ToTAL AMoUNT</Text>
             <Text style={styles.totalText}>${total.toFixed(2)}</Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            (order.items.length === 0 || loading) && {
-              backgroundColor: AppColor.textHighlighter,
-            },
-          ]}
-          onPress={handleConfirmOrder}
-          disabled={order.items.length === 0 || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.confirmBtnText}>Confirm Order</Text>
-          )}
-        </TouchableOpacity>
       </ScrollView>
+
+      <TouchableOpacity
+        style={[
+          styles.confirmBtn,
+          (order.items.length === 0 || loading) && {
+            backgroundColor: AppColor.textHighlighter,
+          },
+        ]}
+        onPress={handleConfirmOrder}
+        disabled={order.items.length === 0 || loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.confirmBtnText}>Confirm Order</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: AppColor.white,
+  },
   sectionTitle: {
     fontFamily: Primary400,
-    fontSize: 17,
+    fontSize: 18,
     marginVertical: 10,
-    color: AppColor.primary,
+  },
+  screenGenericCard: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    backgroundColor: AppColor.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    backgroundColor: "#F0F1F2",
-    borderRadius: 10,
-    padding: 10,
+    paddingVertical: 15,
   },
-  foodImg: { width: 60, height: 60, borderRadius: 8 },
-  itemTitle: { fontFamily: Primary400, fontSize: 16 },
-  itemDesc: { fontFamily: Secondary400, fontSize: 13 },
-  itemPrice: { fontFamily: Primary400, fontSize: 14, color: AppColor.primary },
+  foodImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+  },
+  itemTitle: {
+    fontFamily: Primary400,
+    fontSize: 16,
+  },
+  itemDesc: {
+    fontFamily: Secondary400,
+    fontSize: 14,
+  },
+  itemPrice: {
+    fontFamily: Primary400,
+    fontSize: 14,
+    color: AppColor.primary,
+  },
   qtyBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
   },
-  qtyBtnBox: { paddingHorizontal: 6, paddingVertical: 2 },
-  qtyBtnText: { fontFamily: Primary400, fontSize: 18, color: AppColor.primary },
-  qtyText: { fontSize: 15, fontFamily: Primary400, marginHorizontal: 4 },
+  qtyBtnBox: {
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+  },
+  qtyBtnText: {
+    fontFamily: Primary400,
+    fontSize: 14,
+    color: AppColor.primary,
+  },
+  qtyText: {
+    fontFamily: Primary400,
+    fontSize: 14,
+    color: AppColor.text,
+    marginHorizontal: 4,
+  },
   emptyText: {
     textAlign: "center",
     color: AppColor.textHighlighter,
@@ -263,51 +386,112 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 10,
   },
-  couponText: { color: AppColor.primary, fontFamily: Secondary400 },
-  paymentBox: { marginVertical: 10 },
+  couponText: {
+    color: AppColor.primary,
+    fontFamily: Secondary400,
+  },
+  paymentBox: {
+    marginVertical: 15,
+  },
+  paymentTitleTxt: {
+    fontFamily: Secondary400,
+    fontSize: 14,
+    marginBottom: 10,
+  },
   paymentOption: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 4,
-    borderWidth: 1,
-    borderColor: "#eee",
+    marginBottom: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    padding: 10,
+    backgroundColor: AppColor.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   paymentOptionActive: {
     borderColor: AppColor.primary,
     backgroundColor: "#FFF6ED",
   },
-  radio: { fontSize: 18, marginRight: 8 },
-  paymentText: { fontFamily: Secondary400, fontSize: 15 },
-  totalBox: {
-    marginVertical: 10,
-    backgroundColor: "#F0F1F2",
-    borderRadius: 10,
-    padding: 12,
+  radioContainer: {
+    width: 24, // Fixed width to prevent movement
+    alignItems: "center",
+    marginRight: 8,
+  },
+  radioOuter: {
+    height: 18,
+    width: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: {
+    borderColor: AppColor.primary,
+  },
+  radioInner: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: AppColor.primary,
+  },
+  paymentIcon: {
+    marginRight: 8,
+    color: "#666",
+  },
+  paymentIconActive: {
+    color: AppColor.primary,
+  },
+  paymentText: {
+    fontFamily: Secondary400,
+    fontSize: 15,
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginVertical: 2,
+    alignItems: "center",
+  },
+  totalRowItemTxt: {
+    fontFamily: Secondary400,
+    fontSize: 16,
+  },
+  totalRowItemValueTxt: {
+    fontFamily: Secondary400,
+    fontSize: 14,
   },
   totalText: {
     fontFamily: Primary400,
     fontSize: 16,
     color: AppColor.primary,
-    marginTop: 6,
   },
   confirmBtn: {
     backgroundColor: AppColor.primary,
     borderRadius: 8,
     padding: 16,
+    marginBottom: 30,
     alignItems: "center",
-    marginTop: 10,
   },
   confirmBtnText: {
     color: "#fff",
     fontFamily: Primary400,
     fontSize: 16,
+  },
+  HR: {
+    height: 1,
+    backgroundColor: AppColor.borderColor,
   },
 });
 
