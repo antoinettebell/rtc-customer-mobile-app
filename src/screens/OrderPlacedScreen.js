@@ -10,14 +10,19 @@ const OrderPlacedScreen = () => {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../assets/images/FoodImage.png")}
+        source={require("../assets/images/orderPlcaed.png")}
         style={styles.icon}
       />
       <Text style={styles.placedText}>YOUR ORDER HAS BEEN PLACED!</Text>
       <Text style={styles.orderNum}>Order {orderNumber}</Text>
       <TouchableOpacity
         style={styles.trackBtn}
-        onPress={() => navigation.navigate("rateReviewScreen")}
+        onPress={() => {
+          navigation.goBack();
+          navigation.goBack();
+          navigation.goBack();
+        }}
+        // onPress={() => navigation.navigate("Orders")}
       >
         <Text style={styles.trackBtnText}>Track Order</Text>
       </TouchableOpacity>
@@ -28,31 +33,46 @@ const OrderPlacedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
+    backgroundColor: AppColor.white,
     justifyContent: "center",
   },
-  icon: { width: 80, height: 80, marginBottom: 24 },
+  icon: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+    alignSelf: "center",
+  },
   placedText: {
-    fontFamily: Primary400,
     fontSize: 18,
-    color: AppColor.primary,
     marginBottom: 8,
+    textAlign: "center",
+    fontFamily: Primary400,
+    color: AppColor.primary,
   },
   orderNum: {
-    fontFamily: Secondary400,
     fontSize: 15,
-    color: AppColor.textHighlighter,
     marginBottom: 24,
+    textAlign: "center",
+    fontFamily: Secondary400,
+    color: AppColor.textHighlighter,
   },
   trackBtn: {
     backgroundColor: AppColor.primary,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     alignItems: "center",
-    width: 200,
+    marginHorizontal: 16,
+
+    position: "absolute",
+    bottom: 50,
+    right: 0,
+    left: 0,
   },
-  trackBtnText: { color: "#fff", fontFamily: Primary400, fontSize: 16 },
+  trackBtnText: {
+    color: AppColor.white,
+    fontFamily: Secondary400,
+    fontSize: 16,
+  },
 });
 
 export default OrderPlacedScreen;

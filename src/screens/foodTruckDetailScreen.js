@@ -775,27 +775,25 @@ const FoodTruckDetailScreen = () => {
       </ScrollView>
       {/* Bottom Bar */}
       {currentOrder.totalItems > 0 && (
-        <View
+        <TouchableOpacity
           style={[
             styles.bottomBar,
             {
               paddingBottom: insets.bottom || 12,
             },
           ]}
+          onPress={() =>
+            navigation.navigate("checkoutScreen", { order: currentOrder })
+          }
         >
-          <TouchableOpacity
-            style={styles.bottomBarBtn}
-            onPress={() =>
-              navigation.navigate("checkoutScreen", { order: currentOrder })
-            }
-          >
+          <View style={styles.bottomBarBtn}>
             <Text style={styles.bottomBarText}>
               {currentOrder.totalItems}{" "}
               {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
             </Text>
             <Text style={styles.bottomBarSubText}>View your order-list</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
       )}
     </View>
   );

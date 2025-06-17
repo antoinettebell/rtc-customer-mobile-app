@@ -43,10 +43,15 @@ const CheckoutScreen = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const salesTax = subtotal * 0.07;
+  const salesTaxRate = 7; // 7% sales tax
+  const salesTax = subtotal * (salesTaxRate / 100);
   const discount = coupon ? 5 : 0;
   const paymentFee = 0.4;
-  const total = subtotal + salesTax + paymentFee - discount;
+  const totalWithTax = subtotal + salesTax;
+  const total = totalWithTax + paymentFee - discount;
+
+  // Assume user is eligible for free dessert if they spend more than $15
+  const hasFreeDessert = subtotal > 15;
 
   const getDeliveryTime = () => {
     const now = new Date();
@@ -200,12 +205,17 @@ const CheckoutScreen = () => {
         <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>ToTAL ORDER</Text>
+            <Text style={[styles.totalLabel, { color: AppColor.primary }]}>
+              ${subtotal.toFixed(2)}
+            </Text>
           </View>
           <HR />
           <View style={styles.totalDetails}>
             <View style={styles.totalRow}>
-              <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
-              <Text style={styles.totalRowItemTxt}>{salesTax.toFixed(2)}%</Text>
+              <Text style={styles.totalRowItemTxt}>
+                Sales Tax ({salesTaxRate}%)
+              </Text>
+              <Text style={styles.totalRowItemTxt}>${salesTax.toFixed(2)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Discount</Text>
@@ -215,66 +225,67 @@ const CheckoutScreen = () => {
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Total With Tax</Text>
-              <Text style={styles.totalRowItemValueTxt}>
-                ${paymentFee.toFixed(2)}
+              <Text style={styles.totalRowItemTxt}>
+                ${totalWithTax.toFixed(2)}
               </Text>
             </View>
+            {coupon && (
+              <View style={styles.totalRow}>
+                <Text style={styles.totalRowItemTxt}>Coupon Discount</Text>
+                <Text style={styles.totalRowItemTxt}>
+                  - ${discount.toFixed(2)}
+                </Text>
+              </View>
+            )}
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Payment Processing Fee</Text>
               <Text style={styles.totalRowItemTxt}>
                 ${paymentFee.toFixed(2)}
               </Text>
             </View>
-            <View style={styles.totalRow}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
-                <View
-                  style={{
-                    backgroundColor: "#C2FFFF",
-                    borderRadius: 4,
-                    marginLeft: 16,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#008B8B",
-                      paddingVertical: 2,
-                      paddingHorizontal: 8,
-                    }}
-                  >
-                    Free
-                  </Text>
+            {hasFreeDessert && (
+              <View style={styles.totalRow}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
+                  <View style={styles.freeBadge}>
+                    <Text style={styles.freeBadgeText}>Free</Text>
+                  </View>
                 </View>
+                <Text style={styles.totalRowItemTxt}>$0.00</Text>
               </View>
-              <Text style={styles.totalRowItemTxt}>$0.00</Text>
-            </View>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalText}>ToTAL AMoUNT</Text>
-            <Text style={styles.totalText}>${total.toFixed(2)}</Text>
+            )}
           </View>
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={[
-          styles.confirmBtn,
-          (order.items.length === 0 || loading) && styles.disabledBtn,
-        ]}
-        onPress={handleConfirmOrder}
-        disabled={order.items.length === 0 || loading}
+      <View
+        style={{
+          padding: 16,
+          paddingBottom: 30,
+          borderTopWidth: 1,
+          borderTopColor: AppColor.borderColor,
+        }}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.confirmBtnText}>Confirm Order</Text>
-        )}
-      </TouchableOpacity>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalText}>ToTAL AMoUNT</Text>
+          <Text style={styles.totalText}>${total.toFixed(2)}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.confirmBtn,
+            (order.items.length === 0 || loading) && styles.disabledBtn,
+          ]}
+          onPress={handleConfirmOrder}
+          disabled={order.items.length === 0 || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.confirmBtnText}>Confirm Order</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -468,22 +479,21 @@ const styles = StyleSheet.create({
   },
   totalText: {
     fontFamily: Primary400,
-    fontSize: 16,
-    color: AppColor.primary,
+    fontSize: 20,
+    marginBottom: 15,
   },
   confirmBtn: {
     backgroundColor: AppColor.primary,
     borderRadius: 8,
     padding: 16,
-    marginBottom: 30,
     alignItems: "center",
   },
   disabledBtn: {
     backgroundColor: AppColor.textHighlighter,
   },
   confirmBtnText: {
-    color: "#fff",
-    fontFamily: Primary400,
+    color: AppColor.white,
+    fontFamily: Secondary400,
     fontSize: 16,
   },
   HR: {
@@ -491,8 +501,18 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.borderColor,
   },
   totalDetails: {
-    marginVertical: 15,
     gap: 15,
+    paddingTop: 15,
+  },
+  freeBadge: {
+    backgroundColor: "#C2FFFF",
+    borderRadius: 4,
+    marginLeft: 16,
+  },
+  freeBadgeText: {
+    color: "#008B8B",
+    paddingVertical: 2,
+    paddingHorizontal: 8,
   },
 });
 

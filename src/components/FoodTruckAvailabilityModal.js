@@ -23,19 +23,22 @@ const FoodTruckAvailabilityModal = ({ visible, onClose, availability }) => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Weekly Schedule</Text>
+          <Text style={styles.modalTitle}>OPEN HoURS</Text>
+          <Text style={styles.modalSubTitle}>See weekly open hours.</Text>
+          <View style={styles.HR} />
 
           {groupedAvailability.map(({ day, slots }) => (
             <View key={day} style={styles.dayRow}>
               <Text style={styles.dayName}>
-                {moment().day(day).format("ddd")}:
+                {moment().day(day).format("ddd")}
               </Text>
 
               {slots.length > 0 ? (
                 <View style={styles.timeSlots}>
                   {slots.map((slot, idx) => (
                     <Text key={idx} style={styles.timeSlot}>
-                      {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                      : {formatTime(slot.startTime)} -{" "}
+                      {formatTime(slot.endTime)}
                     </Text>
                   ))}
                 </View>
@@ -70,14 +73,25 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     width: "90%",
     maxHeight: "80%",
   },
   modalTitle: {
+    fontSize: 24,
+    marginBottom: 5,
+    fontFamily: Primary400,
+  },
+  modalSubTitle: {
     fontSize: 18,
-    marginBottom: 16,
-    textAlign: "center",
+    color: AppColor.gray,
+    fontFamily: Secondary400,
+  },
+  HR: {
+    height: 1,
+    marginVertical: 15,
+    backgroundColor: AppColor.borderColor,
   },
   dayRow: {
     flexDirection: "row",
@@ -85,13 +99,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dayName: {
-    width: 50,
+    width: 80,
+    fontFamily: Secondary400,
+    fontSize: 16,
   },
   timeSlots: {
     flex: 1,
   },
   timeSlot: {
     marginBottom: 4,
+    fontFamily: Secondary400,
+    fontSize: 16,
+    color: AppColor.gray,
   },
   closedText: {},
   closeButton: {
@@ -116,6 +135,8 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: "white",
+    fontFamily: Secondary400,
+    fontSize: 16,
   },
 });
 
