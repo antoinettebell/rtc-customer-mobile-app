@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
@@ -38,7 +39,6 @@ const CheckoutScreen = () => {
   const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
   const [loading, setLoading] = React.useState(false);
 
-  // Financial calculations
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -48,14 +48,12 @@ const CheckoutScreen = () => {
   const paymentFee = 0.4;
   const total = subtotal + salesTax + paymentFee - discount;
 
-  // Utility: get current time + 30 minutes
   const getDeliveryTime = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() + 30);
-    return now.toTimeString().slice(0, 5); // format "HH:MM"
+    return now.toTimeString().slice(0, 5);
   };
 
-  // Add/Remove item from cart
   const handleAdd = (item) => {
     dispatch(
       addItemToOrder({
@@ -76,7 +74,6 @@ const CheckoutScreen = () => {
     dispatch(removeItemFromOrder({ itemId: item.id }));
   };
 
-  // Confirm Order
   const handleConfirmOrder = async () => {
     if (order.items.length === 0) {
       Alert.alert("No Items", "Please add items to your order first.");
@@ -96,10 +93,8 @@ const CheckoutScreen = () => {
       setLoading(true);
       const response = await placeFoodOrder_API(payload);
       console.log("✅ Order placed:", response);
-
       dispatch(clearCurrentOrder());
       Alert.alert("Success", "Your order has been placed!");
-
       navigation.navigate("paymentScreen", { total });
     } catch (error) {
       console.error("❌ Order failed:", error);
@@ -112,18 +107,12 @@ const CheckoutScreen = () => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-
       <AppHeader headerTitle="CHECKoUT" />
-
       <ScrollView
-        contentContainerStyle={{
-          paddingBottom: 30,
-          paddingHorizontal: 16,
-        }}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
-
         <FlatList
           data={order.items}
           keyExtractor={(item) => item.id.toString()}
@@ -131,7 +120,7 @@ const CheckoutScreen = () => {
           renderItem={({ item }) => (
             <View style={styles.itemRow}>
               <Image source={foodImg} style={styles.foodImg} />
-              <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
+              <View style={styles.itemDetails}>
                 <Text style={styles.itemTitle}>{item.name}</Text>
                 <Text style={styles.itemDesc}>{item.desc}</Text>
                 <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
@@ -141,14 +130,14 @@ const CheckoutScreen = () => {
                   style={styles.qtyBtnBox}
                   onPress={() => handleRemove(item)}
                 >
-                  <Text style={styles.qtyBtnText}>{"-"}</Text>
+                  <Text style={styles.qtyBtnText}>-</Text>
                 </TouchableOpacity>
                 <Text style={styles.qtyText}>{item.quantity}</Text>
                 <TouchableOpacity
                   style={styles.qtyBtnBox}
                   onPress={() => handleAdd(item)}
                 >
-                  <Text style={styles.qtyBtnText}>{"+"}</Text>
+                  <Text style={styles.qtyBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -208,25 +197,19 @@ const CheckoutScreen = () => {
           ))}
         </View>
 
-        <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
+        <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
-            <Text
-              style={{ fontFamily: Primary400, fontSize: 18, marginBottom: 15 }}
-            >
-              ToTAL ORDER
-            </Text>
+            <Text style={styles.totalLabel}>ToTAL ORDER</Text>
           </View>
           <HR />
-          <View style={{ marginVertical: 15, gap: 15 }}>
+          <View style={styles.totalDetails}>
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
-              <Text style={styles.totalRowItemValueTxt}>
-                {salesTax.toFixed(2)}%
-              </Text>
+              <Text style={styles.totalRowItemTxt}>{salesTax.toFixed(2)}%</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Discount</Text>
-              <Text style={styles.totalRowItemValueTxt}>
+              <Text style={styles.totalRowItemTxt}>
                 - ${discount.toFixed(2)}
               </Text>
             </View>
@@ -238,7 +221,7 @@ const CheckoutScreen = () => {
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalRowItemTxt}>Payment Processing Fee</Text>
-              <Text style={styles.totalRowItemValueTxt}>
+              <Text style={styles.totalRowItemTxt}>
                 ${paymentFee.toFixed(2)}
               </Text>
             </View>
@@ -268,7 +251,7 @@ const CheckoutScreen = () => {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.totalRowItemValueTxt}>${"0.00"}</Text>
+              <Text style={styles.totalRowItemTxt}>$0.00</Text>
             </View>
           </View>
           <View style={styles.totalRow}>
@@ -281,9 +264,7 @@ const CheckoutScreen = () => {
       <TouchableOpacity
         style={[
           styles.confirmBtn,
-          (order.items.length === 0 || loading) && {
-            backgroundColor: AppColor.textHighlighter,
-          },
+          (order.items.length === 0 || loading) && styles.disabledBtn,
         ]}
         onPress={handleConfirmOrder}
         disabled={order.items.length === 0 || loading}
@@ -302,6 +283,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  scrollContent: {
+    paddingBottom: 30,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontFamily: Primary400,
@@ -339,6 +324,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 10,
+  },
+  itemDetails: {
+    flex: 1,
+    marginLeft: 10,
+    gap: 6,
   },
   itemTitle: {
     fontFamily: Primary400,
@@ -426,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF6ED",
   },
   radioContainer: {
-    width: 24, // Fixed width to prevent movement
+    width: 24,
     alignItems: "center",
     marginRight: 8,
   },
@@ -459,18 +449,22 @@ const styles = StyleSheet.create({
     fontFamily: Secondary400,
     fontSize: 15,
   },
+  totalCard: {
+    paddingVertical: 15,
+  },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  totalLabel: {
+    fontFamily: Primary400,
+    fontSize: 18,
+    marginBottom: 15,
+  },
   totalRowItemTxt: {
     fontFamily: Secondary400,
     fontSize: 16,
-  },
-  totalRowItemValueTxt: {
-    fontFamily: Secondary400,
-    fontSize: 14,
   },
   totalText: {
     fontFamily: Primary400,
@@ -484,6 +478,9 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     alignItems: "center",
   },
+  disabledBtn: {
+    backgroundColor: AppColor.textHighlighter,
+  },
   confirmBtnText: {
     color: "#fff",
     fontFamily: Primary400,
@@ -492,6 +489,10 @@ const styles = StyleSheet.create({
   HR: {
     height: 1,
     backgroundColor: AppColor.borderColor,
+  },
+  totalDetails: {
+    marginVertical: 15,
+    gap: 15,
   },
 });
 
