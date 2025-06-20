@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,21 +16,114 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FastImage from "@d11/react-native-fast-image";
 import AppHeader from "../components/AppHeader";
+import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 
 const HR = () => <View style={styles.HR} />;
 
-const OrderDetailsScreen = (props) => {
+const OrderDetailsScreen = () => {
   const navigation = useNavigation();
   const { params } = useRoute();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [order, setOrder] = useState(null);
+  const orderId = params?.orderId;
 
-  const order = params?.order;
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [orderId]);
+
+  const fetchOrderDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await getOrderByOrderId_API(orderId);
+      if (response?.data?.order) {
+        setOrder(response.data.order);
+      } else {
+        setError("Order not found");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to fetch order details");
+      console.error("Error fetching order details:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const options = { day: "numeric", month: "short", year: "numeric" };
+    return date.toLocaleDateString("en-US", options);
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours, 10);
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${minutes} ${period}`;
+  };
+
+  const formatPrice = (price) => {
+    return parseFloat(price).toFixed(2);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <ActivityIndicator size="large" color={AppColor.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          onPress={fetchOrderDetails}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <Text style={styles.errorText}>Order not found</Text>
+      </View>
+    );
+  }
+
+  // Prepare order data for display
+  const orderData = {
+    id: order._id.substring(order._id.length - 6).toUpperCase(),
+    truck: order.foodTruck?.name || "Unknown Truck",
+    items: order.items.map((menuItem) => ({
+      qty: menuItem.qty,
+      name: menuItem.menuItem?.name || "Unknown Item",
+      desc: menuItem.menuItem?.description || "",
+      price: formatPrice(menuItem.price),
+    })),
+    total: formatPrice(order.total),
+    date: formatDate(order.createdAt),
+    time: formatTime(order.deliveryTime || order.pickupTime),
+    image: order.foodTruck?.logo
+      ? { uri: order.foodTruck.logo }
+      : require("../assets/images/FT-Demo-01.png"),
+    status: order.orderStatus,
+    taxAmount: formatPrice(order.taxAmount || 0),
+    discount: formatPrice(order.discount || 0),
+    subTotal: formatPrice(order.subTotal || order.total),
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-
       <AppHeader headerTitle="ORDER DETAILS" />
 
       <ScrollView
@@ -40,21 +133,21 @@ const OrderDetailsScreen = (props) => {
         <View style={styles.contentWrap}>
           <View style={styles.card}>
             <View style={styles.headerRow}>
-              <Text style={styles.orderId}>Order #{order.id}</Text>
+              <Text style={styles.orderId}>Order #{orderData.id}</Text>
             </View>
 
             <View style={styles.truckRow}>
               <View style={styles.truckRowLeft}>
-                <Image source={order.image} style={styles.truckImg} />
+                <Image source={orderData.image} style={styles.truckImg} />
                 <View style={styles.truckInfo}>
-                  <Text style={styles.truckName}>{order.truck}</Text>
+                  <Text style={styles.truckName}>{orderData.truck}</Text>
                   <Text style={styles.itemsCount}>
-                    {order.items.length} Items
+                    {orderData.items.length} Items
                   </Text>
                 </View>
               </View>
               <View style={styles.truckRowRight}>
-                <Text style={styles.orderDate}>{order.date}</Text>
+                <Text style={styles.orderDate}>{orderData.date}</Text>
                 <View style={styles.timeRow}>
                   <MaterialIcons
                     name="access-time"
@@ -62,50 +155,46 @@ const OrderDetailsScreen = (props) => {
                     color={AppColor.grayText}
                     style={styles.timeIcon}
                   />
-                  <Text style={styles.orderDate}>{order.time}</Text>
+                  <Text style={styles.orderDate}>{orderData.time}</Text>
                 </View>
               </View>
             </View>
             <HR />
             <View style={styles.itemsList}>
-              {order.items.map((itm, idx) => (
-                <View style={styles.itemRow}>
+              {orderData.items.map((itm, idx) => (
+                <View style={styles.itemRow} key={idx}>
                   <View style={styles.itemInfo}>
                     <Text
-                      key={idx}
                       style={styles.itemText}
-                    >{`1 x ${itm.name}`}</Text>
-                    <Text
-                      key={itm.desc}
-                      style={styles.itemDesc}
-                    >{`${itm.desc}`}</Text>
+                    >{`${itm.qty} x ${itm.name}`}</Text>
+                    <Text style={styles.itemDesc}>{itm.desc}</Text>
                   </View>
-                  <Text key={itm.price} style={styles.itemText}>
-                    ${`${itm.price}`}
-                  </Text>
+                  <Text style={styles.itemText}>${itm.price}</Text>
                 </View>
               ))}
             </View>
             <HR />
 
             <View style={styles.footerRow}>
-              <Text style={styles.total}>${order.total.toFixed(2)}</Text>
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.trackBtn}
-                  onPress={() =>
-                    props.navigation.navigate("orderTrackingScreen", {
-                      order: order,
-                    })
-                  }
-                >
-                  <FastImage
-                    source={require("../assets/images/trackOrder.png")}
-                    style={styles.actionIcon}
-                  />
-                  <Text style={styles.trackBtnText}>Track</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.total}>${orderData.total}</Text>
+              {orderData.status !== "COMPLETED" && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.trackBtn}
+                    onPress={() =>
+                      navigation.navigate("orderTrackingScreen", {
+                        orderId: order._id,
+                      })
+                    }
+                  >
+                    <FastImage
+                      source={require("../assets/images/trackOrder.png")}
+                      style={styles.actionIcon}
+                    />
+                    <Text style={styles.trackBtnText}>Track</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
@@ -113,67 +202,48 @@ const OrderDetailsScreen = (props) => {
             <View style={styles.totalSection}>
               <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
                 <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
-                <Text style={styles.sectionTitle}>$27.79</Text>
+                <Text style={styles.sectionTitle}>${orderData.subTotal}</Text>
               </View>
               <HR />
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Sales Tax</Text>
-                <Text style={styles.orderDetailsTxt}>7%</Text>
+                <Text style={styles.orderDetailsTxt}>
+                  ${orderData.taxAmount}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Discount</Text>
-                <Text style={styles.orderDetailsTxt}>$5.00</Text>
+                <Text style={styles.orderDetailsTxt}>
+                  ${orderData.discount}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
-                <Text style={styles.orderDetailsTxt}>
-                  ${order.total.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.orderDetailsTxt}>
-                  Payment Processing Fee
-                </Text>
-                <Text style={styles.orderDetailsTxt}>$0.42</Text>
+                <Text style={styles.orderDetailsTxt}>${orderData.total}</Text>
               </View>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      <View
-        style={{
-          // paddingVertical: 20,
-          // paddingHorizontal: 16,
-          padding: 16,
-        }}
-      >
-        <View style={styles.totalAmountRow}>
-          <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-          <Text style={styles.totalAmountValue}>${order.total.toFixed(2)}</Text>
-        </View>
+      {orderData.status !== "COMPLETED" && (
+        <View style={styles.footerContainer}>
+          <View style={styles.totalAmountRow}>
+            <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
+            <Text style={styles.totalAmountValue}>${orderData.total}</Text>
+          </View>
 
-        <TouchableOpacity
-          style={[styles.cancelBtn]}
-          activeOpacity={0.7}
-          onPress={() => {
-            setTimeout(() => {
-              setLoading(true);
-            }, 100);
-            setTimeout(() => {
-              setLoading(false);
-              navigation.navigate("cancelOrderScreen", { order });
-            }, 200);
-          }}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={AppColor.white} />
-          ) : (
-            <Text style={styles.cancelBtnText}>{"Cancel Order"}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              navigation.navigate("cancelOrderScreen", { orderId: order._id });
+            }}
+          >
+            <Text style={styles.cancelBtnText}>Cancel Order</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -182,6 +252,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  centerContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: {
+    color: AppColor.error,
+    fontFamily: Secondary400,
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    color: AppColor.white,
+    fontFamily: Primary400,
   },
   truckImg: {
     width: 48,
@@ -192,16 +283,7 @@ const styles = StyleSheet.create({
     fontFamily: Primary400,
     fontSize: 16,
   },
-  orderItems: {
-    color: AppColor.subText,
-    fontFamily: Secondary400,
-  },
   orderDate: {
-    fontFamily: Secondary400,
-    fontSize: 12,
-    color: AppColor.subText,
-  },
-  orderTime: {
     fontFamily: Secondary400,
     fontSize: 12,
     color: AppColor.subText,
@@ -211,16 +293,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: AppColor.text,
     marginTop: 2,
-  },
-  orderFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  orderTotal: {
-    fontFamily: Primary400,
-    fontSize: 18,
   },
   trackBtn: {
     flexDirection: "row",
@@ -267,6 +339,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 15,
+  },
+  footerContainer: {
+    padding: 16,
   },
   totalAmountRow: {
     flexDirection: "row",
@@ -382,34 +457,6 @@ const styles = StyleSheet.create({
     fontFamily: Primary400,
     fontSize: 20,
     marginLeft: 6,
-  },
-  rateBtn: {
-    flexDirection: "row",
-    borderRadius: 5,
-    paddingVertical: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    width: 100,
-    borderColor: AppColor.primary,
-    gap: 10,
-  },
-  rateBtnText: {
-    color: AppColor.primary,
-    fontFamily: Secondary400,
-    fontSize: 15,
-  },
-  reorderBtn: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-  },
-  reorderBtnText: {
-    color: AppColor.white,
-    fontFamily: Secondary400,
-    fontSize: 15,
   },
   HR: {
     height: 1,

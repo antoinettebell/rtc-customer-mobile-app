@@ -32,6 +32,8 @@ export const GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC = (foodTruck_id) =>
 
 // Food Order
 export const PLACE_FOOD_ORDER = "/order";
+export const GET_ALL_ORDERS = "/order";
+export const GET_ORDER_BY_ORDERID = "/order";
 
 // Address
 export const GET_ADDRESS = "/user/address";

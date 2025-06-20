@@ -14,13 +14,8 @@ import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
 import FastImage from "@d11/react-native-fast-image";
-import { IconButton, Snackbar } from "react-native-paper";
-import {
-  getAddress_API,
-  addAddress_API,
-  updateAddress_API,
-  deleteAddress_API,
-} from "../apiFolder/appAPI";
+import { Snackbar } from "react-native-paper";
+import { getAddress_API, deleteAddress_API } from "../apiFolder/appAPI";
 import { useDispatch } from "react-redux";
 import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
 import AppHeader from "../components/AppHeader";
@@ -36,24 +31,15 @@ const AddressScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
 
-  // Fetch addresses on component mount and when screen comes into focus
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      fetchAddresses();
-    });
-
+    const unsubscribe = navigation.addListener("focus", fetchAddresses);
     return unsubscribe;
   }, [navigation]);
 
   const showSnackbar = (message, type = "success") => {
-    setSnackbar({
-      visible: true,
-      message,
-      type,
-    });
+    setSnackbar({ visible: true, message, type });
   };
 
-  // Fetch addresses from API
   const fetchAddresses = async () => {
     try {
       setLoading(true);
@@ -68,23 +54,18 @@ const AddressScreen = ({ navigation }) => {
     }
   };
 
-  // Handle delete address
   const handleDeleteAddress = async (addressId) => {
     try {
       const response = await deleteAddress_API(addressId);
       if (response?.success) {
         showSnackbar("Address deleted successfully");
-        // Optimize: Remove only the deleted item
-        setAddresses((prevAddresses) =>
-          prevAddresses.filter((addr) => addr._id !== addressId)
-        );
+        setAddresses((prev) => prev.filter((addr) => addr._id !== addressId));
       }
     } catch (error) {
       showSnackbar(error?.message || "Failed to delete address", "error");
     }
   };
 
-  // Handle edit address
   const handleEditAddress = (address) => {
     dispatch(
       setSelectedLocations([
@@ -100,11 +81,53 @@ const AddressScreen = ({ navigation }) => {
     navigation.navigate("authMapScreen", { mode: "edit" });
   };
 
-  // Handle add new address
   const handleAddAddress = () => {
     dispatch(setSelectedLocations([]));
     navigation.navigate("authMapScreen", { mode: "add" });
   };
+
+  const renderItem = ({ item, index }) => (
+    <View style={styles.addressCard}>
+      <View style={styles.cardHeader}>
+        <View style={styles.locationLabelContainer}>
+          <Text style={styles.locationLabel}>Location {index + 1}</Text>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => handleDeleteAddress(item._id)}
+          >
+            <FastImage
+              source={require("../assets/images/bgBin.png")}
+              style={styles.iconImage}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => handleEditAddress(item)}
+          >
+            <FastImage
+              source={require("../assets/images/bgEdit.png")}
+              style={styles.iconImage}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.addressRow}>
+        <EvilIcons
+          name="location"
+          size={18}
+          color={AppColor.primary}
+          style={styles.locationIcon}
+        />
+        <View style={{ flex: 1, paddingRight: 20 }}>
+          <Text style={styles.addressText}>{item.title}</Text>
+          <Text style={styles.addressText2}>{item.address}</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -120,14 +143,7 @@ const AddressScreen = ({ navigation }) => {
         </TouchableOpacity>
       </AppHeader>
 
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-          backgroundColor: "#F0F1F2",
-        }}
-      >
+      <View style={styles.listContainer}>
         {loading ? (
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={AppColor.primary} />
@@ -137,72 +153,8 @@ const AddressScreen = ({ navigation }) => {
             data={addresses}
             keyExtractor={(item) => item._id}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <View style={styles.addressCard}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                  }}
-                >
-                  <View style={styles.locationLabelContainer}>
-                    <Text style={styles.locationLabel}>{item.title}</Text>
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
-                    <TouchableOpacity
-                      style={styles.iconBtn}
-                      onPress={() => handleDeleteAddress(item._id)}
-                    >
-                      <FastImage
-                        source={require("../assets/images/bgBin.png")}
-                        style={{
-                          width: 24,
-                          height: 24,
-                          marginRight: 12,
-                        }}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.iconBtn}
-                      onPress={() => handleEditAddress(item)}
-                    >
-                      <FastImage
-                        source={require("../assets/images/bgEdit.png")}
-                        style={{
-                          width: 24,
-                          height: 24,
-                        }}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <EvilIcons
-                    name="location"
-                    size={18}
-                    color={AppColor.primary}
-                    style={{ marginRight: 8 }}
-                  />
-                  <View style={{}}>
-                    <Text style={styles.addressText}>{item.title}</Text>
-                    <Text style={styles.addressText2}>{item.address}</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+            renderItem={renderItem}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
         )}
       </View>
@@ -235,6 +187,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: "#F0F1F2",
+  },
   addressCard: {
     borderWidth: 1,
     borderColor: AppColor.borderColor,
@@ -245,10 +203,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
       },
@@ -257,26 +212,50 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 15,
+  },
   locationLabelContainer: {
     borderRadius: 5,
     borderWidth: 1,
     borderColor: AppColor.primary,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 5,
   },
   locationLabel: {
     fontFamily: Secondary400,
     fontSize: 16,
     color: AppColor.primary,
   },
-  iconBtn: {},
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconBtn: {
+    marginLeft: 8,
+  },
+  iconImage: {
+    width: 24,
+    height: 24,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationIcon: {
+    marginRight: 8,
+  },
   addressText: {
-    fontFamily: Primary400,
-    fontSize: 16,
+    fontFamily: Secondary400,
+    fontSize: 18,
   },
   addressText2: {
-    fontFamily: Primary400,
+    fontFamily: Secondary400,
     fontSize: 12,
+    color: AppColor.grayText,
   },
   loaderContainer: {
     flex: 1,
@@ -290,6 +269,9 @@ const styles = StyleSheet.create({
     right: 0,
     margin: 16,
     borderRadius: 8,
+  },
+  separator: {
+    height: 16,
   },
 });
 

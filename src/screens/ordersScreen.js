@@ -1,63 +1,131 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useNavigation } from "@react-navigation/native";
 import OrderListItem from "../components/OrderListItem";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const demoOrders = [
-  {
-    id: "126265",
-    truck: "Burger Express",
-    items: [
-      {
-        name: "Taco Express",
-        desc: "Cor tortilla, beef, lettuce, cheese",
-        price: 9.49,
-      },
-      {
-        name: "Burrito Bowl",
-        desc: "Cor tortilla, beef, lettuce, cheese",
-        price: 17.98,
-      },
-    ],
-    total: 24.44,
-    date: "20 Mar, 2025",
-    time: "3:00 PM",
-    image: require("../assets/images/FT-Demo-01.png"),
-    status: "current",
-  },
-  {
-    id: "126245",
-    truck: "Burger Express",
-    items: [
-      {
-        name: "Taco Express",
-        desc: "Cor tortilla, beef, lettuce, cheese",
-        price: 9.49,
-      },
-    ],
-    total: 24.44,
-    date: "20 Mar, 2025",
-    time: "3:00 PM",
-    image: require("../assets/images/FT-Demo-01.png"),
-    status: "past",
-  },
-];
+import { getAllOrders_API } from "../apiFolder/appAPI";
 
 const OrdersScreen = () => {
   const [tab, setTab] = useState("current");
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const insets = useSafeAreaInsets();
-
   const navigation = useNavigation();
-  const filteredOrders = demoOrders.filter((o) => o.status === tab);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllOrders_API();
+      if (response?.data?.orderList) {
+        setOrders(response.data.orderList);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to fetch orders");
+      console.error("Error fetching orders:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter orders based on status
+  const filteredOrders = orders.filter((order) => {
+    if (tab === "current") {
+      return order.orderStatus !== "COMPLETED";
+    } else {
+      return order.orderStatus === "COMPLETED";
+    }
+  });
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const options = { day: "numeric", month: "short", year: "numeric" };
+    return date.toLocaleDateString("en-US", options);
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours, 10);
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${minutes} ${period}`;
+  };
+
+  const renderOrderItem = ({ item }) => {
+    const orderData = {
+      id: item._id,
+      truck: item.foodTruck?.name || "Unknown Truck",
+      items: item.items.map((menuItem) => ({
+        qty: menuItem.qty,
+        name: menuItem.menuItem?.name || "Unknown Item",
+        desc: menuItem.menuItem?.description || "",
+        price: menuItem.price,
+      })),
+      total: item.total,
+      date: formatDate(item.createdAt),
+      time: formatTime(item.deliveryTime || item.pickupTime),
+      image: item.foodTruck?.logo
+        ? { uri: item.foodTruck.logo }
+        : require("../assets/images/FT-Demo-01.png"),
+      status: item.orderStatus === "COMPLETED" ? "past" : "current",
+    };
+
+    return (
+      <OrderListItem
+        order={orderData}
+        type={tab}
+        onTrack={() =>
+          navigation.navigate("orderTrackingScreen", { order: orderData })
+        }
+        onRate={() =>
+          tab === "past" &&
+          navigation.navigate("rateTruckScreen", { order: orderData })
+        }
+        onReorder={() => {
+          if (tab === "past") {
+            // Handle reorder logic here
+            console.log("Reorder:", orderData.id);
+          }
+        }}
+        onDetails={() =>
+          navigation.navigate("orderDetailsScreen", { orderId: item._id })
+        }
+      />
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <ActivityIndicator size="large" color={AppColor.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={fetchOrders} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -66,7 +134,7 @@ const OrdersScreen = () => {
         <Text style={styles.header}>MY ORDERS</Text>
       </View>
 
-      <View style={[styles.contentWrap]}>
+      <View style={styles.contentWrap}>
         <View style={styles.segmentRow}>
           <TouchableOpacity
             style={[
@@ -108,26 +176,17 @@ const OrdersScreen = () => {
 
         <FlatList
           data={filteredOrders}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <OrderListItem
-              order={item}
-              type={tab}
-              onTrack={() =>
-                navigation.navigate("orderTrackingScreen", { order: item })
-              }
-              onRate={() =>
-                navigation.navigate("rateTruckScreen", { order: item })
-              }
-              onReorder={() => {}}
-              onDetails={() =>
-                navigation.navigate("orderDetailsScreen", { order: item })
-              }
-            />
-          )}
+          showsVerticalScrollIndicator={false}
+          keyExtractor={(item) => item._id}
+          renderItem={renderOrderItem}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No orders found.</Text>
+            <Text style={styles.emptyText}>
+              {tab === "current"
+                ? "No current orders found."
+                : "No past orders found."}
+            </Text>
           }
+          contentContainerStyle={styles.flatListContent}
         />
       </View>
     </View>
@@ -138,6 +197,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  centerContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerWrap: {
     height: 56,
@@ -153,6 +216,12 @@ const styles = StyleSheet.create({
     fontFamily: Primary400,
     fontSize: 22,
     color: AppColor.text,
+  },
+  contentWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    backgroundColor: AppColor.screenBg,
   },
   segmentRow: {
     flexDirection: "row",
@@ -190,11 +259,26 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontFamily: Secondary400,
   },
-  contentWrap: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    backgroundColor: AppColor.screenBg,
+  flatListContent: {
+    flexGrow: 1,
+    gap: 15,
+  },
+  errorText: {
+    color: AppColor.error,
+    fontFamily: Secondary400,
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    color: AppColor.white,
+    fontFamily: Primary400,
   },
 });
 

@@ -18,6 +18,8 @@ import {
   GET_FOOD_TRUCK_MENU_BY_ID,
   GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC,
   PLACE_FOOD_ORDER,
+  GET_ALL_ORDERS,
+  GET_ORDER_BY_ORDERID,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -266,6 +268,28 @@ export const placeFoodOrder_API = async (payload) => {
   try {
     const URL = `${PLACE_FOOD_ORDER}`;
     const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get All Food Order
+export const getAllOrders_API = async () => {
+  try {
+    const URL = `${GET_ALL_ORDERS}`;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get Food Order By OrderId
+export const getOrderByOrderId_API = async (orderId) => {
+  try {
+    const URL = `${GET_ORDER_BY_ORDERID}/${orderId}`;
+    const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

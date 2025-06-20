@@ -50,7 +50,10 @@ const OrderListItem = ({
         {order.items.map((itm, idx) => (
           <View style={styles.itemRow}>
             <View style={styles.itemInfo}>
-              <Text key={idx} style={styles.itemText}>{`1 x ${itm.name}`}</Text>
+              <Text
+                key={idx}
+                style={styles.itemText}
+              >{`${itm.qty} x ${itm.name}`}</Text>
               <Text
                 key={itm.desc}
                 style={styles.itemDesc}
