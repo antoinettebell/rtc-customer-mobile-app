@@ -6,6 +6,7 @@ import authReducer from "./slices/authSlice";
 import userReducer from "./slices/userSlice";
 import foodTruckProfileReducer from "./slices/foodTruckProfileSlice";
 import orderReducer from "./slices/orderSlice";
+import favoritesReducer from "./slices/favoritesSlice";
 
 const persistConfig = {
   key: "root",
@@ -15,6 +16,7 @@ const persistConfig = {
     "userReducer",
     "foodTruckProfileReducer",
     "orderReducer",
+    "favoritesReducer",
   ],
 };
 
@@ -23,6 +25,7 @@ const rootReducer = combineReducers({
   userReducer,
   foodTruckProfileReducer,
   orderReducer,
+  favoritesReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

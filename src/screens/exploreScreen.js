@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -18,46 +18,51 @@ import Animated, {
   useAnimatedScrollHandler,
   interpolate,
   Extrapolate,
-  withSpring,
 } from "react-native-reanimated";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
 import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchFavorites } from "../redux/slices/favoritesSlice"; // Import fetchFavorites
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
 const FT01 = require("../assets/images/FT-Demo-01.png");
 const FT02 = require("../assets/images/FT-Demo-02.png");
 
+// Mock Data (replace with real data fetching as needed)
 const FT1Data = [
-  { id: 1, name: "Taco Express", uri: FT02 },
-  { id: 2, name: "Burger King", uri: FT01 },
+  { id: "1", name: "Taco Express", uri: FT02, isLiked: false },
+  { id: "2", name: "Burger King", uri: FT01, isLiked: true },
 ];
 
 const FT2Data = [
-  { id: 1, name: "Burger King", uri: FT01 },
-  { id: 2, name: "Taco Express", uri: FT02 },
-  { id: 3, name: "Burger King", uri: FT01 },
-  { id: 4, name: "Taco Express", uri: FT02 },
+  { id: "3", name: "Burger King", uri: FT01, isLiked: false },
+  { id: "4", name: "Taco Express", uri: FT02, isLiked: true },
+  { id: "5", name: "Pizza Hut", uri: FT01, isLiked: false },
+  { id: "6", name: "KFC", uri: FT02, isLiked: true },
 ];
 
 const FT4Data = [
-  { id: 1, name: "Burger King", uri: FT01 },
-  { id: 2, name: "Taco Express", uri: FT02 },
-  { id: 3, name: "Burger King", uri: FT01 },
-  { id: 4, name: "Taco Express", uri: FT02 },
+  { id: "7", name: "Subway", uri: FT01, isLiked: false },
+  { id: "8", name: "Dominos", uri: FT02, isLiked: true },
+  { id: "9", name: "Starbucks", uri: FT01, isLiked: false },
+  { id: "10", name: "McDonalds", uri: FT02, isLiked: true },
 ];
 
 const ExploreScreen = (props) => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const navigation = useNavigation();
+  const dispatch = useDispatch(); // Get dispatch for Redux actions
   const [loading, setLoading] = useState(false);
   const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
+  // Get favorites from Redux state
+  const { favorites } = useSelector((state) => state.favoritesReducer);
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
@@ -94,9 +99,12 @@ const ExploreScreen = (props) => {
     }
   };
 
-  useEffect(() => {
-    fetchNearByFoodTrucks();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchNearByFoodTrucks();
+      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+    }, [dispatch])
+  );
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -163,14 +171,6 @@ const ExploreScreen = (props) => {
       opacity,
     };
   });
-
-  const handleLikeUpdate = (foodTruckId, isLiked) => {
-    setPopularFoodTrucks((prevTrucks) =>
-      prevTrucks.map((truck) =>
-        truck._id === foodTruckId ? { ...truck, isFavorite: isLiked } : truck
-      )
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -296,30 +296,35 @@ const ExploreScreen = (props) => {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={FT1Data}
+              data={FT1Data} // This is mock data, consider fetching real past orders
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item, index }) => (
-                <FoodTruckListComponent
-                  title={item.name}
-                  uri={item.uri}
-                  isLiked={item.isLiked}
-                  foodTruckId={item._id}
-                  reviews={item.reviews}
-                  distance={item.distance}
-                  onContainerPress={() =>
-                    navigation.navigate("foodTruckDetailScreen", { item })
-                  }
-                  onLikePress={() => {
-                    // Refresh the list if needed
-                    // You can add a refresh function here
-                  }}
-                />
-              )}
+              renderItem={({ item }) => {
+                // Determine if this item is a favorite from Redux state
+                const isFavorite = favorites.some(
+                  (fav) => fav.foodTruck?._id === item.id
+                );
+                return (
+                  <FoodTruckListComponent
+                    title={item.name}
+                    uri={item.uri}
+                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    foodTruckId={item.id}
+                    reviews={item.reviews}
+                    distance={item.distance}
+                    onContainerPress={
+                      () =>
+                        navigation.navigate("foodTruckDetailScreen", {
+                          item: { ...item, _id: item.id },
+                        }) // Pass _id for consistency
+                    }
+                  />
+                );
+              }}
             />
           </View>
 
-          {/* Popular nearby foortruck container */}
+          {/* Popular nearby foodtruck container */}
           <View
             style={{
               marginVertical: 10,
@@ -361,26 +366,31 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT2Data}
+              data={FT2Data} // This is mock data, consider fetching real popular trucks
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item, index }) => (
-                <FoodTruckGridComponent
-                  title={item.name}
-                  uri={item.uri}
-                  isLiked={item.isLiked}
-                  foodTruckId={item._id}
-                  reviews={item.reviews}
-                  distance={item.distance}
-                  onContainerPress={() =>
-                    navigation.navigate("foodTruckDetailScreen", { item })
-                  }
-                  onLikePress={() => {
-                    // Refresh the list if needed
-                    // You can add a refresh function here
-                  }}
-                />
-              )}
+              renderItem={({ item }) => {
+                // Determine if this item is a favorite from Redux state
+                const isFavorite = favorites.some(
+                  (fav) => fav.foodTruck?._id === item.id
+                );
+                return (
+                  <FoodTruckGridComponent
+                    title={item.name}
+                    uris={item.uri}
+                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    foodTruckId={item.id}
+                    reviews={item.reviews}
+                    distance={item.distance}
+                    onContainerPress={
+                      () =>
+                        navigation.navigate("foodTruckDetailScreen", {
+                          item: { ...item, _id: item.id },
+                        }) // Pass _id for consistency
+                    }
+                  />
+                );
+              }}
               contentContainerStyle={{
                 gap: 20,
                 paddingHorizontal: 20,
@@ -389,7 +399,7 @@ const ExploreScreen = (props) => {
             />
           </View>
 
-          {/* Nearby foortruck container */}
+          {/* Nearby foodtruck container */}
           <View
             style={{
               marginVertical: 10,
@@ -442,22 +452,24 @@ const ExploreScreen = (props) => {
                 data={popularFoodTrucks}
                 keyExtractor={(item) => item._id.toString()}
                 showsHorizontalScrollIndicator={false}
-                renderItem={({ item, index }) => (
-                  <FoodTruckGridComponent
-                    title={item.name}
-                    uris={item.logo}
-                    isLiked={item.isFavorite}
-                    foodTruckId={item._id}
-                    reviews={item.reviews}
-                    distance={item.distanceInMeters}
-                    onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", { item })
-                    }
-                    onLikePress={(isLiked) =>
-                      handleLikeUpdate(item._id, isLiked)
-                    }
-                  />
-                )}
+                renderItem={({ item }) => {
+                  const isFavorite = favorites.some(
+                    (fav) => fav.foodTruck?._id === item._id
+                  );
+                  return (
+                    <FoodTruckGridComponent
+                      title={item.name}
+                      uris={item.logo}
+                      isLiked={isFavorite} // This comes from Redux
+                      foodTruckId={item._id}
+                      reviews={item.reviews}
+                      distance={item.distanceInMeters}
+                      onContainerPress={() =>
+                        navigation.navigate("foodTruckDetailScreen", { item })
+                      }
+                    />
+                  );
+                }}
                 contentContainerStyle={{
                   gap: 20,
                   paddingHorizontal: 20,
@@ -509,26 +521,31 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT4Data}
+              data={FT4Data} // This is mock data, consider fetching real featured trucks
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item, index }) => (
-                <FoodTruckGridComponent
-                  title={item.name}
-                  uri={item.uri}
-                  isLiked={item.isLiked}
-                  foodTruckId={item._id}
-                  reviews={item.reviews}
-                  distance={item.distance}
-                  onContainerPress={() =>
-                    navigation.navigate("foodTruckDetailScreen", { item })
-                  }
-                  onLikePress={() => {
-                    // Refresh the list if needed
-                    // You can add a refresh function here
-                  }}
-                />
-              )}
+              renderItem={({ item }) => {
+                // Determine if this item is a favorite from Redux state
+                const isFavorite = favorites.some(
+                  (fav) => fav.foodTruck?._id === item.id
+                );
+                return (
+                  <FoodTruckGridComponent
+                    title={item.name}
+                    uris={item.uri}
+                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    foodTruckId={item.id}
+                    reviews={item.reviews}
+                    distance={item.distance}
+                    onContainerPress={
+                      () =>
+                        navigation.navigate("foodTruckDetailScreen", {
+                          item: { ...item, _id: item.id },
+                        }) // Pass _id for consistency
+                    }
+                  />
+                );
+              }}
               contentContainerStyle={{
                 gap: 20,
                 paddingHorizontal: 20,

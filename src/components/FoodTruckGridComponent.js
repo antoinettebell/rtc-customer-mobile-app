@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   StyleSheet,
   Text,
@@ -12,46 +12,39 @@ import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
-import {
-  addFavoriteFoodTruck_API,
-  removeFavoriteFoodTruck_API,
-} from "../apiFolder/appAPI";
+import { useDispatch, useSelector } from "react-redux";
+import { toggleFavorite } from "../redux/slices/favoritesSlice";
 
 const FoodTruckGridComponent = ({
   title,
   uris,
-  isLiked,
-  onLikePress,
   onContainerPress,
   foodTruckId,
   reviews,
   distance,
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [localIsLiked, setLocalIsLiked] = useState(isLiked);
+  const dispatch = useDispatch();
+  // Get favorites and loading state from Redux
+  const { favorites, loading } = useSelector((state) => state.favoritesReducer);
+
+  // Determine if the current food truck is liked based on Redux state
+  const isLiked = favorites.some((fav) => fav.foodTruck?._id === foodTruckId);
 
   const handleLikePress = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      if (localIsLiked) {
-        const response = await removeFavoriteFoodTruck_API(foodTruckId);
-        if (response?.success) {
-          setLocalIsLiked(false);
-          onLikePress && onLikePress(false);
-        }
-      } else {
-        const response = await addFavoriteFoodTruck_API(foodTruckId);
-        if (response?.success) {
-          setLocalIsLiked(true);
-          onLikePress && onLikePress(true);
-        }
-      }
-    } catch (error) {
-      console.log("Error toggling favorite:", error);
-    } finally {
-      setLoading(false);
-    }
+    // Dispatch the toggleFavorite thunk with necessary data
+    // We pass isLiked to the thunk to indicate current state for API call
+    dispatch(
+      toggleFavorite({
+        foodTruckId,
+        isCurrentlyLiked: isLiked,
+        foodTruckData: {
+          name: title,
+          logo: uris,
+          reviews,
+          distanceInMeters: distance,
+        },
+      })
+    );
   };
 
   return (
@@ -88,14 +81,14 @@ const FoodTruckGridComponent = ({
         activeOpacity={0.7}
         onPress={handleLikePress}
         style={styles.likeContainer}
-        disabled={loading}
+        disabled={loading} // Disable button while loading
       >
         {loading ? (
           <ActivityIndicator size="small" color={AppColor.primary} />
         ) : (
           <MaterialCommunityIcons
-            name={localIsLiked ? "heart" : "heart-outline"}
-            color={localIsLiked ? AppColor.snackbarError : AppColor.white}
+            name={isLiked ? "heart" : "heart-outline"}
+            color={isLiked ? AppColor.snackbarError : AppColor.white}
             size={30}
           />
         )}
@@ -108,7 +101,6 @@ export default FoodTruckGridComponent;
 
 const styles = StyleSheet.create({
   container: {
-    // marginVertical: 10,
     borderRadius: 10,
     padding: 16,
     backgroundColor: AppColor.white,

@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Platform, // Import Platform for shadow styles
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import Entypo from "react-native-vector-icons/Entypo";
@@ -15,12 +16,10 @@ import FastImage from "@d11/react-native-fast-image";
 import StatusBarManager from "../components/StatusBarManager";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  getFavoriteFoodTruck_API,
-  removeFavoriteFoodTruck_API,
-} from "../apiFolder/appAPI";
 import { Snackbar } from "react-native-paper";
 import AppHeader from "../components/AppHeader";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchFavorites, toggleFavorite } from "../redux/slices/favoritesSlice";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -28,9 +27,14 @@ const HR = () => <View style={styles.HR} />;
 
 const FavoriteFoodTrucksScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
-  const [favoriteTrucks, setFavoriteTrucks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  // Get favoriteTrucks (renamed from 'favorites' for clarity in this screen) and loading/error states from Redux
+  const {
+    favorites: favoriteTrucks,
+    loading,
+    error,
+  } = useSelector((state) => state.favoritesReducer);
+
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
@@ -38,41 +42,24 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   });
   const insets = useSafeAreaInsets();
 
-  const fetchFavoriteTrucks = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getFavoriteFoodTruck_API({
-        search: search || undefined,
-      });
-      if (response?.success && response?.data?.favoriteList) {
-        setFavoriteTrucks(response.data.favoriteList);
-      } else {
-        setError("Failed to fetch favorite trucks");
-      }
-    } catch (error) {
-      console.log("Error fetching favorite trucks:", error);
-      setError(error?.message || "Failed to fetch favorite trucks");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRemoveFavorite = async (foodTruckId) => {
     try {
-      const response = await removeFavoriteFoodTruck_API(foodTruckId);
-      if (response?.success) {
+      // Dispatch toggleFavorite with the current liked status (true, as we are removing)
+      const resultAction = await dispatch(
+        toggleFavorite({ foodTruckId, isCurrentlyLiked: true })
+      );
+
+      if (toggleFavorite.fulfilled.match(resultAction)) {
         setSnackbar({
           visible: true,
           message: "Removed from favorites",
           type: "success",
         });
-        // Refresh the list
-        fetchFavoriteTrucks();
-      } else {
+        // The Redux state will automatically update, no need to re-fetch manually
+      } else if (toggleFavorite.rejected.match(resultAction)) {
         setSnackbar({
           visible: true,
-          message: response?.message || "Failed to remove from favorites",
+          message: resultAction.payload || "Failed to remove from favorites",
           type: "error",
         });
       }
@@ -88,8 +75,13 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchFavoriteTrucks();
-    }, [search])
+      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+    }, [dispatch]) // Depend on dispatch
+  );
+
+  // Filter favorites based on search query
+  const filteredFavoriteTrucks = favoriteTrucks.filter((item) =>
+    item.foodTruck?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   const renderContent = () => {
@@ -109,7 +101,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
       );
     }
 
-    if (favoriteTrucks.length === 0) {
+    if (filteredFavoriteTrucks.length === 0) {
       return (
         <View style={styles.centerContainer}>
           <Text style={styles.noDataText}>No favorite trucks found</Text>
@@ -119,8 +111,8 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
 
     return (
       <FlatList
-        data={favoriteTrucks}
-        keyExtractor={(item) => item._id.toString()}
+        data={filteredFavoriteTrucks}
+        keyExtractor={(item) => item._id.toString()} // Use the favorite entry _id or foodTruck._id
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.favTrucksCard}
         renderItem={({ item }) => (
@@ -135,12 +127,13 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               <Text style={styles.truckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.truckReview}>
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
-                {item.reviews || "0"} reviews - {item.distance || "0"} miles
-                away
+                {item.foodTruck?.reviews || "0"} reviews -{" "}
+                {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
+                  " miles away" || "0 miles away"}
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => handleRemoveFavorite(item.foodTruck?._id)}
+              onPress={() => handleRemoveFavorite(item.foodTruck?._id)} // Pass the food truck ID
               style={{ marginLeft: 8 }}
             >
               <Entypo name="heart" size={24} color={AppColor.red} />

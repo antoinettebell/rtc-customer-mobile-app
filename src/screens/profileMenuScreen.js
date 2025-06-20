@@ -34,10 +34,10 @@ import {
   getUserDetail_API,
   updateUserDetail_API,
   uploadImage_API,
-  getFavoriteFoodTruck_API,
 } from "../apiFolder/appAPI";
 import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar, Portal } from "react-native-paper";
+import { fetchFavorites } from "../redux/slices/favoritesSlice"; // Import fetchFavorites
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
@@ -69,6 +69,12 @@ const ProfileMenuScreen = ({ navigation }) => {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const { user } = useSelector((state) => state.userReducer);
+  // Get favorites and loading/error states from Redux
+  const {
+    favorites,
+    loading: loadingFavorites,
+    error: favoritesError,
+  } = useSelector((state) => state.favoritesReducer);
   const insets = useSafeAreaInsets();
 
   // Local state for name editing
@@ -86,13 +92,9 @@ const ProfileMenuScreen = ({ navigation }) => {
   );
   const [contactError, setContactError] = useState("");
 
-  const ordersCompleted = 5;
-  const totalOrders = 10;
+  const ordersCompleted = 5; // Static value, consider making this dynamic
+  const totalOrders = 10; // Static value, consider making this dynamic
   const progress = ordersCompleted / totalOrders;
-
-  const [favoriteTrucks, setFavoriteTrucks] = useState([]);
-  const [loadingFavorites, setLoadingFavorites] = useState(false);
-  const [favoritesError, setFavoritesError] = useState(null);
 
   const onMediaModalClose = () => {
     setModalVisible(false);
@@ -329,27 +331,6 @@ const ProfileMenuScreen = ({ navigation }) => {
     dispatch(onSignOut());
   };
 
-  const fetchFavoriteTrucks = async () => {
-    setLoadingFavorites(true);
-    setFavoritesError(null);
-    try {
-      const response = await getFavoriteFoodTruck_API({
-        lat: 1,
-        long: 2,
-      });
-      if (response?.success && response?.data?.favoriteList) {
-        setFavoriteTrucks(response.data.favoriteList);
-      } else {
-        setFavoritesError("Failed to fetch favorite trucks");
-      }
-    } catch (error) {
-      console.log("Error fetching favorite trucks:", error);
-      setFavoritesError(error?.message || "Failed to fetch favorite trucks");
-    } finally {
-      setLoadingFavorites(false);
-    }
-  };
-
   const getUserDetailFromAPI = async () => {
     console.log("getUserDetailFromAPI => called");
     setGetDataLoading(true);
@@ -372,15 +353,11 @@ const ProfileMenuScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       getUserDetailFromAPI();
-      fetchFavoriteTrucks();
-    }, [])
+      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+    }, [dispatch]) // Depend on dispatch
   );
 
-  // useEffect(() => {
-  //   getUserDetailFromAPI();
-  // }, []);
-
-  // Replace the static favoriteTrucks array with the dynamic data
+  // Replace the static favoriteTrucks array with the dynamic data from Redux
   const renderFavoriteTrucks = () => {
     if (loadingFavorites) {
       return (
@@ -398,7 +375,7 @@ const ProfileMenuScreen = ({ navigation }) => {
       );
     }
 
-    if (favoriteTrucks.length === 0) {
+    if (favorites.length === 0) {
       return (
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>No favorite trucks yet</Text>
@@ -408,8 +385,8 @@ const ProfileMenuScreen = ({ navigation }) => {
 
     return (
       <FlatList
-        data={favoriteTrucks.slice(0, 2)}
-        keyExtractor={(item) => item._id.toString()}
+        data={favorites.slice(0, 2)} // Displaying only the first 2 favorites as per original code
+        keyExtractor={(item) => item._id.toString()} // Use the favorite entry _id or foodTruck._id
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.favTruckRow}>
@@ -422,8 +399,9 @@ const ProfileMenuScreen = ({ navigation }) => {
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.favTruckReview}>
-                ⭐ {item.reviews || "0"} reviews - {item.distance || "0"} miles
-                away
+                ⭐ {item.foodTruck?.reviews || "0"} reviews -{" "}
+                {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
+                  " miles away" || "0 miles away"}
               </Text>
             </View>
           </View>

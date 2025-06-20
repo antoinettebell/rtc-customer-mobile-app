@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,11 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -23,6 +27,7 @@ import ImageCarousel from "../components/ImageCarousel";
 import AppHeader from "../components/AppHeader";
 import MapView, { Marker } from "react-native-maps";
 import { useDispatch, useSelector } from "react-redux";
+import { toggleFavorite, fetchFavorites } from "../redux/slices/favoritesSlice"; // Import the toggleFavorite thunk and fetchFavorites
 import {
   addItemToOrder,
   removeItemFromOrder,
@@ -149,7 +154,7 @@ const FoodTruckDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { item } = route.params;
+  const { item } = route.params; // The item passed from previous screen
   const [selectedTab, setSelectedTab] = useState(0);
   const tabListRef = useRef();
   const tabContentRef = useRef();
@@ -159,12 +164,25 @@ const FoodTruckDetailScreen = () => {
   const [menuTabs, setMenuTabs] = useState([]);
   const [isScheduleVisible, setIsScheduleVisible] = useState(false);
 
+  // Get favorites and loading state from Redux
+  const { favorites } = useSelector((state) => state.favoritesReducer);
   const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
+
+  // Check if the current food truck is liked based on Redux state
+  const isFoodTruckFavorite = favorites.some(
+    (fav) => fav.foodTruck?._id === foodTruckDetail?._id
+  );
 
   useEffect(() => {
     fetchFoodTruckDetails();
     fetchMenuDetails();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+    }, [dispatch])
+  );
 
   const fetchFoodTruckDetails = async () => {
     try {
@@ -461,10 +479,26 @@ const FoodTruckDetailScreen = () => {
                 {formatCuisines(foodTruckDetail?.cuisine)}
               </Text>
             </TouchableOpacity>
-            {typeof item?.isFavorite === "boolean" && (
-              <TouchableOpacity>
+            {foodTruckDetail && (
+              <TouchableOpacity
+                onPress={() =>
+                  dispatch(
+                    toggleFavorite({
+                      foodTruckId: foodTruckDetail._id,
+                      isCurrentlyLiked: isFoodTruckFavorite,
+                      foodTruckData: {
+                        name: foodTruckDetail.name,
+                        logo: foodTruckDetail.logo,
+                        reviews: foodTruckDetail.reviews,
+                        distanceInMeters: foodTruckDetail.distanceInMeters,
+                        // Add any other relevant details needed for the favorite object
+                      },
+                    })
+                  )
+                }
+              >
                 <FontAwesome
-                  name={item?.isFavorite ? "heart" : "heart-o"}
+                  name={isFoodTruckFavorite ? "heart" : "heart-o"}
                   size={22}
                   color={AppColor.red}
                 />
