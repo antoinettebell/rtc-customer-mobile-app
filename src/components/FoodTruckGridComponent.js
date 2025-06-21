@@ -22,6 +22,7 @@ const FoodTruckGridComponent = ({
   foodTruckId,
   reviews,
   distance,
+  showLikeButton,
 }) => {
   const dispatch = useDispatch();
   // Get favorites and the individual loading state map from Redux
@@ -80,22 +81,24 @@ const FoodTruckGridComponent = ({
           </Text>
         </View>
       </View>
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={handleLikePress}
-        style={styles.likeContainer}
-        disabled={isLoading} // Disable button while this specific item is loading
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color={AppColor.primary} />
-        ) : (
-          <MaterialCommunityIcons
-            name={isLiked ? "heart" : "heart-outline"}
-            color={isLiked ? AppColor.snackbarError : AppColor.white}
-            size={30}
-          />
-        )}
-      </TouchableOpacity>
+      {showLikeButton && (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleLikePress}
+          style={styles.likeContainer}
+          disabled={isLoading} // Disable button while this specific item is loading
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={AppColor.primary} />
+          ) : (
+            <MaterialCommunityIcons
+              name={isLiked ? "heart" : "heart-outline"}
+              color={isLiked ? AppColor.snackbarError : AppColor.white}
+              size={30}
+            />
+          )}
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };

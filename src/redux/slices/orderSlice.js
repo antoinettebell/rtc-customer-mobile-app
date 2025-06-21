@@ -110,6 +110,8 @@ const orderSlice = createSlice({
     addToOrderHistory: (state, { payload }) => {
       state.orderHistory.unshift(payload);
     },
+
+    clearOrderSlice: () => initialState,
   },
 });
 
@@ -118,6 +120,7 @@ export const {
   removeItemFromOrder,
   clearCurrentOrder,
   addToOrderHistory,
+  clearOrderSlice,
 } = orderSlice.actions;
 
 export default orderSlice.reducer;

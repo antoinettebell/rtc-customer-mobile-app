@@ -8,26 +8,35 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Secondary400 } from "../utils/theme";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
-import FastImage from "@d11/react-native-fast-image";
-import { Snackbar } from "react-native-paper";
+import { Snackbar, Menu } from "react-native-paper";
 import { getAddress_API, deleteAddress_API } from "../apiFolder/appAPI";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
 import AppHeader from "../components/AppHeader";
+import {
+  setAllLocations,
+  setDefaultLocation,
+} from "../redux/slices/locationSlice";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 const AddressScreen = ({ navigation }) => {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(null);
+
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
     type: "success",
   });
+  const { allLocations, defaultLocation } = useSelector(
+    (state) => state.locationReducer
+  );
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
 
@@ -40,12 +49,16 @@ const AddressScreen = ({ navigation }) => {
     setSnackbar({ visible: true, message, type });
   };
 
+  useEffect(() => {
+    setAddresses(allLocations);
+  }, [allLocations]);
+
   const fetchAddresses = async () => {
     try {
       setLoading(true);
-      const response = await getAddress_API({ page: 1, limit: 50 });
+      const response = await getAddress_API({ page: 1, limit: 1000 });
       if (response?.success) {
-        setAddresses(response.data.addressList);
+        dispatch(setAllLocations(response.data.addressList));
       }
     } catch (error) {
       showSnackbar(error?.message || "Failed to fetch addresses", "error");
@@ -59,7 +72,10 @@ const AddressScreen = ({ navigation }) => {
       const response = await deleteAddress_API(addressId);
       if (response?.success) {
         showSnackbar("Address deleted successfully");
-        setAddresses((prev) => prev.filter((addr) => addr._id !== addressId));
+        const tempAddressData = allLocations.filter(
+          (addr) => addr._id !== addressId
+        );
+        dispatch(setAllLocations(tempAddressData));
       }
     } catch (error) {
       showSnackbar(error?.message || "Failed to delete address", "error");
@@ -87,31 +103,81 @@ const AddressScreen = ({ navigation }) => {
   };
 
   const renderItem = ({ item, index }) => (
-    <View style={styles.addressCard}>
+    <View
+      style={[
+        styles.addressCard,
+        {
+          borderColor:
+            item._id === defaultLocation?._id
+              ? AppColor.primary
+              : AppColor.borderColor,
+        },
+      ]}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.locationLabelContainer}>
           <Text style={styles.locationLabel}>Location {index + 1}</Text>
         </View>
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => handleDeleteAddress(item._id)}
-          >
-            <FastImage
-              source={require("../assets/images/bgBin.png")}
-              style={styles.iconImage}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => handleEditAddress(item)}
-          >
-            <FastImage
-              source={require("../assets/images/bgEdit.png")}
-              style={styles.iconImage}
-            />
-          </TouchableOpacity>
-        </View>
+        <Menu
+          mode="flat"
+          visible={menuVisible === index}
+          onDismiss={() => setMenuVisible(null)}
+          anchor={
+            <TouchableOpacity
+              onPress={() => setMenuVisible(index)}
+              style={{
+                height: 24,
+                width: 24,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons
+                name="more-vert"
+                size={24}
+                color={AppColor.black}
+              />
+            </TouchableOpacity>
+          }
+          contentStyle={{
+            backgroundColor: AppColor.white,
+            borderWidth: 1,
+            borderColor: AppColor.border,
+            elevation: 1,
+            shadowColor: AppColor.black,
+            shadowOffset: {
+              width: 0,
+              height: 1,
+            },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+          }}
+        >
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(null);
+              handleEditAddress(item);
+            }}
+            title="Edit"
+            leadingIcon={"pencil"}
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(null);
+              handleDeleteAddress(item._id);
+            }}
+            title="Delete"
+            leadingIcon={"trash-can"}
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(null);
+              dispatch(setDefaultLocation(item));
+            }}
+            title="Set as Default"
+            leadingIcon={"google-maps"}
+          />
+        </Menu>
       </View>
 
       <View style={styles.addressRow}>
@@ -195,7 +261,6 @@ const styles = StyleSheet.create({
   },
   addressCard: {
     borderWidth: 1,
-    borderColor: AppColor.borderColor,
     borderRadius: 10,
     paddingHorizontal: 15,
     paddingVertical: 20,
@@ -229,17 +294,6 @@ const styles = StyleSheet.create({
     fontFamily: Secondary400,
     fontSize: 16,
     color: AppColor.primary,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  iconBtn: {
-    marginLeft: 8,
-  },
-  iconImage: {
-    width: 24,
-    height: 24,
   },
   addressRow: {
     flexDirection: "row",

@@ -9,8 +9,9 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
-import { Searchbar } from "react-native-paper";
+import { Searchbar, RadioButton } from "react-native-paper";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
@@ -19,6 +20,7 @@ import Animated, {
   interpolate,
   Extrapolate,
 } from "react-native-reanimated";
+import Modal from "react-native-modal";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
@@ -28,6 +30,8 @@ import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
 import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites } from "../redux/slices/favoritesSlice";
+import { setDefaultLocation } from "../redux/slices/locationSlice";
+import moment from "moment";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -61,10 +65,35 @@ const ExploreScreen = (props) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
-  // Get favorites and global favorites loading from Redux state
+  const [isLocationModalVisible, setLocationModalVisible] = useState(false);
+
   const { favorites, isLoadingFavorites } = useSelector(
     (state) => state.favoritesReducer
   );
+  const { allLocations, defaultLocation } = useSelector(
+    (state) => state.locationReducer
+  );
+  const { isSignedIn } = useSelector((state) => state.authReducer);
+
+  const [tempSelectedLocation, setTempSelectedLocation] =
+    useState(defaultLocation);
+
+  useEffect(() => {
+    if (isLocationModalVisible) {
+      setTempSelectedLocation(defaultLocation);
+    }
+  }, [isLocationModalVisible, defaultLocation]);
+
+  const handleConfirmSelection = () => {
+    if (tempSelectedLocation) {
+      dispatch(setDefaultLocation(tempSelectedLocation));
+    }
+    setLocationModalVisible(false);
+  };
+
+  const handleCancelSelection = () => {
+    setLocationModalVisible(false);
+  };
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
@@ -74,7 +103,7 @@ const ExploreScreen = (props) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleLocationTextPress = () => {
-    props.navigation.navigate("authMapScreen");
+    setLocationModalVisible(true);
   };
 
   const handleNotificationBellPress = () => {};
@@ -83,10 +112,10 @@ const ExploreScreen = (props) => {
     try {
       setLoading(true);
       const params = {
-        day: "mon",
-        time: "11:17",
-        userLat: "123",
-        userLong: "456",
+        day: moment().format("ddd")?.toLocaleLowerCase(),
+        time: moment().format("HH:mm"),
+        userLat: defaultLocation?.lat || 0,
+        userLong: defaultLocation?.long || 0,
       };
 
       const response = await getNearbyFoodTrucks_API(params);
@@ -104,8 +133,10 @@ const ExploreScreen = (props) => {
   useFocusEffect(
     useCallback(() => {
       fetchNearByFoodTrucks();
-      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
-    }, [dispatch])
+      if (isSignedIn) {
+        dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+      }
+    }, [dispatch, isSignedIn, defaultLocation])
   );
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -174,6 +205,34 @@ const ExploreScreen = (props) => {
     };
   });
 
+  const renderLocationItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.locationModalItem}
+      onPress={() => setTempSelectedLocation(item)}
+    >
+      <View style={styles.addressRow}>
+        <EvilIcons
+          name="location"
+          size={24}
+          color={AppColor.primary}
+          style={styles.locationModalIcon}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.locationModalTitle}>{item.title}</Text>
+          <Text style={styles.locationModalAddress}>{item.address}</Text>
+        </View>
+        <RadioButton.Android
+          value={item._id}
+          status={
+            tempSelectedLocation?._id === item._id ? "checked" : "unchecked"
+          }
+          onPress={() => setTempSelectedLocation(item)}
+          color={AppColor.primary}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       <StatusBarManager barStyle="light-content" />
@@ -189,7 +248,7 @@ const ExploreScreen = (props) => {
           <View>
             <View style={styles.locationRow}>
               <Text style={styles.locationTitle} numberOfLines={1}>
-                13th street
+                {defaultLocation?.title || "NA"}
               </Text>
               <MaterialIcons
                 name="keyboard-arrow-down"
@@ -198,7 +257,7 @@ const ExploreScreen = (props) => {
               />
             </View>
             <Text style={styles.locationSubtitle} numberOfLines={1}>
-              {"47 W 13th St, New York, NY 10011, USA"}
+              {defaultLocation?.address || ""}
             </Text>
           </View>
         </TouchableOpacity>
@@ -302,7 +361,6 @@ const ExploreScreen = (props) => {
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
-                // Determine if this item is a favorite from Redux state
                 const isFavorite = favorites.some(
                   (fav) => fav.foodTruck?._id === item.id
                 );
@@ -310,15 +368,14 @@ const ExploreScreen = (props) => {
                   <FoodTruckListComponent
                     title={item.name}
                     uri={item.uri}
-                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    isLiked={isFavorite}
                     foodTruckId={item.id}
                     reviews={item.reviews}
                     distance={item.distance}
-                    onContainerPress={
-                      () =>
-                        navigation.navigate("foodTruckDetailScreen", {
-                          item: { ...item, _id: item.id },
-                        }) // Pass _id for consistency
+                    onContainerPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", {
+                        item: { ...item, _id: item.id },
+                      })
                     }
                   />
                 );
@@ -368,11 +425,10 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT2Data} // This is mock data, consider fetching real popular trucks
+              data={FT2Data}
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
-                // Determine if this item is a favorite from Redux state
                 const isFavorite = favorites.some(
                   (fav) => fav.foodTruck?._id === item.id
                 );
@@ -380,15 +436,14 @@ const ExploreScreen = (props) => {
                   <FoodTruckGridComponent
                     title={item.name}
                     uris={item.uri}
-                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    isLiked={isFavorite}
                     foodTruckId={item.id}
                     reviews={item.reviews}
                     distance={item.distance}
-                    onContainerPress={
-                      () =>
-                        navigation.navigate("foodTruckDetailScreen", {
-                          item: { ...item, _id: item.id },
-                        }) // Pass _id for consistency
+                    onContainerPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", {
+                        item: { ...item, _id: item.id },
+                      })
                     }
                   />
                 );
@@ -442,7 +497,6 @@ const ExploreScreen = (props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            {/* Using isLoadingFavorites for the overall list loading */}
             {loading || isLoadingFavorites ? (
               <ActivityIndicator
                 size="small"
@@ -463,7 +517,8 @@ const ExploreScreen = (props) => {
                     <FoodTruckGridComponent
                       title={item.name}
                       uris={item.logo}
-                      isLiked={isFavorite} // This comes from Redux
+                      showLikeButton={isSignedIn}
+                      isLiked={isFavorite}
                       foodTruckId={item._id}
                       reviews={item.reviews}
                       distance={item.distanceInMeters}
@@ -524,11 +579,10 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT4Data} // This is mock data, consider fetching real featured trucks
+              data={FT4Data}
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
-                // Determine if this item is a favorite from Redux state
                 const isFavorite = favorites.some(
                   (fav) => fav.foodTruck?._id === item.id
                 );
@@ -536,15 +590,14 @@ const ExploreScreen = (props) => {
                   <FoodTruckGridComponent
                     title={item.name}
                     uris={item.uri}
-                    isLiked={isFavorite} // Pass isFavorite from Redux
+                    isLiked={isFavorite}
                     foodTruckId={item.id}
                     reviews={item.reviews}
                     distance={item.distance}
-                    onContainerPress={
-                      () =>
-                        navigation.navigate("foodTruckDetailScreen", {
-                          item: { ...item, _id: item.id },
-                        }) // Pass _id for consistency
+                    onContainerPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", {
+                        item: { ...item, _id: item.id },
+                      })
                     }
                   />
                 );
@@ -558,6 +611,56 @@ const ExploreScreen = (props) => {
           </View>
         </View>
       </Animated.ScrollView>
+
+      {/* Location Selection Modal */}
+      <Modal
+        isVisible={isLocationModalVisible}
+        onSwipeComplete={handleCancelSelection}
+        swipeDirection={["down"]}
+        onBackdropPress={handleCancelSelection}
+        style={styles.locationModal}
+        animationIn="slideInUp"
+        animationOut="slideOutDown"
+        backdropOpacity={0.4}
+      >
+        <View
+          style={[
+            styles.locationModalContainer,
+            { paddingBottom: insets.bottom },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderText}>Select a Location</Text>
+            <TouchableOpacity onPress={handleCancelSelection}>
+              <MaterialIcons name="close" size={24} color={AppColor.black} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1 }}>
+            <FlatList
+              data={allLocations}
+              keyExtractor={(item) => item._id}
+              renderItem={renderLocationItem}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+
+          <View style={styles.bottomButtonContainer}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={handleCancelSelection}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.selectButton]}
+              onPress={handleConfirmSelection}
+            >
+              <Text style={styles.selectButtonText}>Select Location</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -582,6 +685,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   locationContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -666,5 +770,85 @@ const styles = StyleSheet.create({
   },
   scrollViewContaier: {
     backgroundColor: AppColor.white,
+  },
+  // Modal Styles
+  locationModal: {
+    justifyContent: "flex-end",
+    margin: 0,
+  },
+  locationModalContainer: {
+    backgroundColor: AppColor.white,
+    height: "90%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalHeaderText: {
+    fontSize: 20,
+    fontFamily: Primary400,
+    color: AppColor.black,
+  },
+  locationModalItem: {
+    paddingVertical: 15,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationModalIcon: {
+    marginRight: 10,
+  },
+  locationModalTitle: {
+    fontFamily: Secondary400,
+    fontSize: 18,
+    color: AppColor.black,
+  },
+  locationModalAddress: {
+    fontFamily: Secondary400,
+    fontSize: 12,
+    color: "#6b7280", // gray-500
+    marginTop: 4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: "#e5e7eb", // gray-200
+  },
+  bottomButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  modalButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  cancelButton: {
+    backgroundColor: "#F3F4F6", // gray-100
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    color: AppColor.black,
+    fontFamily: Primary400,
+    fontSize: 16,
+  },
+  selectButton: {
+    backgroundColor: AppColor.primary,
+  },
+  selectButtonText: {
+    color: AppColor.white,
+    fontFamily: Primary400,
+    fontSize: 16,
   },
 });

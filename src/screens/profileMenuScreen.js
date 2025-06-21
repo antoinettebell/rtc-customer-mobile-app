@@ -38,6 +38,9 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar, Portal } from "react-native-paper";
 import { fetchFavorites, clearFavorites } from "../redux/slices/favoritesSlice";
+import { clearOrderSlice } from "../redux/slices/orderSlice";
+import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "../redux/slices/locationSlice";
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
@@ -319,8 +322,11 @@ const ProfileMenuScreen = ({ navigation }) => {
 
   const handleLogout = () => {
     dispatch(clearUserSlice());
-    dispatch(onSignOut());
-    dispatch(clearFavorites()); // Clear favorites data from Redux on logout
+    dispatch(clearFavorites()); //
+    dispatch(clearOrderSlice()); //
+    dispatch(clearFoodTruckProfileSlice()); //
+    dispatch(clearLocationSlice()); //
+    dispatch(onSignOut()); //
   };
 
   const getUserDetailFromAPI = async () => {

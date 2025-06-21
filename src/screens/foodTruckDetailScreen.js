@@ -165,6 +165,7 @@ const FoodTruckDetailScreen = () => {
   const [menuTabs, setMenuTabs] = useState([]);
   const [isScheduleVisible, setIsScheduleVisible] = useState(false);
 
+  const { isSignedIn } = useSelector((state) => state.authReducer);
   // Get favorites and loading state specific to favorite actions from Redux
   const { favorites, loading: favoritesActionLoading } = useSelector(
     (state) => state.favoritesReducer
@@ -186,7 +187,9 @@ const FoodTruckDetailScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
+      if (isSignedIn) {
+        dispatch(fetchFavorites());
+      } // Fetch favorites whenever the screen is focused
     }, [dispatch])
   );
 
@@ -558,7 +561,7 @@ const FoodTruckDetailScreen = () => {
                 {formatCuisines(foodTruckDetail?.cuisine)}
               </Text>
             </TouchableOpacity>
-            {foodTruckDetail && (
+            {foodTruckDetail && isSignedIn && (
               <TouchableOpacity
                 onPress={() =>
                   dispatch(
