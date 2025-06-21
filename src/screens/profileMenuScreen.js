@@ -37,7 +37,7 @@ import {
 } from "../apiFolder/appAPI";
 import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar, Portal } from "react-native-paper";
-import { fetchFavorites } from "../redux/slices/favoritesSlice"; // Import fetchFavorites
+import { fetchFavorites, clearFavorites } from "../redux/slices/favoritesSlice";
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
@@ -72,17 +72,15 @@ const ProfileMenuScreen = ({ navigation }) => {
   // Get favorites and loading/error states from Redux
   const {
     favorites,
-    loading: loadingFavorites,
+    isLoadingFavorites, // NEW: global loading state for fetching favorites list
     error: favoritesError,
   } = useSelector((state) => state.favoritesReducer);
   const insets = useSafeAreaInsets();
 
-  // Local state for name editing
   const [editedName, setEditedName] = useState(user?.firstName || "");
   const [displayName, setDisplayName] = useState(user?.firstName || "");
   const [nameError, setNameError] = useState("");
 
-  // Local state for contact editing
   const [countryCode, setCountryCode] = useState(user?.countryCode || "+1");
   const [mobileNumber, setMobileNumber] = useState(
     user?.mobileNumber?.replace(/^\+\d+\s*/, "") || ""
@@ -92,8 +90,8 @@ const ProfileMenuScreen = ({ navigation }) => {
   );
   const [contactError, setContactError] = useState("");
 
-  const ordersCompleted = 5; // Static value, consider making this dynamic
-  const totalOrders = 10; // Static value, consider making this dynamic
+  const ordersCompleted = 5;
+  const totalOrders = 10;
   const progress = ordersCompleted / totalOrders;
 
   const onMediaModalClose = () => {
@@ -108,7 +106,6 @@ const ProfileMenuScreen = ({ navigation }) => {
 
       setTimeout(
         async () => {
-          // Permission granted, open the camera
           await ImagePicker.openCamera({
             cropping: true,
             mediaType: "photo",
@@ -179,7 +176,6 @@ const ProfileMenuScreen = ({ navigation }) => {
   const uploadAndUpdateProfilePic = async (image) => {
     setUploadingImage(true);
     try {
-      // Create form data for image upload
       const formData = new FormData();
       formData.append("file", {
         uri: Platform.OS === "ios" ? image.sourceURL : image.path,
@@ -187,11 +183,9 @@ const ProfileMenuScreen = ({ navigation }) => {
         name: image.filename || `profile_${Date.now()}.jpg`,
       });
 
-      // Upload image
       const uploadResponse = await uploadImage_API(formData);
 
       if (uploadResponse?.success && uploadResponse?.data?.file) {
-        // Update user profile with the new image URL
         const updateResponse = await updateUserDetail_API({
           user_id: user._id,
           payload: { profilePic: uploadResponse.data.file },
@@ -203,7 +197,6 @@ const ProfileMenuScreen = ({ navigation }) => {
             message: "Profile picture updated successfully",
             type: "success",
           });
-          // Refresh user data
           getUserDetailFromAPI();
         } else {
           throw new Error(
@@ -253,7 +246,6 @@ const ProfileMenuScreen = ({ navigation }) => {
           message: "Name updated successfully",
           type: "success",
         });
-        // Refresh user data
         getUserDetailFromAPI();
       } else {
         setSnackbar({
@@ -307,7 +299,6 @@ const ProfileMenuScreen = ({ navigation }) => {
           message: "Contact updated successfully",
           type: "success",
         });
-        // Refresh user data
         getUserDetailFromAPI();
       } else {
         setSnackbar({
@@ -329,6 +320,7 @@ const ProfileMenuScreen = ({ navigation }) => {
   const handleLogout = () => {
     dispatch(clearUserSlice());
     dispatch(onSignOut());
+    dispatch(clearFavorites()); // Clear favorites data from Redux on logout
   };
 
   const getUserDetailFromAPI = async () => {
@@ -354,12 +346,12 @@ const ProfileMenuScreen = ({ navigation }) => {
     useCallback(() => {
       getUserDetailFromAPI();
       dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
-    }, [dispatch]) // Depend on dispatch
+    }, [dispatch])
   );
 
-  // Replace the static favoriteTrucks array with the dynamic data from Redux
   const renderFavoriteTrucks = () => {
-    if (loadingFavorites) {
+    // Use isLoadingFavorites for the main list loading state
+    if (isLoadingFavorites) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={AppColor.primary} />
@@ -385,8 +377,8 @@ const ProfileMenuScreen = ({ navigation }) => {
 
     return (
       <FlatList
-        data={favorites.slice(0, 2)} // Displaying only the first 2 favorites as per original code
-        keyExtractor={(item) => item._id.toString()} // Use the favorite entry _id or foodTruck._id
+        data={favorites.slice(0, 2)}
+        keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.favTruckRow}>
@@ -580,12 +572,12 @@ const ProfileMenuScreen = ({ navigation }) => {
           value={editedName}
           onChangeText={(text) => {
             setEditedName(text);
-            setNameError(""); // Clear error when user types
+            setNameError("");
           }}
           onUpdate={handleUpdateName}
           onCancel={() => {
             setUpdateNameModalVisible(false);
-            setNameError(""); // Clear error when modal is closed
+            setNameError("");
           }}
           error={nameError}
         />

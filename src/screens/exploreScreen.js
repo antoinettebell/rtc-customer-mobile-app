@@ -27,7 +27,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
 import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchFavorites } from "../redux/slices/favoritesSlice"; // Import fetchFavorites
+import { fetchFavorites } from "../redux/slices/favoritesSlice";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -58,11 +58,13 @@ const ExploreScreen = (props) => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const navigation = useNavigation();
-  const dispatch = useDispatch(); // Get dispatch for Redux actions
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
-  // Get favorites from Redux state
-  const { favorites } = useSelector((state) => state.favoritesReducer);
+  // Get favorites and global favorites loading from Redux state
+  const { favorites, isLoadingFavorites } = useSelector(
+    (state) => state.favoritesReducer
+  );
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
@@ -440,7 +442,8 @@ const ExploreScreen = (props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            {loading ? (
+            {/* Using isLoadingFavorites for the overall list loading */}
+            {loading || isLoadingFavorites ? (
               <ActivityIndicator
                 size="small"
                 color={AppColor.primary}

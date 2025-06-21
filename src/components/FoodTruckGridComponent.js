@@ -24,15 +24,18 @@ const FoodTruckGridComponent = ({
   distance,
 }) => {
   const dispatch = useDispatch();
-  // Get favorites and loading state from Redux
-  const { favorites, loading } = useSelector((state) => state.favoritesReducer);
+  // Get favorites and the individual loading state map from Redux
+  const { favorites, loading: individualLoadingState } = useSelector(
+    (state) => state.favoritesReducer
+  );
 
   // Determine if the current food truck is liked based on Redux state
   const isLiked = favorites.some((fav) => fav.foodTruck?._id === foodTruckId);
 
+  // Check loading status for this specific food truck
+  const isLoading = individualLoadingState[foodTruckId] || false;
+
   const handleLikePress = async () => {
-    // Dispatch the toggleFavorite thunk with necessary data
-    // We pass isLiked to the thunk to indicate current state for API call
     dispatch(
       toggleFavorite({
         foodTruckId,
@@ -81,9 +84,9 @@ const FoodTruckGridComponent = ({
         activeOpacity={0.7}
         onPress={handleLikePress}
         style={styles.likeContainer}
-        disabled={loading} // Disable button while loading
+        disabled={isLoading} // Disable button while this specific item is loading
       >
-        {loading ? (
+        {isLoading ? (
           <ActivityIndicator size="small" color={AppColor.primary} />
         ) : (
           <MaterialCommunityIcons

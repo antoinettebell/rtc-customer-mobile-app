@@ -31,7 +31,8 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   // Get favoriteTrucks (renamed from 'favorites' for clarity in this screen) and loading/error states from Redux
   const {
     favorites: favoriteTrucks,
-    loading,
+    loading: individualLoadingState, // Renamed to clearly separate from global fetch loading
+    isLoadingFavorites, // NEW: global loading state for fetching favorites list
     error,
   } = useSelector((state) => state.favoritesReducer);
 
@@ -44,7 +45,6 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
 
   const handleRemoveFavorite = async (foodTruckId) => {
     try {
-      // Dispatch toggleFavorite with the current liked status (true, as we are removing)
       const resultAction = await dispatch(
         toggleFavorite({ foodTruckId, isCurrentlyLiked: true })
       );
@@ -55,7 +55,6 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
           message: "Removed from favorites",
           type: "success",
         });
-        // The Redux state will automatically update, no need to re-fetch manually
       } else if (toggleFavorite.rejected.match(resultAction)) {
         setSnackbar({
           visible: true,
@@ -76,7 +75,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
-    }, [dispatch]) // Depend on dispatch
+    }, [dispatch])
   );
 
   // Filter favorites based on search query
@@ -85,7 +84,8 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   );
 
   const renderContent = () => {
-    if (loading) {
+    // Use isLoadingFavorites for the main list loading state
+    if (isLoadingFavorites) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={AppColor.primary} />
@@ -112,7 +112,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
     return (
       <FlatList
         data={filteredFavoriteTrucks}
-        keyExtractor={(item) => item._id.toString()} // Use the favorite entry _id or foodTruck._id
+        keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.favTrucksCard}
         renderItem={({ item }) => (
@@ -133,10 +133,17 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => handleRemoveFavorite(item.foodTruck?._id)} // Pass the food truck ID
+              onPress={() => handleRemoveFavorite(item.foodTruck?._id)}
               style={{ marginLeft: 8 }}
+              // Disable button while this specific item is loading
+              disabled={individualLoadingState[item.foodTruck?._id]}
             >
-              <Entypo name="heart" size={24} color={AppColor.red} />
+              {/* Check if this specific item is loading */}
+              {individualLoadingState[item.foodTruck?._id] ? (
+                <ActivityIndicator size="small" color={AppColor.red} />
+              ) : (
+                <Entypo name="heart" size={24} color={AppColor.red} />
+              )}
             </TouchableOpacity>
           </View>
         )}

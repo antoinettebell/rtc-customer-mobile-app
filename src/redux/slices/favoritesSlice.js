@@ -79,13 +79,15 @@ const favoritesSlice = createSlice({
   initialState: {
     favorites: [],
     loading: {}, // Changed to an object to track loading per foodTruckId
+    isLoadingFavorites: false, // NEW: Added to track overall fetch loading
     error: null,
   },
   reducers: {
     // Synchronous actions (if needed, though async thunks handle most cases)
     clearFavorites: (state) => {
       state.favorites = [];
-      state.loading = {}; // Clear loading states too
+      state.loading = {}; // Clear individual loading states
+      state.isLoadingFavorites = false; // Clear global loading state
       state.error = null;
     },
   },
@@ -93,13 +95,15 @@ const favoritesSlice = createSlice({
     builder
       // Handle fetchFavorites lifecycle
       .addCase(fetchFavorites.pending, (state) => {
-        // We can set a global loading for initial fetch if needed, or rely on individual loaders
+        state.isLoadingFavorites = true; // Set global loading for fetch
         state.error = null;
       })
       .addCase(fetchFavorites.fulfilled, (state, action) => {
+        state.isLoadingFavorites = false; // Turn off global loading
         state.favorites = action.payload;
       })
       .addCase(fetchFavorites.rejected, (state, action) => {
+        state.isLoadingFavorites = false; // Turn off global loading
         state.error = action.payload;
       })
       // Handle toggleFavorite lifecycle

@@ -155,7 +155,7 @@ const FoodTruckDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { item } = route.params; // The item passed from previous screen
+  const { item } = route.params;
   const [selectedTab, setSelectedTab] = useState(0);
   const tabListRef = useRef();
   const tabContentRef = useRef();
@@ -165,27 +165,24 @@ const FoodTruckDetailScreen = () => {
   const [menuTabs, setMenuTabs] = useState([]);
   const [isScheduleVisible, setIsScheduleVisible] = useState(false);
 
-  // Get favorites and loading state from Redux
-  const { favorites } = useSelector((state) => state.favoritesReducer);
+  // Get favorites and loading state specific to favorite actions from Redux
+  const { favorites, loading: favoritesActionLoading } = useSelector(
+    (state) => state.favoritesReducer
+  );
   const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
 
   // Check if the current food truck is liked based on Redux state
   const isFoodTruckFavorite = favorites.some(
     (fav) => fav.foodTruck?._id === foodTruckDetail?._id
   );
-
-  // Add this useEffect to clear order if truck changes on screen load
-  useEffect(() => {
-    // If there's an existing order and it's for a different food truck, clear it.
-    if (currentOrder.foodTruckId && currentOrder.foodTruckId !== item._id) {
-      dispatch(clearCurrentOrder()); //
-    }
-  }, [item._id, currentOrder.foodTruckId, dispatch]); //
+  // Check if the favorite toggle for *this specific food truck* is loading
+  const isFavoriteToggleLoading =
+    favoritesActionLoading[foodTruckDetail?._id] || false;
 
   useEffect(() => {
     fetchFoodTruckDetails();
     fetchMenuDetails();
-  }, [item._id]); // Add item._id as a dependency to re-fetch when item changes
+  }, [item._id]); // Re-fetch when item changes
 
   useFocusEffect(
     useCallback(() => {
@@ -324,7 +321,6 @@ const FoodTruckDetailScreen = () => {
   };
 
   const handleAddItem = (menuItem) => {
-    // Check if ordering from different food truck
     if (currentOrder.foodTruckId && currentOrder.foodTruckId !== item._id) {
       Alert.alert(
         "Different Food Truck",
@@ -352,7 +348,6 @@ const FoodTruckDetailScreen = () => {
   const addItemToOrderHandler = (menuItem) => {
     const currentQuantity = getItemQuantity(menuItem.id);
 
-    // Check max quantity
     if (currentQuantity >= menuItem.maxQty) {
       Alert.alert(
         "Maximum Quantity Reached",
@@ -361,7 +356,6 @@ const FoodTruckDetailScreen = () => {
       return;
     }
 
-    // Check if adding first item and meets min quantity
     if (currentQuantity === 0 && menuItem.minQty > 1) {
       Alert.alert(
         "Minimum Quantity Required",
@@ -569,17 +563,21 @@ const FoodTruckDetailScreen = () => {
                         logo: foodTruckDetail.logo,
                         reviews: foodTruckDetail.reviews,
                         distanceInMeters: foodTruckDetail.distanceInMeters,
-                        // Add any other relevant details needed for the favorite object
                       },
                     })
                   )
                 }
+                disabled={isFavoriteToggleLoading} // Disable button while this specific item is loading
               >
-                <FontAwesome
-                  name={isFoodTruckFavorite ? "heart" : "heart-o"}
-                  size={22}
-                  color={AppColor.red}
-                />
+                {isFavoriteToggleLoading ? (
+                  <ActivityIndicator size="small" color={AppColor.red} />
+                ) : (
+                  <FontAwesome
+                    name={isFoodTruckFavorite ? "heart" : "heart-o"}
+                    size={22}
+                    color={AppColor.red}
+                  />
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -607,7 +605,7 @@ const FoodTruckDetailScreen = () => {
             <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
             <TouchableOpacity
               style={styles.getDirectionBtn}
-              onPress={handleGetDirection} // Use the new function here
+              onPress={handleGetDirection}
             >
               <Text style={styles.getDirectionBtnText}>Get Direction</Text>
             </TouchableOpacity>
@@ -709,7 +707,7 @@ const FoodTruckDetailScreen = () => {
         </View>
 
         {/* Dynamic Tabs (swipeable & tappable) */}
-        {currentStatus === "Open Now" ? ( // Added this condition
+        {currentStatus === "Open Now" ? (
           menuLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={AppColor.primary} />
@@ -887,31 +885,30 @@ const FoodTruckDetailScreen = () => {
         )}
       </ScrollView>
       {/* Bottom Bar */}
-      {currentOrder.totalItems > 0 &&
-        currentStatus === "Open Now" && ( // ADD this condition
-          <TouchableOpacity
-            style={[
-              styles.bottomBar,
-              {
-                paddingBottom: insets.bottom || 12,
-              },
-            ]}
-            onPress={() =>
-              navigation.navigate("checkoutScreen", {
-                order: currentOrder,
-                locationId: currentLocationInfo._id,
-              })
-            }
-          >
-            <View style={styles.bottomBarBtn}>
-              <Text style={styles.bottomBarText}>
-                {currentOrder.totalItems}{" "}
-                {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
-              </Text>
-              <Text style={styles.bottomBarSubText}>View your order-list</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+      {currentOrder.totalItems > 0 && currentStatus === "Open Now" && (
+        <TouchableOpacity
+          style={[
+            styles.bottomBar,
+            {
+              paddingBottom: insets.bottom || 12,
+            },
+          ]}
+          onPress={() =>
+            navigation.navigate("checkoutScreen", {
+              order: currentOrder,
+              locationId: currentLocationInfo._id,
+            })
+          }
+        >
+          <View style={styles.bottomBarBtn}>
+            <Text style={styles.bottomBarText}>
+              {currentOrder.totalItems}{" "}
+              {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
+            </Text>
+            <Text style={styles.bottomBarSubText}>View your order-list</Text>
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
