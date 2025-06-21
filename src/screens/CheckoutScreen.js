@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import AppHeader from "../components/AppHeader";
 import {
@@ -32,9 +32,10 @@ const HR = () => <View style={styles.HR} />;
 const CheckoutScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const route = useRoute();
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
-
+  const { locationId } = route.params || {};
   const [coupon, setCoupon] = React.useState(null);
   const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
   const [loading, setLoading] = React.useState(false);
@@ -43,10 +44,26 @@ const CheckoutScreen = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const salesTaxRate = 7; // 7% sales tax
+
+  const getDiscountAmount = () => {
+    if (!coupon) return 0;
+
+    if (coupon.type === "PERCENTAGE") {
+      const discountValue = subtotal * (coupon.value / 100);
+      // Apply max discount if specified
+      return coupon.maxDiscount > 0
+        ? Math.min(discountValue, coupon.maxDiscount)
+        : discountValue;
+    } else if (coupon.type === "FIXED") {
+      return coupon.value;
+    }
+    return 0;
+  };
+
+  const salesTaxRate = 0; // 7% sales tax
   const salesTax = subtotal * (salesTaxRate / 100);
-  const discount = coupon ? 5 : 0;
-  const paymentFee = 0.4;
+  const discount = getDiscountAmount();
+  const paymentFee = 0.0;
   const totalWithTax = subtotal + salesTax;
   const total = totalWithTax + paymentFee - discount;
 
@@ -60,6 +77,7 @@ const CheckoutScreen = () => {
   };
 
   const handleAdd = (item) => {
+    // The item should include all necessary properties from the original item.
     dispatch(
       addItemToOrder({
         foodTruckId: order.foodTruckId,
@@ -70,12 +88,21 @@ const CheckoutScreen = () => {
           desc: item.desc,
           price: item.price,
           img: item.img,
+          originalItem: item.originalItem, // Ensure originalItem is passed for _id in placeFoodOrder_API
+          minQty: item.minQty,
+          maxQty: item.maxQty,
+          allowCustomize: item.allowCustomize,
+          diet: item.diet,
+          discount: item.discount,
+          itemType: item.itemType,
+          subItem: item.subItem,
         },
       })
     );
   };
 
   const handleRemove = (item) => {
+    // The payload for removeItemFromOrder only needs the itemId.
     dispatch(removeItemFromOrder({ itemId: item.id }));
   };
 
@@ -87,8 +114,11 @@ const CheckoutScreen = () => {
 
     const payload = {
       foodTruckId: order.foodTruckId,
+      couponId: coupon?._id,
+      locationId: locationId,
       deliveryTime: getDeliveryTime(),
       items: order.items.map((item) => ({
+        // Ensure menuItemId comes from the originalItem's _id
         menuItemId: item.originalItem._id,
         qty: item.quantity,
       })),
@@ -158,7 +188,13 @@ const CheckoutScreen = () => {
           onPress={() => navigation.navigate("couponCodeScreen", { setCoupon })}
         >
           <Text style={styles.couponText}>
-            {coupon ? `Coupon: ${coupon}` : "Apply Coupon"}
+            {coupon
+              ? `Coupon: ${coupon.code} (${
+                  coupon.type === "PERCENTAGE"
+                    ? `${coupon.value}%`
+                    : `$${coupon.value}`
+                })`
+              : "Apply Coupon"}
           </Text>
         </TouchableOpacity>
 
@@ -205,9 +241,7 @@ const CheckoutScreen = () => {
         <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>ToTAL ORDER</Text>
-            <Text style={[styles.totalLabel, { color: AppColor.primary }]}>
-              ${subtotal.toFixed(2)}
-            </Text>
+            <Text style={styles.totalLabelPrimary}>${subtotal.toFixed(2)}</Text>
           </View>
           <HR />
           <View style={styles.totalDetails}>
@@ -231,7 +265,13 @@ const CheckoutScreen = () => {
             </View>
             {coupon && (
               <View style={styles.totalRow}>
-                <Text style={styles.totalRowItemTxt}>Coupon Discount</Text>
+                <Text style={styles.totalRowItemTxt}>
+                  Coupon Discount (
+                  {coupon.type === "PERCENTAGE"
+                    ? `${coupon.value}%`
+                    : `$${coupon.value}`}
+                  )
+                </Text>
                 <Text style={styles.totalRowItemTxt}>
                   - ${discount.toFixed(2)}
                 </Text>
@@ -245,7 +285,7 @@ const CheckoutScreen = () => {
             </View>
             {hasFreeDessert && (
               <View style={styles.totalRow}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={styles.dessertRow}>
                   <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
                   <View style={styles.freeBadge}>
                     <Text style={styles.freeBadgeText}>Free</Text>
@@ -259,12 +299,12 @@ const CheckoutScreen = () => {
       </ScrollView>
 
       <View
-        style={{
-          padding: 16,
-          paddingBottom: 30,
-          borderTopWidth: 1,
-          borderTopColor: AppColor.borderColor,
-        }}
+        style={[
+          styles.bottomContainer,
+          {
+            paddingBottom: insets.bottom + 14,
+          },
+        ]}
       >
         <View style={styles.totalRow}>
           <Text style={styles.totalText}>ToTAL AMoUNT</Text>
@@ -473,6 +513,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 15,
   },
+  totalLabelPrimary: {
+    fontFamily: Primary400,
+    fontSize: 18,
+    marginBottom: 15,
+    color: AppColor.primary,
+  },
   totalRowItemTxt: {
     fontFamily: Secondary400,
     fontSize: 16,
@@ -513,6 +559,15 @@ const styles = StyleSheet.create({
     color: "#008B8B",
     paddingVertical: 2,
     paddingHorizontal: 8,
+  },
+  bottomContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: AppColor.borderColor,
+  },
+  dessertRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 

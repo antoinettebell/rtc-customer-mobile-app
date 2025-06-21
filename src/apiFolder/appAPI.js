@@ -20,6 +20,8 @@ import {
   PLACE_FOOD_ORDER,
   GET_ALL_ORDERS,
   GET_ORDER_BY_ORDERID,
+  GET_ALL_COUPON_CODES,
+  VALIDATE_COUPON_CODE,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -289,6 +291,28 @@ export const getAllOrders_API = async () => {
 export const getOrderByOrderId_API = async (orderId) => {
   try {
     const URL = `${GET_ORDER_BY_ORDERID}/${orderId}`;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Get All Coupon Codes
+export const getAllCoupons_API = async () => {
+  try {
+    const URL = `${GET_ALL_COUPON_CODES}`;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Validate Coupon Code
+export const validateCoupon_API = async (couponCode) => {
+  try {
+    const URL = `${VALIDATE_COUPON_CODE}?code=${couponCode}`;
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {

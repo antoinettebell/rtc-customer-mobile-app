@@ -11,6 +11,7 @@ import {
   Linking,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -27,7 +28,7 @@ import ImageCarousel from "../components/ImageCarousel";
 import AppHeader from "../components/AppHeader";
 import MapView, { Marker } from "react-native-maps";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavorite, fetchFavorites } from "../redux/slices/favoritesSlice"; // Import the toggleFavorite thunk and fetchFavorites
+import { toggleFavorite, fetchFavorites } from "../redux/slices/favoritesSlice";
 import {
   addItemToOrder,
   removeItemFromOrder,
@@ -173,10 +174,18 @@ const FoodTruckDetailScreen = () => {
     (fav) => fav.foodTruck?._id === foodTruckDetail?._id
   );
 
+  // Add this useEffect to clear order if truck changes on screen load
+  useEffect(() => {
+    // If there's an existing order and it's for a different food truck, clear it.
+    if (currentOrder.foodTruckId && currentOrder.foodTruckId !== item._id) {
+      dispatch(clearCurrentOrder()); //
+    }
+  }, [item._id, currentOrder.foodTruckId, dispatch]); //
+
   useEffect(() => {
     fetchFoodTruckDetails();
     fetchMenuDetails();
-  }, []);
+  }, [item._id]); // Add item._id as a dependency to re-fetch when item changes
 
   useFocusEffect(
     useCallback(() => {
@@ -435,6 +444,75 @@ const FoodTruckDetailScreen = () => {
     foodTruckDetail?.locations
   );
 
+  const handleGetDirection = () => {
+    if (!truckLocation) {
+      Alert.alert("Location Not Available", "Food truck location is not set.");
+      return;
+    }
+
+    const { latitude, longitude } = truckLocation;
+    const appleMapsUrl = `http://maps.apple.com/?ll=${latitude},${longitude}`;
+    const googleMapsUrl = `http://maps.google.com/maps?daddr=$${latitude},${longitude}`;
+
+    if (Platform.OS === "ios") {
+      Alert.alert(
+        "Choose Map App",
+        "Which app would you like to use for directions?",
+        [
+          {
+            text: "Apple Maps",
+            onPress: () =>
+              Linking.openURL(appleMapsUrl).catch((err) =>
+                console.error("Failed to open Apple Maps:", err)
+              ),
+          },
+          {
+            text: "Google Maps",
+            onPress: () => {
+              Linking.canOpenURL("comgooglemaps://")
+                .then((supported) => {
+                  if (supported) {
+                    Linking.openURL(googleMapsUrl).catch((err) =>
+                      console.error("Failed to open Google Maps:", err)
+                    );
+                  } else {
+                    Alert.alert(
+                      "Google Maps Not Installed",
+                      "Google Maps app is not installed on your device. Opening in Apple Maps instead.",
+                      [
+                        {
+                          text: "OK",
+                          onPress: () =>
+                            Linking.openURL(appleMapsUrl).catch((err) =>
+                              console.error("Failed to open Apple Maps:", err)
+                            ),
+                        },
+                      ]
+                    );
+                  }
+                })
+                .catch((err) =>
+                  console.error(
+                    "An error occurred checking Google Maps support",
+                    err
+                  )
+                );
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+    } else {
+      // Android
+      Linking.openURL(googleMapsUrl).catch((err) =>
+        console.error("Failed to open Google Maps on Android:", err)
+      );
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
@@ -529,14 +607,7 @@ const FoodTruckDetailScreen = () => {
             <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
             <TouchableOpacity
               style={styles.getDirectionBtn}
-              onPress={() => {
-                if (truckLocation) {
-                  const url = `https://www.google.com/maps/dir/?api=1&destination=${truckLocation.latitude},${truckLocation.longitude}`;
-                  Linking.openURL(url).catch((err) =>
-                    console.error("Failed to open maps:", err)
-                  );
-                }
-              }}
+              onPress={handleGetDirection} // Use the new function here
             >
               <Text style={styles.getDirectionBtnText}>Get Direction</Text>
             </TouchableOpacity>
@@ -638,7 +709,7 @@ const FoodTruckDetailScreen = () => {
         </View>
 
         {/* Dynamic Tabs (swipeable & tappable) */}
-        {currentStatus === "Open Now" ? (
+        {currentStatus === "Open Now" ? ( // Added this condition
           menuLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={AppColor.primary} />
@@ -816,27 +887,31 @@ const FoodTruckDetailScreen = () => {
         )}
       </ScrollView>
       {/* Bottom Bar */}
-      {currentOrder.totalItems > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.bottomBar,
-            {
-              paddingBottom: insets.bottom || 12,
-            },
-          ]}
-          onPress={() =>
-            navigation.navigate("checkoutScreen", { order: currentOrder })
-          }
-        >
-          <View style={styles.bottomBarBtn}>
-            <Text style={styles.bottomBarText}>
-              {currentOrder.totalItems}{" "}
-              {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
-            </Text>
-            <Text style={styles.bottomBarSubText}>View your order-list</Text>
-          </View>
-        </TouchableOpacity>
-      )}
+      {currentOrder.totalItems > 0 &&
+        currentStatus === "Open Now" && ( // ADD this condition
+          <TouchableOpacity
+            style={[
+              styles.bottomBar,
+              {
+                paddingBottom: insets.bottom || 12,
+              },
+            ]}
+            onPress={() =>
+              navigation.navigate("checkoutScreen", {
+                order: currentOrder,
+                locationId: currentLocationInfo._id,
+              })
+            }
+          >
+            <View style={styles.bottomBarBtn}>
+              <Text style={styles.bottomBarText}>
+                {currentOrder.totalItems}{" "}
+                {currentOrder.totalItems === 1 ? "ITEM" : "ITEMS"} ADDED
+              </Text>
+              <Text style={styles.bottomBarSubText}>View your order-list</Text>
+            </View>
+          </TouchableOpacity>
+        )}
     </View>
   );
 };

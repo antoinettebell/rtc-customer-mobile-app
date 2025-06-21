@@ -45,3 +45,7 @@ export const DELETE_ADDRESS = "/user/address";
 export const TNC = "/public/terms-conditions";
 export const PRIVACY_POLICY = "/public/privacy-policy";
 export const AGREEMENT = "/public/agreement";
+
+// Coupon
+export const GET_ALL_COUPON_CODES = "/coupon";
+export const VALIDATE_COUPON_CODE = "/coupon/validate";
