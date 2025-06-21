@@ -35,10 +35,13 @@ const CheckoutScreen = () => {
   const route = useRoute();
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
-  const { locationId } = route.params || {};
+  const { locationId, foodTruckStatus } = route.params || {}; // Destructure foodTruckStatus from route.params
   const [coupon, setCoupon] = React.useState(null);
   const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
   const [loading, setLoading] = React.useState(false);
+
+  // Determine if the truck is open
+  const isTruckOpen = foodTruckStatus === "Open Now";
 
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -112,6 +115,14 @@ const CheckoutScreen = () => {
       return;
     }
 
+    if (!isTruckOpen) {
+      Alert.alert(
+        "Truck Closed",
+        "The food truck is currently closed for immediate orders. Please place an advance order."
+      );
+      return;
+    }
+
     const payload = {
       foodTruckId: order.foodTruckId,
       couponId: coupon?._id,
@@ -137,6 +148,19 @@ const CheckoutScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePlaceAdvanceOrder = () => {
+    if (order.items.length === 0) {
+      Alert.alert("No Items", "Please add items to your order first.");
+      return;
+    }
+    // Logic for placing an advance order
+    Alert.alert(
+      "Advance Order",
+      "You are placing an advance order. (Further implementation needed)"
+    );
+    // This could navigate to a different screen or open a time picker for advance orders
   };
 
   return (
@@ -311,20 +335,43 @@ const CheckoutScreen = () => {
           <Text style={styles.totalText}>${total.toFixed(2)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            (order.items.length === 0 || loading) && styles.disabledBtn,
-          ]}
-          onPress={handleConfirmOrder}
-          disabled={order.items.length === 0 || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.confirmBtnText}>Confirm Order</Text>
-          )}
-        </TouchableOpacity>
+        {isTruckOpen ? (
+          <>
+            {/* Show both buttons if truck is open */}
+            <TouchableOpacity
+              style={[
+                styles.confirmBtn,
+                (order.items.length === 0 || loading) && styles.disabledBtn,
+              ]}
+              onPress={handleConfirmOrder}
+              disabled={order.items.length === 0 || loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.confirmBtnText}>Confirm Order</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.advanceOrderBtn}
+              onPress={handlePlaceAdvanceOrder}
+              disabled={order.items.length === 0}
+            >
+              <Text style={styles.advncOrderBtnText}>Place Advance Order</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* Show only "Place Advance Order" button if truck is closed */}
+            <TouchableOpacity
+              style={styles.advanceOrderBtn}
+              onPress={handlePlaceAdvanceOrder}
+              disabled={order.items.length === 0}
+            >
+              <Text style={styles.advncOrderBtnText}>Place Advance Order</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -533,6 +580,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
+    marginBottom: 10, // Added margin for spacing between buttons
+  },
+  advanceOrderBtn: {
+    backgroundColor: AppColor.white,
+    borderRadius: 8,
+    padding: 15,
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+  },
+  advncOrderBtnText: {
+    color: AppColor.primary,
+    fontFamily: Secondary400,
+    fontSize: 16,
   },
   disabledBtn: {
     backgroundColor: AppColor.textHighlighter,

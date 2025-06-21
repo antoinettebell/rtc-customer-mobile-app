@@ -321,7 +321,11 @@ const FoodTruckDetailScreen = () => {
   };
 
   const handleAddItem = (menuItem) => {
-    if (currentOrder.foodTruckId && currentOrder.foodTruckId !== item._id) {
+    if (
+      currentOrder.foodTruckId &&
+      currentOrder.foodTruckId !== item._id &&
+      currentOrder.items.length > 0
+    ) {
       Alert.alert(
         "Different Food Truck",
         `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${item.name}?`,
@@ -446,7 +450,7 @@ const FoodTruckDetailScreen = () => {
 
     const { latitude, longitude } = truckLocation;
     const appleMapsUrl = `http://maps.apple.com/?ll=${latitude},${longitude}`;
-    const googleMapsUrl = `http://maps.google.com/maps?daddr=$${latitude},${longitude}`;
+    const googleMapsUrl = `http://maps.google.com/?q=${latitude},${longitude}`; // Corrected Google Maps URL for direct coordinates
 
     if (Platform.OS === "ios") {
       Alert.alert(
@@ -706,186 +710,178 @@ const FoodTruckDetailScreen = () => {
           />
         </View>
 
-        {/* Dynamic Tabs (swipeable & tappable) */}
-        {currentStatus === "Open Now" ? (
-          menuLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={AppColor.primary} />
-            </View>
-          ) : menuTabs.length > 0 ? (
-            <>
-              <View style={styles.tabsWrap}>
-                <FlatList
-                  ref={tabListRef}
-                  data={menuTabs}
-                  keyExtractor={(tab) => tab.key}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.tabsRow}
-                  renderItem={({ item: tab, index }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.tabBtn,
-                        selectedTab === index && styles.tabBtnActive,
-                      ]}
-                      onPress={() => handleTabPress(index)}
-                    >
-                      <Text
-                        style={[
-                          styles.tabText,
-                          selectedTab === index && styles.tabTextActive,
-                        ]}
-                      >
-                        {tab.label}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
+        {/* Dynamic Tabs (swipeable & tappable) - Always displayed */}
+        {menuLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={AppColor.primary} />
+          </View>
+        ) : menuTabs.length > 0 ? (
+          <>
+            <View style={styles.tabsWrap}>
               <FlatList
-                ref={tabContentRef}
+                ref={tabListRef}
                 data={menuTabs}
                 keyExtractor={(tab) => tab.key}
                 horizontal
-                pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabContentContainer}
-                onMomentumScrollEnd={handleTabContentScroll}
-                getItemLayout={(_, index) => ({
-                  length: width,
-                  offset: width * index,
-                  index,
-                })}
-                renderItem={({ item: tab }) => (
-                  <View style={styles.tabContent}>
-                    {tab.items.length === 0 ? (
-                      <Text style={styles.noMenuText}>
-                        No items available in this section.
-                      </Text>
-                    ) : (
-                      tab?.items?.map((menu, index) => {
-                        const quantity = getItemQuantity(menu.id);
-                        const isLastItem = index === tab.items.length - 1;
-                        const isDisabled = !menu.available;
-
-                        return (
-                          <View
-                            key={menu.id}
-                            style={[
-                              styles.menuItemRow,
-                              !isLastItem && styles.menuItemBorder,
-                              isDisabled && styles.disabledMenuItem,
-                            ]}
-                          >
-                            {menu.img ? (
-                              <Image
-                                source={menu.img}
-                                style={[
-                                  styles.menuImg,
-                                  isDisabled && styles.disabledImage,
-                                ]}
-                              />
-                            ) : (
-                              <View
-                                style={[
-                                  styles.menuImgPlaceholder,
-                                  isDisabled && styles.disabledImage,
-                                ]}
-                              />
-                            )}
-                            <View style={styles.menuDetails}>
-                              <Text
-                                style={[
-                                  styles.menuTitle,
-                                  isDisabled && styles.disabledText,
-                                ]}
-                              >
-                                {menu.name}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.menuDesc,
-                                  isDisabled && styles.disabledText,
-                                ]}
-                              >
-                                {menu.desc}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.menuPrice,
-                                  isDisabled && styles.disabledText,
-                                ]}
-                              >
-                                {menu.price}
-                              </Text>
-                              {isDisabled && (
-                                <Text style={styles.unavailableText}>
-                                  Currently Unavailable
-                                </Text>
-                              )}
-                            </View>
-                            {!isDisabled ? (
-                              quantity === 0 ? (
-                                <TouchableOpacity
-                                  style={styles.addButton}
-                                  onPress={() => handleAddItem(menu)}
-                                >
-                                  <Text style={styles.addButtonText}>Add</Text>
-                                </TouchableOpacity>
-                              ) : (
-                                <View style={styles.quantityContainer}>
-                                  <TouchableOpacity
-                                    style={styles.quantityButton}
-                                    onPress={() => handleRemoveItem(menu)}
-                                  >
-                                    <Text style={styles.quantityButtonText}>
-                                      -
-                                    </Text>
-                                  </TouchableOpacity>
-                                  <Text style={styles.quantityText}>
-                                    {quantity}
-                                  </Text>
-                                  <TouchableOpacity
-                                    style={styles.quantityButton}
-                                    onPress={() => handleAddItem(menu)}
-                                    disabled={quantity >= menu.maxQty}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.quantityButtonText,
-                                        quantity >= menu.maxQty &&
-                                          styles.disabledButtonText,
-                                      ]}
-                                    >
-                                      +
-                                    </Text>
-                                  </TouchableOpacity>
-                                </View>
-                              )
-                            ) : null}
-                          </View>
-                        );
-                      })
-                    )}
-                  </View>
+                contentContainerStyle={styles.tabsRow}
+                renderItem={({ item: tab, index }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.tabBtn,
+                      selectedTab === index && styles.tabBtnActive,
+                    ]}
+                    onPress={() => handleTabPress(index)}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        selectedTab === index && styles.tabTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               />
-            </>
-          ) : (
-            <View style={styles.noMenuContainer}>
-              <Text style={styles.noMenuText}>No menu items available</Text>
             </View>
-          )
+            <FlatList
+              ref={tabContentRef}
+              data={menuTabs}
+              keyExtractor={(tab) => tab.key}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabContentContainer}
+              onMomentumScrollEnd={handleTabContentScroll}
+              getItemLayout={(_, index) => ({
+                length: width,
+                offset: width * index,
+                index,
+              })}
+              renderItem={({ item: tab }) => (
+                <View style={styles.tabContent}>
+                  {tab.items.length === 0 ? (
+                    <Text style={styles.noMenuText}>
+                      No items available in this section.
+                    </Text>
+                  ) : (
+                    tab?.items?.map((menu, index) => {
+                      const quantity = getItemQuantity(menu.id);
+                      const isLastItem = index === tab.items.length - 1;
+                      const isDisabled = !menu.available;
+
+                      return (
+                        <View
+                          key={menu.id}
+                          style={[
+                            styles.menuItemRow,
+                            !isLastItem && styles.menuItemBorder,
+                            isDisabled && styles.disabledMenuItem,
+                          ]}
+                        >
+                          {menu.img ? (
+                            <Image
+                              source={menu.img}
+                              style={[
+                                styles.menuImg,
+                                isDisabled && styles.disabledImage,
+                              ]}
+                            />
+                          ) : (
+                            <View
+                              style={[
+                                styles.menuImgPlaceholder,
+                                isDisabled && styles.disabledImage,
+                              ]}
+                            />
+                          )}
+                          <View style={styles.menuDetails}>
+                            <Text
+                              style={[
+                                styles.menuTitle,
+                                isDisabled && styles.disabledText,
+                              ]}
+                            >
+                              {menu.name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.menuDesc,
+                                isDisabled && styles.disabledText,
+                              ]}
+                            >
+                              {menu.desc}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.menuPrice,
+                                isDisabled && styles.disabledText,
+                              ]}
+                            >
+                              {menu.price}
+                            </Text>
+                            {isDisabled && (
+                              <Text style={styles.unavailableText}>
+                                Currently Unavailable
+                              </Text>
+                            )}
+                          </View>
+                          {!isDisabled ? (
+                            quantity === 0 ? (
+                              <TouchableOpacity
+                                style={styles.addButton}
+                                onPress={() => handleAddItem(menu)}
+                              >
+                                <Text style={styles.addButtonText}>Add</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={styles.quantityContainer}>
+                                <TouchableOpacity
+                                  style={styles.quantityButton}
+                                  onPress={() => handleRemoveItem(menu)}
+                                >
+                                  <Text style={styles.quantityButtonText}>
+                                    -
+                                  </Text>
+                                </TouchableOpacity>
+                                <Text style={styles.quantityText}>
+                                  {quantity}
+                                </Text>
+                                <TouchableOpacity
+                                  style={styles.quantityButton}
+                                  onPress={() => handleAddItem(menu)}
+                                  disabled={quantity >= menu.maxQty}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.quantityButtonText,
+                                      quantity >= menu.maxQty &&
+                                        styles.disabledButtonText,
+                                    ]}
+                                  >
+                                    +
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            )
+                          ) : null}
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+            />
+          </>
         ) : (
           <View style={styles.noMenuContainer}>
-            <Text style={styles.noMenuText}>
-              Food truck is currently closed. Menu is unavailable.
-            </Text>
+            <Text style={styles.noMenuText}>No menu items available</Text>
           </View>
         )}
       </ScrollView>
-      {/* Bottom Bar */}
-      {currentOrder.totalItems > 0 && currentStatus === "Open Now" && (
+      {/* Bottom Bar - Conditional display */}
+      {currentOrder.totalItems > 0 && currentOrder.foodTruckId === item._id && (
         <TouchableOpacity
           style={[
             styles.bottomBar,
@@ -896,7 +892,8 @@ const FoodTruckDetailScreen = () => {
           onPress={() =>
             navigation.navigate("checkoutScreen", {
               order: currentOrder,
-              locationId: currentLocationInfo._id,
+              foodTruckStatus: currentStatus, // Pass truck status to checkout screen
+              foodTruckDetail: foodTruckDetail, // Pass full food truck detail to checkout screen
             })
           }
         >
