@@ -45,10 +45,10 @@ const orderSlice = createSlice({
         // Add new item
         state.currentOrder.items.push({
           ...item,
-          quantity: 1,
+          quantity: 1, // Always start with 1, UI handles minQty check before adding
         });
       } else {
-        // Increment quantity of existing item
+        // Increment quantity of existing item. UI should have already checked maxQty.
         state.currentOrder.items[existingItemIndex].quantity += 1;
       }
 
@@ -61,7 +61,8 @@ const orderSlice = createSlice({
         (sum, item) => sum + item.price * item.quantity,
         0
       );
-      state.currentOrder.tax = state.currentOrder.subtotal * 0.1; // 10% tax
+      // Assuming a fixed tax rate for calculation example, adjust if dynamic
+      state.currentOrder.tax = state.currentOrder.subtotal * 0.1;
       state.currentOrder.total =
         state.currentOrder.subtotal + state.currentOrder.tax;
     },
@@ -73,11 +74,12 @@ const orderSlice = createSlice({
       );
 
       if (itemIndex !== -1) {
+        // Decrement quantity if more than 1, otherwise remove the item.
+        // UI should have already handled minQty checks before dispatching.
         if (state.currentOrder.items[itemIndex].quantity > 1) {
-          // Decrement quantity if more than 1
           state.currentOrder.items[itemIndex].quantity -= 1;
         } else {
-          // Remove item if quantity is 1
+          // Remove item if quantity is 1 (or less, though it shouldn't go below 0)
           state.currentOrder.items.splice(itemIndex, 1);
         }
 

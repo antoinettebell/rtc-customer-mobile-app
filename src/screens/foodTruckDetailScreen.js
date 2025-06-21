@@ -263,7 +263,10 @@ const FoodTruckDetailScreen = () => {
 
   const todaysHours = getTodaysAvailability(foodTruckDetail?.availability);
 
-  const currentStatus = getCurrentStatus(foodTruckDetail?.availability);
+  // const currentStatus = getCurrentStatus(foodTruckDetail?.availability);
+  const currentStatus = foodTruckDetail?.currentLocation
+    ? "Open Now"
+    : "Closed Now";
 
   const INFO_ROWS = [
     {
@@ -271,7 +274,7 @@ const FoodTruckDetailScreen = () => {
         <FontAwesome6 name="location-dot" size={20} color={AppColor.primary} />
       ),
       title: "Truck Location",
-      value: currentLocationInfo?.title || "Not Available",
+      value: currentLocationInfo?.title || "Not Available Now",
       value2: currentLocationInfo?.address || "",
       metadata: { locationId: currentLocationInfo?._id },
     },
@@ -604,43 +607,45 @@ const FoodTruckDetailScreen = () => {
         </View>
 
         {/* Location Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
-            <TouchableOpacity
-              style={styles.getDirectionBtn}
-              onPress={handleGetDirection}
-            >
-              <Text style={styles.getDirectionBtnText}>Get Direction</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.mapViewWrap}>
-            {truckLocation ? (
-              <MapView
-                style={styles.mapView}
-                initialRegion={truckLocation}
-                region={truckLocation}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                pitchEnabled={false}
-                rotateEnabled={false}
-                pointerEvents="none"
+        {currentStatus === "Open Now" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
+              <TouchableOpacity
+                style={styles.getDirectionBtn}
+                onPress={handleGetDirection}
               >
-                <Marker coordinate={truckLocation}>
-                  <FontAwesome6
-                    name="location-dot"
-                    size={32}
-                    color={AppColor.primary}
-                  />
-                </Marker>
-              </MapView>
-            ) : (
-              <View style={styles.mapPlaceholder}>
-                <Text>No location available</Text>
-              </View>
-            )}
+                <Text style={styles.getDirectionBtnText}>Get Direction</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.mapViewWrap}>
+              {truckLocation ? (
+                <MapView
+                  style={styles.mapView}
+                  initialRegion={truckLocation}
+                  region={truckLocation}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                  pointerEvents="none"
+                >
+                  <Marker coordinate={truckLocation}>
+                    <FontAwesome6
+                      name="location-dot"
+                      size={32}
+                      color={AppColor.primary}
+                    />
+                  </Marker>
+                </MapView>
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <Text>No location available</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Dynamic Info Rows */}
         <View style={styles.infoRowsWrap}>

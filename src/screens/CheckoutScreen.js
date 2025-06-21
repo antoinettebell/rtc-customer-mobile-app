@@ -12,7 +12,11 @@ import {
   Platform,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useIsFocused,
+} from "@react-navigation/native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import AppHeader from "../components/AppHeader";
 import {
@@ -35,10 +39,11 @@ const CheckoutScreen = () => {
   const route = useRoute();
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
-  const { locationId, foodTruckStatus } = route.params || {}; // Destructure foodTruckStatus from route.params
+  const { foodTruckDetail, foodTruckStatus } = route.params || {}; // Destructure foodTruckStatus from route.params
   const [coupon, setCoupon] = React.useState(null);
   const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
   const [loading, setLoading] = React.useState(false);
+  const isFocused = useIsFocused(); // Hook to check if the screen is currently focused
 
   // Determine if the truck is open
   const isTruckOpen = foodTruckStatus === "Open Now";
@@ -63,7 +68,7 @@ const CheckoutScreen = () => {
     return 0;
   };
 
-  const salesTaxRate = 0; // 7% sales tax
+  const salesTaxRate = 0; // Placeholder for sales tax rate
   const salesTax = subtotal * (salesTaxRate / 100);
   const discount = getDiscountAmount();
   const paymentFee = 0.0;
@@ -79,8 +84,27 @@ const CheckoutScreen = () => {
     return now.toTimeString().slice(0, 5);
   };
 
+  React.useEffect(() => {
+    // Redirect when the cart becomes empty
+    if (isFocused && order.items.length === 0) {
+      navigation.goBack();
+    }
+  }, [order.items.length, isFocused, navigation]);
+
   const handleAdd = (item) => {
-    // The item should include all necessary properties from the original item.
+    // Determine effective maxQty, defaulting to a high number if not specified
+    const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100;
+
+    // UI Check: Prevent adding if maxQty is reached
+    if (item.quantity >= effectiveMaxQty) {
+      Alert.alert(
+        "Quantity Limit Reached",
+        `You can only add a maximum of ${effectiveMaxQty} of this item.`
+      );
+      return;
+    }
+
+    // Dispatch action to Redux store
     dispatch(
       addItemToOrder({
         foodTruckId: order.foodTruckId,
@@ -105,7 +129,30 @@ const CheckoutScreen = () => {
   };
 
   const handleRemove = (item) => {
-    // The payload for removeItemFromOrder only needs the itemId.
+    // Determine effective minQty, defaulting to 1 if not specified
+    const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1;
+
+    // UI Check:
+    // If current quantity is at or below effectiveMinQty AND effectiveMinQty is > 0
+    // AND we are trying to decrement (i.e., item.quantity - 1 < effectiveMinQty)
+    // AND effectiveMinQty is greater than 1 (meaning you can't remove to 0 or below 1)
+    if (item.quantity <= effectiveMinQty && effectiveMinQty > 0) {
+      if (item.quantity === effectiveMinQty) {
+        // If the current quantity is equal to minQty
+        if (effectiveMinQty > 1) {
+          // If minQty is > 1, prevent decrement and alert
+          Alert.alert(
+            "Quantity Limit Reached",
+            `You must have at least ${effectiveMinQty} of this item.`
+          );
+          return;
+        }
+        // If minQty is 1, allow removal (fall through to dispatch)
+        // This means if minQty is 1 and quantity is 1, pressing "-" removes the item completely.
+      }
+    }
+
+    // If checks pass, dispatch action to Redux store
     dispatch(removeItemFromOrder({ itemId: item.id }));
   };
 
@@ -125,8 +172,7 @@ const CheckoutScreen = () => {
 
     const payload = {
       foodTruckId: order.foodTruckId,
-      couponId: coupon?._id,
-      locationId: locationId,
+      locationId: foodTruckDetail?.currentLocation,
       deliveryTime: getDeliveryTime(),
       items: order.items.map((item) => ({
         // Ensure menuItemId comes from the originalItem's _id
@@ -134,6 +180,9 @@ const CheckoutScreen = () => {
         qty: item.quantity,
       })),
     };
+    if (coupon) {
+      payload.couponId = coupon?._id;
+    }
 
     try {
       setLoading(true);
@@ -155,18 +204,81 @@ const CheckoutScreen = () => {
       Alert.alert("No Items", "Please add items to your order first.");
       return;
     }
-    // Logic for placing an advance order
-    Alert.alert(
-      "Advance Order",
-      "You are placing an advance order. (Further implementation needed)"
+    navigation.navigate("advanceOrderScreen");
+  };
+
+  const handleRemoveCoupon = () => {
+    setCoupon(null);
+  };
+
+  const renderItem = ({ item }) => {
+    const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1; // Default to 1
+    const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100; // Default to 100
+
+    // Disable '-' button if quantity is at minQty and minQty is > 0 (cannot go below minQty)
+    // The button is enabled if minQty is 1 (to allow removal) or if quantity > minQty
+    const isDecrementDisabled =
+      item.quantity <= effectiveMinQty &&
+      effectiveMinQty > 0 &&
+      item.quantity === effectiveMinQty &&
+      effectiveMinQty > 1;
+
+    // Disable '+' button if quantity is at maxQty
+    const isIncrementDisabled = item.quantity >= effectiveMaxQty;
+
+    return (
+      <View style={styles.itemRow}>
+        <Image source={foodImg} style={styles.foodImg} />
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemTitle}>{item.name}</Text>
+          <Text style={styles.itemDesc}>{item.desc}</Text>
+          <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        </View>
+        <View style={styles.qtyBox}>
+          <TouchableOpacity
+            style={[
+              styles.qtyBtnBox,
+              isDecrementDisabled && styles.disabledQtyBtn,
+            ]}
+            onPress={() => handleRemove(item)}
+            disabled={isDecrementDisabled}
+          >
+            <Text
+              style={[
+                styles.qtyBtnText,
+                isDecrementDisabled && styles.disabledQtyBtnText,
+              ]}
+            >
+              -
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.qtyText}>{item.quantity}</Text>
+          <TouchableOpacity
+            style={[
+              styles.qtyBtnBox,
+              isIncrementDisabled && styles.disabledQtyBtn,
+            ]}
+            onPress={() => handleAdd(item)}
+            disabled={isIncrementDisabled}
+          >
+            <Text
+              style={[
+                styles.qtyBtnText,
+                isIncrementDisabled && styles.disabledQtyBtnText,
+              ]}
+            >
+              +
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
-    // This could navigate to a different screen or open a time picker for advance orders
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      <AppHeader headerTitle="CHECKoUT" />
+      <AppHeader headerTitle="CHECKOUT" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -176,51 +288,12 @@ const CheckoutScreen = () => {
           data={order.items}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.screenGenericCard}
-          renderItem={({ item }) => (
-            <View style={styles.itemRow}>
-              <Image source={foodImg} style={styles.foodImg} />
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemTitle}>{item.name}</Text>
-                <Text style={styles.itemDesc}>{item.desc}</Text>
-                <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-              </View>
-              <View style={styles.qtyBox}>
-                <TouchableOpacity
-                  style={styles.qtyBtnBox}
-                  onPress={() => handleRemove(item)}
-                >
-                  <Text style={styles.qtyBtnText}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.qtyText}>{item.quantity}</Text>
-                <TouchableOpacity
-                  style={styles.qtyBtnBox}
-                  onPress={() => handleAdd(item)}
-                >
-                  <Text style={styles.qtyBtnText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          renderItem={renderItem}
           ItemSeparatorComponent={() => <HR />}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No items in your order.</Text>
           }
         />
-
-        <TouchableOpacity
-          style={styles.couponBox}
-          onPress={() => navigation.navigate("couponCodeScreen", { setCoupon })}
-        >
-          <Text style={styles.couponText}>
-            {coupon
-              ? `Coupon: ${coupon.code} (${
-                  coupon.type === "PERCENTAGE"
-                    ? `${coupon.value}%`
-                    : `$${coupon.value}`
-                })`
-              : "Apply Coupon"}
-          </Text>
-        </TouchableOpacity>
 
         <View style={styles.paymentBox}>
           <Text style={styles.paymentTitleTxt}>Payment Method</Text>
@@ -262,9 +335,45 @@ const CheckoutScreen = () => {
           ))}
         </View>
 
+        <View style={[styles.screenGenericCard, { marginBottom: 25 }]}>
+          {coupon ? (
+            <View style={styles.couponAppliedContainer}>
+              <Text style={styles.couponText}>
+                Coupon: {coupon.code} (
+                {coupon.type === "PERCENTAGE"
+                  ? `${coupon.value}%`
+                  : `$${coupon.value}`}
+                )
+              </Text>
+              <TouchableOpacity
+                onPress={handleRemoveCoupon}
+                style={styles.removeCouponBtn}
+              >
+                <Icon name="times-circle" size={18} color={AppColor.primary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.couponBox}
+              onPress={() =>
+                navigation.navigate("couponCodeScreen", { setCoupon })
+              }
+            >
+              <Text style={styles.couponText}>Apply Coupon</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("couponCodeScreen", { setCoupon })
+            }
+          >
+            <Text style={styles.viewAllCouponsText}>View all coupons &gt;</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>ToTAL ORDER</Text>
+            <Text style={styles.totalLabel}>TOTAL ORDER</Text>
             <Text style={styles.totalLabelPrimary}>${subtotal.toFixed(2)}</Text>
           </View>
           <HR />
@@ -331,13 +440,12 @@ const CheckoutScreen = () => {
         ]}
       >
         <View style={styles.totalRow}>
-          <Text style={styles.totalText}>ToTAL AMoUNT</Text>
+          <Text style={styles.totalText}>TOTAL AMOUNT</Text>
           <Text style={styles.totalText}>${total.toFixed(2)}</Text>
         </View>
 
         {isTruckOpen ? (
           <>
-            {/* Show both buttons if truck is open */}
             <TouchableOpacity
               style={[
                 styles.confirmBtn,
@@ -362,7 +470,6 @@ const CheckoutScreen = () => {
           </>
         ) : (
           <>
-            {/* Show only "Place Advance Order" button if truck is closed */}
             <TouchableOpacity
               style={styles.advanceOrderBtn}
               onPress={handlePlaceAdvanceOrder}
@@ -457,6 +564,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.primary,
   },
+  disabledQtyBtn: {
+    borderColor: AppColor.textHighlighter,
+  },
+  disabledQtyBtnText: {
+    color: AppColor.textHighlighter,
+  },
   qtyText: {
     fontFamily: Primary400,
     fontSize: 14,
@@ -470,7 +583,7 @@ const styles = StyleSheet.create({
   },
   couponBox: {
     backgroundColor: "#FC7B0338",
-    borderRadius: 8,
+    borderRadius: 6,
     padding: 10,
     marginVertical: 10,
   },
@@ -580,7 +693,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
-    marginBottom: 10, // Added margin for spacing between buttons
+    marginBottom: 10,
   },
   advanceOrderBtn: {
     backgroundColor: AppColor.white,
@@ -630,6 +743,25 @@ const styles = StyleSheet.create({
   dessertRow: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  couponAppliedContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FC7B0338",
+    borderRadius: 6,
+    padding: 10,
+    marginVertical: 10,
+  },
+  removeCouponBtn: {
+    padding: 5,
+  },
+  viewAllCouponsText: {
+    color: AppColor.primary,
+    fontFamily: Secondary400,
+    fontSize: 14,
+    marginTop: 5,
+    textAlign: "right",
   },
 });
 
