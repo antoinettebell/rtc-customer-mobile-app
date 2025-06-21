@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { placeFoodOrder_API } from "../apiFolder/appAPI";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
+import Modal from "react-native-modal"; // Import react-native-modal
+import moment from "moment"; // Import moment for handling time
 
 const foodImg = require("../assets/images/FoodImage.png");
 
@@ -39,13 +41,16 @@ const CheckoutScreen = () => {
   const route = useRoute();
   const dispatch = useDispatch();
   const order = useSelector((state) => state.orderReducer.currentOrder);
-  const { foodTruckDetail, foodTruckStatus } = route.params || {}; // Destructure foodTruckStatus from route.params
-  const [coupon, setCoupon] = React.useState(null);
-  const [paymentMethod, setPaymentMethod] = React.useState("Google Pay");
-  const [loading, setLoading] = React.useState(false);
-  const isFocused = useIsFocused(); // Hook to check if the screen is currently focused
+  const { foodTruckDetail, foodTruckStatus } = route.params || {};
+  const [coupon, setCoupon] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("Google Pay");
+  const [loading, setLoading] = useState(false);
+  const isFocused = useIsFocused();
+  const [isAdvanceOrderModalVisible, setAdvanceOrderModalVisible] =
+    useState(false); // State for modal visibility
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedAvailability, setSelectedAvailability] = useState(null);
 
-  // Determine if the truck is open
   const isTruckOpen = foodTruckStatus === "Open Now";
 
   const subtotal = order.items.reduce(
@@ -55,10 +60,8 @@ const CheckoutScreen = () => {
 
   const getDiscountAmount = () => {
     if (!coupon) return 0;
-
     if (coupon.type === "PERCENTAGE") {
       const discountValue = subtotal * (coupon.value / 100);
-      // Apply max discount if specified
       return coupon.maxDiscount > 0
         ? Math.min(discountValue, coupon.maxDiscount)
         : discountValue;
@@ -68,14 +71,13 @@ const CheckoutScreen = () => {
     return 0;
   };
 
-  const salesTaxRate = 0; // Placeholder for sales tax rate
+  const salesTaxRate = 0;
   const salesTax = subtotal * (salesTaxRate / 100);
   const discount = getDiscountAmount();
   const paymentFee = 0.0;
   const totalWithTax = subtotal + salesTax;
   const total = totalWithTax + paymentFee - discount;
 
-  // Assume user is eligible for free dessert if they spend more than $15
   const hasFreeDessert = subtotal > 15;
 
   const getDeliveryTime = () => {
@@ -84,18 +86,15 @@ const CheckoutScreen = () => {
     return now.toTimeString().slice(0, 5);
   };
 
-  React.useEffect(() => {
-    // Redirect when the cart becomes empty
+  useEffect(() => {
     if (isFocused && order.items.length === 0) {
       navigation.goBack();
     }
   }, [order.items.length, isFocused, navigation]);
 
   const handleAdd = (item) => {
-    // Determine effective maxQty, defaulting to a high number if not specified
     const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100;
 
-    // UI Check: Prevent adding if maxQty is reached
     if (item.quantity >= effectiveMaxQty) {
       Alert.alert(
         "Quantity Limit Reached",
@@ -104,7 +103,6 @@ const CheckoutScreen = () => {
       return;
     }
 
-    // Dispatch action to Redux store
     dispatch(
       addItemToOrder({
         foodTruckId: order.foodTruckId,
@@ -115,7 +113,7 @@ const CheckoutScreen = () => {
           desc: item.desc,
           price: item.price,
           img: item.img,
-          originalItem: item.originalItem, // Ensure originalItem is passed for _id in placeFoodOrder_API
+          originalItem: item.originalItem,
           minQty: item.minQty,
           maxQty: item.maxQty,
           allowCustomize: item.allowCustomize,
@@ -129,30 +127,20 @@ const CheckoutScreen = () => {
   };
 
   const handleRemove = (item) => {
-    // Determine effective minQty, defaulting to 1 if not specified
     const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1;
 
-    // UI Check:
-    // If current quantity is at or below effectiveMinQty AND effectiveMinQty is > 0
-    // AND we are trying to decrement (i.e., item.quantity - 1 < effectiveMinQty)
-    // AND effectiveMinQty is greater than 1 (meaning you can't remove to 0 or below 1)
     if (item.quantity <= effectiveMinQty && effectiveMinQty > 0) {
       if (item.quantity === effectiveMinQty) {
-        // If the current quantity is equal to minQty
         if (effectiveMinQty > 1) {
-          // If minQty is > 1, prevent decrement and alert
           Alert.alert(
             "Quantity Limit Reached",
             `You must have at least ${effectiveMinQty} of this item.`
           );
           return;
         }
-        // If minQty is 1, allow removal (fall through to dispatch)
-        // This means if minQty is 1 and quantity is 1, pressing "-" removes the item completely.
       }
     }
 
-    // If checks pass, dispatch action to Redux store
     dispatch(removeItemFromOrder({ itemId: item.id }));
   };
 
@@ -175,7 +163,6 @@ const CheckoutScreen = () => {
       locationId: foodTruckDetail?.currentLocation,
       deliveryTime: getDeliveryTime(),
       items: order.items.map((item) => ({
-        // Ensure menuItemId comes from the originalItem's _id
         menuItemId: item.originalItem._id,
         qty: item.quantity,
       })),
@@ -204,7 +191,51 @@ const CheckoutScreen = () => {
       Alert.alert("No Items", "Please add items to your order first.");
       return;
     }
-    navigation.navigate("advanceOrderScreen");
+    setAdvanceOrderModalVisible(true); // Open the modal
+  };
+
+  const handleConfirmAdvanceOrder = async () => {
+    if (order.items.length === 0) {
+      Alert.alert("No Items", "Please add items to your order first.");
+      return;
+    }
+    if (!selectedLocation) {
+      Alert.alert("No Location", "Please select a location.");
+      return;
+    }
+    if (!selectedAvailability) {
+      Alert.alert("No Availability", "Please select an availability slot.");
+      return;
+    }
+
+    const payload = {
+      foodTruckId: order.foodTruckId,
+      locationId: selectedLocation._id,
+      availabilityId: selectedAvailability._id,
+      deliveryTime: moment().format("HH:mm"), // You might want to adjust this based on selectedAvailability
+      items: order.items.map((item) => ({
+        menuItemId: item.originalItem._id,
+        qty: item.quantity,
+      })),
+    };
+    if (coupon) {
+      payload.couponId = coupon?._id;
+    }
+
+    try {
+      setLoading(true);
+      const response = await placeFoodOrder_API(payload);
+      console.log("✅ Advance Order placed:", response);
+      dispatch(clearCurrentOrder());
+      setAdvanceOrderModalVisible(false); // Close modal on success
+      Alert.alert("Success", "Your advance order has been placed!");
+      navigation.navigate("paymentScreen", { total });
+    } catch (error) {
+      console.error("❌ Advance Order failed:", error);
+      Alert.alert("Error", error?.message || "Failed to place advance order.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRemoveCoupon = () => {
@@ -212,18 +243,15 @@ const CheckoutScreen = () => {
   };
 
   const renderItem = ({ item }) => {
-    const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1; // Default to 1
-    const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100; // Default to 100
+    const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1;
+    const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100;
 
-    // Disable '-' button if quantity is at minQty and minQty is > 0 (cannot go below minQty)
-    // The button is enabled if minQty is 1 (to allow removal) or if quantity > minQty
     const isDecrementDisabled =
       item.quantity <= effectiveMinQty &&
       effectiveMinQty > 0 &&
       item.quantity === effectiveMinQty &&
       effectiveMinQty > 1;
 
-    // Disable '+' button if quantity is at maxQty
     const isIncrementDisabled = item.quantity >= effectiveMaxQty;
 
     return (
@@ -275,10 +303,63 @@ const CheckoutScreen = () => {
     );
   };
 
+  const renderAvailability = () => {
+    if (!selectedLocation || !foodTruckDetail?.availability) return null;
+
+    const locationAvailability = foodTruckDetail.availability.filter(
+      (slot) => slot.locationId === selectedLocation._id && slot.available
+    );
+
+    if (locationAvailability.length === 0) {
+      return (
+        <View style={styles.availabilityContainer}>
+          <Text>No availability for this location.</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.availabilityContainer}>
+        <Text
+          style={{
+            fontFamily: Secondary400,
+            fontSize: 16,
+            marginBottom: 12,
+            marginTop: 5,
+          }}
+        >
+          Select Availability
+        </Text>
+        {locationAvailability.map((slot) => (
+          <TouchableOpacity
+            key={slot._id}
+            style={[
+              styles.radioOption,
+              selectedAvailability?._id === slot._id &&
+                styles.radioOptionActive,
+            ]}
+            onPress={() => setSelectedAvailability(slot)}
+          >
+            <Text
+              style={{
+                fontFamily: Secondary400,
+                fontSize: 15,
+                textTransform: "capitalize",
+              }}
+            >
+              {slot.day}: {"    "}
+              {slot.startTime} - {slot.endTime}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      <AppHeader headerTitle="CHECKOUT" />
+      <AppHeader headerTitle="CHECKoUT" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -373,7 +454,7 @@ const CheckoutScreen = () => {
 
         <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>TOTAL ORDER</Text>
+            <Text style={styles.totalLabel}>ToTAL ORDER</Text>
             <Text style={styles.totalLabelPrimary}>${subtotal.toFixed(2)}</Text>
           </View>
           <HR />
@@ -440,7 +521,7 @@ const CheckoutScreen = () => {
         ]}
       >
         <View style={styles.totalRow}>
-          <Text style={styles.totalText}>TOTAL AMOUNT</Text>
+          <Text style={styles.totalText}>TOTAL AMoUNT</Text>
           <Text style={styles.totalText}>${total.toFixed(2)}</Text>
         </View>
 
@@ -457,7 +538,7 @@ const CheckoutScreen = () => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.confirmBtnText}>Confirm Order</Text>
+                <Text style={styles.confirmBtnText}>Order Now</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -480,6 +561,79 @@ const CheckoutScreen = () => {
           </>
         )}
       </View>
+
+      {/* Advance Order Modal */}
+      <Modal
+        isVisible={isAdvanceOrderModalVisible}
+        onBackdropPress={() => {
+          setAdvanceOrderModalVisible(false);
+          setSelectedLocation(null); // Reset selection when modal closes
+          setSelectedAvailability(null);
+        }}
+        style={styles.modal}
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>PLACE ADVANCE ORDER</Text>
+          <View style={{ marginVertical: 16 }}>
+            <HR />
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.section}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: Secondary400,
+                  marginBottom: 8,
+                }}
+              >
+                Select Location
+              </Text>
+              {foodTruckDetail?.locations.map((loc) => (
+                <View key={loc._id}>
+                  <TouchableOpacity
+                    style={[
+                      styles.radioOption,
+                      selectedLocation?._id === loc._id &&
+                        styles.radioOptionActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedLocation(loc);
+                      setSelectedAvailability(null); // Reset availability on new location
+                    }}
+                  >
+                    <Text style={{ fontFamily: Secondary400, fontSize: 14 }}>
+                      {loc.address}
+                    </Text>
+                  </TouchableOpacity>
+                  {selectedLocation?._id === loc._id && renderAvailability()}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+          <TouchableOpacity
+            style={[
+              styles.confirmBtn,
+              (!selectedLocation || !selectedAvailability || loading) &&
+                styles.disabledBtn,
+            ]}
+            onPress={handleConfirmAdvanceOrder}
+            disabled={!selectedLocation || !selectedAvailability || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.confirmBtnText}>Confirm Advance Order</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            activeOpacity={0.7}
+            onPress={() => setAdvanceOrderModalVisible(false)}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -584,7 +738,7 @@ const styles = StyleSheet.create({
   couponBox: {
     backgroundColor: "#FC7B0338",
     borderRadius: 6,
-    padding: 10,
+    padding: 16,
     marginVertical: 10,
   },
   couponText: {
@@ -760,8 +914,59 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
     fontFamily: Secondary400,
     fontSize: 14,
-    marginTop: 5,
+    marginVertical: 5,
     textAlign: "right",
+  },
+  // Modal Specific Styles
+  modal: {
+    justifyContent: "flex-end",
+    margin: 0,
+  },
+  modalContent: {
+    backgroundColor: AppColor.white,
+    padding: 22,
+    borderTopLeftRadius: 17,
+    borderTopRightRadius: 17,
+    borderColor: "rgba(0, 0, 0, 0.1)",
+    maxHeight: "80%", // Limit modal height
+  },
+  modalTitle: {
+    fontFamily: Primary400,
+    fontSize: 20,
+    textAlign: "center",
+  },
+  section: {
+    marginBottom: 20,
+  },
+  radioOption: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 6,
+    padding: 15,
+    marginBottom: 10,
+  },
+  radioOptionActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF6ED",
+  },
+  availabilityContainer: {
+    marginLeft: 26,
+    borderLeftWidth: 2,
+    borderLeftColor: AppColor.primary,
+    paddingLeft: 16,
+    marginBottom: 10,
+  },
+  cancelBtn: {
+    borderColor: AppColor.primary,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    alignItems: "center",
+  },
+  cancelBtnText: {
+    color: AppColor.primary,
+    fontFamily: Secondary400,
+    fontSize: 16,
   },
 });
 
