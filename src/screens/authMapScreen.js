@@ -283,9 +283,9 @@ const AuthMapScreen = ({ route }) => {
             dispatch(setAllLocations(allNewAddresses));
 
             // If a new address was added, set it as the default location
-            if (mode === "add" && response.data?._id) {
+            if (mode === "add" && response.data?.address?._id) {
               const newDefault = allNewAddresses.find(
-                (a) => a._id === response.data._id
+                (a) => a._id === response.data.address._id
               );
               if (newDefault) {
                 dispatch(setDefaultLocation(newDefault));
