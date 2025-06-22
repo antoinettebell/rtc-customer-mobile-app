@@ -322,11 +322,11 @@ const ProfileMenuScreen = ({ navigation }) => {
 
   const handleLogout = () => {
     dispatch(clearUserSlice());
-    dispatch(clearFavorites()); //
-    dispatch(clearOrderSlice()); //
-    dispatch(clearFoodTruckProfileSlice()); //
-    dispatch(clearLocationSlice()); //
-    dispatch(onSignOut()); //
+    dispatch(clearFavorites());
+    dispatch(clearOrderSlice());
+    dispatch(clearFoodTruckProfileSlice());
+    dispatch(clearLocationSlice());
+    dispatch(onSignOut());
   };
 
   const getUserDetailFromAPI = async () => {

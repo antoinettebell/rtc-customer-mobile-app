@@ -101,7 +101,7 @@ const OrderDetailsScreen = () => {
 
   // Prepare order data for display
   const orderData = {
-    id: order._id.substring(order._id.length - 6).toUpperCase(),
+    id: order._id,
     truck: order.foodTruck?.name || "Unknown Truck",
     items: order.items.map((menuItem) => ({
       qty: menuItem.qty,
@@ -177,7 +177,9 @@ const OrderDetailsScreen = () => {
 
             <View style={styles.footerRow}>
               <Text style={styles.total}>${orderData.total}</Text>
-              {orderData.status !== "COMPLETED" && (
+              {(orderData.status !== "COMPLETED" ||
+                orderData.status !== "CANCEL" ||
+                orderData.status !== "REJECTED") && (
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     style={styles.trackBtn}
@@ -226,7 +228,9 @@ const OrderDetailsScreen = () => {
         </View>
       </ScrollView>
 
-      {orderData.status !== "COMPLETED" && (
+      {(orderData.status !== "COMPLETED" ||
+        orderData.status !== "CANCEL" ||
+        orderData.status !== "REJECTED") && (
         <View style={styles.footerContainer}>
           <View style={styles.totalAmountRow}>
             <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
@@ -237,7 +241,7 @@ const OrderDetailsScreen = () => {
             style={styles.cancelBtn}
             activeOpacity={0.7}
             onPress={() => {
-              navigation.navigate("cancelOrderScreen", { orderId: order._id });
+              navigation.navigate("cancelOrderScreen", { order: orderData });
             }}
           >
             <Text style={styles.cancelBtnText}>Cancel Order</Text>
@@ -342,6 +346,7 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     padding: 16,
+    marginBottom: 20,
   },
   totalAmountRow: {
     flexDirection: "row",

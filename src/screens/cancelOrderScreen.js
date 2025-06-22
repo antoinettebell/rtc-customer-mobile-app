@@ -27,7 +27,7 @@ const CANCEL_REASONS = [
 ];
 
 const CancelOrderScreen = ({ route }) => {
-  const [selectedReasons, setSelectedReasons] = useState(new Set());
+  const [selectedReason, setSelectedReason] = useState(null);
   const [customReason, setCustomReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customReasonError, setCustomReasonError] = useState("");
@@ -35,38 +35,31 @@ const CancelOrderScreen = ({ route }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  // Get order details from route params if passed
   const orderDetails = route?.params?.orderDetails || null;
 
   const handleReasonToggle = useCallback((reasonValue) => {
-    setSelectedReasons((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(reasonValue)) {
-        newSet.delete(reasonValue);
-        // Clear custom reason if "Other" is unchecked
-        if (reasonValue === "other") {
-          setCustomReason("");
-          setCustomReasonError("");
-        }
-      } else {
-        newSet.add(reasonValue);
+    setSelectedReason((prev) => {
+      const newValue = prev === reasonValue ? null : reasonValue;
+
+      if (newValue !== "other") {
+        setCustomReason("");
+        setCustomReasonError("");
       }
-      return newSet;
+
+      return newValue;
     });
   }, []);
 
   const validateForm = useCallback(() => {
-    // Check if at least one reason is selected
-    if (selectedReasons.size === 0) {
+    if (!selectedReason) {
       Alert.alert(
         "Validation Error",
-        "Please select at least one reason for cancellation."
+        "Please select a reason for cancellation."
       );
       return false;
     }
 
-    // If "Other" is selected, custom reason is required
-    if (selectedReasons.has("other")) {
+    if (selectedReason === "other") {
       if (!customReason.trim()) {
         setCustomReasonError("Please provide a reason");
         return false;
@@ -79,7 +72,7 @@ const CancelOrderScreen = ({ route }) => {
     }
 
     return true;
-  }, [selectedReasons, customReason]);
+  }, [selectedReason, customReason]);
 
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
@@ -87,18 +80,15 @@ const CancelOrderScreen = ({ route }) => {
     try {
       setIsSubmitting(true);
 
-      // Prepare cancellation data
       const cancellationData = {
         orderId: orderDetails?.id || null,
-        reasons: Array.from(selectedReasons),
-        customReason: selectedReasons.has("other") ? customReason.trim() : null,
+        reason:
+          selectedReason === "other" ? customReason.trim() : selectedReason,
         timestamp: new Date().toISOString(),
       };
 
-      // TODO: Replace with actual API call
       await mockCancelOrder(cancellationData);
 
-      // Show success message
       Alert.alert(
         "Order Cancelled",
         "Your order has been cancelled successfully. Refund will be processed within 3-5 business days.",
@@ -106,7 +96,6 @@ const CancelOrderScreen = ({ route }) => {
           {
             text: "OK",
             onPress: () => {
-              // Navigate back to orders screen or home
               navigation.navigate("Orders", { refresh: true });
             },
           },
@@ -122,7 +111,7 @@ const CancelOrderScreen = ({ route }) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [validateForm, selectedReasons, customReason, orderDetails, navigation]);
+  }, [validateForm, selectedReason, customReason, orderDetails, navigation]);
 
   const mockCancelOrder = (data) => {
     return new Promise((resolve) => {
@@ -133,8 +122,8 @@ const CancelOrderScreen = ({ route }) => {
     });
   };
 
-  const isOtherSelected = selectedReasons.has("other");
-  const canSubmit = selectedReasons.size > 0 && !isSubmitting;
+  const isOtherSelected = selectedReason === "other";
+  const canSubmit = !!selectedReason && !isSubmitting;
 
   return (
     <KeyboardAvoidingView
@@ -170,22 +159,20 @@ const CancelOrderScreen = ({ route }) => {
 
           <View style={styles.card}>
             {CANCEL_REASONS.map((reason) => (
-              <TouchableOpacity
+              <Checkbox.Item
                 key={reason.id}
-                style={styles.reasonRow}
+                label={reason.label}
+                status={
+                  selectedReason === reason.value ? "checked" : "unchecked"
+                }
                 onPress={() => handleReasonToggle(reason.value)}
-                activeOpacity={0.7}
-              >
-                <Checkbox
-                  status={
-                    selectedReasons.has(reason.value) ? "checked" : "unchecked"
-                  }
-                  onPress={() => handleReasonToggle(reason.value)}
-                  color={AppColor.primary}
-                  uncheckedColor={AppColor.primary}
-                />
-                <Text style={styles.reasonText}>{reason.label}</Text>
-              </TouchableOpacity>
+                color={AppColor.primary}
+                uncheckedColor={AppColor.primary}
+                labelStyle={styles.reasonText}
+                mode="android"
+                rippleColor={AppColor.primary + "10"}
+                style={styles.checkboxItem}
+              />
             ))}
 
             {isOtherSelected && (
@@ -242,7 +229,7 @@ const CancelOrderScreen = ({ route }) => {
             {isSubmitting ? (
               <ActivityIndicator color={AppColor.white} />
             ) : (
-              <Text style={styles.submitButtonText}>{"Cancel Order"}</Text>
+              <Text style={styles.submitButtonText}>Cancel Order</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -303,13 +290,6 @@ const styles = StyleSheet.create({
     color: AppColor.textSecondary,
     textAlign: "center",
   },
-  subtitle: {
-    fontFamily: Secondary400,
-    fontSize: 16,
-    color: AppColor.text,
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
   card: {
     borderWidth: 1,
     borderColor: AppColor.borderColor,
@@ -322,10 +302,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
       },
@@ -334,18 +311,16 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  reasonRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  checkboxItem: {
     paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
+    marginBottom: 4,
   },
   reasonText: {
     fontFamily: Secondary400,
     fontSize: 16,
     color: AppColor.text,
-    marginLeft: 8,
-    flex: 1,
   },
   customReasonContainer: {
     marginTop: 12,
@@ -399,6 +374,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingHorizontal: 16,
     marginVertical: 16,
+    marginBottom: 30,
   },
   submitButton: {
     height: 48,
