@@ -36,12 +36,17 @@ import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
 import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
 import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
-import { onGuest } from "./src/redux/slices/authSlice";
+import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
 import CheckoutScreen from "./src/screens/CheckoutScreen";
 import CouponCodeScreen from "./src/screens/CouponCodeScreen";
 import PaymentScreen from "./src/screens/PaymentScreen";
 import OrderPlacedScreen from "./src/screens/OrderPlacedScreen";
 import RateReviewScreen from "./src/screens/RateReviewScreen";
+import { clearUserSlice } from "./src/redux/slices/userSlice";
+import { clearFavorites } from "./src/redux/slices/favoritesSlice";
+import { clearOrderSlice } from "./src/redux/slices/orderSlice";
+import { clearFoodTruckProfileSlice } from "./src/redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "./src/redux/slices/locationSlice";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -61,6 +66,12 @@ const AuthRequiredScreen = ({ title }) => {
 
   const handleSignIn = () => {
     dispatch(onGuest(false));
+    dispatch(clearUserSlice());
+    dispatch(clearFavorites());
+    dispatch(clearOrderSlice());
+    dispatch(clearFoodTruckProfileSlice());
+    dispatch(clearLocationSlice());
+    dispatch(onSignOut());
   };
 
   return (
@@ -102,7 +113,7 @@ const BottomNavigator = ({ insets }) => {
         tabBarHideOnKeyboard: true,
         headerShown: false,
         tabBarStyle: {
-          height:  insets.bottom + 60,
+          height: insets.bottom + 60,
         },
         tabBarLabelStyle: {
           // fontFamily: Secondary400,

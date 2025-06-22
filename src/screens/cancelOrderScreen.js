@@ -18,6 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FastImage from "@d11/react-native-fast-image";
 import AppHeader from "../components/AppHeader";
+import { cancelFoodOrder_API } from "../apiFolder/appAPI";
 
 const CANCEL_REASONS = [
   { id: 1, label: "Order by mistake", value: "order_mistake" },
@@ -80,47 +81,42 @@ const CancelOrderScreen = ({ route }) => {
     try {
       setIsSubmitting(true);
 
-      const cancellationData = {
-        orderId: orderDetails?.id || null,
-        reason:
+      const payload = {
+        orderStatus: "CANCEL",
+        cancelReason:
           selectedReason === "other" ? customReason.trim() : selectedReason,
-        timestamp: new Date().toISOString(),
       };
 
-      await mockCancelOrder(cancellationData);
+      const response = await cancelFoodOrder_API(orderDetails?.id, payload);
 
-      Alert.alert(
-        "Order Cancelled",
-        "Your order has been cancelled successfully. Refund will be processed within 3-5 business days.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.navigate("Orders", { refresh: true });
+      if (response?.success) {
+        Alert.alert(
+          "Order Cancelled",
+          "Your order has been cancelled successfully. Refund will be processed within 3-5 business days.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                navigation.navigate("Orders", { refresh: true });
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        throw new Error(response?.message || "Failed to cancel order");
+      }
     } catch (error) {
       console.error("Error cancelling order:", error);
       Alert.alert(
         "Error",
-        "Failed to cancel order. Please try again or contact support.",
+        error.message ||
+          "Failed to cancel order. Please try again or contact support.",
         [{ text: "OK" }]
       );
     } finally {
       setIsSubmitting(false);
     }
   }, [validateForm, selectedReason, customReason, orderDetails, navigation]);
-
-  const mockCancelOrder = (data) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log("Order cancellation data:", data);
-        resolve();
-      }, 2000);
-    });
-  };
 
   const isOtherSelected = selectedReason === "other";
   const canSubmit = !!selectedReason && !isSubmitting;

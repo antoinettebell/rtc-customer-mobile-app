@@ -31,11 +31,15 @@ import {
   getLocationName,
   addAddress_API,
   updateAddress_API,
+  getAddress_API,
 } from "../apiFolder/appAPI";
 import { RESULTS } from "react-native-permissions";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedLocations } from "../redux/slices/foodTruckProfileSlice";
 import StatusBarManager from "../components/StatusBarManager";
+import {
+  setAllLocations,
+  setDefaultLocation,
+} from "../redux/slices/locationSlice";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 
@@ -56,6 +60,7 @@ const AuthMapScreen = ({ route }) => {
   const searchTxtRef = useRef(null);
   const mapRef = useRef(null); // Ref for the MapView
 
+  const { isSignedIn } = useSelector((state) => state.authReducer);
   const { selectedLocations } = useSelector(
     (state) => state.foodTruckProfileReducer
   );
@@ -238,35 +243,73 @@ const AuthMapScreen = ({ route }) => {
   const handleSaveBtn = async () => {
     if (!locationName) return;
 
-    const payload = {
+    setLoading(true);
+
+    const locationData = {
       title: title,
       address: locationName,
-      lat: String(currentRegion.latitude),
-      long: String(currentRegion.longitude),
+      lat: currentRegion.latitude,
+      long: currentRegion.longitude,
     };
 
-    try {
-      setLoading(true);
-      if (mode === "edit" && selectedLocations?.[0]?._id) {
-        // Update existing address
-        const response = await updateAddress_API({
-          addressId: selectedLocations[0]._id,
-          payload: payload,
-        });
+    if (isSignedIn) {
+      // Logic for signed-in users (uses API)
+      const payload = {
+        title: locationData.title,
+        address: locationData.address,
+        lat: String(locationData.lat),
+        long: String(locationData.long),
+      };
+
+      try {
+        let response;
+        if (mode === "edit" && selectedLocations?.[0]?._id) {
+          response = await updateAddress_API({
+            addressId: selectedLocations[0]._id,
+            payload,
+          });
+        } else {
+          response = await addAddress_API(payload);
+        }
+
         if (response?.success) {
+          // After successful add/update, refetch all addresses to update redux store
+          const addressListResponse = await getAddress_API({
+            page: 1,
+            limit: 1000,
+          });
+          if (addressListResponse?.success) {
+            const allNewAddresses = addressListResponse.data.addressList;
+            dispatch(setAllLocations(allNewAddresses));
+
+            // If a new address was added, set it as the default location
+            if (mode === "add" && response.data?._id) {
+              const newDefault = allNewAddresses.find(
+                (a) => a._id === response.data._id
+              );
+              if (newDefault) {
+                dispatch(setDefaultLocation(newDefault));
+              }
+            }
+          }
           navigation.goBack();
         }
-      } else {
-        // Add new address
-        const response = await addAddress_API(payload);
-        if (response?.success) {
-          navigation.goBack();
-        }
+      } catch (error) {
+        Alert.alert("Error", error?.message || "Failed to save address");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      Alert.alert("Error", error?.message || "Failed to save address");
-    } finally {
+    } else {
+      // Logic for guest users (local state update)
+      const guestLocation = {
+        ...locationData,
+        _id: `guest_${Date.now()}`, // Create a temporary unique ID
+      };
+
+      // For a guest, there's only one location. Set it as the only one and the default.
+      dispatch(setAllLocations([guestLocation]));
       setLoading(false);
+      navigation.goBack();
     }
   };
 

@@ -103,12 +103,19 @@ const ExploreScreen = (props) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleLocationTextPress = () => {
-    setLocationModalVisible(true);
+    // If user is a guest OR a signed-in user with no addresses, navigate to the map screen.
+    if (!isSignedIn || (isSignedIn && allLocations.length === 0)) {
+      navigation.navigate("authMapScreen", { mode: "add" });
+    } else {
+      // Otherwise, for a signed-in user with addresses, show the selection modal.
+      setLocationModalVisible(true);
+    }
   };
 
   const handleNotificationBellPress = () => {};
 
   const fetchNearByFoodTrucks = async () => {
+    if (!defaultLocation) return; // Don't fetch if no location is set
     try {
       setLoading(true);
       const params = {
@@ -257,7 +264,7 @@ const ExploreScreen = (props) => {
               />
             </View>
             <Text style={styles.locationSubtitle} numberOfLines={1}>
-              {defaultLocation?.address || ""}
+              {defaultLocation?.address || "Please select a location"}
             </Text>
           </View>
         </TouchableOpacity>
@@ -612,6 +619,28 @@ const ExploreScreen = (props) => {
         </View>
       </Animated.ScrollView>
 
+      {/* Guest User Prompt */}
+      {!defaultLocation && (
+        <View
+          style={[
+            styles.guestPromptContainer,
+            { paddingBottom: insets.bottom + 10 },
+          ]}
+        >
+          <Text style={styles.guestPromptText}>
+            Set your location to discover nearby food trucks!
+          </Text>
+          <TouchableOpacity
+            style={styles.guestPromptButton}
+            onPress={() =>
+              navigation.navigate("authMapScreen", { mode: "add" })
+            }
+          >
+            <Text style={styles.guestPromptButtonText}>Set Location</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Location Selection Modal */}
       <Modal
         isVisible={isLocationModalVisible}
@@ -631,8 +660,13 @@ const ExploreScreen = (props) => {
         >
           <View style={styles.modalHeader}>
             <Text style={styles.modalHeaderText}>Select a Location</Text>
-            <TouchableOpacity onPress={handleCancelSelection}>
-              <MaterialIcons name="close" size={24} color={AppColor.black} />
+            <TouchableOpacity
+              onPress={() => {
+                setLocationModalVisible(false);
+                navigation.navigate("authMapScreen", { mode: "add" });
+              }}
+            >
+              <MaterialIcons name="add" size={28} color={AppColor.primary} />
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1 }}>
@@ -770,6 +804,37 @@ const styles = StyleSheet.create({
   },
   scrollViewContaier: {
     backgroundColor: AppColor.white,
+  },
+  guestPromptContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: AppColor.primary,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  guestPromptText: {
+    color: AppColor.white,
+    fontFamily: Secondary400,
+    fontSize: 14,
+    flex: 1,
+  },
+  guestPromptButton: {
+    marginLeft: 12,
+    backgroundColor: AppColor.white,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  guestPromptButtonText: {
+    color: AppColor.primary,
+    fontFamily: Primary400,
+    fontSize: 14,
   },
   // Modal Styles
   locationModal: {
