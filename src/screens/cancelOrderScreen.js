@@ -36,7 +36,7 @@ const CancelOrderScreen = ({ route }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const orderDetails = route?.params?.orderDetails || null;
+  const orderDetails = route?.params?.order || null;
 
   const handleReasonToggle = useCallback((reasonValue) => {
     setSelectedReason((prev) => {
@@ -97,7 +97,8 @@ const CancelOrderScreen = ({ route }) => {
             {
               text: "OK",
               onPress: () => {
-                navigation.navigate("Orders", { refresh: true });
+                navigation.goBack();
+                navigation.goBack();
               },
             },
           ]

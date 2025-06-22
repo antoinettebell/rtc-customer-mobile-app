@@ -31,9 +31,11 @@ const OrdersScreen = () => {
     }
   }, [isFocused]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const response = await getAllOrders_API();
       if (response?.data?.orderList) {
         setOrders(response.data.orderList);
@@ -49,13 +51,15 @@ const OrdersScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchOrders();
+    fetchOrders(true); // Silent refresh without showing full screen loader
   };
 
   // Filter orders based on status
   const filteredOrders = orders.filter((order) => {
     if (tab === "current") {
-      return order.orderStatus !== "COMPLETED";
+      return (
+        order.orderStatus !== "COMPLETED" && order.orderStatus !== "CANCEL"
+      );
     } else {
       return order.orderStatus === "COMPLETED";
     }
@@ -119,8 +123,7 @@ const OrdersScreen = () => {
       />
     );
   };
-
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={[styles.container, styles.centerContainer]}>
         <ActivityIndicator size="large" color={AppColor.primary} />
@@ -132,7 +135,10 @@ const OrdersScreen = () => {
     return (
       <View style={[styles.container, styles.centerContainer]}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={fetchOrders} style={styles.retryButton}>
+        <TouchableOpacity
+          onPress={() => fetchOrders()}
+          style={styles.retryButton}
+        >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -197,14 +203,23 @@ const OrdersScreen = () => {
               onRefresh={onRefresh}
               colors={[AppColor.primary]}
               tintColor={AppColor.primary}
+              progressViewOffset={50} // Adjust this if you have a header
             />
           }
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {tab === "current"
-                ? "No current orders found."
-                : "No past orders found."}
-            </Text>
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {tab === "current"
+                  ? "No current orders found."
+                  : "No past orders found."}
+              </Text>
+              <TouchableOpacity
+                onPress={() => fetchOrders()}
+                style={styles.refreshButton}
+              >
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
           }
           contentContainerStyle={styles.flatListContent}
         />
@@ -300,6 +315,26 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: AppColor.white,
     fontFamily: Primary400,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 40,
+  },
+  refreshButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: AppColor.primary,
+    borderRadius: 4,
+  },
+  refreshButtonText: {
+    color: AppColor.white,
+    fontFamily: Primary400,
+  },
+  refreshIndicator: {
+    paddingVertical: 10,
   },
 });
 
