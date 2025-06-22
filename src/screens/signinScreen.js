@@ -27,6 +27,11 @@ import { setAuthToken, setUser } from "../redux/slices/userSlice";
 import { onGuest, onSignin } from "../redux/slices/authSlice";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import StatusBarManager from "../components/StatusBarManager";
+import {
+  checkFcmToken,
+  checkInstallationId,
+} from "../helpers/notification.helper";
+import { setFcmToken_API } from "../apiFolder/appAPI";
 
 const SignInScreen = () => {
   const insets = useSafeAreaInsets();
@@ -99,6 +104,22 @@ const SignInScreen = () => {
           dispatch(setUser(response.data.user));
           dispatch(setAuthToken(response.data.authToken));
           dispatch(onSignin(true));
+          // set FCM Token & DeviceId after 1.5 sec
+          setTimeout(async () => {
+            try {
+              const deviceId = await checkInstallationId();
+              const fcmToken = await checkFcmToken();
+              if (deviceId && fcmToken) {
+                const response1 = await setFcmToken_API({
+                  token: fcmToken,
+                  deviceId: deviceId,
+                });
+                console.log("response => ", response1);
+              }
+            } catch (error) {
+              console.log("error => ", error);
+            }
+          }, 1500);
         }
       } catch (error) {
         console.log("Error => ", error);

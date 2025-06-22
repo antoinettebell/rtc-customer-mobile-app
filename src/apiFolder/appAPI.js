@@ -23,6 +23,9 @@ import {
   GET_ALL_COUPON_CODES,
   VALIDATE_COUPON_CODE,
   CANCEL_FOOD_ORDER,
+  SET_FCM_TOKEN,
+  UPDATE_FCM_TOKEN,
+  REMOVE_FCM_TOKEN,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -326,6 +329,39 @@ export const validateCoupon_API = async (couponCode) => {
   try {
     const URL = `${VALIDATE_COUPON_CODE}?code=${couponCode}`;
     const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Set FCM Token
+export const setFcmToken_API = async (payload) => {
+  try {
+    const URL = `${SET_FCM_TOKEN}`;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Update FCM Token
+export const updateFcmToken_API = async ({ deviceId, payload }) => {
+  try {
+    const URL = UPDATE_FCM_TOKEN(deviceId);
+    const response = await apiClient.put(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Remove FCM Token
+export const removeFcmToken_API = async (device_id) => {
+  try {
+    const URL = REMOVE_FCM_TOKEN(device_id);
+    const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

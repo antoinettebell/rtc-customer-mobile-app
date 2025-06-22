@@ -27,7 +27,11 @@ import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
-import { getNearbyFoodTrucks_API, getAddress_API } from "../apiFolder/appAPI";
+import {
+  getNearbyFoodTrucks_API,
+  getAddress_API,
+  updateFcmToken_API,
+} from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites } from "../redux/slices/favoritesSlice";
 import {
@@ -35,6 +39,8 @@ import {
   setAllLocations,
 } from "../redux/slices/locationSlice";
 import moment from "moment";
+import { getMessaging } from "@react-native-firebase/messaging";
+import { checkInstallationId } from "../helpers/notification.helper";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -87,6 +93,25 @@ const ExploreScreen = (props) => {
       setTempSelectedLocation(defaultLocation);
     }
   }, [isLocationModalVisible, defaultLocation]);
+
+  useEffect(() => {
+    const unsubscribe = getMessaging().onTokenRefresh(async (newToken) => {
+      console.log("FCM-Token Refreshed =>", newToken);
+
+      const deviceId = await checkInstallationId();
+      if (!deviceId) return;
+
+      try {
+        const payload = { token: newToken };
+        const response = await updateFcmToken_API({ deviceId, payload });
+        console.log("response => ", response);
+      } catch (error) {
+        console.log("error => ", error);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleConfirmSelection = () => {
     if (tempSelectedLocation) {

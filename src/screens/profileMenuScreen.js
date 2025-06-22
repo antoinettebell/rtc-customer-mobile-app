@@ -32,6 +32,7 @@ import UpdateContactModal from "../components/UpdateContactModal";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import {
   getUserDetail_API,
+  removeFcmToken_API,
   updateUserDetail_API,
   uploadImage_API,
 } from "../apiFolder/appAPI";
@@ -41,6 +42,7 @@ import { fetchFavorites, clearFavorites } from "../redux/slices/favoritesSlice";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 import { clearLocationSlice } from "../redux/slices/locationSlice";
+import { checkInstallationId } from "../helpers/notification.helper";
 
 const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
@@ -320,7 +322,15 @@ const ProfileMenuScreen = ({ navigation }) => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const deviceId = await checkInstallationId();
+      if (!deviceId) return;
+      const response = await removeFcmToken_API(deviceId);
+      console.log("response => ", response);
+    } catch (error) {
+      console.log("error => ", error);
+    }
     dispatch(clearUserSlice());
     dispatch(clearFavorites());
     dispatch(clearOrderSlice());

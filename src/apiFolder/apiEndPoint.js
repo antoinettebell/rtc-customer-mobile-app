@@ -50,3 +50,10 @@ export const AGREEMENT = "/public/agreement";
 // Coupon
 export const GET_ALL_COUPON_CODES = "/coupon";
 export const VALIDATE_COUPON_CODE = "/coupon/validate";
+
+// Notification
+export const SET_FCM_TOKEN = "/user/set-fcm-token";
+export const UPDATE_FCM_TOKEN = (device_id) =>
+  `/user/update-fcm-token/${device_id}`;
+export const REMOVE_FCM_TOKEN = (device_id) =>
+  `/user/remove-fcm-token/${device_id}`;

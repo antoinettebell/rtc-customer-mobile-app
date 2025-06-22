@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -47,6 +47,15 @@ import { clearFavorites } from "./src/redux/slices/favoritesSlice";
 import { clearOrderSlice } from "./src/redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "./src/redux/slices/foodTruckProfileSlice";
 import { clearLocationSlice } from "./src/redux/slices/locationSlice";
+import { navigationRef } from "./src/helpers/navigation.helper";
+import {
+  createAndroidChannel,
+  handleNotificationAction,
+  onDisplayNotification,
+  requestNotificationPermission,
+} from "./src/helpers/notification.helper";
+import notifee, { EventType } from "@notifee/react-native";
+import { getMessaging } from "@react-native-firebase/messaging";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -222,12 +231,53 @@ const AppNavigator = ({ insets }) => (
   </Stack.Navigator>
 );
 
+const configureNotification = async () => {
+  await requestNotificationPermission();
+  if (Platform.OS === "android") {
+    await createAndroidChannel();
+  }
+};
+
+const processOnNotification = async (notification) => {
+  // Android: when user clicked on backgroud state notification
+  console.log("processOnNotification => ", notification);
+  await handleNotificationAction(notification);
+};
+
+getMessaging().onMessage(async (notification) => {
+  console.log("Forground Remote-Message => ", notification);
+  await onDisplayNotification(notification);
+  await handleNotificationAction(notification);
+});
+
+getMessaging().onNotificationOpenedApp(processOnNotification);
+
+notifee.onForegroundEvent(
+  // android/ios both: function trigger when any notification trigger on foreground state
+  // also triggred when onDisplayNotification called, beacuse onDisplayNotification is displaying notification for foreground state
+  ({ type, detail }) => {
+    switch (type) {
+      case EventType.DISMISSED:
+        console.log("User dismissed notification", detail.notification);
+        break;
+      case EventType.PRESS:
+        console.log("User pressed notification", detail.notification);
+        processOnNotification(detail.notification);
+        break;
+    }
+  }
+);
+
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
 
+  useEffect(() => {
+    configureNotification();
+  }, []);
+
   return (
-    <NavigationContainer theme={DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
       {isSignedIn ? (
         <AppNavigator insets={insets} />
       ) : isGuest ? (
