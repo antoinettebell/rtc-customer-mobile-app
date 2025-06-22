@@ -22,6 +22,11 @@ const OrderListItem = ({
     >
       <View style={styles.headerRow}>
         <Text style={styles.orderId}>Order #{order.id}</Text>
+        {order.isAdvanceOrder && (
+          <View style={styles.advncOrderView}>
+            <Text style={styles.advncOrderTxt}>Advance Order</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.truckRow}>
@@ -50,17 +55,16 @@ const OrderListItem = ({
         {order.items.map((itm, idx) => (
           <View style={styles.itemRow}>
             <View style={styles.itemInfo}>
-              <Text
-                key={idx}
-                style={styles.itemText}
-              >{`${itm.qty} x ${itm.name}`}</Text>
+              <Text key={idx} style={styles.itemText}>
+                {itm.qty > 1 ? `${itm.qty} x ${itm.name}` : itm.name}
+              </Text>
               <Text
                 key={itm.desc}
                 style={styles.itemDesc}
               >{`${itm.desc}`}</Text>
             </View>
             <Text key={itm.price} style={styles.itemText}>
-              ${`${itm.price}`}
+              ${`${itm.qty * itm.price}`}
             </Text>
           </View>
         ))}
@@ -135,6 +139,16 @@ const styles = StyleSheet.create({
     fontFamily: Secondary400,
     fontSize: 14,
     color: AppColor.grayText,
+  },
+  advncOrderView: {
+    backgroundColor: AppColor.snackbarSuccess + 20,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  advncOrderTxt: {
+    fontFamily: Secondary400,
+    fontSize: 12,
+    color: AppColor.snackbarSuccess,
   },
   orderDate: {
     fontFamily: Secondary400,

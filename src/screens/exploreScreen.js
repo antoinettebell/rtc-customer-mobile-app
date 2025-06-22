@@ -27,10 +27,13 @@ import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
-import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
+import { getNearbyFoodTrucks_API, getAddress_API } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites } from "../redux/slices/favoritesSlice";
-import { setDefaultLocation } from "../redux/slices/locationSlice";
+import {
+  setDefaultLocation,
+  setAllLocations,
+} from "../redux/slices/locationSlice";
 import moment from "moment";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
@@ -66,6 +69,7 @@ const ExploreScreen = (props) => {
   const [loading, setLoading] = useState(false);
   const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
   const [isLocationModalVisible, setLocationModalVisible] = useState(false);
+  const [initialLocationsFetched, setInitialLocationsFetched] = useState(false);
 
   const { favorites, isLoadingFavorites } = useSelector(
     (state) => state.favoritesReducer
@@ -114,6 +118,17 @@ const ExploreScreen = (props) => {
 
   const handleNotificationBellPress = () => {};
 
+  const fetchAllAddresses = async () => {
+    try {
+      const response = await getAddress_API({ page: 1, limit: 1000 });
+      if (response?.success) {
+        dispatch(setAllLocations(response.data.addressList));
+      }
+    } catch (error) {
+      console.error("Error fetching all addresses:", error);
+    }
+  };
+
   const fetchNearByFoodTrucks = async () => {
     if (!defaultLocation) return; // Don't fetch if no location is set
     try {
@@ -139,11 +154,21 @@ const ExploreScreen = (props) => {
 
   useFocusEffect(
     useCallback(() => {
+      if (isSignedIn && allLocations.length === 0 && !initialLocationsFetched) {
+        fetchAllAddresses(); // Fetch all addresses on initial load for signed-in users if not already fetched
+        setInitialLocationsFetched(true); // Mark as fetched
+      }
       fetchNearByFoodTrucks();
       if (isSignedIn) {
         dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
       }
-    }, [dispatch, isSignedIn, defaultLocation])
+    }, [
+      dispatch,
+      isSignedIn,
+      defaultLocation,
+      allLocations,
+      initialLocationsFetched,
+    ])
   );
 
   const scrollHandler = useAnimatedScrollHandler({

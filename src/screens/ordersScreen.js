@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import OrderListItem from "../components/OrderListItem";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAllOrders_API } from "../apiFolder/appAPI";
@@ -19,12 +20,16 @@ const OrdersScreen = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    if (isFocused) {
+      fetchOrders();
+    }
+  }, [isFocused]);
 
   const fetchOrders = async () => {
     try {
@@ -38,7 +43,13 @@ const OrdersScreen = () => {
       console.error("Error fetching orders:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchOrders();
   };
 
   // Filter orders based on status
@@ -82,6 +93,7 @@ const OrdersScreen = () => {
         ? { uri: item.foodTruck.logo }
         : require("../assets/images/FT-Demo-01.png"),
       status: item.orderStatus === "COMPLETED" ? "past" : "current",
+      isAdvanceOrder: !!item.availabilityId,
     };
 
     return (
@@ -179,6 +191,14 @@ const OrdersScreen = () => {
           showsVerticalScrollIndicator={false}
           keyExtractor={(item) => item._id}
           renderItem={renderOrderItem}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[AppColor.primary]}
+              tintColor={AppColor.primary}
+            />
+          }
           ListEmptyComponent={
             <Text style={styles.emptyText}>
               {tab === "current"
@@ -235,6 +255,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: AppColor.primary,
     alignItems: "center",
+    backgroundColor: AppColor.white,
   },
   segmentBtnActive: {
     backgroundColor: AppColor.primary,
