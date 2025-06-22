@@ -14,6 +14,7 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavorite } from "../redux/slices/favoritesSlice";
+import FastImage from "@d11/react-native-fast-image";
 
 const FoodTruckGridComponent = ({
   title,
@@ -57,12 +58,7 @@ const FoodTruckGridComponent = ({
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <Image
-        source={{
-          uri: uris,
-        }}
-        style={styles.image}
-      />
+      <FastImage source={uris} style={styles.image} />
       <View style={styles.subContainer}>
         <Text style={styles.titleText}>{title}</Text>
         <View style={styles.reatingContainer}>

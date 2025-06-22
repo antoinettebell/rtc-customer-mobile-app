@@ -763,6 +763,7 @@ const styles = StyleSheet.create({
     fontFamily: Secondary400,
     fontSize: 14,
     color: AppColor.white,
+    maxWidth: "95%",
   },
   iconImage: {
     height: 37,
