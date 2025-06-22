@@ -58,7 +58,10 @@ const FoodTruckGridComponent = ({
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <FastImage source={uris} style={styles.image} />
+      <FastImage
+        source={typeof uris === "string" ? { uri: uris } : uris}
+        style={styles.image}
+      />
       <View style={styles.subContainer}>
         <Text style={styles.titleText}>{title}</Text>
         <View style={styles.reatingContainer}>

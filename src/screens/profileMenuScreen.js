@@ -397,9 +397,10 @@ const ProfileMenuScreen = ({ navigation }) => {
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.favTruckReview}>
-                ⭐ {item.foodTruck?.reviews || "0"} reviews -{" "}
+                ⭐ {item.foodTruck?.reviews || "0"} reviews
+                {/* -{" "}
                 {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
-                  " miles away" || "0 miles away"}
+                  " miles away" || "0 miles away"} */}
               </Text>
             </View>
           </View>

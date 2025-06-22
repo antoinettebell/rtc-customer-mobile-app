@@ -4,13 +4,24 @@ import {
   addFavoriteFoodTruck_API,
   removeFavoriteFoodTruck_API,
 } from "../../apiFolder/appAPI";
+import { store } from "../store";
 
 // Async thunk to fetch favorite food trucks
 export const fetchFavorites = createAsyncThunk(
   "favorites/fetchFavorites",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await getFavoriteFoodTruck_API(); // Assuming this API fetches all favorite trucks
+      const { defaultLocation } = store.getState().locationReducer; // Get defaultLocation from the Redux store
+
+      let params = {};
+      if (defaultLocation && defaultLocation.lat && defaultLocation.long) {
+        params = {
+          lat: defaultLocation.lat,
+          long: defaultLocation.long,
+        };
+      }
+
+      const response = await getFavoriteFoodTruck_API(params); // Pass params to the API call
       if (response?.success) {
         const normalizedFavorites = response.data.favoriteList.map((fav) => ({
           _id: fav._id, // The favorite entry ID
