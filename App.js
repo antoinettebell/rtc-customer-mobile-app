@@ -39,7 +39,6 @@ import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
 import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
 import CheckoutScreen from "./src/screens/CheckoutScreen";
 import CouponCodeScreen from "./src/screens/CouponCodeScreen";
-import PaymentScreen from "./src/screens/PaymentScreen";
 import OrderPlacedScreen from "./src/screens/OrderPlacedScreen";
 import RateReviewScreen from "./src/screens/RateReviewScreen";
 import { clearUserSlice } from "./src/redux/slices/userSlice";
@@ -222,7 +221,6 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="orderTrackingScreen" component={OrderTrackingScreen} />
     <Stack.Screen name="checkoutScreen" component={CheckoutScreen} />
     <Stack.Screen name="couponCodeScreen" component={CouponCodeScreen} />
-    <Stack.Screen name="paymentScreen" component={PaymentScreen} />
     <Stack.Screen name="orderPlacedScreen" component={OrderPlacedScreen} />
     <Stack.Screen name="rateReviewScreen" component={RateReviewScreen} />
     <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />

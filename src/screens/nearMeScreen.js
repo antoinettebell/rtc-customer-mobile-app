@@ -58,7 +58,7 @@ const NearMeScreen = ({ navigation }) => {
   const [filteredTrucks, setFilteredTrucks] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const flatListRef = useRef(null);
-
+  const doNotShowAsOfNow = true;
   // Mock data for food trucks (replace with actual API data)
   const mockFoodTrucks = [
     {
@@ -422,145 +422,151 @@ const NearMeScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>NEAR BY FOOD TRUCKS</Text>
       </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <MaterialIcons
-          name="search"
-          size={20}
-          color={AppColor.textPlaceholder}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search food trucks or cuisine..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholderTextColor={AppColor.textPlaceholder}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => handleSearch("")}
-            style={styles.clearButton}
-          >
+      {!doNotShowAsOfNow ? (
+        <>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
             <MaterialIcons
-              name="clear"
+              name="search"
               size={20}
               color={AppColor.textPlaceholder}
             />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Map View */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          loadingEnabled={true}
-        >
-          {filteredTrucks.map((truck) => (
-            <Marker
-              key={truck.id}
-              coordinate={{
-                latitude: truck.latitude,
-                longitude: truck.longitude,
-              }}
-              onPress={() => handleMarkerPress(truck)}
-            >
-              <View
-                style={[
-                  styles.marker,
-                  selectedTruck?.id === truck.id && styles.selectedMarker,
-                ]}
-              >
-                <Ionicons name="location" size={16} color={AppColor.primary} />
-
-                {/* HERE */}
-              </View>
-            </Marker>
-          ))}
-        </MapView>
-
-        {/* Map Controls */}
-        <TouchableOpacity
-          style={styles.myLocationButton}
-          onPress={handleMyLocationPress}
-          disabled={isLocationLoading}
-        >
-          {isLocationLoading ? (
-            <ActivityIndicator size="small" color={AppColor.primary} />
-          ) : (
-            <MaterialIcons
-              name="my-location"
-              size={24}
-              color={AppColor.primary}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search food trucks or cuisine..."
+              value={searchQuery}
+              onChangeText={handleSearch}
+              placeholderTextColor={AppColor.textPlaceholder}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => handleSearch("")}
+                style={styles.clearButton}
+              >
+                <MaterialIcons
+                  name="clear"
+                  size={20}
+                  color={AppColor.textPlaceholder}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Map View */}
+          <View style={styles.mapContainer}>
+            <MapView
+              ref={mapRef}
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              region={region}
+              onRegionChangeComplete={setRegion}
+              showsUserLocation={true}
+              showsMyLocationButton={false}
+              loadingEnabled={true}
+            >
+              {filteredTrucks.map((truck) => (
+                <Marker
+                  key={truck.id}
+                  coordinate={{
+                    latitude: truck.latitude,
+                    longitude: truck.longitude,
+                  }}
+                  onPress={() => handleMarkerPress(truck)}
+                >
+                  <View
+                    style={[
+                      styles.marker,
+                      selectedTruck?.id === truck.id && styles.selectedMarker,
+                    ]}
+                  >
+                    <Ionicons
+                      name="location"
+                      size={16}
+                      color={AppColor.primary}
+                    />
+
+                    {/* HERE */}
+                  </View>
+                </Marker>
+              ))}
+            </MapView>
+
+            {/* Map Controls */}
+            <TouchableOpacity
+              style={styles.myLocationButton}
+              onPress={handleMyLocationPress}
+              disabled={isLocationLoading}
+            >
+              {isLocationLoading ? (
+                <ActivityIndicator size="small" color={AppColor.primary} />
+              ) : (
+                <MaterialIcons
+                  name="my-location"
+                  size={24}
+                  color={AppColor.primary}
+                />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => {
+                // You can implement filter functionality here
+                Alert.alert("Filter", "Filter functionality can be added here");
+              }}
+            >
+              <MaterialIcons name="tune" size={24} color={AppColor.primary} />
+            </TouchableOpacity>
+
+            {/* Selected Truck Info */}
+            {/* {selectedTruck && renderSelectedTruckInfo()} */}
+          </View>
+
+          {/* Horizontal Food Trucks List */}
+          {filteredTrucks.length > 0 && (
+            <View style={styles.horizontalListContainer}>
+              <FlatList
+                ref={flatListRef}
+                data={filteredTrucks}
+                renderItem={renderHorizontalTruckCard}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalListContent}
+                snapToInterval={width - 80} // Card width + margins
+                snapToAlignment="start"
+                decelerationRate="fast"
+                onMomentumScrollEnd={handleCardScroll}
+                getItemLayout={(data, index) => ({
+                  length: width - 80,
+                  offset: (width - 80) * index,
+                  index,
+                })}
+              />
+            </View>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => {
-            // You can implement filter functionality here
-            Alert.alert("Filter", "Filter functionality can be added here");
-          }}
-        >
-          <MaterialIcons name="tune" size={24} color={AppColor.primary} />
-        </TouchableOpacity>
-
-        {/* Selected Truck Info */}
-        {/* {selectedTruck && renderSelectedTruckInfo()} */}
-      </View>
-
-      {/* Horizontal Food Trucks List */}
-      {filteredTrucks.length > 0 && (
-        <View style={styles.horizontalListContainer}>
-          <FlatList
-            ref={flatListRef}
-            data={filteredTrucks}
-            renderItem={renderHorizontalTruckCard}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalListContent}
-            snapToInterval={width - 80} // Card width + margins
-            snapToAlignment="start"
-            decelerationRate="fast"
-            onMomentumScrollEnd={handleCardScroll}
-            getItemLayout={(data, index) => ({
-              length: width - 80,
-              offset: (width - 80) * index,
-              index,
-            })}
-          />
-        </View>
-      )}
-
-      {/* No Results Message */}
-      {filteredTrucks.length === 0 && !isLoading && (
-        <View style={styles.noResultsContainer}>
-          <MaterialIcons
-            name="search-off"
-            size={48}
-            color={AppColor.textPlaceholder}
-          />
-          <Text style={styles.noResultsText}>
-            No food trucks found matching your search
-          </Text>
-          <TouchableOpacity
-            style={styles.clearSearchButton}
-            onPress={() => handleSearch("")}
-          >
-            <Text style={styles.clearSearchText}>Clear Search</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
+          {/* No Results Message */}
+          {filteredTrucks.length === 0 && !isLoading && (
+            <View style={styles.noResultsContainer}>
+              <MaterialIcons
+                name="search-off"
+                size={48}
+                color={AppColor.textPlaceholder}
+              />
+              <Text style={styles.noResultsText}>
+                No food trucks found matching your search
+              </Text>
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                onPress={() => handleSearch("")}
+              >
+                <Text style={styles.clearSearchText}>Clear Search</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </>
+      ) : null}
       {/* Bottom Navigation would go here */}
     </View>
   );

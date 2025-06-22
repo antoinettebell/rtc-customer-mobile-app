@@ -18,9 +18,9 @@ const OrderPlacedScreen = () => {
       <TouchableOpacity
         style={styles.trackBtn}
         onPress={() => {
-          navigation.goBack();
-          navigation.goBack();
-          navigation.goBack();
+          navigation.navigate("bottomRoot", {
+            screen: "ordersScreen",
+          });
         }}
         // onPress={() => navigation.navigate("Orders")}
       >

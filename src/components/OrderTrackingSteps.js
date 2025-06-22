@@ -12,13 +12,16 @@ const statusIcons = {
   "On the Way": "directions-bike",
   Delivered: "notifications",
   Cancelled: "cancel",
+  Rejected: "cancel",
   default: "radio-button-unchecked",
 };
 
-const OrderTrackingSteps = ({ steps, currentStep }) => {
+const OrderTrackingSteps = ({ steps }) => {
   // Animation values for the ripple effect
   const rippleScale = new Animated.Value(1);
   const rippleOpacity = new Animated.Value(0.7);
+
+  const currentStep = steps.length - 1;
 
   useEffect(() => {
     // Create ripple animation for current step
@@ -39,14 +42,17 @@ const OrderTrackingSteps = ({ steps, currentStep }) => {
       ])
     );
 
-    rippleAnimation.start();
+    // Only start ripple animation if currentStep is valid
+    if (currentStep >= 0 && currentStep < steps.length) {
+      rippleAnimation.start();
+    }
 
     return () => {
       rippleAnimation.stop();
       rippleScale.setValue(1);
       rippleOpacity.setValue(0.7);
     };
-  }, [currentStep]);
+  }, [currentStep, steps.length]);
 
   const getIconForStep = (stepTitle, index) => {
     if (index < currentStep) return "check-circle";
@@ -57,68 +63,73 @@ const OrderTrackingSteps = ({ steps, currentStep }) => {
 
   return (
     <View>
-      {steps.map((step, idx) => (
-        <View key={`step-${idx}`} style={styles.stepRow}>
-          <View style={styles.iconCol}>
-            {idx === currentStep ? (
-              <View style={styles.rippleContainer}>
-                {/* Ripple effect layer */}
-                <Animated.View
+      {steps.map((step, idx) => {
+        return (
+          <View key={`step-${idx}`} style={styles.stepRow}>
+            <View style={styles.iconCol}>
+              {idx === currentStep ? (
+                <View style={styles.rippleContainer}>
+                  {/* Ripple effect layer */}
+                  <Animated.View
+                    style={[
+                      styles.ripple,
+                      {
+                        transform: [{ scale: rippleScale }],
+                        opacity: rippleOpacity,
+                        borderColor: AppColor.primary,
+                      },
+                    ]}
+                  />
+                  {/* Main icon */}
+                  <View style={[styles.iconCircle, styles.iconActive]}>
+                    <MaterialIcons
+                      name={getIconForStep(step.title, idx)}
+                      size={20}
+                      color={AppColor.primary}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View
                   style={[
-                    styles.ripple,
-                    {
-                      transform: [{ scale: rippleScale }],
-                      opacity: rippleOpacity,
-                      borderColor: AppColor.primary,
-                    },
+                    styles.iconCircle,
+                    idx < currentStep ? styles.iconDone : styles.iconInactive,
                   ]}
-                />
-                {/* Main icon */}
-                <View style={[styles.iconCircle, styles.iconActive]}>
+                >
                   <MaterialIcons
                     name={getIconForStep(step.title, idx)}
                     size={20}
-                    color={AppColor.primary}
+                    color={
+                      idx < currentStep ? AppColor.white : AppColor.subText
+                    }
                   />
                 </View>
-              </View>
-            ) : (
-              <View
+              )}
+              {/* Only render vertical line if it's not the last visible step */}
+              {idx < currentStep && (
+                <View
+                  style={[
+                    styles.verticalLine,
+                    idx < currentStep ? styles.lineActive : styles.lineInactive,
+                  ]}
+                />
+              )}
+            </View>
+            <View style={styles.stepTextWrap}>
+              <Text
                 style={[
-                  styles.iconCircle,
-                  idx < currentStep ? styles.iconDone : styles.iconInactive,
+                  styles.stepTitle,
+                  idx === currentStep && styles.stepTitleActive,
+                  idx < currentStep && styles.stepTitleDone,
                 ]}
               >
-                <MaterialIcons
-                  name={getIconForStep(step.title, idx)}
-                  size={20}
-                  color={idx < currentStep ? AppColor.white : AppColor.subText}
-                />
-              </View>
-            )}
-            {idx < steps.length - 1 && (
-              <View
-                style={[
-                  styles.verticalLine,
-                  idx < currentStep ? styles.lineActive : styles.lineInactive,
-                ]}
-              />
-            )}
+                {step.title}
+              </Text>
+              {step.time && <Text style={styles.stepTime}>{step.time}</Text>}
+            </View>
           </View>
-          <View style={styles.stepTextWrap}>
-            <Text
-              style={[
-                styles.stepTitle,
-                idx === currentStep && styles.stepTitleActive,
-                idx < currentStep && styles.stepTitleDone,
-              ]}
-            >
-              {step.title}
-            </Text>
-            {step.time && <Text style={styles.stepTime}>{step.time}</Text>}
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 };

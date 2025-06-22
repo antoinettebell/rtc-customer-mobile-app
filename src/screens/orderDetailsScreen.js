@@ -116,9 +116,12 @@ const OrderDetailsScreen = () => {
       ? { uri: order.foodTruck.logo }
       : require("../assets/images/FT-Demo-01.png"),
     status: order.orderStatus,
+    currentOrderStatus: order.orderStatus,
     taxAmount: formatPrice(order.taxAmount || 0),
     discount: formatPrice(order.discount || 0),
     subTotal: formatPrice(order.subTotal || order.total),
+    isAdvanceOrder: !!order.availabilityId,
+    statusTime: order.statusTime,
   };
 
   return (
@@ -177,26 +180,26 @@ const OrderDetailsScreen = () => {
 
             <View style={styles.footerRow}>
               <Text style={styles.total}>${orderData.total}</Text>
-              {(orderData.status !== "COMPLETED" ||
-                orderData.status !== "CANCEL" ||
-                orderData.status !== "REJECTED") && (
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.trackBtn}
-                    onPress={() =>
-                      navigation.navigate("orderTrackingScreen", {
-                        orderId: order._id,
-                      })
-                    }
-                  >
-                    <FastImage
-                      source={require("../assets/images/trackOrder.png")}
-                      style={styles.actionIcon}
-                    />
-                    <Text style={styles.trackBtnText}>Track</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              {orderData.status !== "COMPLETED" &&
+                orderData.status !== "CANCEL" &&
+                orderData.status !== "REJECTED" && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.trackBtn}
+                      onPress={() =>
+                        navigation.navigate("orderTrackingScreen", {
+                          order: orderData,
+                        })
+                      }
+                    >
+                      <FastImage
+                        source={require("../assets/images/trackOrder.png")}
+                        style={styles.actionIcon}
+                      />
+                      <Text style={styles.trackBtnText}>Track</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
           </View>
 
@@ -228,26 +231,26 @@ const OrderDetailsScreen = () => {
         </View>
       </ScrollView>
 
-      {(orderData.status !== "COMPLETED" ||
-        orderData.status !== "CANCEL" ||
-        orderData.status !== "REJECTED") && (
-        <View style={styles.footerContainer}>
-          <View style={styles.totalAmountRow}>
-            <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-            <Text style={styles.totalAmountValue}>${orderData.total}</Text>
-          </View>
+      {orderData.status !== "COMPLETED" &&
+        orderData.status !== "CANCEL" &&
+        orderData.status !== "REJECTED" && (
+          <View style={styles.footerContainer}>
+            <View style={styles.totalAmountRow}>
+              <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
+              <Text style={styles.totalAmountValue}>${orderData.total}</Text>
+            </View>
 
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              navigation.navigate("cancelOrderScreen", { order: orderData });
-            }}
-          >
-            <Text style={styles.cancelBtnText}>Cancel Order</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                navigation.navigate("cancelOrderScreen", { order: orderData });
+              }}
+            >
+              <Text style={styles.cancelBtnText}>Cancel Order</Text>
+            </TouchableOpacity>
+          </View>
+        )}
     </View>
   );
 };

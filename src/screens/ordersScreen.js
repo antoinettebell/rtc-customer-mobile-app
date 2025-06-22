@@ -97,7 +97,9 @@ const OrdersScreen = () => {
         ? { uri: item.foodTruck.logo }
         : require("../assets/images/FT-Demo-01.png"),
       status: item.orderStatus === "COMPLETED" ? "past" : "current",
+      currentOrderStatus: item.orderStatus,
       isAdvanceOrder: !!item.availabilityId,
+      statusTime: item.statusTime,
     };
 
     return (

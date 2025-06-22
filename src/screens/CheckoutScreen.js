@@ -177,7 +177,7 @@ const CheckoutScreen = () => {
       console.log("✅ Order placed:", response);
       dispatch(clearCurrentOrder());
       Alert.alert("Success", "Your order has been placed!");
-      navigation.navigate("paymentScreen", { total });
+      navigation.navigate("orderPlacedScreen");
     } catch (error) {
       console.error("❌ Order failed:", error);
       Alert.alert("Error", error?.message || "Failed to place order.");

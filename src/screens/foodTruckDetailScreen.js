@@ -624,6 +624,7 @@ const FoodTruckDetailScreen = () => {
             <View style={styles.mapViewWrap}>
               {truckLocation ? (
                 <MapView
+                  provider="google"
                   style={styles.mapView}
                   initialRegion={truckLocation}
                   region={truckLocation}

@@ -6,6 +6,16 @@ import FastImage from "@d11/react-native-fast-image";
 
 const HR = () => <View style={styles.HR} />;
 
+export const orderCurrentStatusNames = {
+  PLACED: "Placed",
+  CANCEL: "Cancel",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+  PREPARING: "Preparing",
+  READY_FOR_PICKUP: "Ready for pickup",
+  COMPLETED: "Completed",
+};
+
 const OrderListItem = ({
   order,
   type,

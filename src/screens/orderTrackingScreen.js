@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,14 +18,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
-const stepsData = [
-  { title: "Order Placed", time: "10:19 AM" },
-  { title: "Order Accepted", time: "10:20 AM" },
-  { title: "Preparing", time: "10:31 AM" },
-  { title: "Ready for Pickup", time: "10:40 AM" },
-  { title: "On the Way", time: "10:45 AM" },
-  { title: "Delivered", time: "11:00 AM" },
-];
+const statusTitleMap = {
+  PLACED: "Order Placed",
+  ACCEPTED: "Order Accepted",
+  PREPARING: "Preparing",
+  READY_FOR_PICKUP: "Ready for Pickup",
+  COMPLETED: "Delivered",
+  CANCELLED: "Cancelled",
+  REJECTED: "Rejected",
+};
 
 const { width, height } = Dimensions.get("window");
 const ASPECT_RATIO = width / height;
@@ -45,7 +46,42 @@ const OrderTrackingScreen = (props) => {
   const mapRef = useRef(null);
 
   const order = params?.order;
-  const currentStep = 3;
+  const [iamstate, setiamstate] = useState([]);
+
+  const getStatusHistory = (statusTime) => {
+    const statusMap = {
+      placedAt: "PLACED",
+      acceptedAt: "ACCEPTED",
+      canceledAt: "CANCELLED",
+      preparingAt: "PREPARING",
+      readyAt: "READY_FOR_PICKUP",
+      completedAt: "COMPLETED",
+      rejectedAt: "REJECTED",
+    };
+
+    const history = Object.entries(statusTime)
+      .filter(([, time]) => time !== null)
+      .map(([key, time]) => ({
+        status: statusMap[key],
+        time: time,
+      }));
+
+    history.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    return history;
+  };
+
+  useEffect(() => {
+    setiamstate(getStatusHistory(order?.statusTime));
+  }, [order]);
+
+  const formattedSteps = iamstate.map((item) => ({
+    title: statusTitleMap[item.status] || item.status,
+    time: new Date(item.time).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -94,7 +130,9 @@ const OrderTrackingScreen = (props) => {
         <View style={styles.commonCard}>
           <View style={styles.headerRow}>
             <Text style={styles.orderId}>Order #{order.id}</Text>
-            <Text style={styles.orderTotal}>${order.total.toFixed(2)}</Text>
+            <Text style={styles.orderTotal}>
+              ${Number(order.total).toFixed(2)}
+            </Text>
           </View>
           <View style={styles.orderCardRow}>
             <Image source={order.image} style={styles.truckImg} />
@@ -109,10 +147,12 @@ const OrderTrackingScreen = (props) => {
           <View style={styles.statusHeaderRow}>
             <Text style={styles.statusLabel}>STATUS</Text>
             <Text style={styles.statusBadge}>
-              {stepsData[currentStep].title}
+              {formattedSteps.length > 0
+                ? formattedSteps[formattedSteps.length - 1].title
+                : "..."}
             </Text>
           </View>
-          <OrderTrackingSteps steps={stepsData} currentStep={currentStep} />
+          <OrderTrackingSteps steps={formattedSteps} />
         </View>
 
         <View style={styles.commonCard}>
