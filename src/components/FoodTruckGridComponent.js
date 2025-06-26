@@ -6,52 +6,98 @@ import {
   View,
   Platform,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import { useDispatch, useSelector } from "react-redux";
+import { toggleFavorite } from "../redux/slices/favoritesSlice";
+import FastImage from "@d11/react-native-fast-image";
 
 const FoodTruckGridComponent = ({
   title,
-  uri,
-  isLiked,
-  onLikePress,
+  uris,
   onContainerPress,
+  foodTruckId,
+  reviews,
+  distance,
+  showLikeButton,
 }) => {
+  const dispatch = useDispatch();
+  // Get favorites and the individual loading state map from Redux
+  const { favorites, loading: individualLoadingState } = useSelector(
+    (state) => state.favoritesReducer
+  );
+
+  // Determine if the current food truck is liked based on Redux state
+  const isLiked = favorites.some((fav) => fav.foodTruck?._id === foodTruckId);
+
+  // Check loading status for this specific food truck
+  const isLoading = individualLoadingState[foodTruckId] || false;
+
+  const handleLikePress = async () => {
+    dispatch(
+      toggleFavorite({
+        foodTruckId,
+        isCurrentlyLiked: isLiked,
+        foodTruckData: {
+          name: title,
+          logo: uris,
+          reviews,
+          distanceInMeters: distance,
+        },
+      })
+    );
+  };
+
   return (
     <TouchableOpacity
       style={styles.container}
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <Image source={uri} style={styles.image} />
+      <FastImage
+        source={typeof uris === "string" ? { uri: uris } : uris}
+        style={styles.image}
+      />
       <View style={styles.subContainer}>
         <Text style={styles.titleText}>{title}</Text>
         <View style={styles.reatingContainer}>
           <View style={styles.iconContainer}>
             <FontAwesome name="star" size={16} color={AppColor.yellow} />
           </View>
-          <Text style={styles.ratingText}>{"4.8 (200+ reviews)"}</Text>
+          <Text style={styles.ratingText}>{reviews || "0 reviews"}</Text>
         </View>
         <View style={styles.reatingContainer}>
           <View style={styles.iconContainer}>
             <FontAwesome6 name="location-dot" size={16} color={AppColor.gray} />
           </View>
-          <Text style={styles.ratingText}>{"- 0.5 miles away"}</Text>
+          <Text style={styles.ratingText} numberOfLines={1}>
+            {(distance * 0.000621371).toFixed(2) + " miles away" ||
+              "0 miles away"}
+          </Text>
         </View>
       </View>
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onLikePress}
-        style={styles.likeContainer}
-      >
-        <MaterialCommunityIcons
-          name={isLiked ? "heart" : "heart-outline"}
-          color={isLiked ? AppColor.primary : AppColor.white}
-          size={30}
-        />
-      </TouchableOpacity>
+      {showLikeButton && (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleLikePress}
+          style={styles.likeContainer}
+          disabled={isLoading} // Disable button while this specific item is loading
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={AppColor.primary} />
+          ) : (
+            <MaterialCommunityIcons
+              name={isLiked ? "heart" : "heart-outline"}
+              color={isLiked ? AppColor.snackbarError : AppColor.white}
+              size={30}
+            />
+          )}
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -60,7 +106,6 @@ export default FoodTruckGridComponent;
 
 const styles = StyleSheet.create({
   container: {
-    // marginVertical: 10,
     borderRadius: 10,
     padding: 16,
     backgroundColor: AppColor.white,

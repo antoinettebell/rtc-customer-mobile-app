@@ -2,11 +2,16 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import GoogleMaps
 import RNBootSplash
+import Firebase
 
 @main
 class AppDelegate: RCTAppDelegate {
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+    GMSServices.provideAPIKey("AIzaSyAlopZi4IG0IPl083xL20FGxlZZ_m8lslc")
+    FirebaseApp.configure()
+
     self.moduleName = "foodtruck"
     self.dependencyProvider = RCTAppDependencyProvider()
 

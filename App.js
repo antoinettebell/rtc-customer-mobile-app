@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
   Image,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -16,14 +16,45 @@ import AuthIntroScreen from "./src/screens/authIntroScreen";
 import ResetPasswordScreen from "./src/screens/resetPasswordScreen";
 import SplashScreen from "./src/screens/splashScreen";
 import ExploreScreen from "./src/screens/exploreScreen";
-import { useSelector } from "react-redux";
+import FoodTruckDetailScreen from "./src/screens/foodTruckDetailScreen";
+import { useSelector, useDispatch } from "react-redux";
 import ForgetPasswordScreen from "./src/screens/forgetPasswordScreen";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import NearMeScreen from "./src/screens/nearMeScreen";
 import OrdersScreen from "./src/screens/ordersScreen";
 import ProfileMenuScreen from "./src/screens/profileMenuScreen";
+import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
+import AddressScreen from "./src/screens/addressScreen";
 import { AppColor, Secondary400 } from "./src/utils/theme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import AuthMapScreen from "./src/screens/authMapScreen";
+import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
+import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
+import CancelOrderScreen from "./src/screens/cancelOrderScreen";
+import RateTruckScreen from "./src/screens/rateTruckScreen";
+import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
+import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
+import CheckoutScreen from "./src/screens/CheckoutScreen";
+import CouponCodeScreen from "./src/screens/CouponCodeScreen";
+import OrderPlacedScreen from "./src/screens/OrderPlacedScreen";
+import RateReviewScreen from "./src/screens/RateReviewScreen";
+import { clearUserSlice } from "./src/redux/slices/userSlice";
+import { clearFavorites } from "./src/redux/slices/favoritesSlice";
+import { clearOrderSlice } from "./src/redux/slices/orderSlice";
+import { clearFoodTruckProfileSlice } from "./src/redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "./src/redux/slices/locationSlice";
+import { navigationRef } from "./src/helpers/navigation.helper";
+import {
+  createAndroidChannel,
+  handleNotificationAction,
+  onDisplayNotification,
+  requestNotificationPermission,
+} from "./src/helpers/notification.helper";
+import notifee, { EventType } from "@notifee/react-native";
+import { getMessaging } from "@react-native-firebase/messaging";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -36,6 +67,35 @@ const ordersActive = require("./src/assets/images/ordersMenuActive.png");
 const ordersInactive = require("./src/assets/images/ordersMenuInactive.png");
 const profileActive = require("./src/assets/images/profileMenuActive.png");
 const profileInactive = require("./src/assets/images/profileMenuInactive.png");
+
+// Auth Required Screen Component
+const AuthRequiredScreen = ({ title }) => {
+  const dispatch = useDispatch();
+
+  const handleSignIn = () => {
+    dispatch(onGuest(false));
+    dispatch(clearUserSlice());
+    dispatch(clearFavorites());
+    dispatch(clearOrderSlice());
+    dispatch(clearFoodTruckProfileSlice());
+    dispatch(clearLocationSlice());
+    dispatch(onSignOut());
+  };
+
+  return (
+    <SafeAreaView style={styles.authRequiredContainer}>
+      <View style={styles.authRequiredContent}>
+        <Text style={styles.authRequiredTitle}>Sign In Required</Text>
+        <Text style={styles.authRequiredMessage}>
+          Please sign in to access {title}
+        </Text>
+        <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+          <Text style={styles.signInButtonText}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const AuthNavigator = () => (
   <Stack.Navigator
@@ -52,78 +112,90 @@ const AuthNavigator = () => (
   </Stack.Navigator>
 );
 
-const BottomNavigator = ({ insets }) => (
-  <BottomTab.Navigator
-    screenOptions={{
-      tabBarHideOnKeyboard: true,
-      headerShown: false,
-      tabBarStyle: {
-        height: Platform.OS === "ios" ? insets.bottom + 60 : 60,
-      },
-      tabBarLabelStyle: {
-        // fontFamily: Secondary400,
-        fontSize: 12,
-        fontWeight: "500",
-        bottom: 5,
-      },
-      tabBarActiveTintColor: AppColor.primary,
-      tabBarInactiveTintColor: AppColor.gray,
-    }}
-  >
-    <BottomTab.Screen
-      name="exploreScreen"
-      component={ExploreScreen}
-      options={{
-        tabBarLabel: "Explore",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? exploreActive : exploreInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
+const BottomNavigator = ({ insets }) => {
+  const { isSignedIn } = useSelector((state) => state.authReducer);
+
+  return (
+    <BottomTab.Navigator
+      screenOptions={{
+        tabBarHideOnKeyboard: true,
+        headerShown: false,
+        tabBarStyle: {
+          height: insets.bottom + 60,
+        },
+        tabBarLabelStyle: {
+          // fontFamily: Secondary400,
+          fontSize: 12,
+          fontWeight: "500",
+          bottom: 5,
+        },
+        tabBarActiveTintColor: AppColor.primary,
+        tabBarInactiveTintColor: AppColor.gray,
       }}
-    />
-    <BottomTab.Screen
-      name="nearMeScreen"
-      component={NearMeScreen}
-      options={{
-        tabBarLabel: "Near Me",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? nearmeActive : nearmeInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-    <BottomTab.Screen
-      name="ordersScreen"
-      component={OrdersScreen}
-      options={{
-        tabBarLabel: "Orders",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? ordersActive : ordersInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-    <BottomTab.Screen
-      name="profileMenuScreen"
-      component={ProfileMenuScreen}
-      options={{
-        tabBarLabel: "Profile",
-        tabBarIcon: ({ focused, color, size }) => (
-          <Image
-            source={focused ? profileActive : profileInactive}
-            style={{ height: 24, width: 24 }}
-          />
-        ),
-      }}
-    />
-  </BottomTab.Navigator>
-);
+    >
+      <BottomTab.Screen
+        name="exploreScreen"
+        component={ExploreScreen}
+        options={{
+          tabBarLabel: "Explore",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? exploreActive : exploreInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="nearMeScreen"
+        component={NearMeScreen}
+        options={{
+          tabBarLabel: "Near Me",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? nearmeActive : nearmeInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="ordersScreen"
+        component={
+          isSignedIn
+            ? OrdersScreen
+            : () => <AuthRequiredScreen title="Orders" />
+        }
+        options={{
+          tabBarLabel: "Orders",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? ordersActive : ordersInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+      <BottomTab.Screen
+        name="profileMenuScreen"
+        component={
+          isSignedIn
+            ? ProfileMenuScreen
+            : () => <AuthRequiredScreen title="Profile" />
+        }
+        options={{
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ focused, color, size }) => (
+            <Image
+              source={focused ? profileActive : profileInactive}
+              style={{ height: 24, width: 24 }}
+            />
+          ),
+        }}
+      />
+    </BottomTab.Navigator>
+  );
+};
 
 const AppNavigator = ({ insets }) => (
   <Stack.Navigator
@@ -131,19 +203,79 @@ const AppNavigator = ({ insets }) => (
     initialRouteName="splash"
   >
     <Stack.Screen name="splash" component={SplashScreen} />
+    <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
     <Stack.Screen
       name="bottomRoot"
       component={() => <BottomNavigator insets={insets} />}
     />
+    <Stack.Screen
+      name="foodTruckDetailScreen"
+      component={FoodTruckDetailScreen}
+    />
+    <Stack.Screen
+      name="favoriteFoodTrucksScreen"
+      component={FavoriteFoodTrucksScreen}
+    />
+    <Stack.Screen name="addressScreen" component={AddressScreen} />
+    <Stack.Screen name="orderDetailsScreen" component={OrderDetailsScreen} />
+    <Stack.Screen name="orderTrackingScreen" component={OrderTrackingScreen} />
+    <Stack.Screen name="checkoutScreen" component={CheckoutScreen} />
+    <Stack.Screen name="couponCodeScreen" component={CouponCodeScreen} />
+    <Stack.Screen name="orderPlacedScreen" component={OrderPlacedScreen} />
+    <Stack.Screen name="rateReviewScreen" component={RateReviewScreen} />
+    <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
+    <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
+    <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
   </Stack.Navigator>
+);
+
+const configureNotification = async () => {
+  await requestNotificationPermission();
+  if (Platform.OS === "android") {
+    await createAndroidChannel();
+  }
+};
+
+const processOnNotification = async (notification) => {
+  // Android: when user clicked on backgroud state notification
+  console.log("processOnNotification => ", notification);
+  await handleNotificationAction(notification);
+};
+
+getMessaging().onMessage(async (notification) => {
+  console.log("Forground Remote-Message => ", notification);
+  await onDisplayNotification(notification);
+  await handleNotificationAction(notification);
+});
+
+getMessaging().onNotificationOpenedApp(processOnNotification);
+
+notifee.onForegroundEvent(
+  // android/ios both: function trigger when any notification trigger on foreground state
+  // also triggred when onDisplayNotification called, beacuse onDisplayNotification is displaying notification for foreground state
+  ({ type, detail }) => {
+    switch (type) {
+      case EventType.DISMISSED:
+        console.log("User dismissed notification", detail.notification);
+        break;
+      case EventType.PRESS:
+        console.log("User pressed notification", detail.notification);
+        processOnNotification(detail.notification);
+        break;
+    }
+  }
 );
 
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
 
+  useEffect(() => {
+    configureNotification();
+  }, []);
+
   return (
-    <NavigationContainer theme={DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
       {isSignedIn ? (
         <AppNavigator insets={insets} />
       ) : isGuest ? (
@@ -158,5 +290,44 @@ const App = () => {
 export default App;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+  authRequiredContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  authRequiredContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  authRequiredTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: AppColor.primary,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  authRequiredMessage: {
+    fontSize: 16,
+    color: AppColor.gray,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  signInButton: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  signInButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 });

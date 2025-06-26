@@ -27,6 +27,11 @@ import { useDispatch } from "react-redux";
 import { setAuthToken, setUser } from "../redux/slices/userSlice";
 import { onSignin } from "../redux/slices/authSlice";
 import StatusBarManager from "../components/StatusBarManager";
+import {
+  checkFcmToken,
+  checkInstallationId,
+} from "../helpers/notification.helper";
+import { setFcmToken_API } from "../apiFolder/appAPI";
 
 const OtpVerificationScreen = ({ route }) => {
   const insets = useSafeAreaInsets();
@@ -178,7 +183,7 @@ const OtpVerificationScreen = ({ route }) => {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <StatusBarManager barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <IconButton
@@ -312,6 +317,22 @@ const OtpVerificationScreen = ({ route }) => {
             onPress={() => {
               setModalVisible(false);
               dispatch(onSignin(true));
+              // set FCM Token & DeviceId after 1.5 sec
+              setTimeout(async () => {
+                try {
+                  const deviceId = await checkInstallationId();
+                  const fcmToken = await checkFcmToken();
+                  if (deviceId && fcmToken) {
+                    const response1 = await setFcmToken_API({
+                      token: fcmToken,
+                      deviceId: deviceId,
+                    });
+                    console.log("response => ", response1);
+                  }
+                } catch (error) {
+                  console.log("error => ", error);
+                }
+              }, 1500);
             }}
           >
             <Text style={styles.backToLoginText}>{"Next"}</Text>

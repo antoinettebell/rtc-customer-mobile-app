@@ -39,8 +39,14 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This permission allows you to upload photos from your camera, such as updating your profile picture or for uploading images for your truck.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to show nearby places even when the app is in background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>We need your location to show nearby places.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This permission allows you to select photos from your photo library, such as updating your profile picture or for uploading images for your truck.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>AntDesign.ttf</string>
@@ -64,6 +70,11 @@
 		<string>Fontisto.ttf</string>
 		<string>IMFellEnglish-Regular.ttf</string>
 		<string>P22 Arts And Crafts Regular.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>BootSplash</string>

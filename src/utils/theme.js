@@ -2,6 +2,8 @@ import { Platform } from "react-native";
 
 export const AppColor = {
   primary: "#FC7B03",
+  primaryLight: "#FFAE62",
+  orderProgressbar: "#C25D00",
   text: "#111520",
   subText: "#9A9FAC",
   textHighlighter: "#606268",
@@ -10,6 +12,7 @@ export const AppColor = {
   likePlaceholder: "#C7C7CC",
   ratingStar: "#FFE101",
   placeholderTextColor: "#D1D1D6",
+  borderColor: "#E5E5EA",
 
   white: "#FFFFFF",
   black: "#000000",
@@ -22,6 +25,13 @@ export const AppColor = {
   snackbarError: "#F44336",
   snackbarWarning: "#FF9800",
   snackbarDefault: "#323232",
+
+  grayText: "#6F6F6F",
+  darkText: "#1D1D1D",
+
+  screenBg: "#F0F1F2",
+  lightGreenBG: "#CDFFC2",
+  lightRedBG: "#f8d7da",
 };
 
 // export const Mulish200 = "Mulish-ExtraLight";
