@@ -34,16 +34,30 @@ export const AppColor = {
   lightRedBG: "#f8d7da",
 };
 
-// export const Mulish200 = "Mulish-ExtraLight";
-// export const Mulish300 = "Mulish-Light";
-// export const Mulish400 = "Mulish-Regular";
-// export const Mulish500 = "Mulish-Medium";
-// export const Mulish600 = "Mulish-SemiBold";
-// export const Mulish700 = "Mulish-Bold";
-// export const Mulish800 = "Mulish-ExtraBold";
-// export const Mulish900 = "Mulish-Black";
-
+// Fonts
 export const Primary400 =
   Platform.OS === "ios" ? "P22 ArtsAndCrafts" : "P22 Arts And Crafts Regular";
 export const Secondary400 =
   Platform.OS === "ios" ? "IM Fell English" : "IMFellEnglish-Regular";
+
+export const Inter100 =
+  Platform.OS === "ios" ? "Inter-ThinBETA" : "Inter-Thin-BETA";
+export const Inter200 =
+  Platform.OS === "ios" ? "Inter-ExtraLightBETA" : "Inter-ExtraLight-BETA";
+export const Inter300 =
+  Platform.OS === "ios" ? "Inter-LightBETA" : "Inter-Light-BETA";
+export const Inter400 = "Inter-Regular";
+export const Inter500 = "Inter-Medium";
+export const Inter600 = "Inter-SemiBold";
+export const Inter700 = "Inter-Bold";
+export const Inter800 = "Inter-ExtraBold";
+export const Inter900 = "Inter-Black";
+
+export const Mulish200 = "Mulish-ExtraLight";
+export const Mulish300 = "Mulish-Light";
+export const Mulish400 = "Mulish-Regular";
+export const Mulish500 = "Mulish-Medium";
+export const Mulish600 = "Mulish-SemiBold";
+export const Mulish700 = "Mulish-Bold";
+export const Mulish800 = "Mulish-ExtraBold";
+export const Mulish900 = "Mulish-Black";
