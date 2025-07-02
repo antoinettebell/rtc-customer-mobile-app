@@ -49,12 +49,8 @@ import { clearLocationSlice } from "./src/redux/slices/locationSlice";
 import { navigationRef } from "./src/helpers/navigation.helper";
 import {
   createAndroidChannel,
-  handleNotificationAction,
-  onDisplayNotification,
   requestNotificationPermission,
 } from "./src/helpers/notification.helper";
-import notifee, { EventType } from "@notifee/react-native";
-import { getMessaging } from "@react-native-firebase/messaging";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -204,10 +200,9 @@ const AppNavigator = ({ insets }) => (
   >
     <Stack.Screen name="splash" component={SplashScreen} />
     <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
-    <Stack.Screen
-      name="bottomRoot"
-      component={() => <BottomNavigator insets={insets} />}
-    />
+    <Stack.Screen name="bottomRoot">
+      {() => <BottomNavigator insets={insets} />}
+    </Stack.Screen>
     <Stack.Screen
       name="foodTruckDetailScreen"
       component={FoodTruckDetailScreen}
@@ -235,36 +230,6 @@ const configureNotification = async () => {
     await createAndroidChannel();
   }
 };
-
-const processOnNotification = async (notification) => {
-  // Android: when user clicked on backgroud state notification
-  console.log("processOnNotification => ", notification);
-  await handleNotificationAction(notification);
-};
-
-getMessaging().onMessage(async (notification) => {
-  console.log("Forground Remote-Message => ", notification);
-  await onDisplayNotification(notification);
-  await handleNotificationAction(notification);
-});
-
-getMessaging().onNotificationOpenedApp(processOnNotification);
-
-notifee.onForegroundEvent(
-  // android/ios both: function trigger when any notification trigger on foreground state
-  // also triggred when onDisplayNotification called, beacuse onDisplayNotification is displaying notification for foreground state
-  ({ type, detail }) => {
-    switch (type) {
-      case EventType.DISMISSED:
-        console.log("User dismissed notification", detail.notification);
-        break;
-      case EventType.PRESS:
-        console.log("User pressed notification", detail.notification);
-        processOnNotification(detail.notification);
-        break;
-    }
-  }
-);
 
 const App = () => {
   const insets = useSafeAreaInsets();

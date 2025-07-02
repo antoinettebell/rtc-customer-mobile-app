@@ -27,8 +27,8 @@ const NearbyFoodTrucksScreen = ({ route }) => {
     try {
       setLoading(true);
       const params = {
-        day: "mon", // You might want to get this from route params or context
-        time: "11:17", // You might want to get this from route params or context
+        // day: "mon", // You might want to get this from route params or context
+        // time: "11:17", // You might want to get this from route params or context
         userLat: "123", // You might want to get this from route params or context
         userLong: "456", // You might want to get this from route params or context
         page: pageNum,

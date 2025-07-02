@@ -159,8 +159,8 @@ const ExploreScreen = (props) => {
     try {
       setLoading(true);
       const params = {
-        day: moment().format("ddd")?.toLocaleLowerCase(),
-        time: moment().format("HH:mm"),
+        // day: moment().format("ddd")?.toLocaleLowerCase(),
+        // time: moment().format("HH:mm"),
         userLat: defaultLocation?.lat || 0,
         userLong: defaultLocation?.long || 0,
       };
@@ -682,7 +682,7 @@ const ExploreScreen = (props) => {
           <View
             style={[
               styles.locationModalContainer,
-              { paddingBottom: insets.bottom },
+              { paddingBottom: insets.bottom || 10 },
             ]}
           >
             <View style={styles.modalHeader}>

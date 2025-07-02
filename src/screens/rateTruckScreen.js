@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 import ImagePicker from "react-native-image-crop-picker";
 import usePermission from "../hooks/usePermission";
-import { permission } from "../utils/permissions";
+import { permission } from "../helpers/permission.helper";
 import { RESULTS } from "react-native-permissions";
 import FastImage from "@d11/react-native-fast-image";
 
@@ -44,22 +44,15 @@ const RateTruckScreen = (props) => {
   const handleCameraPress = async () => {
     try {
       const cameraStatus = await cameraPermissionStatus();
-      if (cameraStatus !== RESULTS.GRANTED) {
-        Alert.alert(
-          "Permission Required",
-          "Camera permission is required to take photos."
-        );
-        return;
-      }
+      if (cameraStatus !== RESULTS.GRANTED) return;
 
       setTimeout(
         async () => {
           await ImagePicker.openCamera({
-            cropping: true,
+            cropping: false,
             mediaType: "photo",
-            width: 800,
-            height: 600,
-            quality: 0.8,
+            width: 500,
+            height: 500,
           })
             .then((image) => {
               const newImage = {

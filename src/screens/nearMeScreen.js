@@ -21,7 +21,7 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Primary400, Secondary400 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import usePermission from "../hooks/usePermission";
-import { permission } from "../utils/permissions";
+import { permission } from "../helpers/permission.helper";
 import { RESULTS } from "react-native-permissions";
 import Config from "react-native-config";
 

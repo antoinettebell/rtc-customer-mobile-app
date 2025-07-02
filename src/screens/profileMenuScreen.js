@@ -16,7 +16,7 @@ import { onSignOut } from "../redux/slices/authSlice";
 import usePermission from "../hooks/usePermission";
 import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
-import { permission } from "../utils/permissions";
+import { permission } from "../helpers/permission.helper";
 import { clearUserSlice, setUser } from "../redux/slices/userSlice";
 import StatusBarManager from "../components/StatusBarManager";
 import FastImage from "@d11/react-native-fast-image";
@@ -43,8 +43,8 @@ import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 import { clearLocationSlice } from "../redux/slices/locationSlice";
 import { checkInstallationId } from "../helpers/notification.helper";
+import { PROFILE_AVATAR } from "../utils/constants";
 
-const avatarImg = require("../assets/images/profileMenuActive.png");
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
 const HR = () => <View style={styles.HR} />;
@@ -112,14 +112,17 @@ const ProfileMenuScreen = ({ navigation }) => {
       setTimeout(
         async () => {
           await ImagePicker.openCamera({
-            cropping: true,
             mediaType: "photo",
             width: 500,
             height: 500,
           })
             .then(async (image) => {
               try {
-                await uploadAndUpdateProfilePic(image);
+                await uploadAndUpdateProfilePic({
+                  uri: image?.path,
+                  name: `${image?.path?.split("/").pop()}`, // did this because not able to get filename in ios
+                  type: image.mime,
+                });
               } catch (error) {
                 console.log("error => ", error);
                 setSnackbar({
@@ -150,14 +153,25 @@ const ProfileMenuScreen = ({ navigation }) => {
       setTimeout(
         async () => {
           await ImagePicker.openPicker({
-            cropping: true,
             mediaType: "photo",
             width: 500,
             height: 500,
           })
             .then(async (image) => {
               try {
-                await uploadAndUpdateProfilePic(image);
+                const payload =
+                  Platform.OS == "ios"
+                    ? {
+                        uri: image?.sourceURL,
+                        name: image?.filename,
+                        type: image.mime,
+                      }
+                    : {
+                        uri: image?.path,
+                        name: `${image?.path?.split("/").pop()}`, // did this because in android > choose from gallary; not have filename
+                        type: image.mime,
+                      };
+                await uploadAndUpdateProfilePic(payload);
               } catch (error) {
                 console.log("error => ", error);
                 setSnackbar({
@@ -183,9 +197,9 @@ const ProfileMenuScreen = ({ navigation }) => {
     try {
       const formData = new FormData();
       formData.append("file", {
-        uri: Platform.OS === "ios" ? image.sourceURL : image.path,
-        type: image.mime,
-        name: image.filename || `profile_${Date.now()}.jpg`,
+        uri: image?.uri,
+        name: image?.name,
+        type: image?.type,
       });
 
       const uploadResponse = await uploadImage_API(formData);
@@ -437,7 +451,7 @@ const ProfileMenuScreen = ({ navigation }) => {
         </View>
         <View style={styles.avatarWrap}>
           <FastImage
-            source={user?.profilePic ? { uri: user.profilePic } : avatarImg}
+            source={{ uri: user.profilePic || PROFILE_AVATAR }}
             style={styles.avatarImg}
           />
           <TouchableOpacity
@@ -757,7 +771,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
@@ -792,7 +806,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },

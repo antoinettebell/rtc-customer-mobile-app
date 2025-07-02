@@ -13,7 +13,6 @@ import {
   UPDATE_ADDRESS,
   DELETE_ADDRESS,
   PRIVACY_POLICY,
-  GET_NEARBY_FOODTRUCK,
   GET_FOOD_TRUCK_DETAIL_BY_ID,
   GET_FOOD_TRUCK_MENU_BY_ID,
   GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC,
@@ -26,6 +25,7 @@ import {
   SET_FCM_TOKEN,
   UPDATE_FCM_TOKEN,
   REMOVE_FCM_TOKEN,
+  GET_NEARBY_FOODTRUCK_NEW,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -210,21 +210,16 @@ export const privacyPolicy_API = async () => {
 export const getNearbyFoodTrucks_API = async (params = {}) => {
   try {
     const { authToken } = store.getState().userReducer;
-    const { day, time, userLat, userLong, search, distanceInMeters } = params;
-    let URL = `${GET_NEARBY_FOODTRUCK}`;
+    const { userLat, userLong, distanceInMeters } = params;
+    let URL = `${GET_NEARBY_FOODTRUCK_NEW}`;
 
     // Build query string with required and optional parameters
-    const queryParams = [
-      `day=${day}`,
-      `time=${time}`,
-      `userLat=${userLat}`,
-      `userLong=${userLong}`,
-    ];
+    const queryParams = [`userLat=${userLat}`, `userLong=${userLong}`];
 
     // Add optional parameters if they exist
-    if (search) queryParams.push(`search=${search}`);
-    if (distanceInMeters)
+    if (distanceInMeters) {
       queryParams.push(`distanceInMeters=${distanceInMeters}`);
+    }
 
     URL += `?${queryParams.join("&")}`;
 
