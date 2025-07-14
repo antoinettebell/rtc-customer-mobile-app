@@ -19,7 +19,7 @@ import {
 } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
 
 import Screen1Svg from "../assets/images/intro1.svg";
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 26,
     color: AppColor.primary,
     textAlign: "center",
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
   },
   description: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: "#8E8E93",
     textAlign: "center",
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   buttonLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
 });

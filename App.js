@@ -25,7 +25,7 @@ import OrdersScreen from "./src/screens/ordersScreen";
 import ProfileMenuScreen from "./src/screens/profileMenuScreen";
 import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
 import AddressScreen from "./src/screens/addressScreen";
-import { AppColor, Secondary400 } from "./src/utils/theme";
+import { AppColor, Mulish400 } from "./src/utils/theme";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -37,10 +37,10 @@ import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
 import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
 import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
-import CheckoutScreen from "./src/screens/CheckoutScreen";
-import CouponCodeScreen from "./src/screens/CouponCodeScreen";
-import OrderPlacedScreen from "./src/screens/OrderPlacedScreen";
-import RateReviewScreen from "./src/screens/RateReviewScreen";
+import CheckoutScreen from "./src/screens/checkoutScreen";
+import CouponCodeScreen from "./src/screens/couponCodeScreen";
+import OrderPlacedScreen from "./src/screens/orderPlacedScreen";
+import RateReviewScreen from "./src/screens/rateReviewScreen";
 import { clearUserSlice } from "./src/redux/slices/userSlice";
 import { clearFavorites } from "./src/redux/slices/favoritesSlice";
 import { clearOrderSlice } from "./src/redux/slices/orderSlice";
@@ -51,6 +51,9 @@ import {
   createAndroidChannel,
   requestNotificationPermission,
 } from "./src/helpers/notification.helper";
+import TermsOfServiceScreen from "./src/screens/termsOfServiceScreen";
+import SeeAllTrucksScreen from "./src/screens/seeAllTrucksScreen";
+import SearchScreen from "./src/screens/searchScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -85,7 +88,11 @@ const AuthRequiredScreen = ({ title }) => {
         <Text style={styles.authRequiredMessage}>
           Please sign in to access {title}
         </Text>
-        <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={styles.signInButton}
+          onPress={handleSignIn}
+        >
           <Text style={styles.signInButtonText}>Sign In</Text>
         </TouchableOpacity>
       </View>
@@ -105,6 +112,8 @@ const AuthNavigator = () => (
     <Stack.Screen name="otpVerification" component={OtpVerificationScreen} />
     <Stack.Screen name="resetPassword" component={ResetPasswordScreen} />
     <Stack.Screen name="forgetPassword" component={ForgetPasswordScreen} />
+    <Stack.Screen name="termsOfService" component={TermsOfServiceScreen} />
+    <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
   </Stack.Navigator>
 );
 
@@ -120,7 +129,7 @@ const BottomNavigator = ({ insets }) => {
           height: insets.bottom + 60,
         },
         tabBarLabelStyle: {
-          // fontFamily: Secondary400,
+          // fontFamily: Mulish400,
           fontSize: 12,
           fontWeight: "500",
           bottom: 5,
@@ -219,8 +228,10 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="orderPlacedScreen" component={OrderPlacedScreen} />
     <Stack.Screen name="rateReviewScreen" component={RateReviewScreen} />
     <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
-    <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
+    <Stack.Screen name="appPrivacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
+    <Stack.Screen name="seeAllTrucksScreen" component={SeeAllTrucksScreen} />
+    <Stack.Screen name="searchScreen" component={SearchScreen} />
   </Stack.Navigator>
 );
 

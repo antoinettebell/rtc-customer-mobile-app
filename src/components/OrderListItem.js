@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FastImage from "@d11/react-native-fast-image";
 
@@ -21,7 +21,9 @@ const OrderListItem = ({
   type,
   onTrack,
   onRate,
+  showRateButton = false,
   onReorder,
+  showReorderButton = false,
   onDetails,
 }) => {
   return (
@@ -74,7 +76,7 @@ const OrderListItem = ({
               >{`${itm.desc}`}</Text>
             </View>
             <Text key={itm.price} style={styles.itemText}>
-              ${`${itm.qty * itm.price}`}
+              ${`${itm.total}`}
             </Text>
           </View>
         ))}
@@ -85,7 +87,7 @@ const OrderListItem = ({
         <Text style={styles.total}>${order.total.toFixed(2)}</Text>
         {type === "current" ? (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.trackBtn} onPress={onTrack}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.trackBtn} onPress={onTrack}>
               <FastImage
                 source={require("../assets/images/trackOrder.png")}
                 style={styles.actionIcon}
@@ -95,20 +97,24 @@ const OrderListItem = ({
           </View>
         ) : (
           <View style={styles.actionRowPast}>
-            <TouchableOpacity style={styles.rateBtn} onPress={onRate}>
-              <FastImage
-                source={require("../assets/images/rateOrder.png")}
-                style={styles.actionIcon}
-              />
-              <Text style={styles.rateBtnText}>Rate</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.rateBtn} onPress={onReorder}>
-              <FastImage
-                source={require("../assets/images/reOrder.png")}
-                style={styles.actionIcon}
-              />
-              <Text style={styles.rateBtnText}>Reorder</Text>
-            </TouchableOpacity>
+            {showRateButton && (
+              <TouchableOpacity activeOpacity={0.7} style={styles.rateBtn} onPress={onRate}>
+                <FastImage
+                  source={require("../assets/images/rateOrder.png")}
+                  style={styles.actionIcon}
+                />
+                <Text style={styles.rateBtnText}>Rate</Text>
+              </TouchableOpacity>
+            )}
+            {showReorderButton && (
+              <TouchableOpacity activeOpacity={0.7} style={styles.rateBtn} onPress={onReorder}>
+                <FastImage
+                  source={require("../assets/images/reOrder.png")}
+                  style={styles.actionIcon}
+                />
+                <Text style={styles.rateBtnText}>Reorder</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -146,7 +152,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   orderId: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.grayText,
   },
@@ -156,12 +162,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   advncOrderTxt: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.snackbarSuccess,
   },
   orderDate: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.grayText,
   },
@@ -176,11 +182,11 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   truckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   itemsCount: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.grayText,
   },
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
   },
   trackBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
   },
   itemsList: {
@@ -206,11 +212,11 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   itemText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   itemDesc: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.darkText,
   },
@@ -221,7 +227,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   total: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
     marginLeft: 6,
   },
@@ -239,7 +245,7 @@ const styles = StyleSheet.create({
   },
   rateBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
   },
   HR: {

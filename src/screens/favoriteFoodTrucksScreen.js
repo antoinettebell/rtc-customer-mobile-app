@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Platform, // Import Platform for shadow styles
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import FastImage from "@d11/react-native-fast-image";
@@ -84,6 +84,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   );
 
   const renderContent = () => {
+    console.log("favoriteTrucks => ", favoriteTrucks);
     // Use isLoadingFavorites for the main list loading state
     if (isLoadingFavorites) {
       return (
@@ -116,7 +117,16 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.favTrucksCard}
         renderItem={({ item }) => (
-          <View style={styles.truckCard}>
+          <TouchableOpacity
+            key={item._id}
+            style={styles.truckCard}
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate("foodTruckDetailScreen", {
+                item: item.foodTruck,
+              })
+            }
+          >
             <FastImage
               source={
                 item.foodTruck?.logo ? { uri: item.foodTruck?.logo } : favTruck1
@@ -127,13 +137,14 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               <Text style={styles.truckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.truckReview}>
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
-                {item.foodTruck?.reviews || "0"} reviews
+                {item.foodTruck?.totalReviews || "0"} reviews
                 {/* -{" "}
                 {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
                   " miles away" || "0 miles away"} */}
               </Text>
             </View>
             <TouchableOpacity
+              activeOpacity={0.7}
               onPress={() => handleRemoveFavorite(item.foodTruck?._id)}
               style={{ marginLeft: 8 }}
               // Disable button while this specific item is loading
@@ -146,7 +157,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
                 <Entypo name="heart" size={24} color={AppColor.red} />
               )}
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         )}
         ItemSeparatorComponent={<HR />}
       />
@@ -157,7 +168,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      <AppHeader headerTitle="FAVORITE FOOD TRUCKS" />
+      <AppHeader headerTitle="Favorite Food Trucks" />
 
       <View
         style={{
@@ -168,16 +179,22 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
         }}
       >
         {/* Search Bar */}
-        <View style={styles.searchBarWrap}>
-          <Ionicons name="search" size={20} color={AppColor.textHighlighter} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search food trucks"
-            placeholderTextColor={AppColor.textHighlighter}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
+        {favoriteTrucks?.length > 0 && (
+          <View style={styles.searchBarWrap}>
+            <Ionicons
+              name="search"
+              size={20}
+              color={AppColor.textHighlighter}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search food trucks"
+              placeholderTextColor={AppColor.textHighlighter}
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+        )}
 
         {/* List */}
         {renderContent()}
@@ -217,7 +234,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
     color: AppColor.text,
     marginLeft: 8,
@@ -256,13 +273,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   truckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.text,
     marginBottom: 4,
   },
   truckReview: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textHighlighter,
     marginTop: 4,
@@ -275,13 +292,13 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: AppColor.snackbarError,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     textAlign: "center",
   },
   noDataText: {
     color: AppColor.textHighlighter,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     textAlign: "center",
   },

@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import { AppColor, Primary400 } from "../utils/theme";
+import { AppColor, Mulish700 } from "../utils/theme";
 import { useNavigation } from "@react-navigation/native";
 import PropTypes from "prop-types";
 
@@ -13,6 +13,7 @@ const AppHeader = (props) => {
     <View style={styles.headerWrap}>
       {canGoBack && (
         <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
         >
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   headerTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
   },
   headerSpacer: {

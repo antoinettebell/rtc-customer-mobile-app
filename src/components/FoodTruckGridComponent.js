@@ -8,7 +8,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
@@ -23,6 +23,8 @@ const FoodTruckGridComponent = ({
   foodTruckId,
   reviews,
   distance,
+  showReviews = true,
+  showDistance = true,
   showLikeButton,
 }) => {
   const dispatch = useDispatch();
@@ -45,7 +47,7 @@ const FoodTruckGridComponent = ({
         foodTruckData: {
           name: title,
           logo: uris,
-          reviews,
+          totalReviews: reviews,
           distanceInMeters: distance,
         },
       })
@@ -63,22 +65,34 @@ const FoodTruckGridComponent = ({
         style={styles.image}
       />
       <View style={styles.subContainer}>
-        <Text style={styles.titleText}>{title}</Text>
-        <View style={styles.reatingContainer}>
-          <View style={styles.iconContainer}>
-            <FontAwesome name="star" size={16} color={AppColor.yellow} />
+        <Text style={styles.titleText} numberOfLines={1}>
+          {title}
+        </Text>
+        {showReviews && (
+          <View style={styles.reatingContainer}>
+            <View style={styles.iconContainer}>
+              <FontAwesome name="star" size={16} color={AppColor.yellow} />
+            </View>
+            <Text style={styles.ratingText} numberOfLines={1}>
+              {reviews}
+            </Text>
           </View>
-          <Text style={styles.ratingText}>{reviews || "0 reviews"}</Text>
-        </View>
-        <View style={styles.reatingContainer}>
-          <View style={styles.iconContainer}>
-            <FontAwesome6 name="location-dot" size={16} color={AppColor.gray} />
+        )}
+        {showDistance ? (
+          <View style={styles.reatingContainer}>
+            <View style={styles.iconContainer}>
+              <FontAwesome6
+                name="location-dot"
+                size={16}
+                color={AppColor.gray}
+              />
+            </View>
+            <Text style={styles.ratingText} numberOfLines={1}>
+              {(distance * 0.000621371).toFixed(2) + " miles away" ||
+                "0 miles away"}
+            </Text>
           </View>
-          <Text style={styles.ratingText} numberOfLines={1}>
-            {(distance * 0.000621371).toFixed(2) + " miles away" ||
-              "0 miles away"}
-          </Text>
-        </View>
+        ) : null}
       </View>
       {showLikeButton && (
         <TouchableOpacity
@@ -106,6 +120,7 @@ export default FoodTruckGridComponent;
 
 const styles = StyleSheet.create({
   container: {
+    width: 160 + 32, // image width + horizontal padding
     borderRadius: 10,
     padding: 16,
     backgroundColor: AppColor.white,
@@ -136,7 +151,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   titleText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.black,
   },
@@ -152,7 +167,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ratingText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: "#8C8F9A",
   },

@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 
 const LogoutModal = ({ isModalVisible, onYesLogoutPress, onNoLogoutPress }) => (
   <Modal
@@ -29,7 +29,7 @@ const LogoutModal = ({ isModalVisible, onYesLogoutPress, onNoLogoutPress }) => (
           color={AppColor.primary}
         />
       </TouchableOpacity>
-      <Text style={styles.modalTitle}>{"LoGoUT"}</Text>
+      <Text style={styles.modalTitle}>{"Logout"}</Text>
       <Text style={styles.modalSubtitle}>
         {"Are you sure you want to logout?"}
       </Text>
@@ -64,14 +64,14 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: 30,
     fontSize: 22,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.text,
     textAlign: "center",
   },
   modalSubtitle: {
     marginBottom: 20,
     fontSize: 16,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     color: AppColor.textHighlighter,
     textAlign: "center",
   },
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   logoutModalBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,27 +6,26 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Platform,
-  ScrollView,
   Alert,
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Pressable,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import Geolocation from "@react-native-community/geolocation";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import usePermission from "../hooks/usePermission";
-import { permission } from "../helpers/permission.helper";
-import { RESULTS } from "react-native-permissions";
-import Config from "react-native-config";
+import { useSelector } from "react-redux";
+import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
+import { useFocusEffect } from "@react-navigation/native";
+import Carousel from "react-native-reanimated-carousel";
+import { useSharedValue } from "react-native-reanimated";
+import FastImage from "@d11/react-native-fast-image";
 
 const { width, height } = Dimensions.get("window");
-const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 
 // Set up geolocation for navigator
 navigator.geolocation = require("@react-native-community/geolocation");
@@ -41,186 +40,76 @@ const initialRegion = {
 const NearMeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
+  const carouselRef = useRef(null);
+  const progress = useSharedValue(0);
 
-  // Permission hook
-  const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
-    permission.location
-  );
+  const { defaultLocation } = useSelector((state) => state.locationReducer);
 
   // State management
-  const [currentLocation, setCurrentLocation] = useState(null);
   const [region, setRegion] = useState(initialRegion);
   const [foodTrucks, setFoodTrucks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isLocationLoading, setIsLocationLoading] = useState(false);
-  const [selectedTruck, setSelectedTruck] = useState(null);
   const [filteredTrucks, setFilteredTrucks] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const flatListRef = useRef(null);
-  const doNotShowAsOfNow = true;
-  // Mock data for food trucks (replace with actual API data)
-  const mockFoodTrucks = [
-    {
-      id: "1",
-      name: "BURGER EXPRESS",
-      cuisine: "American Burgers",
-      rating: 4.5,
-      distance: "0.5 km",
-      image: require("../assets/images/FT-Demo-01.png"),
-      latitude: 37.78925,
-      longitude: -122.4314,
-      isOpen: true,
-      estimatedTime: "15-20 min",
-      priceRange: "$$",
-    },
-    {
-      id: "2",
-      name: "TACO FIESTA",
-      cuisine: "Mexican Tacos",
-      rating: 4.2,
-      distance: "0.8 km",
-      image: require("../assets/images/FT-Demo-01.png"),
-      latitude: 37.78725,
-      longitude: -122.4334,
-      isOpen: true,
-      estimatedTime: "10-15 min",
-      priceRange: "$",
-    },
-    {
-      id: "3",
-      name: "PIZZA ON WHEELS",
-      cuisine: "Italian Pizza",
-      rating: 4.7,
-      distance: "1.2 km",
-      image: require("../assets/images/FT-Demo-01.png"),
-      latitude: 37.79025,
-      longitude: -122.4294,
-      isOpen: false,
-      estimatedTime: "20-25 min",
-      priceRange: "$$",
-    },
-    {
-      id: "4",
-      name: "ASIAN FUSION",
-      cuisine: "Asian Noodles",
-      rating: 4.3,
-      distance: "1.5 km",
-      image: require("../assets/images/FT-Demo-01.png"),
-      latitude: 37.78625,
-      longitude: -122.4354,
-      isOpen: true,
-      estimatedTime: "12-18 min",
-      priceRange: "$$",
-    },
-    {
-      id: "5",
-      name: "SWEET TREATS",
-      cuisine: "Desserts & Ice Cream",
-      rating: 4.6,
-      distance: "0.3 km",
-      image: require("../assets/images/FT-Demo-01.png"),
-      latitude: 37.78975,
-      longitude: -122.4304,
-      isOpen: true,
-      estimatedTime: "5-10 min",
-      priceRange: "$",
-    },
-  ];
 
-  // Initialize component
-  useEffect(() => {
-    initializeScreen();
-  }, []);
-
-  // Filter trucks based on search
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredTrucks(foodTrucks);
-    } else {
-      const filtered = foodTrucks.filter(
-        (truck) =>
-          truck.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          truck.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredTrucks(filtered);
-    }
-  }, [searchQuery, foodTrucks]);
-
-  const initializeScreen = async () => {
+  const fetchNearByFoodTrucks = async () => {
+    if (!defaultLocation) return; // Don't fetch if no location is set
     try {
       setIsLoading(true);
 
-      // Load mock data
-      setFoodTrucks(mockFoodTrucks);
-      setFilteredTrucks(mockFoodTrucks);
+      setRegion({
+        latitude: parseFloat(defaultLocation.lat),
+        longitude: parseFloat(defaultLocation.long),
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
 
-      // Get user location
-      await getCurrentLocation();
+      const params = {
+        page: 1,
+        limit: 50,
+        distanceInMeters: 16093.44, // 10 miles in meters
+        userLat: defaultLocation?.lat || 0,
+        userLong: defaultLocation?.long || 0,
+      };
+
+      const response = await getNearbyFoodTrucks_API(params);
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
+        const trucks = response?.data?.foodtruckList;
+        setFoodTrucks(trucks);
+        setFilteredTrucks(trucks);
+
+        // Set first truck as selected by default
+        if (trucks.length > 0) {
+          setSelectedIndex(0);
+
+          // Center map on first truck
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(
+                {
+                  latitude: parseFloat(trucks[0].location.lat),
+                  longitude: parseFloat(trucks[0].location.long),
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
+                },
+                1000
+              );
+            }
+
+            // Scroll carousel to first item
+            if (carouselRef.current) {
+              carouselRef.current.scrollTo({ index: 0, animated: true });
+            }
+          }, 500);
+        }
+      }
     } catch (error) {
-      console.error("Initialize screen error:", error);
-      Alert.alert(
-        "Error",
-        "Failed to initialize the screen. Please try again."
-      );
+      console.error("Error fetching food trucks:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    try {
-      setIsLocationLoading(true);
-
-      const permissionResult = await locationPermissionStatus();
-
-      if (permissionResult !== RESULTS.GRANTED) {
-        Alert.alert(
-          "Location Permission",
-          "Please enable location permission to find nearby food trucks.",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Settings", onPress: () => openSettings() },
-          ]
-        );
-        return;
-      }
-
-      Geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const newRegion = {
-            latitude,
-            longitude,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          };
-
-          setCurrentLocation({ latitude, longitude });
-          setRegion(newRegion);
-
-          // Animate to user location
-          if (mapRef.current) {
-            mapRef.current.animateToRegion(newRegion, 1000);
-          }
-        },
-        (error) => {
-          console.error("Location error:", error);
-          Alert.alert(
-            "Location Error",
-            "Unable to get your current location. Using default location."
-          );
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 10000,
-        }
-      );
-    } catch (error) {
-      console.error("Get location error:", error);
-    } finally {
-      setIsLocationLoading(false);
     }
   };
 
@@ -228,181 +117,134 @@ const NearMeScreen = ({ navigation }) => {
     setSearchQuery(text);
   };
 
-  const handleTruckPress = (truck, index) => {
-    setSelectedTruck(truck);
-    setSelectedIndex(index);
-
-    // Animate to truck location
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: truck.latitude,
-          longitude: truck.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        1000
-      );
-    }
-
-    // Scroll to the corresponding card in horizontal list
-    if (flatListRef.current) {
-      flatListRef.current.scrollToIndex({
-        index,
-        animated: true,
-      });
+  const scrollCarouselToIndex = (index) => {
+    if (carouselRef.current && index >= 0) {
+      carouselRef.current.scrollTo({ index, animated: true });
     }
   };
 
   const handleMarkerPress = (truck) => {
-    const index = filteredTrucks.findIndex((t) => t.id === truck.id);
-    if (index !== -1) {
-      setSelectedTruck(truck);
-      setSelectedIndex(index);
+    try {
+      if (!truck) return;
 
-      // Scroll to the corresponding card
-      if (flatListRef.current) {
-        flatListRef.current.scrollToIndex({
-          index,
-          animated: true,
-        });
-      }
+      const index = filteredTrucks.findIndex((t) => t._id === truck._id);
+      if (index === -1) return;
+
+      setSelectedIndex(index); // This will trigger the useEffect
+      scrollCarouselToIndex(index);
+    } catch (error) {
+      console.log("Error in handleMarkerPress:", error);
     }
   };
 
-  const handleCardScroll = (event) => {
-    const contentOffset = event.nativeEvent.contentOffset.x;
-    const cardWidth = width - 80; // Card width + margins
-    const currentIndex = Math.round(contentOffset / cardWidth);
-
-    if (
-      currentIndex !== selectedIndex &&
-      currentIndex < filteredTrucks.length
-    ) {
-      const truck = filteredTrucks[currentIndex];
-      setSelectedIndex(currentIndex);
-      setSelectedTruck(truck);
-
-      // Animate to truck location
-      if (mapRef.current && truck) {
-        mapRef.current.animateToRegion(
-          {
-            latitude: truck.latitude,
-            longitude: truck.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
-          1000
-        );
-      }
-    }
-  };
-
-  const handleMyLocationPress = () => {
-    getCurrentLocation();
-  };
-
-  const handleListToggle = () => {
-    // Toggle functionality can be removed or repurposed
-    // Since we're now using horizontal swiper
-  };
-
-  const renderHorizontalTruckCard = ({ item, index }) => {
-    const isSelected = selectedIndex === index;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.horizontalCard,
-          isSelected && styles.selectedHorizontalCard,
-        ]}
-        onPress={() => handleTruckPress(item, index)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.cardImageContainer}>
-          <Image source={item.image} style={styles.horizontalCardImage} />
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: item.isOpen ? "#4CAF50" : "#FF5722" },
-            ]}
-          >
-            <Text style={styles.statusBadgeText}>
-              {item.isOpen ? "OPEN" : "CLOSED"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.horizontalCardContent}>
-          <Text style={styles.horizontalCardName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={styles.horizontalCardCuisine} numberOfLines={1}>
-            {item.cuisine}
-          </Text>
-
-          <View style={styles.horizontalCardDetails}>
-            <View style={styles.ratingContainer}>
-              <MaterialIcons name="star" size={14} color="#FFD700" />
-              <Text style={styles.horizontalRatingText}>{item.rating}</Text>
-            </View>
-            <Text style={styles.horizontalDistanceText}>{item.distance}</Text>
-          </View>
-
-          <View style={styles.horizontalCardFooter}>
-            <Text style={styles.horizontalTimeText}>{item.estimatedTime}</Text>
-            <Text style={styles.horizontalPriceText}>{item.priceRange}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderSelectedTruckInfo = () => {
-    if (!selectedTruck) return null;
-
-    return (
-      <View style={styles.selectedTruckContainer}>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => setSelectedTruck(null)}
+  const renderHorizontalTruckCard = useCallback(
+    ({ item }) => {
+      return (
+        <Pressable
+          key={item._id}
+          style={styles.horizontalCard}
+          onPress={() => navigation.navigate("foodTruckDetailScreen", { item })}
         >
-          <MaterialIcons name="close" size={20} color={AppColor.text} />
-        </TouchableOpacity>
+          <View style={styles.cardImageContainer}>
+            <FastImage
+              source={{ uri: item.logo }}
+              style={styles.horizontalCardImage}
+            />
+          </View>
 
-        <View style={styles.selectedTruckContent}>
-          <Image
-            source={selectedTruck.image}
-            style={styles.selectedTruckImage}
-          />
-          <View style={styles.selectedTruckInfo}>
-            <Text style={styles.selectedTruckName}>{selectedTruck.name}</Text>
-            <Text style={styles.selectedTruckCuisine}>
-              {selectedTruck.cuisine}
-            </Text>
-
-            <View style={styles.selectedTruckDetails}>
-              <View style={styles.ratingContainer}>
-                <MaterialIcons name="star" size={16} color="#FFD700" />
-                <Text style={styles.ratingText}>{selectedTruck.rating}</Text>
+          <View style={styles.horizontalCardContent}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={styles.horizontalCardName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>
+                  {`(${item?.currentLocation ? " Open " : " Closed "})`}
+                </Text>
               </View>
-              <Text style={styles.distanceText}>{selectedTruck.distance}</Text>
+            </View>
+            <View style={styles.horizontalCardDetails}>
+              <View style={styles.ratingContainer}>
+                <MaterialIcons name="star" size={16} color={AppColor.text} />
+                <Text
+                  style={styles.horizontalRatingText}
+                >{`${item.avgRate} (${item.totalReviews} reviews)`}</Text>
+              </View>
+              <Text style={styles.horizontalDistanceText}>
+                {(item?.distanceInMeters * 0.000621371).toFixed(2) +
+                  " miles away" || "0 miles away"}
+              </Text>
             </View>
           </View>
-        </View>
+        </Pressable>
+      );
+    },
+    [selectedIndex]
+  );
 
-        <TouchableOpacity
-          style={styles.viewMenuButton}
-          onPress={() => {
-            // Navigate to truck details/menu
-            navigation.navigate("TruckDetails", { truck: selectedTruck });
-          }}
-        >
-          <Text style={styles.viewMenuText}>View Menu</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  // Modify the Carousel component props to update selectedIndex
+  const onSnapToItem = (index) => {
+    setSelectedIndex(index);
   };
+
+  // Debounce effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (debouncedQuery.trim() === "") {
+      setFilteredTrucks(foodTrucks);
+    } else {
+      const query = debouncedQuery.toLowerCase();
+      const filtered = foodTrucks.filter((truck) => {
+        const nameMatch = truck.name.toLowerCase().includes(query);
+        const cuisineMatch = truck.cuisine?.some((cuisine) =>
+          cuisine.name.toLowerCase().includes(query)
+        );
+        return nameMatch || cuisineMatch;
+      });
+      setFilteredTrucks(filtered);
+    }
+  }, [debouncedQuery, foodTrucks]);
+
+  // Add this effect to sync map with carousel changes
+  useEffect(() => {
+    const syncMapWithCarousel = () => {
+      if (selectedIndex >= 0 && filteredTrucks.length > 0) {
+        const truck = filteredTrucks[selectedIndex];
+        if (truck && mapRef.current) {
+          mapRef.current.animateToRegion(
+            {
+              latitude: parseFloat(truck.location.lat),
+              longitude: parseFloat(truck.location.long),
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            },
+            500
+          );
+        }
+      }
+    };
+
+    syncMapWithCarousel();
+  }, [selectedIndex, filteredTrucks]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchNearByFoodTrucks();
+    }, [defaultLocation])
+  );
 
   if (isLoading) {
     return (
@@ -415,159 +257,133 @@ const NearMeScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBarManager />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>NEAR BY FOOD TRUCKS</Text>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>{"Near By Food Trucks"}</Text>
       </View>
-      {!doNotShowAsOfNow ? (
-        <>
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={AppColor.textPlaceholder}
+        />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search food trucks or cuisine..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+          placeholderTextColor={AppColor.textPlaceholder}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => handleSearch("")}
+            style={styles.clearButton}
+          >
             <MaterialIcons
-              name="search"
+              name="clear"
               size={20}
               color={AppColor.textPlaceholder}
             />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search food trucks or cuisine..."
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholderTextColor={AppColor.textPlaceholder}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => handleSearch("")}
-                style={styles.clearButton}
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Map View */}
+      <View style={styles.mapContainer}>
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          region={region}
+          onRegionChangeComplete={setRegion}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          loadingEnabled={true}
+        >
+          <Marker
+            coordinate={{
+              latitude: parseFloat(defaultLocation?.lat) || 0,
+              longitude: parseFloat(defaultLocation?.long) || 0,
+            }}
+          >
+            <View key={"static_user_pin"}>
+              <MaterialIcons
+                name="location-history"
+                size={40}
+                color={AppColor.white}
+                style={{ backgroundColor: AppColor.primary, borderRadius: 5 }}
+              />
+            </View>
+          </Marker>
+          {filteredTrucks.map((truck, index) => {
+            return (
+              <Marker
+                key={truck._id}
+                coordinate={{
+                  latitude: parseFloat(truck.location.lat),
+                  longitude: parseFloat(truck.location.long),
+                }}
+                onPress={() => handleMarkerPress(truck)}
               >
                 <MaterialIcons
-                  name="clear"
-                  size={20}
-                  color={AppColor.textPlaceholder}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Map View */}
-          <View style={styles.mapContainer}>
-            <MapView
-              ref={mapRef}
-              provider={PROVIDER_GOOGLE}
-              style={styles.map}
-              region={region}
-              onRegionChangeComplete={setRegion}
-              showsUserLocation={true}
-              showsMyLocationButton={false}
-              loadingEnabled={true}
-            >
-              {filteredTrucks.map((truck) => (
-                <Marker
-                  key={truck.id}
-                  coordinate={{
-                    latitude: truck.latitude,
-                    longitude: truck.longitude,
-                  }}
-                  onPress={() => handleMarkerPress(truck)}
-                >
-                  <View
-                    style={[
-                      styles.marker,
-                      selectedTruck?.id === truck.id && styles.selectedMarker,
-                    ]}
-                  >
-                    <Ionicons
-                      name="location"
-                      size={16}
-                      color={AppColor.primary}
-                    />
-
-                    {/* HERE */}
-                  </View>
-                </Marker>
-              ))}
-            </MapView>
-
-            {/* Map Controls */}
-            <TouchableOpacity
-              style={styles.myLocationButton}
-              onPress={handleMyLocationPress}
-              disabled={isLocationLoading}
-            >
-              {isLocationLoading ? (
-                <ActivityIndicator size="small" color={AppColor.primary} />
-              ) : (
-                <MaterialIcons
-                  name="my-location"
-                  size={24}
+                  name="location-pin"
+                  size={40}
                   color={AppColor.primary}
                 />
-              )}
-            </TouchableOpacity>
+              </Marker>
+            );
+          })}
+        </MapView>
+      </View>
 
-            <TouchableOpacity
-              style={styles.filterButton}
-              onPress={() => {
-                // You can implement filter functionality here
-                Alert.alert("Filter", "Filter functionality can be added here");
-              }}
-            >
-              <MaterialIcons name="tune" size={24} color={AppColor.primary} />
-            </TouchableOpacity>
+      {/* Horizontal Food Trucks List */}
+      {filteredTrucks.length > 0 && (
+        <View style={styles.horizontalListContainer}>
+          <Carousel
+            ref={carouselRef}
+            mode="parallax"
+            modeConfig={{
+              parallaxScrollingScale: 1,
+              parallaxAdjacentItemScale: 0.8,
+            }}
+            width={width}
+            data={filteredTrucks}
+            onProgressChange={progress}
+            renderItem={renderHorizontalTruckCard}
+            loop={false}
+            autoPlay={false}
+            scrollAnimationDuration={500}
+            onSnapToItem={onSnapToItem}
+          />
+        </View>
+      )}
 
-            {/* Selected Truck Info */}
-            {/* {selectedTruck && renderSelectedTruckInfo()} */}
-          </View>
-
-          {/* Horizontal Food Trucks List */}
-          {filteredTrucks.length > 0 && (
-            <View style={styles.horizontalListContainer}>
-              <FlatList
-                ref={flatListRef}
-                data={filteredTrucks}
-                renderItem={renderHorizontalTruckCard}
-                keyExtractor={(item) => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalListContent}
-                snapToInterval={width - 80} // Card width + margins
-                snapToAlignment="start"
-                decelerationRate="fast"
-                onMomentumScrollEnd={handleCardScroll}
-                getItemLayout={(data, index) => ({
-                  length: width - 80,
-                  offset: (width - 80) * index,
-                  index,
-                })}
-              />
-            </View>
-          )}
-
-          {/* No Results Message */}
-          {filteredTrucks.length === 0 && !isLoading && (
-            <View style={styles.noResultsContainer}>
-              <MaterialIcons
-                name="search-off"
-                size={48}
-                color={AppColor.textPlaceholder}
-              />
-              <Text style={styles.noResultsText}>
-                No food trucks found matching your search
-              </Text>
-              <TouchableOpacity
-                style={styles.clearSearchButton}
-                onPress={() => handleSearch("")}
-              >
-                <Text style={styles.clearSearchText}>Clear Search</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      ) : null}
-      {/* Bottom Navigation would go here */}
+      {/* No Results Message */}
+      {filteredTrucks.length === 0 && searchQuery && !isLoading && (
+        <View style={styles.noResultsContainer}>
+          <MaterialIcons
+            name="search-off"
+            size={48}
+            color={AppColor.textPlaceholder}
+          />
+          <Text style={styles.noResultsText}>
+            No food trucks found matching your search
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.clearSearchButton}
+            onPress={() => handleSearch("")}
+          >
+            <Text style={styles.clearSearchText}>Clear Search</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -583,23 +399,23 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
   },
   header: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: AppColor.white,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: AppColor.border,
+    backgroundColor: AppColor.white,
   },
   headerTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
-    fontWeight: "600",
     color: AppColor.text,
-    textAlign: "center",
   },
   searchContainer: {
     flexDirection: "row",
@@ -608,16 +424,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    // paddingVertical: 12,
     borderRadius: 25,
     borderWidth: 1,
     borderColor: AppColor.border,
   },
   searchInput: {
     flex: 1,
+    height: 46,
     marginLeft: 12,
-    fontFamily: Secondary400,
-    fontSize: 16,
+    paddingVertical: 0,
+    fontSize: 14,
+    fontFamily: Mulish400,
     color: AppColor.text,
   },
   clearButton: {
@@ -722,14 +540,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedTruckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     fontWeight: "600",
     color: AppColor.text,
     marginBottom: 4,
   },
   selectedTruckCuisine: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textSecondary,
     marginBottom: 8,
@@ -746,7 +564,7 @@ const styles = StyleSheet.create({
   },
   viewMenuText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -774,7 +592,7 @@ const styles = StyleSheet.create({
     borderBottomColor: AppColor.border,
   },
   listHeaderText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     fontWeight: "600",
     color: AppColor.text,
@@ -813,7 +631,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   truckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     fontWeight: "600",
     color: AppColor.text,
@@ -830,12 +648,12 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   statusText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     fontWeight: "500",
   },
   truckCuisine: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textSecondary,
     marginBottom: 8,
@@ -851,24 +669,24 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   ratingText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
     marginLeft: 4,
   },
   distanceText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
-    marginRight: 16,
+    // marginRight: 16,
   },
   timeText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
   },
   priceRange: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.primary,
     fontWeight: "600",
@@ -876,16 +694,15 @@ const styles = StyleSheet.create({
   // Horizontal List Styles
   horizontalListContainer: {
     position: "absolute",
-    bottom: 20,
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 180,
+    height: 160,
   },
   horizontalListContent: {
     paddingHorizontal: 20,
   },
   horizontalCard: {
-    width: width - 80,
     backgroundColor: AppColor.white,
     borderRadius: 16,
     marginHorizontal: 8,
@@ -900,10 +717,10 @@ const styles = StyleSheet.create({
   },
   selectedHorizontalCard: {
     borderColor: AppColor.primary,
-    transform: [{ scale: 1.02 }],
+    // transform: [{ scale: 1.02 }],
   },
   cardImageContainer: {
-    position: "relative",
+    // position: "relative",
     alignItems: "center",
     marginBottom: 12,
   },
@@ -915,32 +732,30 @@ const styles = StyleSheet.create({
     borderColor: AppColor.border,
   },
   statusBadge: {
-    position: "absolute",
-    top: -5,
-    right: width / 2 - 60,
+    // position: "absolute",
+    // top: -5,
+    // right: width / 2 - 60,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10,
+    // borderRadius: 10,
   },
   statusBadgeText: {
-    color: AppColor.white,
+    color: AppColor.primary,
     fontSize: 10,
-    fontFamily: Secondary400,
-    fontWeight: "600",
+    fontFamily: Mulish600,
   },
   horizontalCardContent: {
     alignItems: "center",
   },
   horizontalCardName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     fontWeight: "600",
     color: AppColor.text,
     textAlign: "center",
-    marginBottom: 4,
   },
   horizontalCardCuisine: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
     textAlign: "center",
@@ -953,14 +768,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   horizontalRatingText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.text,
     marginLeft: 2,
-    marginRight: 12,
+    // marginRight: 12,
   },
   horizontalDistanceText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
   },
@@ -971,12 +786,12 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   horizontalTimeText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 11,
     color: AppColor.textSecondary,
   },
   horizontalPriceText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.primary,
     fontWeight: "600",
@@ -984,7 +799,7 @@ const styles = StyleSheet.create({
   // No Results Styles
   noResultsContainer: {
     position: "absolute",
-    bottom: 100,
+    bottom: 20,
     left: 20,
     right: 20,
     backgroundColor: AppColor.white,
@@ -998,7 +813,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   noResultsText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.textSecondary,
     textAlign: "center",
@@ -1012,7 +827,7 @@ const styles = StyleSheet.create({
   },
   clearSearchText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     fontWeight: "600",
   },

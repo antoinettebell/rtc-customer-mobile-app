@@ -19,7 +19,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import { login_API } from "../apiFolder/authAPI";
@@ -31,7 +31,13 @@ import {
   checkFcmToken,
   checkInstallationId,
 } from "../helpers/notification.helper";
-import { setFcmToken_API } from "../apiFolder/appAPI";
+import { getAddress_API, setFcmToken_API } from "../apiFolder/appAPI";
+import { setAllLocations } from "../redux/slices/locationSlice";
+import Config from "react-native-config";
+import { GET_ADDRESS } from "../apiFolder/apiEndPoint";
+
+const API_URL = Config.API_URL;
+const API_PREFIX = Config.API_PREFIX;
 
 const SignInScreen = () => {
   const insets = useSafeAreaInsets();
@@ -101,9 +107,30 @@ const SignInScreen = () => {
         const response = await login_API({ email, password });
         console.log("login API response ====> ", response);
         if (response.success && response.data) {
+          // Get Address and set into redux
+          const myHeaders = new Headers();
+          const raw = "";
+          const URL = `${API_URL}${API_PREFIX}${GET_ADDRESS}?page=1&limit=1000`;
+          myHeaders.append("authorization", response.data.authToken);
+          const requestOptions = {
+            method: "GET",
+            headers: myHeaders,
+            body: raw,
+            redirect: "follow",
+          };
+          await fetch(URL, requestOptions)
+            .then((response) => response.json())
+            .then((result) => {
+              if (result?.success && result?.data) {
+                dispatch(setAllLocations(result?.data?.addressList || []));
+              }
+            })
+            .catch((error) => console.error(error));
+
           dispatch(setUser(response.data.user));
           dispatch(setAuthToken(response.data.authToken));
           dispatch(onSignin(true));
+
           // set FCM Token & DeviceId after 1.5 sec
           setTimeout(async () => {
             try {
@@ -261,6 +288,7 @@ const SignInScreen = () => {
                     icon={passwordVisible ? "eye-off" : "eye"}
                     onPress={togglePasswordVisibility}
                     color={AppColor.textHighlighter}
+                    forceTextInputFocus={false}
                   />
                 }
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
@@ -361,7 +389,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: AppColor.white,
     fontSize: 20,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   content: {
     flex: 1,
@@ -373,13 +401,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 24,
     color: AppColor.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
     marginBottom: 50,
@@ -388,7 +416,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
     color: AppColor.text,
     marginBottom: 8,
@@ -397,12 +425,13 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   inputText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   helper: {
     marginBottom: 8,
     paddingLeft: 0,
     paddingTop: 0,
+    fontFamily: Mulish400,
   },
   forgotPassword: {
     alignSelf: "flex-end",
@@ -410,7 +439,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
   },
@@ -444,18 +473,18 @@ const styles = StyleSheet.create({
   signUpText: {
     color: AppColor.textHighlighter,
     fontSize: 14,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   signUpLink: {
     color: AppColor.text,
     fontSize: 14,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
   },
   orText: {
     textAlign: "center",
     color: AppColor.textHighlighter,
     fontSize: 14,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     marginBottom: 10,
   },
   skipButton: {
@@ -465,7 +494,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,
   },

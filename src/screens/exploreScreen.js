@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,9 +7,11 @@ import {
   Image,
   Platform,
   FlatList,
-  ActivityIndicator,
+  Dimensions,
+  Pressable,
+  Alert,
 } from "react-native";
-import { Searchbar, RadioButton } from "react-native-paper";
+import { Searchbar, RadioButton, IconButton } from "react-native-paper";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,7 +23,7 @@ import Animated, {
   Extrapolate,
 } from "react-native-reanimated";
 import Modal from "react-native-modal";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
@@ -31,6 +33,8 @@ import {
   getNearbyFoodTrucks_API,
   getAddress_API,
   updateFcmToken_API,
+  getRecentFoodTrucks_API,
+  getAllBanner_API,
 } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites } from "../redux/slices/favoritesSlice";
@@ -41,49 +45,41 @@ import {
 import moment from "moment";
 import { getMessaging } from "@react-native-firebase/messaging";
 import { checkInstallationId } from "../helpers/notification.helper";
+import Carousel from "react-native-reanimated-carousel";
+import FastImage from "@d11/react-native-fast-image";
+import { clearOrderSlice } from "../redux/slices/orderSlice";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
-const FT01 = require("../assets/images/FT-Demo-01.png");
-const FT02 = require("../assets/images/FT-Demo-02.png");
 
-// Mock Data (replace with real data fetching as needed)
-const FT1Data = [
-  { id: "1", name: "Taco Express", uri: FT02, isLiked: false },
-  { id: "2", name: "Burger King", uri: FT01, isLiked: true },
-];
-
-const FT2Data = [
-  { id: "3", name: "Burger King", uri: FT01, isLiked: false },
-  { id: "4", name: "Taco Express", uri: FT02, isLiked: true },
-  { id: "5", name: "Pizza Hut", uri: FT01, isLiked: false },
-  { id: "6", name: "KFC", uri: FT02, isLiked: true },
-];
-
-const FT4Data = [
-  { id: "7", name: "Subway", uri: FT01, isLiked: false },
-  { id: "8", name: "Dominos", uri: FT02, isLiked: true },
-  { id: "9", name: "Starbucks", uri: FT01, isLiked: false },
-  { id: "10", name: "McDonalds", uri: FT02, isLiked: true },
-];
+const { width, height } = Dimensions.get("window");
 
 const ExploreScreen = (props) => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const carouselRef = useRef(null);
+  const progress = useSharedValue(0);
+
   const [loading, setLoading] = useState(false);
+  const [recentTrucks, setRecentTrucks] = useState([]);
+  const [recentTruckLoading, setRecentTruckLoading] = useState(false);
   const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
+  const [popularTruckLoading, setPopularTruckLoading] = useState(false);
+  const [nearbyFoodTrucks, setNearbyFoodTrucks] = useState([]);
+  const [nearbyTruckLoading, setNearbyTruckLoading] = useState(false);
+  const [featuredFoodTrucks, setFeaturedFoodTrucks] = useState([]);
+  const [featuredTruckLoading, setFeaturedTruckLoading] = useState(false);
+  const [bannerList, setBannerList] = useState([]);
   const [isLocationModalVisible, setLocationModalVisible] = useState(false);
   const [initialLocationsFetched, setInitialLocationsFetched] = useState(false);
 
-  const { favorites, isLoadingFavorites } = useSelector(
-    (state) => state.favoritesReducer
-  );
   const { allLocations, defaultLocation } = useSelector(
     (state) => state.locationReducer
   );
   const { isSignedIn } = useSelector((state) => state.authReducer);
+  const OrderReducerStates = useSelector((state) => state.orderReducer);
 
   const [tempSelectedLocation, setTempSelectedLocation] =
     useState(defaultLocation);
@@ -147,33 +143,85 @@ const ExploreScreen = (props) => {
     try {
       const response = await getAddress_API({ page: 1, limit: 1000 });
       if (response?.success) {
-        dispatch(setAllLocations(response.data.addressList));
+        dispatch(setAllLocations(response.data.addressList || []));
       }
     } catch (error) {
       console.error("Error fetching all addresses:", error);
     }
   };
 
+  const fetchRecentFoodTrucks = async () => {
+    try {
+      setRecentTruckLoading(true);
+      const params = { page: 1, limit: 2 };
+
+      const response = await getRecentFoodTrucks_API(params);
+      console.log("response =>", response);
+      if (response?.success && response?.data) {
+        setRecentTrucks(response.data.foodtruckList);
+      }
+    } catch (error) {
+      console.error("Error fetching recent food trucks:", error);
+    } finally {
+      setRecentTruckLoading(false);
+    }
+  };
+
   const fetchNearByFoodTrucks = async () => {
     if (!defaultLocation) return; // Don't fetch if no location is set
     try {
-      setLoading(true);
+      setNearbyTruckLoading(true);
       const params = {
-        // day: moment().format("ddd")?.toLocaleLowerCase(),
-        // time: moment().format("HH:mm"),
+        page: 1,
+        limit: 10,
         userLat: defaultLocation?.lat || 0,
         userLong: defaultLocation?.long || 0,
+        distanceInMeters: 160934, // 100 miles in meter
       };
-
       const response = await getNearbyFoodTrucks_API(params);
-
-      if (response?.success) {
-        setPopularFoodTrucks(response.data.foodtruckList);
+      if (response?.success && response?.data) {
+        const { foodtruckList } = response.data;
+        setNearbyFoodTrucks(foodtruckList);
+        setPopularFoodTrucks([...foodtruckList].reverse());
       }
     } catch (error) {
-      console.error("Error fetching popular food trucks:", error);
+      console.error("Error fetching nearby food trucks:", error);
     } finally {
-      setLoading(false);
+      setNearbyTruckLoading(false);
+    }
+  };
+
+  const fetchFeaturedFoodTrucks = async () => {
+    if (!defaultLocation) return; // Don't fetch if no location is set
+    try {
+      setFeaturedTruckLoading(true);
+      const params = {
+        page: 1,
+        limit: 10,
+        userLat: defaultLocation?.lat || 0,
+        userLong: defaultLocation?.long || 0,
+        featured: true,
+      };
+      const response = await getNearbyFoodTrucks_API(params);
+      if (response?.success && response?.data) {
+        setFeaturedFoodTrucks(response?.data?.foodtruckList || []);
+      }
+    } catch (error) {
+      console.error("Error fetching featured food trucks:", error);
+    } finally {
+      setFeaturedTruckLoading(false);
+    }
+  };
+
+  // get all banner
+  const fetchAllBanner = async () => {
+    try {
+      const response = await getAllBanner_API();
+      if (response?.success && response?.data) {
+        setBannerList(response.data.bannerList);
+      }
+    } catch (error) {
+      console.error("Error fetching banner:", error);
     }
   };
 
@@ -183,7 +231,10 @@ const ExploreScreen = (props) => {
         fetchAllAddresses(); // Fetch all addresses on initial load for signed-in users if not already fetched
         setInitialLocationsFetched(true); // Mark as fetched
       }
+      fetchAllBanner();
+      fetchRecentFoodTrucks();
       fetchNearByFoodTrucks();
+      fetchFeaturedFoodTrucks();
       if (isSignedIn) {
         dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
       }
@@ -264,6 +315,7 @@ const ExploreScreen = (props) => {
 
   const renderLocationItem = ({ item }) => (
     <TouchableOpacity
+      activeOpacity={0.7}
       style={styles.locationModalItem}
       onPress={() => setTempSelectedLocation(item)}
     >
@@ -289,6 +341,16 @@ const ExploreScreen = (props) => {
       </View>
     </TouchableOpacity>
   );
+
+  const renderBanner = ({ item }) => {
+    return (
+      <FastImage
+        key={item._id}
+        source={{ uri: item.imageUrl }}
+        style={{ width: "100%", height: "100%", borderRadius: 5 }}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -318,12 +380,12 @@ const ExploreScreen = (props) => {
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={handleNotificationBellPress}
           activeOpacity={0.7}
         >
           <Image source={RoundBellWhite} style={styles.iconImage} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Animated Header */}
@@ -365,6 +427,18 @@ const ExploreScreen = (props) => {
           value={searchQuery}
           style={styles.searchbar}
           inputStyle={styles.searchbarInput}
+          editable={false}
+        />
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            borderRadius: 30,
+          }}
+          onPress={() => navigation.navigate("searchScreen")}
         />
       </Animated.View>
 
@@ -372,14 +446,35 @@ const ExploreScreen = (props) => {
       <Animated.ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: SEARCH_BAR_TOP + 20 },
+          { paddingTop: SEARCH_BAR_TOP },
         ]}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
       >
         <View style={styles.scrollViewContaier}>
-          {/* Past orders container */}
+          {bannerList?.length > 0 && (
+            <View style={{ height: 150, marginVertical: 10 }}>
+              <Carousel
+                ref={carouselRef}
+                mode="parallax"
+                modeConfig={{
+                  parallaxScrollingScale: 0.9,
+                  parallaxAdjacentItemScale: 0.55,
+                }}
+                width={width}
+                data={bannerList}
+                onProgressChange={progress}
+                renderItem={renderBanner}
+                loop={true}
+                autoPlay={true}
+                autoPlayInterval={10000}
+                scrollAnimationDuration={700}
+              />
+            </View>
+          )}
+
+          {/* Recent Trucks Container */}
           <View>
             <View
               style={{
@@ -393,17 +488,26 @@ const ExploreScreen = (props) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontFamily: Primary400,
+                  fontFamily: Mulish700,
                   fontSize: 18,
                   color: AppColor.black,
                 }}
               >
-                {"Past Orders"}
+                {"Recent Trucks"}
               </Text>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => {}}>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("seeAllTrucksScreen", {
+                    screenTitle: "Recent Food Trucks",
+                    screenType: "recent_food_trucks",
+                  })
+                }
+              >
                 <Text
                   style={{
-                    fontFamily: Secondary400,
+                    fontFamily: Mulish400,
                     fontSize: 14,
                     color: AppColor.black,
                     paddingHorizontal: 20,
@@ -414,25 +518,20 @@ const ExploreScreen = (props) => {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={FT1Data} // This is mock data, consider fetching real past orders
-              keyExtractor={(item) => item.id.toString()}
+              data={recentTrucks}
+              keyExtractor={(item) => item._id.toString()}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
-                const isFavorite = favorites.some(
-                  (fav) => fav.foodTruck?._id === item.id
-                );
                 return (
                   <FoodTruckListComponent
                     title={item.name}
-                    uri={item.uri}
-                    isLiked={isFavorite}
-                    foodTruckId={item.id}
-                    reviews={item.reviews}
-                    distance={item.distance}
+                    uri={item.logo}
+                    foodTruckId={item._id}
+                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    showLikeButton={isSignedIn}
+                    showDistance={false}
                     onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", {
-                        item: { ...item, _id: item.id },
-                      })
+                      navigation.navigate("foodTruckDetailScreen", { item })
                     }
                   />
                 );
@@ -460,17 +559,25 @@ const ExploreScreen = (props) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontFamily: Primary400,
+                  fontFamily: Mulish700,
                   fontSize: 18,
                   color: AppColor.black,
                 }}
               >
                 {"Popular Nearby Food Trucks"}
               </Text>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => {}}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("seeAllTrucksScreen", {
+                    screenTitle: "Popular Nearby Food Trucks",
+                    screenType: "popular_nearby_trucks",
+                  })
+                }
+              >
                 <Text
                   style={{
-                    fontFamily: Secondary400,
+                    fontFamily: Mulish400,
                     fontSize: 14,
                     color: AppColor.black,
                     paddingHorizontal: 20,
@@ -482,34 +589,53 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT2Data}
-              keyExtractor={(item) => item.id.toString()}
+              data={popularFoodTrucks}
+              extraData={popularFoodTrucks}
+              keyExtractor={(item) => item._id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
-                const isFavorite = favorites.some(
-                  (fav) => fav.foodTruck?._id === item.id
-                );
                 return (
                   <FoodTruckGridComponent
                     title={item.name}
-                    uris={item.uri}
-                    isLiked={isFavorite}
-                    foodTruckId={item.id}
-                    reviews={item.reviews}
-                    distance={item.distance}
+                    uris={item.logo}
+                    showLikeButton={isSignedIn}
+                    foodTruckId={item._id}
+                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    distance={item.distanceInMeters}
                     onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", {
-                        item: { ...item, _id: item.id },
-                      })
+                      navigation.navigate("foodTruckDetailScreen", { item })
                     }
                   />
                 );
               }}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
+              contentContainerStyle={[
+                {
+                  gap: 20,
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                },
+                popularFoodTrucks?.length === 0 && { flex: 1 },
+              ]}
+              ListEmptyComponent={() => (
+                <View
+                  style={{
+                    flex: 1,
+                    height: 100,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: Mulish600,
+                      color: AppColor.black,
+                    }}
+                  >
+                    {"No Food Trucks Available."}
+                  </Text>
+                </View>
+              )}
             />
           </View>
 
@@ -531,7 +657,7 @@ const ExploreScreen = (props) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontFamily: Primary400,
+                  fontFamily: Mulish700,
                   fontSize: 18,
                   color: AppColor.black,
                 }}
@@ -540,11 +666,16 @@ const ExploreScreen = (props) => {
               </Text>
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate("nearbyFoodTrucksScreen")}
+                onPress={() =>
+                  navigation.navigate("seeAllTrucksScreen", {
+                    screenTitle: "Nearby Food Trucks",
+                    screenType: "nearby_food_trucks",
+                  })
+                }
               >
                 <Text
                   style={{
-                    fontFamily: Secondary400,
+                    fontFamily: Mulish400,
                     fontSize: 14,
                     color: AppColor.black,
                     paddingHorizontal: 20,
@@ -554,44 +685,56 @@ const ExploreScreen = (props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            {loading || isLoadingFavorites ? (
-              <ActivityIndicator
-                size="small"
-                color={AppColor.primary}
-                style={{ marginVertical: 20 }}
-              />
-            ) : (
-              <FlatList
-                horizontal
-                data={popularFoodTrucks}
-                keyExtractor={(item) => item._id.toString()}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => {
-                  const isFavorite = favorites.some(
-                    (fav) => fav.foodTruck?._id === item._id
-                  );
-                  return (
-                    <FoodTruckGridComponent
-                      title={item.name}
-                      uris={item.logo}
-                      showLikeButton={isSignedIn}
-                      isLiked={isFavorite}
-                      foodTruckId={item._id}
-                      reviews={item.reviews}
-                      distance={item.distanceInMeters}
-                      onContainerPress={() =>
-                        navigation.navigate("foodTruckDetailScreen", { item })
-                      }
-                    />
-                  );
-                }}
-                contentContainerStyle={{
+            <FlatList
+              horizontal
+              data={nearbyFoodTrucks}
+              extraData={nearbyFoodTrucks}
+              keyExtractor={(item) => item._id.toString()}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                return (
+                  <FoodTruckGridComponent
+                    title={item.name}
+                    uris={item.logo}
+                    showLikeButton={isSignedIn}
+                    foodTruckId={item._id}
+                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    distance={item.distanceInMeters}
+                    onContainerPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", { item })
+                    }
+                  />
+                );
+              }}
+              contentContainerStyle={[
+                {
                   gap: 20,
                   paddingHorizontal: 20,
                   paddingVertical: 10,
-                }}
-              />
-            )}
+                },
+                nearbyFoodTrucks?.length === 0 && { flex: 1 },
+              ]}
+              ListEmptyComponent={() => (
+                <View
+                  style={{
+                    flex: 1,
+                    height: 100,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: Mulish600,
+                      color: AppColor.black,
+                    }}
+                  >
+                    {"No Food Trucks Available."}
+                  </Text>
+                </View>
+              )}
+            />
           </View>
 
           {/* Featured foodtruck container */}
@@ -614,17 +757,26 @@ const ExploreScreen = (props) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontFamily: Primary400,
+                  fontFamily: Mulish700,
                   fontSize: 18,
                   color: AppColor.black,
                 }}
               >
                 {"Featured Food Trucks"}
               </Text>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => {}}>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("seeAllTrucksScreen", {
+                    screenTitle: "Featured Food Trucks",
+                    screenType: "featured_food_trucks",
+                  })
+                }
+              >
                 <Text
                   style={{
-                    fontFamily: Secondary400,
+                    fontFamily: Mulish400,
                     fontSize: 14,
                     color: AppColor.black,
                     paddingHorizontal: 20,
@@ -636,37 +788,57 @@ const ExploreScreen = (props) => {
             </View>
             <FlatList
               horizontal
-              data={FT4Data}
-              keyExtractor={(item) => item.id.toString()}
+              data={featuredFoodTrucks}
+              extraData={featuredFoodTrucks}
+              keyExtractor={(item) => item._id.toString()}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
-                const isFavorite = favorites.some(
-                  (fav) => fav.foodTruck?._id === item.id
-                );
                 return (
                   <FoodTruckGridComponent
                     title={item.name}
-                    uris={item.uri}
-                    isLiked={isFavorite}
-                    foodTruckId={item.id}
-                    reviews={item.reviews}
-                    distance={item.distance}
+                    uris={item.logo}
+                    showLikeButton={isSignedIn}
+                    foodTruckId={item._id}
+                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    distance={item.distanceInMeters}
                     onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", {
-                        item: { ...item, _id: item.id },
-                      })
+                      navigation.navigate("foodTruckDetailScreen", { item })
                     }
                   />
                 );
               }}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
+              contentContainerStyle={[
+                {
+                  gap: 20,
+                  paddingHorizontal: 20,
+                  paddingVertical: 10,
+                },
+                featuredFoodTrucks?.length === 0 && { flex: 1 },
+              ]}
+              ListEmptyComponent={() => (
+                <View
+                  style={{
+                    flex: 1,
+                    height: 100,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontFamily: Mulish600,
+                      color: AppColor.black,
+                    }}
+                  >
+                    {"No Food Trucks Available."}
+                  </Text>
+                </View>
+              )}
             />
           </View>
         </View>
+
         {/* Location Selection Modal */}
         <Modal
           isVisible={isLocationModalVisible}
@@ -688,6 +860,7 @@ const ExploreScreen = (props) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalHeaderText}>Select a Location</Text>
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() => {
                   setLocationModalVisible(false);
                   navigation.navigate("authMapScreen", { mode: "add" });
@@ -708,12 +881,14 @@ const ExploreScreen = (props) => {
 
             <View style={styles.bottomButtonContainer}>
               <TouchableOpacity
+                activeOpacity={0.7}
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={handleCancelSelection}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                activeOpacity={0.7}
                 style={[styles.modalButton, styles.selectButton]}
                 onPress={handleConfirmSelection}
               >
@@ -729,13 +904,14 @@ const ExploreScreen = (props) => {
         <View
           style={[
             styles.guestPromptContainer,
-            { paddingBottom: insets.bottom + 10 },
+            // { paddingBottom: insets.bottom + 10 },
           ]}
         >
           <Text style={styles.guestPromptText}>
             Set your location to discover nearby food trucks!
           </Text>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.guestPromptButton}
             onPress={() =>
               navigation.navigate("authMapScreen", { mode: "add" })
@@ -743,6 +919,136 @@ const ExploreScreen = (props) => {
           >
             <Text style={styles.guestPromptButtonText}>Set Location</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {OrderReducerStates?.currentOrder?.foodTruckId && (
+        <View
+          style={{
+            position: "absolute",
+            bottom: !defaultLocation ? 80 : 10,
+            left: 16,
+            right: 16,
+            padding: 16,
+            paddingRight: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            borderRadius: 8,
+            backgroundColor: AppColor.white,
+            ...Platform.select({
+              ios: {
+                shadowColor: AppColor.black,
+                shadowOffset: {
+                  width: 0,
+                  height: 1,
+                },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+              },
+              android: {
+                elevation: 2,
+              },
+            }),
+          }}
+        >
+          <FastImage
+            source={{ uri: OrderReducerStates?.currentOrder?.foodTruckLogo }}
+            style={{ height: 50, width: 50, borderRadius: 5 }}
+          />
+          <Pressable
+            onPress={() =>
+              navigation.navigate("foodTruckDetailScreen", {
+                item: { _id: OrderReducerStates?.currentOrder?.foodTruckId },
+              })
+            }
+            style={{ flex: 1, marginHorizontal: 8, gap: 4 }}
+          >
+            <Text
+              numberOfLines={1}
+              style={{
+                fontFamily: Mulish700,
+                fontSize: 15,
+                color: AppColor.text,
+              }}
+            >
+              {OrderReducerStates?.currentOrder?.foodTruckName}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                fontFamily: Mulish600,
+                fontSize: 14,
+                color: AppColor.primary,
+              }}
+            >
+              {`${OrderReducerStates?.currentOrder?.items?.length || 0} items | View Menu`}
+            </Text>
+          </Pressable>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{
+              height: "100%",
+              justifyContent: "center",
+              paddingVertical: 2,
+              paddingHorizontal: 16,
+              borderRadius: 10,
+              backgroundColor: AppColor.primary,
+            }}
+            onPress={() => {
+              // navigate to 2 screen for previous screen history
+              navigation.navigate("foodTruckDetailScreen", {
+                item: { _id: OrderReducerStates?.currentOrder?.foodTruckId },
+              });
+              navigation.navigate("checkoutScreen", {
+                foodTruckId: OrderReducerStates?.currentOrder?.foodTruckId,
+              });
+            }}
+          >
+            <Text
+              style={{
+                color: AppColor.white,
+                fontFamily: Mulish700,
+                fontSize: 15,
+              }}
+            >
+              {"View Cart"}
+            </Text>
+            <Text
+              style={{
+                color: AppColor.white,
+                fontFamily: Mulish400,
+                fontSize: 14,
+                textAlign: "center",
+              }}
+            >
+              {"$" + OrderReducerStates?.currentOrder?.total.toFixed(2)}
+            </Text>
+          </TouchableOpacity>
+          <IconButton
+            icon="close"
+            iconColor={AppColor.black}
+            size={22}
+            onPress={() => {
+              Alert.alert(
+                "Discard Cart",
+                "Are you sure you want to discart your cart?",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: "OK",
+                    style: "destructive",
+                    onPress: () => {
+                      dispatch(clearOrderSlice());
+                    },
+                  },
+                ],
+                { cancelable: false }
+              );
+            }}
+          />
         </View>
       )}
     </View>
@@ -781,11 +1087,11 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 20,
   },
   locationSubtitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.white,
     maxWidth: "95%",
@@ -816,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 24,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.white,
     position: "absolute",
     left: 20,
@@ -847,7 +1153,7 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   searchbarInput: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     color: AppColor.text,
   },
   scrollContent: {
@@ -861,6 +1167,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    height: 70, // fixed height for prompt
     backgroundColor: AppColor.primary,
     padding: 16,
     flexDirection: "row",
@@ -871,7 +1178,7 @@ const styles = StyleSheet.create({
   },
   guestPromptText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish600,
     fontSize: 14,
     flex: 1,
   },
@@ -884,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   guestPromptButtonText: {
     color: AppColor.primary,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
   },
   // Modal Styles
@@ -908,7 +1215,7 @@ const styles = StyleSheet.create({
   },
   modalHeaderText: {
     fontSize: 20,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.black,
   },
   locationModalItem: {
@@ -922,12 +1229,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   locationModalTitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 18,
     color: AppColor.black,
   },
   locationModalAddress: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: "#6b7280", // gray-500
     marginTop: 4,
@@ -956,7 +1263,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: AppColor.black,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   selectButton: {
@@ -964,7 +1271,7 @@ const styles = StyleSheet.create({
   },
   selectButtonText: {
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
 });

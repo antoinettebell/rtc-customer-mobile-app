@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import {
   ActivityIndicator,
   IconButton,
@@ -53,7 +53,10 @@ const initialRegion = {
 };
 
 const AuthMapScreen = ({ route }) => {
-  const { mode } = route.params || { mode: "add" };
+  const { mode = "add", hideBackBtn = false } = route.params || {
+    mode: "add",
+    hideBackBtn: false,
+  };
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const dispatch = useDispatch();
@@ -272,14 +275,14 @@ const AuthMapScreen = ({ route }) => {
           response = await addAddress_API(payload);
         }
 
-        if (response?.success) {
+        if (response?.success && response?.data) {
           // After successful add/update, refetch all addresses to update redux store
           const addressListResponse = await getAddress_API({
             page: 1,
             limit: 1000,
           });
-          if (addressListResponse?.success) {
-            const allNewAddresses = addressListResponse.data.addressList;
+          if (addressListResponse?.success && addressListResponse?.data) {
+            const allNewAddresses = addressListResponse.data.addressList || [];
             dispatch(setAllLocations(allNewAddresses));
 
             // If a new address was added, set it as the default location
@@ -292,7 +295,11 @@ const AuthMapScreen = ({ route }) => {
               }
             }
           }
-          navigation.goBack();
+          if (hideBackBtn) {
+            navigation.replace("bottomRoot");
+          } else {
+            navigation.goBack();
+          }
         }
       } catch (error) {
         Alert.alert("Error", error?.message || "Failed to save address");
@@ -307,9 +314,13 @@ const AuthMapScreen = ({ route }) => {
       };
 
       // For a guest, there's only one location. Set it as the only one and the default.
-      dispatch(setAllLocations([guestLocation]));
+      dispatch(setAllLocations([guestLocation] || []));
       setLoading(false);
-      navigation.goBack();
+      if (hideBackBtn) {
+        navigation.replace("bottomRoot");
+      } else {
+        navigation.goBack();
+      }
     }
   };
 
@@ -339,18 +350,31 @@ const AuthMapScreen = ({ route }) => {
   }, [mode, selectedLocations]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBarManager />
 
       {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={AppColor.black}
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
-        <Text style={styles.headerTitle}>{"SELECT LOCATION"}</Text>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            borderBottomWidth: 1,
+            borderColor: "#E5E5EA",
+          },
+        ]}
+      >
+        {hideBackBtn ? (
+          <View style={{ width: 48 }} />
+        ) : (
+          <IconButton
+            icon="arrow-left"
+            iconColor={AppColor.black}
+            size={24}
+            onPress={() => navigation.goBack()}
+          />
+        )}
+        <Text style={styles.headerTitle}>{"Select Location"}</Text>
         <View style={{ width: 48 }} />
       </View>
 
@@ -432,6 +456,11 @@ const AuthMapScreen = ({ route }) => {
               setLocationName(adrs);
               // Animate the map to the new coordinates
               mapRef.current?.animateToRegion(region);
+              // when user press on the search result then if there is anything in search box then it will be emptied.
+              if (searchTxtRef?.current) {
+                searchTxtRef?.current.clear(); // Clears the visible text
+                searchTxtRef?.current.setAddressText(""); // Clears internal state
+              }
             }}
             onFail={(error) => {
               console.log("Google Places Autocomplete Error:", error);
@@ -449,52 +478,52 @@ const AuthMapScreen = ({ route }) => {
                 <Ionicons name="search" size={26} color="#C5C5C7" />
               </Pressable>
             )}
-            renderRow={(data) => {
-              const mainText =
-                data.structured_formatting?.main_text ||
-                data.description?.split(",")[0] ||
-                "";
-              const secondaryText =
-                data.structured_formatting?.secondary_text ||
-                data.description ||
-                "";
-              return (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 4,
-                    backgroundColor: "#fff",
-                  }}
-                >
-                  <Ionicons
-                    name="location-outline"
-                    size={22}
-                    color="#222"
-                    style={{ marginHorizontal: 8 }}
-                  />
-                  <View
-                    style={{
-                      flex: 1,
-                      marginLeft: 8,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: 15,
-                        color: "#222",
-                      }}
-                    >
-                      {mainText}
-                    </Text>
-                    <Text style={{ fontSize: 13, color: "#888", marginTop: 2 }}>
-                      {secondaryText}
-                    </Text>
-                  </View>
-                </View>
-              );
-            }}
+            // renderRow={(data) => {
+            //   const mainText =
+            //     data.structured_formatting?.main_text ||
+            //     data.description?.split(",")[0] ||
+            //     "";
+            //   const secondaryText =
+            //     data.structured_formatting?.secondary_text ||
+            //     data.description ||
+            //     "";
+            //   return (
+            //     <View
+            //       style={{
+            //         flexDirection: "row",
+            //         alignItems: "center",
+            //         paddingVertical: 4,
+            //         backgroundColor: "#fff",
+            //       }}
+            //     >
+            //       <Ionicons
+            //         name="location-outline"
+            //         size={22}
+            //         color="#222"
+            //         style={{ marginHorizontal: 8 }}
+            //       />
+            //       <View
+            //         style={{
+            //           flex: 1,
+            //           marginLeft: 8,
+            //         }}
+            //       >
+            //         <Text
+            //           style={{
+            //             fontWeight: "bold",
+            //             fontSize: 15,
+            //             color: "#222",
+            //           }}
+            //         >
+            //           {mainText}
+            //         </Text>
+            //         <Text style={{ fontSize: 13, color: "#888", marginTop: 2 }}>
+            //           {secondaryText}
+            //         </Text>
+            //       </View>
+            //     </View>
+            //   );
+            // }}
             styles={{
               container: styles.GPAC_Container,
               textInputContainer: styles.GPAC_Input_Container,
@@ -540,7 +569,7 @@ const AuthMapScreen = ({ route }) => {
             <Text
               style={{
                 fontSize: 16,
-                fontFamily: Secondary400,
+                fontFamily: Mulish700,
                 color: AppColor.text,
               }}
             >
@@ -601,7 +630,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: AppColor.black,
     fontSize: 20,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
 
   contentContainer: {
@@ -645,7 +674,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 12,
     fontSize: 15,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   GPAC_Listview: {
     borderRadius: 6,
@@ -665,7 +694,7 @@ const styles = StyleSheet.create({
   },
   GPAC_Description: {
     fontSize: 13,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   GPAC_Loadder: {
     flexDirection: "row",
@@ -682,7 +711,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   locationNameTxt: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
 
   bottomBrnContainer: { position: "absolute", right: 0, left: 0 },
@@ -710,7 +739,7 @@ const styles = StyleSheet.create({
     }),
   },
   saveButtonText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,
   },

@@ -8,7 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import AppHeader from "../components/AppHeader";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -88,8 +88,13 @@ const CouponCodeScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <AppHeader headerTitle="COUPON CODE" />
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <AppHeader headerTitle="Copon Code" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <ActivityIndicator size="large" color={AppColor.primary} />
         </View>
@@ -99,11 +104,20 @@ const CouponCodeScreen = ({ navigation, route }) => {
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <AppHeader headerTitle="COUPON CODE" />
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <AppHeader headerTitle="Copon Code" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={fetchCoupons} style={styles.retryButton}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={fetchCoupons}
+            style={styles.retryButton}
+          >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -113,13 +127,12 @@ const CouponCodeScreen = ({ navigation, route }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <AppHeader headerTitle="COUPON CODE" />
+      <AppHeader headerTitle="Copon Code" />
       <View
         style={{
           flex: 1,
           paddingHorizontal: 16,
           paddingVertical: 16,
-          backgroundColor: "#F0F1F2",
         }}
       >
         <View style={styles.searchBarContainer}>
@@ -137,74 +150,83 @@ const CouponCodeScreen = ({ navigation, route }) => {
             onChangeText={setSearch}
           />
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.searchApplyBtn}
             onPress={handleSearchApply}
           >
             <Text style={styles.searchApplyText}>Apply</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.screenGenericCard}>
-          <FlatList
-            data={filteredCoupons}
-            keyExtractor={(item) => item._id}
-            contentContainerStyle={{ gap: 15 }}
-            renderItem={({ item }) => (
-              <View style={styles.couponCard}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
+
+        <FlatList
+          data={filteredCoupons}
+          keyExtractor={(item) => item._id}
+          style={{
+            marginVertical: 16,
+          }}
+          contentContainerStyle={{
+            gap: 15,
+            backgroundColor: AppColor.white,
+            borderRadius: 10,
+            paddingBottom: insets.bottom,
+          }}
+          renderItem={({ item }) => (
+            <View style={styles.couponCard}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={styles.couponTitle}>
+                    {item.type === "PERCENTAGE"
+                      ? `GET ${item.value}% OFF`
+                      : `GET $${item.value} OFF`}
+                  </Text>
+                  <Text style={styles.couponDesc}>
+                    {item.usageLimit === "NOLIMIT"
+                      ? "No usage limit"
+                      : "Limited usage"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.couponApplyBtn}
+                  onPress={() => handleApplyCoupon(item)}
+                  disabled={selected === item.code}
                 >
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={styles.couponTitle}>
-                      {item.type === "PERCENTAGE"
-                        ? `GET ${item.value}% OFF`
-                        : `GET $${item.value} OFF`}
-                    </Text>
-                    <Text style={styles.couponDesc}>
-                      {item.usageLimit === "NOLIMIT"
-                        ? "No usage limit"
-                        : "Limited usage"}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.couponApplyBtn}
-                    onPress={() => handleApplyCoupon(item)}
-                    disabled={selected === item.code}
-                  >
-                    <Text style={styles.couponApplyBtnText}>
-                      {selected === item.code ? "Applied" : "Apply"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.couponCodeBox}>
-                  <Text style={styles.couponCodeText}>{item.code}</Text>
-                  <MaterialIcons
-                    name={
-                      selected === item.code
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={22}
-                    color={
-                      selected === item.code
-                        ? AppColor.primary
-                        : AppColor.textPlaceholder
-                    }
-                    style={{ marginLeft: 8 }}
-                  />
-                </View>
+                  <Text style={styles.couponApplyBtnText}>
+                    {selected === item.code ? "Applied" : "Apply"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            )}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                No coupons found matching your search.
-              </Text>
-            }
-          />
-        </View>
+              <View style={styles.couponCodeBox}>
+                <Text style={styles.couponCodeText}>{item.code}</Text>
+                <MaterialIcons
+                  name={
+                    selected === item.code
+                      ? "check-box"
+                      : "check-box-outline-blank"
+                  }
+                  size={22}
+                  color={
+                    selected === item.code
+                      ? AppColor.primary
+                      : AppColor.textPlaceholder
+                  }
+                  style={{ marginLeft: 8 }}
+                />
+              </View>
+            </View>
+          )}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              No coupons found matching your search.
+            </Text>
+          }
+        />
       </View>
     </View>
   );
@@ -238,7 +260,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
@@ -260,7 +282,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
@@ -268,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 12,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
     backgroundColor: "transparent",
@@ -281,7 +303,7 @@ const styles = StyleSheet.create({
   },
   searchApplyText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   couponCard: {
@@ -292,11 +314,11 @@ const styles = StyleSheet.create({
     borderColor: AppColor.borderColor,
   },
   couponTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
   },
   couponDesc: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 10,
     color: AppColor.gray,
   },
@@ -306,7 +328,7 @@ const styles = StyleSheet.create({
   },
   couponApplyBtnText: {
     color: "#fff",
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -323,14 +345,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   couponCodeText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 12,
     color: "#001246",
     letterSpacing: 1,
   },
   errorText: {
     color: AppColor.error,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     marginBottom: 20,
     textAlign: "center",
@@ -343,12 +365,12 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   emptyText: {
     textAlign: "center",
     color: AppColor.subText,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
 });
 

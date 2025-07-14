@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,171 +7,397 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import {
+  AppColor,
+  Mulish700,
+  Mulish400,
+  Mulish600,
+  Mulish500,
+} from "../utils/theme";
 import AppHeader from "../components/AppHeader";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  getReviewRating_API,
+  getReviewRatingStats_API,
+} from "../apiFolder/appAPI";
+import FastImage from "@d11/react-native-fast-image";
+import { PROFILE_AVATAR } from "../utils/constants";
+import { IconButton } from "react-native-paper";
 
-const reviews = [
-  {
-    id: 1,
-    name: "John Doe",
-    rating: 5,
-    text: "Great food!",
-    avatar: require("../assets/images/FoodImage.png"),
-  },
-  {
-    id: 2,
-    name: "Jack Joseph",
-    rating: 4,
-    text: "Nice service.",
-    avatar: require("../assets/images/FoodImage.png"),
-  },
-  {
-    id: 3,
-    name: "Johnny",
-    rating: 5,
-    text: "Loved it!",
-    avatar: require("../assets/images/FoodImage.png"),
-  },
-  {
-    id: 4,
-    name: "Homan",
-    rating: 4,
-    text: "Tasty and quick.",
-    avatar: require("../assets/images/FoodImage.png"),
-  },
-];
+const LIMIT = 20;
 
-const RateReviewScreen = () => {
-  const [myRating, setMyRating] = React.useState(0);
-  const [myReview, setMyReview] = React.useState("");
+const RateReviewScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
+  const param = route?.params;
+
+  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [refreshLoader, setRefreshLoader] = useState(false);
+  const [reviewStats, setReviewStats] = useState(null);
+  const [reviewData, setReviewData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState(null);
+
+  const renderStatsStars = (value) => {
+    return [1, 2, 3, 4, 5].map((i) => (
+      <Text
+        key={i}
+        style={{
+          color: i <= value ? AppColor.yellow : AppColor.border,
+          fontSize: 16,
+        }}
+      >
+        ★
+      </Text>
+    ));
+  };
+
+  const renderReviewComponent = ({ item }) => {
+    return (
+      <View style={styles.reviewItem} key={item?._id}>
+        <FastImage
+          source={{ uri: item?.user?.profilePic || PROFILE_AVATAR }}
+          style={styles.reviewAvatar}
+        />
+        <View style={{ flex: 1, marginLeft: 16, gap: 5 }}>
+          <Text style={styles.userName}>
+            {item?.user?.firstName || ""} {item?.user?.lastName || ""}
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 1 }}>
+            {renderStatsStars(item.rate)}
+          </View>
+          <Text style={styles.reviewText}>{item.review}</Text>
+          <View style={{ flexDirection: "row" }}>
+            {item?.images?.map((i) => (
+              <FastImage
+                key={i}
+                source={{ uri: i }}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 4,
+                  marginRight: 8,
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderHeaderComponent = () => {
+    if (!reviewStats) return null;
+
+    return (
+      <View style={styles.statsContainer}>
+        <View style={{ flex: 0.6 }}>
+          <Text style={styles.statsTitle}>
+            {"★ "}
+            <Text style={{ color: AppColor.black }}>{reviewStats.avgRate}</Text>
+          </Text>
+          <Text style={styles.totalReviews}>
+            {reviewStats.totalReviews}
+            <Text style={{ color: AppColor.gray }}>{`\nReviews`}</Text>
+          </Text>
+        </View>
+        <View
+          style={{
+            height: "100%",
+            width: 1,
+            marginHorizontal: 16,
+            backgroundColor: AppColor.border,
+          }}
+        />
+        <View style={{ flex: 1 }}>
+          <View style={styles.allRatingSubCotainer}>
+            <View style={styles.starsContainer}>{renderStatsStars(5)}</View>
+            <Text style={styles.overallRating}>{reviewStats.star5}</Text>
+          </View>
+          <View style={styles.allRatingSubCotainer}>
+            <View style={styles.starsContainer}>{renderStatsStars(4)}</View>
+            <Text style={styles.overallRating}>{reviewStats.star4}</Text>
+          </View>
+          <View style={styles.allRatingSubCotainer}>
+            <View style={styles.starsContainer}>{renderStatsStars(3)}</View>
+            <Text style={styles.overallRating}>{reviewStats.star3}</Text>
+          </View>
+          <View style={styles.allRatingSubCotainer}>
+            <View style={styles.starsContainer}>{renderStatsStars(2)}</View>
+            <Text style={styles.overallRating}>{reviewStats.star2}</Text>
+          </View>
+          <View style={styles.allRatingSubCotainer}>
+            <View style={styles.starsContainer}>{renderStatsStars(1)}</View>
+            <Text style={styles.overallRating}>{reviewStats.star1}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFooterComponent = () => {
+    if (!dataLoading || currentPage >= totalPages) return null;
+
+    return (
+      <View style={styles.footerContainer}>
+        <ActivityIndicator size="small" color={AppColor.primary} />
+      </View>
+    );
+  };
+
+  const renderEmptyComponent = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={AppColor.primary} />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>
+          {error ? "Failed to load reviews" : "No reviews found"}
+        </Text>
+        {error && (
+          <IconButton
+            icon="reload"
+            size={24}
+            onPress={handleRefresh}
+            color={AppColor.primary}
+          />
+        )}
+      </View>
+    );
+  };
+
+  const handleLoadMore = () => {
+    if (!dataLoading && currentPage < totalPages) {
+      getReviewDataFromAPI(currentPage + 1);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshLoader(true);
+      setError(null);
+      await getReviewDataFromAPI(1, true);
+    } catch (err) {
+      setError(err.message || "Failed to refresh");
+    } finally {
+      setRefreshLoader(false);
+    }
+  };
+
+  const getReviewDataFromAPI = async (page = 1, isRefreshing = false) => {
+    try {
+      if (isRefreshing) {
+        setRefreshLoader(true);
+      } else if (page === 1) {
+        setLoading(true);
+      } else {
+        setDataLoading(true);
+      }
+
+      const foodTruck_id = param.foodTruckId;
+      if (!foodTruck_id) throw new Error("Food truck ID not found");
+
+      const ratingStatsResponse = await getReviewRatingStats_API(foodTruck_id);
+      if (ratingStatsResponse?.success && ratingStatsResponse?.data) {
+        setReviewStats(ratingStatsResponse?.data?.reviewStats);
+      }
+
+      const reviewResponse = await getReviewRating_API({
+        foodTruck_id: foodTruck_id,
+        page: page,
+        limit: LIMIT,
+      });
+      if (reviewResponse?.success && reviewResponse?.data) {
+        setTotalPages(reviewResponse.data.totalPages);
+        setCurrentPage(page);
+
+        if (page === 1 || isRefreshing) {
+          setReviewData(reviewResponse.data.reviewList);
+        } else {
+          setReviewData((prev) => [...prev, ...reviewResponse.data.reviewList]);
+        }
+      }
+    } catch (error) {
+      console.log("error => ", error);
+      setError(error.message || "Failed to load reviews");
+    } finally {
+      setLoading(false);
+      setDataLoading(false);
+      if (isRefreshing) {
+        setRefreshLoader(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    getReviewDataFromAPI(1);
+  }, []);
 
   return (
     <View style={styles.container}>
-      <AppHeader headerTitle="RATE & REVIEW" />
-      <View style={styles.ratingRow}>
-        <Text style={styles.ratingNum}>4.8</Text>
-        <View style={styles.starsRow}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Text
-              key={i}
-              style={{
-                color: i <= 4 ? AppColor.primary : "#ccc",
-                fontSize: 22,
-              }}
-            >
-              ★
-            </Text>
-          ))}
-        </View>
-        <Text style={styles.reviewCount}>1,800 Reviews</Text>
-      </View>
-      <FlatList
-        data={reviews}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.reviewRow}>
-            <Image source={item.avatar} style={styles.avatar} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.reviewer}>{item.name}</Text>
-              <View style={{ flexDirection: "row" }}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Text
-                    key={i}
-                    style={{
-                      color: i <= item.rating ? AppColor.primary : "#ccc",
-                      fontSize: 14,
-                    }}
-                  >
-                    ★
-                  </Text>
-                ))}
-              </View>
-              <Text style={styles.reviewText}>{item.text}</Text>
-            </View>
-          </View>
-        )}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      />
-      <View style={styles.myReviewBox}>
-        <Text style={styles.sectionTitle}>Your Review</Text>
-        <View style={{ flexDirection: "row", marginBottom: 8 }}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <TouchableOpacity key={i} onPress={() => setMyRating(i)}>
-              <Text
-                style={{
-                  color: i <= myRating ? AppColor.primary : "#ccc",
-                  fontSize: 22,
-                }}
-              >
-                ★
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Write your review..."
-          value={myReview}
-          onChangeText={setMyReview}
+      {/* Header Container */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <IconButton
+          icon="arrow-left"
+          iconColor={AppColor.black}
+          size={24}
+          onPress={() => navigation.goBack()}
         />
-        <TouchableOpacity style={styles.submitBtn}>
-          <Text style={styles.submitBtnText}>Submit</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{"Rate & Review"}</Text>
+        <View style={styles.headerIconContainer}></View>
+      </View>
+
+      {/* Content Container */}
+      <View style={{ flex: 1, paddingBottom: insets.bottom }}>
+        <FlatList
+          data={reviewData}
+          extraData={reviewData}
+          keyExtractor={(item) => item._id.toString()}
+          renderItem={renderReviewComponent}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.flatListContent}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={renderHeaderComponent}
+          ListFooterComponent={renderFooterComponent}
+          refreshing={refreshLoader}
+          onRefresh={handleRefresh}
+          ListEmptyComponent={renderEmptyComponent}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  ratingRow: { alignItems: "center", marginVertical: 16 },
-  ratingNum: { fontFamily: Primary400, fontSize: 32, color: AppColor.primary },
-  starsRow: { flexDirection: "row", marginVertical: 4 },
-  reviewCount: {
-    fontFamily: Secondary400,
-    fontSize: 14,
-    color: AppColor.textHighlighter,
+  container: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
   },
-  reviewRow: {
+
+  // Header
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0F1F2",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    marginHorizontal: 16,
+    justifyContent: "space-between",
+    backgroundColor: AppColor.white,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderColor: AppColor.border,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  reviewer: { fontFamily: Primary400, fontSize: 15 },
-  reviewText: { fontFamily: Secondary400, fontSize: 13 },
-  myReviewBox: {
-    backgroundColor: "#F0F1F2",
-    borderRadius: 8,
-    padding: 16,
-    margin: 16,
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+  headerTitle: {
+    color: AppColor.black,
+    fontSize: 20,
+    fontFamily: Mulish700,
   },
-  sectionTitle: { fontFamily: Primary400, fontSize: 16, marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 8,
-    padding: 8,
-    fontFamily: Secondary400,
-    marginBottom: 8,
-    backgroundColor: "#fff",
-  },
-  submitBtn: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    padding: 12,
+  headerIconContainer: {
+    width: 48,
     alignItems: "center",
   },
-  submitBtnText: { color: "#fff", fontFamily: Primary400, fontSize: 15 },
+
+  // Stats
+  statsContainer: {
+    gap: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  statsTitle: {
+    fontSize: 29.05,
+    textAlign: "center",
+    fontFamily: Mulish700,
+    color: AppColor.yellow,
+    marginBottom: 20,
+  },
+  starsContainer: { flexDirection: "row", alignItems: "center", gap: 1 },
+  allRatingSubCotainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 5,
+  },
+  overallRating: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.black,
+  },
+  totalReviews: {
+    fontFamily: Mulish600,
+    fontSize: 16,
+    color: AppColor.text,
+    textAlign: "center",
+  },
+
+  // Review Item
+  reviewItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderRadius: 5,
+    padding: 16,
+    backgroundColor: AppColor.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  reviewAvatar: { width: 50, height: 50, borderRadius: 4 },
+  userName: {
+    fontFamily: Mulish500,
+    fontSize: 15,
+    color: AppColor.text,
+  },
+  reviewText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+  },
+
+  //  Flatlist
+  flatListContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  separator: {
+    height: 8,
+  },
+  footerContainer: {
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+    marginBottom: 16,
+    textAlign: "center",
+  },
 });
 
 export default RateReviewScreen;

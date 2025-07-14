@@ -17,32 +17,43 @@ import {
   useRoute,
   useIsFocused,
 } from "@react-navigation/native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import AppHeader from "../components/AppHeader";
 import {
   addItemToOrder,
   removeItemFromOrder,
   clearCurrentOrder,
+  clearOrderSlice,
 } from "../redux/slices/orderSlice";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { placeFoodOrder_API } from "../apiFolder/appAPI";
+import {
+  getFoodTruckDetailById_API,
+  placeFoodOrder_API,
+} from "../apiFolder/appAPI";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
 import Modal from "react-native-modal"; // Import react-native-modal
 import moment from "moment"; // Import moment for handling time
+import { onGuest, onSignOut } from "../redux/slices/authSlice";
+import { clearUserSlice } from "../redux/slices/userSlice";
+import { clearFavorites } from "../redux/slices/favoritesSlice";
+import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "../redux/slices/locationSlice";
 
 const foodImg = require("../assets/images/FoodImage.png");
 
 const HR = () => <View style={styles.HR} />;
 
-const CheckoutScreen = () => {
+const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const route = useRoute();
   const dispatch = useDispatch();
+
+  const { isSignedIn } = useSelector((state) => state.authReducer);
   const order = useSelector((state) => state.orderReducer.currentOrder);
-  const { foodTruckDetail, foodTruckStatus } = route.params || {};
+
+  const { foodTruckId = null } = route.params || {};
   const [coupon, setCoupon] = useState(null);
+  const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("Google Pay");
   const [loading, setLoading] = useState(false);
   const isFocused = useIsFocused();
@@ -50,8 +61,6 @@ const CheckoutScreen = () => {
     useState(false); // State for modal visibility
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
-
-  const isTruckOpen = foodTruckStatus === "Open Now";
 
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -90,6 +99,9 @@ const CheckoutScreen = () => {
     if (isFocused && order.items.length === 0) {
       navigation.goBack();
     }
+    if (isFocused) {
+      getIntitalDataFromAPI();
+    }
   }, [order.items.length, isFocused, navigation]);
 
   const handleAdd = (item) => {
@@ -107,6 +119,7 @@ const CheckoutScreen = () => {
       addItemToOrder({
         foodTruckId: order.foodTruckId,
         foodTruckName: order.foodTruckName,
+        foodTruckLogo: order.foodTruckLogo,
         item: {
           id: item.id,
           name: item.name,
@@ -150,7 +163,7 @@ const CheckoutScreen = () => {
       return;
     }
 
-    if (!isTruckOpen) {
+    if (!foodTruckDetail?.currentLocation) {
       Alert.alert(
         "Truck Closed",
         "The food truck is currently closed for immediate orders. Please place an advance order."
@@ -175,9 +188,13 @@ const CheckoutScreen = () => {
       setLoading(true);
       const response = await placeFoodOrder_API(payload);
       console.log("✅ Order placed:", response);
-      dispatch(clearCurrentOrder());
-      Alert.alert("Success", "Your order has been placed!");
-      navigation.navigate("orderPlacedScreen");
+      if (response?.success && response?.data) {
+        dispatch(clearCurrentOrder());
+        Alert.alert("Success", "Your order has been placed!");
+        navigation.navigate("orderPlacedScreen", {
+          orderNumber: response?.data?.order?.orderNumber,
+        });
+      }
     } catch (error) {
       console.error("❌ Order failed:", error);
       Alert.alert("Error", error?.message || "Failed to place order.");
@@ -264,6 +281,7 @@ const CheckoutScreen = () => {
         </View>
         <View style={styles.qtyBox}>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[
               styles.qtyBtnBox,
               isDecrementDisabled && styles.disabledQtyBtn,
@@ -282,6 +300,7 @@ const CheckoutScreen = () => {
           </TouchableOpacity>
           <Text style={styles.qtyText}>{item.quantity}</Text>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[
               styles.qtyBtnBox,
               isIncrementDisabled && styles.disabledQtyBtn,
@@ -322,7 +341,7 @@ const CheckoutScreen = () => {
       <View style={styles.availabilityContainer}>
         <Text
           style={{
-            fontFamily: Secondary400,
+            fontFamily: Mulish400,
             fontSize: 16,
             marginBottom: 12,
             marginTop: 5,
@@ -332,6 +351,7 @@ const CheckoutScreen = () => {
         </Text>
         {locationAvailability.map((slot) => (
           <TouchableOpacity
+            activeOpacity={0.7}
             key={slot._id}
             style={[
               styles.radioOption,
@@ -342,13 +362,14 @@ const CheckoutScreen = () => {
           >
             <Text
               style={{
-                fontFamily: Secondary400,
+                fontFamily: Mulish400,
                 fontSize: 15,
                 textTransform: "capitalize",
               }}
             >
               {slot.day}: {"    "}
-              {slot.startTime} - {slot.endTime}
+              {moment(slot.startTime, "HH:mm").format("hh:mm A")} -{" "}
+              {moment(slot.endTime, "HH:mm").format("hh:mm A")}
             </Text>
           </TouchableOpacity>
         ))}
@@ -356,15 +377,38 @@ const CheckoutScreen = () => {
     );
   };
 
+  const handleSignIn = () => {
+    dispatch(onGuest(false));
+    dispatch(clearUserSlice());
+    dispatch(clearFavorites());
+    dispatch(clearOrderSlice());
+    dispatch(clearFoodTruckProfileSlice());
+    dispatch(clearLocationSlice());
+    dispatch(onSignOut());
+  };
+
+  const getIntitalDataFromAPI = async () => {
+    try {
+      const response = await getFoodTruckDetailById_API(foodTruckId);
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
+        setFoodTruckDetail(response?.data?.foodtruck);
+      }
+    } catch (error) {
+      console.log("error => ", error);
+    } finally {
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      <AppHeader headerTitle="CHECKoUT" />
+      <AppHeader headerTitle="Checkout" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
+        <Text style={styles.sectionTitle}>{"Order Summary"}</Text>
         <FlatList
           data={order.items}
           keyExtractor={(item) => item.id.toString()}
@@ -385,7 +429,7 @@ const CheckoutScreen = () => {
             <TouchableOpacity
               key={method}
               onPress={() => setPaymentMethod(method)}
-              activeOpacity={0.9}
+              activeOpacity={0.7}
               style={[
                 styles.paymentOption,
                 paymentMethod === method && styles.paymentOptionActive,
@@ -427,6 +471,7 @@ const CheckoutScreen = () => {
                 )
               </Text>
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={handleRemoveCoupon}
                 style={styles.removeCouponBtn}
               >
@@ -435,6 +480,7 @@ const CheckoutScreen = () => {
             </View>
           ) : (
             <TouchableOpacity
+              activeOpacity={0.7}
               style={styles.couponBox}
               onPress={() =>
                 navigation.navigate("couponCodeScreen", { setCoupon })
@@ -444,6 +490,7 @@ const CheckoutScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() =>
               navigation.navigate("couponCodeScreen", { setCoupon })
             }
@@ -454,7 +501,7 @@ const CheckoutScreen = () => {
 
         <View style={[styles.screenGenericCard, styles.totalCard]}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>ToTAL ORDER</Text>
+            <Text style={styles.totalLabel}>{"Total Order"}</Text>
             <Text style={styles.totalLabelPrimary}>${subtotal.toFixed(2)}</Text>
           </View>
           <HR />
@@ -521,44 +568,61 @@ const CheckoutScreen = () => {
         ]}
       >
         <View style={styles.totalRow}>
-          <Text style={styles.totalText}>TOTAL AMoUNT</Text>
+          <Text style={styles.totalText}>{"Total Amount"}</Text>
           <Text style={styles.totalText}>${total.toFixed(2)}</Text>
         </View>
 
-        {isTruckOpen ? (
-          <>
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                (order.items.length === 0 || loading) && styles.disabledBtn,
-              ]}
-              onPress={handleConfirmOrder}
-              disabled={order.items.length === 0 || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.confirmBtnText}>Order Now</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.advanceOrderBtn}
-              onPress={handlePlaceAdvanceOrder}
-              disabled={order.items.length === 0}
-            >
-              <Text style={styles.advncOrderBtnText}>Place Advance Order</Text>
-            </TouchableOpacity>
-          </>
+        {isSignedIn ? (
+          foodTruckDetail?.currentLocation ? (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.confirmBtn,
+                  (order.items.length === 0 || loading) && styles.disabledBtn,
+                ]}
+                onPress={handleConfirmOrder}
+                disabled={order.items.length === 0 || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Order Now</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.advanceOrderBtn}
+                onPress={handlePlaceAdvanceOrder}
+                disabled={order.items.length === 0}
+              >
+                <Text style={styles.advncOrderBtnText}>
+                  Place Advance Order
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.advanceOrderBtn}
+                onPress={handlePlaceAdvanceOrder}
+                disabled={order.items.length === 0}
+              >
+                <Text style={styles.advncOrderBtnText}>
+                  Place Advance Order
+                </Text>
+              </TouchableOpacity>
+            </>
+          )
         ) : (
-          <>
-            <TouchableOpacity
-              style={styles.advanceOrderBtn}
-              onPress={handlePlaceAdvanceOrder}
-              disabled={order.items.length === 0}
-            >
-              <Text style={styles.advncOrderBtnText}>Place Advance Order</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.advanceOrderBtn}
+            onPress={handleSignIn}
+          >
+            <Text style={styles.advncOrderBtnText}>Login to Place Order</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -573,7 +637,7 @@ const CheckoutScreen = () => {
         style={styles.modal}
       >
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>PLACE ADVANCE ORDER</Text>
+          <Text style={styles.modalTitle}>{"Place Advance Order"}</Text>
           <View style={{ marginVertical: 16 }}>
             <HR />
           </View>
@@ -582,7 +646,7 @@ const CheckoutScreen = () => {
               <Text
                 style={{
                   fontSize: 16,
-                  fontFamily: Secondary400,
+                  fontFamily: Mulish400,
                   marginBottom: 8,
                 }}
               >
@@ -591,6 +655,7 @@ const CheckoutScreen = () => {
               {foodTruckDetail?.locations.map((loc) => (
                 <View key={loc._id}>
                   <TouchableOpacity
+                    activeOpacity={0.7}
                     style={[
                       styles.radioOption,
                       selectedLocation?._id === loc._id &&
@@ -601,8 +666,8 @@ const CheckoutScreen = () => {
                       setSelectedAvailability(null); // Reset availability on new location
                     }}
                   >
-                    <Text style={{ fontFamily: Secondary400, fontSize: 14 }}>
-                      {loc.address}
+                    <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                      {`${loc.title}, ${loc.address}`}
                     </Text>
                   </TouchableOpacity>
                   {selectedLocation?._id === loc._id && renderAvailability()}
@@ -611,6 +676,7 @@ const CheckoutScreen = () => {
             </View>
           </ScrollView>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={[
               styles.confirmBtn,
               (!selectedLocation || !selectedAvailability || loading) &&
@@ -648,7 +714,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     marginVertical: 10,
   },
@@ -690,15 +756,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   itemTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   itemDesc: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   itemPrice: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.primary,
   },
@@ -714,7 +780,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
   },
   qtyBtnText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.primary,
   },
@@ -725,7 +791,7 @@ const styles = StyleSheet.create({
     color: AppColor.textHighlighter,
   },
   qtyText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.text,
     marginHorizontal: 4,
@@ -743,13 +809,13 @@ const styles = StyleSheet.create({
   },
   couponText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   paymentBox: {
     marginVertical: 15,
   },
   paymentTitleTxt: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     marginBottom: 10,
   },
@@ -811,7 +877,7 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
   },
   paymentText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
   },
   totalCard: {
@@ -823,22 +889,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   totalLabel: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     marginBottom: 15,
   },
   totalLabelPrimary: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     marginBottom: 15,
     color: AppColor.primary,
   },
   totalRowItemTxt: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   totalText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
     marginBottom: 15,
   },
@@ -860,15 +926,15 @@ const styles = StyleSheet.create({
   },
   advncOrderBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   disabledBtn: {
-    backgroundColor: AppColor.textHighlighter,
+    opacity: 0.6,
   },
   confirmBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   HR: {
@@ -912,7 +978,7 @@ const styles = StyleSheet.create({
   },
   viewAllCouponsText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     marginVertical: 5,
     textAlign: "right",
@@ -931,7 +997,7 @@ const styles = StyleSheet.create({
     maxHeight: "80%", // Limit modal height
   },
   modalTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
     textAlign: "center",
   },
@@ -965,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
 });

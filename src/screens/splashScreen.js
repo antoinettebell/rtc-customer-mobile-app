@@ -17,11 +17,28 @@ const SplashScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
+  const { allLocations } = useSelector((state) => state.locationReducer);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
+      const paramsPayload = {};
+      if ((isSignedIn || isGuest) && !(allLocations?.length > 0)) {
+        paramsPayload.mode = "add";
+        paramsPayload.hideBackBtn = true;
+      }
+
+      // Navigation function
       navigation.replace(
-        isSignedIn ? "bottomRoot" : isGuest ? "bottomRoot" : "authIntro"
+        isSignedIn
+          ? allLocations?.length > 0
+            ? "bottomRoot" // home screen
+            : "authMapScreen" // map screen
+          : isGuest
+            ? allLocations?.length > 0
+              ? "bottomRoot" // home screen with guest mode
+              : "authMapScreen" // map screen
+            : "authIntro",
+        paramsPayload
       ); // navigate to AuthIntroScreen after splash
     }, 1500); // 3000ms = 3 seconds
 

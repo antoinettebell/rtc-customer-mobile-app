@@ -3,11 +3,11 @@ import { StyleSheet, View, ActivityIndicator, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconButton } from "react-native-paper";
 import { WebView } from "react-native-webview";
-import { privacyPolicy_API } from "../apiFolder/authAPI";
+import { tnc_API } from "../apiFolder/authAPI";
 import { AppColor, Mulish700 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 
-const PrivacyPolicyScreen = ({ navigation }) => {
+const TermsOfServiceScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -16,10 +16,10 @@ const PrivacyPolicyScreen = ({ navigation }) => {
   const getDataFromAPI = async () => {
     setLoading(true);
     try {
-      const response = await privacyPolicy_API();
-      if (response.success && response.data) {
+      const response = await tnc_API();
+      if (response?.success && response?.data) {
         console.log("Response => ", response);
-        setHtmlContent(response.data.privacyPolicy);
+        setHtmlContent(response.data.termsConditions);
       }
     } catch (error) {
       console.log("error => ", error);
@@ -52,31 +52,18 @@ const PrivacyPolicyScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* <StatusBarManager barStyle="light-content" /> */}
-      <StatusBarManager />
+      <StatusBarManager barStyle="light-content" />
 
       {/* Header */}
-      {/* <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <IconButton
           icon="arrow-left"
           iconColor={AppColor.white}
           size={24}
           onPress={() => navigation.goBack()}
         />
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
-        <View style={{ width: 48 }} />
-      </View> */}
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={AppColor.black}
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
         <Text numberOfLines={1} style={styles.headerTitle}>
-          {'Privacy Policy'}
+          Terms of Service
         </Text>
         <View style={{ width: 48 }} />
       </View>
@@ -104,42 +91,27 @@ const PrivacyPolicyScreen = ({ navigation }) => {
   );
 };
 
-export default PrivacyPolicyScreen;
+export default TermsOfServiceScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  // header: {
-  //   flexDirection: "row",
-  //   alignItems: "center",
-  //   justifyContent: "space-between",
-  //   backgroundColor: AppColor.primary,
-  //   paddingHorizontal: 8,
-  //   borderBottomLeftRadius: 25,
-  //   borderBottomRightRadius: 25,
-  // },
-  // headerTitle: {
-  //   color: AppColor.white,
-  //   fontSize: 20,
-  //   fontFamily: Mulish700,
-  // },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: AppColor.white,
+    backgroundColor: AppColor.primary,
     paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderColor: AppColor.border,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
   },
   headerTitle: {
-    color: AppColor.black,
+    color: AppColor.white,
     fontSize: 20,
     fontFamily: Mulish700,
   },
-
   content: {
     flex: 1,
     paddingHorizontal: 24,

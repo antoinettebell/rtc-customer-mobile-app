@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from "react-native";
 import moment from "moment";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 
 const FoodTruckAvailabilityModal = ({ visible, onClose, availability }) => {
   const daysOrder = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -23,8 +23,8 @@ const FoodTruckAvailabilityModal = ({ visible, onClose, availability }) => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>OPEN HoURS</Text>
-          <Text style={styles.modalSubTitle}>See weekly open hours.</Text>
+          <Text style={styles.modalTitle}>{"Open Hours"}</Text>
+          <Text style={styles.modalSubTitle}>{"See weekly open hours."}</Text>
           <View style={styles.HR} />
 
           {groupedAvailability.map(({ day, slots }) => (
@@ -43,13 +43,17 @@ const FoodTruckAvailabilityModal = ({ visible, onClose, availability }) => {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.closedText}>Closed</Text>
+                <Text style={styles.closedText}>{"Closed"}</Text>
               )}
             </View>
           ))}
 
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>Close</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onClose}
+            style={styles.closeButton}
+          >
+            <Text style={styles.closeButtonText}>{"Close"}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -81,12 +85,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     marginBottom: 5,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   modalSubTitle: {
     fontSize: 18,
     color: AppColor.gray,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   HR: {
     height: 1,
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
   },
   dayName: {
     width: 80,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   timeSlots: {
@@ -108,7 +112,7 @@ const styles = StyleSheet.create({
   },
   timeSlot: {
     marginBottom: 4,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.gray,
   },
@@ -135,7 +139,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: "white",
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
 });

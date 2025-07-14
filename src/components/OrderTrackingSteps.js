@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet, Animated, Easing } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 
 // Icon mapping for different status types
 const statusIcons = {
@@ -192,20 +192,20 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   stepTitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
     color: AppColor.subText,
   },
   stepTitleActive: {
     color: AppColor.primary,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   stepTitleDone: {
     color: AppColor.text,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   stepTime: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 13,
     color: AppColor.subText,
   },

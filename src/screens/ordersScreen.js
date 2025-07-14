@@ -1,343 +1,580 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
-  RefreshControl,
+  ActivityIndicator as NativeIndicator,
+  Platform,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
-import { useNavigation, useIsFocused } from "@react-navigation/native";
-import OrderListItem from "../components/OrderListItem";
+import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
+import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAllOrders_API } from "../apiFolder/appAPI";
+import { useDispatch } from "react-redux";
+import { orderCurrentStatusNames, PROFILE_AVATAR } from "../utils/constants";
+import FastImage from "@d11/react-native-fast-image";
+import moment from "moment";
+import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
+import { Divider } from "react-native-paper";
 
-const OrdersScreen = () => {
-  const [tab, setTab] = useState("current");
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+const OrdersScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const isFocused = useIsFocused();
+  const dispatch = useDispatch();
 
-  useEffect(() => {
-    if (isFocused) {
-      fetchOrders();
-    }
-  }, [isFocused]);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [activeStage, setActiveStage] = useState("current");
+  const [orderData, setOrderData] = useState([]);
 
-  const fetchOrders = async (silent = false) => {
-    try {
-      if (!silent) {
-        setLoading(true);
-      }
-      const response = await getAllOrders_API();
-      if (response?.data?.orderList) {
-        setOrders(response.data.orderList);
-      }
-    } catch (err) {
-      setError(err.message || "Failed to fetch orders");
-      console.error("Error fetching orders:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchOrders(true); // Silent refresh without showing full screen loader
-  };
-
-  // Filter orders based on status
-  const filteredOrders = orders.filter((order) => {
-    if (tab === "current") {
-      return (
-        order.orderStatus !== "COMPLETED" && order.orderStatus !== "CANCEL"
-      );
-    } else {
-      return order.orderStatus === "COMPLETED";
-    }
-  });
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const options = { day: "numeric", month: "short", year: "numeric" };
-    return date.toLocaleDateString("en-US", options);
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return "";
-    const [hours, minutes] = timeString.split(":");
-    const hour = parseInt(hours, 10);
-    const period = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    return `${displayHour}:${minutes} ${period}`;
-  };
-
-  const renderOrderItem = ({ item }) => {
-    const orderData = {
-      id: item._id,
-      truck: item.foodTruck?.name || "Unknown Truck",
-      items: item.items.map((menuItem) => ({
-        qty: menuItem.qty,
-        name: menuItem.menuItem?.name || "Unknown Item",
-        desc: menuItem.menuItem?.description || "",
-        price: menuItem.price,
-      })),
-      total: item.total,
-      date: formatDate(item.createdAt),
-      time: formatTime(item.deliveryTime || item.pickupTime),
-      image: item.foodTruck?.logo
-        ? { uri: item.foodTruck.logo }
-        : require("../assets/images/FT-Demo-01.png"),
-      status: item.orderStatus === "COMPLETED" ? "past" : "current",
-      currentOrderStatus: item.orderStatus,
-      isAdvanceOrder: !!item.availabilityId,
-      statusTime: item.statusTime,
-    };
+  // render order component
+  const renderOrderComponent = ({ item, index }) => {
+    const locationData = extractAdvanceOrderLocationAndTime(item);
 
     return (
-      <OrderListItem
-        order={orderData}
-        type={tab}
-        onTrack={() =>
-          navigation.navigate("orderTrackingScreen", { order: orderData })
-        }
-        onRate={() =>
-          tab === "past" &&
-          navigation.navigate("rateTruckScreen", { order: orderData })
-        }
-        onReorder={() => {
-          if (tab === "past") {
-            // Handle reorder logic here
-            console.log("Reorder:", orderData.id);
-          }
-        }}
-        onDetails={() =>
+      <TouchableOpacity
+        key={index}
+        activeOpacity={0.7}
+        style={styles.orderDetailsContainer}
+        onPress={() =>
           navigation.navigate("orderDetailsScreen", { orderId: item._id })
         }
-      />
+      >
+        {/* Order Header */}
+        <View style={[styles.orderHeader, { marginTop: 0 }]}>
+          <Text style={[styles.orderIdText, { color: AppColor.black }]}>
+            {"Order Status"}
+          </Text>
+          <Text style={styles.orderStatusText}>
+            {orderCurrentStatusNames[item.orderStatus]}
+          </Text>
+        </View>
+        {/* Order ID and Location */}
+        <View style={styles.orderIdLocationContainer}>
+          <View style={{ width: "75%", paddingRight: 8 }}>
+            <Text numberOfLines={1} style={styles.orderIdText}>
+              {"Order #" + (item?.orderNumber || item?._id)}
+            </Text>
+          </View>
+          <View style={styles.locationContainer}>
+            <MaterialCommunityIcons
+              name="map-marker-outline"
+              size={16}
+              color={AppColor.black}
+            />
+            <Text numberOfLines={1} style={styles.locationText}>
+              {locationData?.locationTitle}
+            </Text>
+          </View>
+        </View>
+        {/* Order User Details */}
+        <View style={styles.orderHeader}>
+          <View style={styles.orderUserImageContainer}>
+            <FastImage
+              source={{ uri: item.user.profilePic || PROFILE_AVATAR }}
+              style={styles.orderUserImage}
+            />
+          </View>
+          <View style={styles.orderUserInfo}>
+            <Text
+              numberOfLines={1}
+              style={styles.orderUserName}
+            >{`${item.user.firstName} ${item.user.lastName}`}</Text>
+            <Text
+              style={styles.orderItemCount}
+            >{`${item.items.length} Items`}</Text>
+          </View>
+          <View>
+            <Text style={styles.orderDate}>
+              {moment(item.createdAt).format("DD MMM, YYYY")}
+            </Text>
+            <View style={styles.orderTimeContainer}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={16}
+                color="#6F6F6F"
+              />
+              <Text style={styles.orderTime}>
+                {moment(item.createdAt).format("hh:mm A")}
+              </Text>
+            </View>
+          </View>
+        </View>
+        {/* Divider */}
+        <Divider style={styles.orderDivider} />
+        {/* Items */}
+        {item.items.map((i, index) => (
+          <View style={styles.orderItemContainer} key={index}>
+            <View style={styles.orderItemDetails}>
+              <Text
+                style={styles.orderItemName}
+              >{`${i.qty} x ${i.menuItem.name}`}</Text>
+              <Text style={styles.orderItemDescription}>
+                {i.menuItem.description}
+              </Text>
+            </View>
+            <View>
+              <Text
+                style={styles.orderItemPrice}
+              >{`$${i.total.toFixed(2)}`}</Text>
+            </View>
+          </View>
+        ))}
+        {/* Divider */}
+        <Divider style={styles.orderDivider} />
+        {/* Total */}
+        <View style={styles.orderTotalContainer}>
+          <Text
+            style={styles.orderTotalText}
+          >{`$${item.total.toFixed(2)}`}</Text>
+          {activeStage === "past" ? (
+            <TouchableOpacity
+              style={styles.rateBtn}
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("rateTruckScreen", {
+                  foodTruckId: item.foodTruckId,
+                })
+              }
+            >
+              <Text style={[styles.orderBtnText, { color: AppColor.primary }]}>
+                {"★ Rate"}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.trackBtn}
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("orderTrackingScreen", { order: item })
+              }
+            >
+              <FontAwesome6
+                name="map-location-dot"
+                color={AppColor.white}
+                size={20}
+              />
+              <Text style={styles.orderBtnText}>{"Track"}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
-  if (loading && !refreshing) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <ActivityIndicator size="large" color={AppColor.primary} />
-      </View>
-    );
-  }
 
-  if (error) {
+  // render footer for loading indicator
+  const renderFooter = () => {
+    if (!isLoadingMore || dataLoading) return null;
+
     return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          onPress={() => fetchOrders()}
-          style={styles.retryButton}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+      <View style={styles.footerContainer}>
+        <NativeIndicator size="small" color={AppColor.primary} />
       </View>
     );
-  }
+  };
+
+  // render empty component
+  const renderEmptyComponent = () => {
+    return (
+      <View style={styles.emptyContainer}>
+        {dataLoading ? (
+          <NativeIndicator size="large" color={AppColor.primary} />
+        ) : (
+          <Text style={styles.emptyText}>{"No orders found"}</Text>
+        )}
+      </View>
+    );
+  };
+
+  // handle stage change
+  const handleStageChange = (stage) => {
+    setActiveStage(stage);
+  };
+
+  // Handle load more
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMoreData) {
+      getOrderDataFromAPI(currentPage + 1, true, activeStage === "past");
+    }
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    getOrderDataFromAPI(1, false, activeStage === "past");
+  };
+
+  // fetch order data from API
+  const getOrderDataFromAPI = async (
+    page = 1,
+    isLoadMore = false,
+    isPast = false
+  ) => {
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setDataLoading(true);
+    }
+
+    try {
+      const response = await getAllOrders_API({
+        page,
+        limit: 20,
+        orderStatus: isPast
+          ? "CANCEL, REJECTED, COMPLETED"
+          : "PLACED, ACCEPTED,PREPARING, READY_FOR_PICKUP",
+      });
+      console.log("reponse => ", response);
+      if (response?.success && response?.data) {
+        setTotalPages(response.data.totalPages);
+        setCurrentPage(page);
+
+        if (isLoadMore) {
+          // Append new data for load more
+          setOrderData((prev) => [...prev, ...response.data.orderList]);
+        } else {
+          // Replace data for initial load or refresh
+          setOrderData(response.data.orderList);
+        }
+
+        // Check if there's more data to load
+        setHasMoreData(page < response.data.totalPages);
+      }
+    } catch (error) {
+      console.log("error => ", error);
+      // dispatch(
+      //   showSnackbar({
+      //     type: "error",
+      //     message: error.message,
+      //   })
+      // );
+    } finally {
+      setDataLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setHasMoreData(true);
+    setOrderData([]);
+    getOrderDataFromAPI(1, false, activeStage === "past");
+  }, [activeStage]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBarManager />
-      <View style={styles.headerWrap}>
-        <Text style={styles.header}>MY ORDERS</Text>
+
+      {/* Header */}
+      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>{"My Orders"}</Text>
       </View>
 
-      <View style={styles.contentWrap}>
-        <View style={styles.segmentRow}>
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              tab === "current"
-                ? styles.segmentBtnActive
-                : styles.segmentBtnInactive,
-            ]}
-            onPress={() => setTab("current")}
+      {/* Button Container */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={
+            activeStage === "current"
+              ? styles.activeButton
+              : styles.inactiveButton
+          }
+          onPress={() => handleStageChange("current")}
+          disabled={dataLoading}
+        >
+          <Text
+            style={
+              activeStage === "current"
+                ? styles.activeButtonText
+                : styles.inactiveButtonText
+            }
           >
-            <Text
-              style={[
-                styles.segmentBtnText,
-                tab === "current" && styles.segmentBtnTextActive,
-              ]}
-            >
-              CURRENT ORDERS
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              tab === "past"
-                ? styles.segmentBtnActive
-                : styles.segmentBtnInactive,
-            ]}
-            onPress={() => setTab("past")}
+            {"Current Orders"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={
+            activeStage === "past" ? styles.activeButton : styles.inactiveButton
+          }
+          onPress={() => handleStageChange("past")}
+          disabled={dataLoading}
+        >
+          <Text
+            style={
+              activeStage === "past"
+                ? styles.activeButtonText
+                : styles.inactiveButtonText
+            }
           >
-            <Text
-              style={[
-                styles.segmentBtnText,
-                tab === "past" && styles.segmentBtnTextActive,
-              ]}
-            >
-              PAST ORDERS
-            </Text>
-          </TouchableOpacity>
-        </View>
+            {"Past Orders"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
         <FlatList
-          data={filteredOrders}
-          showsVerticalScrollIndicator={false}
-          keyExtractor={(item) => item._id}
-          renderItem={renderOrderItem}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[AppColor.primary]}
-              tintColor={AppColor.primary}
-              progressViewOffset={50} // Adjust this if you have a header
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {tab === "current"
-                  ? "No current orders found."
-                  : "No past orders found."}
-              </Text>
-              <TouchableOpacity
-                onPress={() => fetchOrders()}
-                style={styles.refreshButton}
-              >
-                <Text style={styles.refreshButtonText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-          }
+          data={orderData}
+          extraData={orderData}
+          keyExtractor={(item) => item._id.toString()}
+          renderItem={renderOrderComponent}
           contentContainerStyle={styles.flatListContent}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.8}
+          ListFooterComponent={renderFooter}
+          refreshing={dataLoading}
+          onRefresh={handleRefresh}
+          ListEmptyComponent={renderEmptyComponent}
+          showsVerticalScrollIndicator={false}
         />
       </View>
     </View>
   );
 };
 
+export default memo(OrdersScreen);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AppColor.white,
+    backgroundColor: "#F9FAFB",
   },
-  centerContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerWrap: {
-    height: 56,
-    flexDirection: "row",
+
+  // Header
+  headerContainer: {
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    backgroundColor: AppColor.white,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: AppColor.borderColor,
+    borderColor: AppColor.border,
+    backgroundColor: AppColor.white,
   },
-  header: {
-    fontFamily: Primary400,
-    fontSize: 22,
+  headerTitle: {
+    fontFamily: Mulish700,
+    fontSize: 18,
     color: AppColor.text,
   },
-  contentWrap: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    backgroundColor: AppColor.screenBg,
-  },
-  segmentRow: {
+
+  // Button Container
+  buttonContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 20,
+    gap: 16,
+    padding: 16,
   },
-  segmentBtn: {
-    width: "48%",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: AppColor.primary,
+  activeButton: {
+    height: 46,
+    flex: 1 / 2,
     alignItems: "center",
-    backgroundColor: AppColor.white,
-  },
-  segmentBtnActive: {
+    justifyContent: "center",
+    borderRadius: 4.24,
     backgroundColor: AppColor.primary,
   },
-  segmentBtnInactive: {
-    borderStyle: "dashed",
-  },
-  segmentBtnText: {
-    fontFamily: Secondary400,
-    fontSize: 15,
-    color: AppColor.primary,
-    textAlign: "center",
-    paddingVertical: 16,
-  },
-  segmentBtnTextActive: {
+  activeButtonText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
     color: AppColor.white,
-    fontFamily: Primary400,
   },
-  emptyText: {
-    textAlign: "center",
-    color: AppColor.subText,
-    marginTop: 40,
-    fontFamily: Secondary400,
+  inactiveButton: {
+    height: 46,
+    flex: 1 / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 4.24,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+    backgroundColor: AppColor.white,
+  },
+  inactiveButtonText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.primary,
+  },
+
+  // Content Container
+  contentContainer: {
+    flex: 1,
   },
   flatListContent: {
     flexGrow: 1,
-    gap: 15,
   },
-  errorText: {
-    color: AppColor.error,
-    fontFamily: Secondary400,
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  retryButton: {
-    backgroundColor: AppColor.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 4,
-  },
-  retryButtonText: {
-    color: AppColor.white,
-    fontFamily: Primary400,
+  footerContainer: {
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 40,
   },
-  refreshButton: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  emptyText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+  },
+
+  // Order Details Container
+  orderDetailsContainer: {
+    margin: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: AppColor.border,
+    backgroundColor: AppColor.white,
+  },
+  orderIdText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: "#6F6F6F",
+  },
+  orderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 16,
+  },
+  orderUserImageContainer: {
+    height: 50,
+    width: 50,
+    borderWidth: 1,
+    borderRadius: 24.5,
+    borderColor: AppColor.border,
+  },
+  orderUserImage: {
+    height: 48,
+    width: 48,
+    borderRadius: 24,
+  },
+  orderUserInfo: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  orderUserName: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.black,
+  },
+  orderItemCount: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: "#6F6F6F",
+    paddingVertical: 5,
+  },
+  orderDate: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: "#6F6F6F",
+  },
+  orderTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 5,
+  },
+  orderTime: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: "#6F6F6F",
+  },
+  orderDivider: {
+    marginHorizontal: 8,
+  },
+  orderTotalContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  orderTotalText: {
+    fontFamily: Mulish400,
+    fontSize: 20,
+    color: AppColor.black,
+  },
+  orderItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 8,
+    marginVertical: 8,
+  },
+  orderItemDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  orderItemName: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+  },
+  orderItemDescription: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+  },
+  orderItemPrice: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.black,
+  },
+
+  trackBtn: {
+    height: 36,
+    gap: 5,
+    borderRadius: 5,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: AppColor.primary,
-    borderRadius: 4,
+    paddingHorizontal: 16,
   },
-  refreshButtonText: {
+  rateBtn: {
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 5,
+    borderColor: AppColor.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: AppColor.white,
+    paddingHorizontal: 16,
+  },
+  orderBtnText: {
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish600,
+    fontSize: 16,
   },
-  refreshIndicator: {
-    paddingVertical: 10,
+  orderStatusText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.primary,
+    textTransform: "capitalize",
+    textAlign: "right",
+  },
+
+  // Order ID and Location
+  orderIdLocationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  locationContainer: {
+    maxWidth: "25%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 14,
+    fontFamily: Mulish400,
+    color: AppColor.black,
   },
 });
-
-export default OrdersScreen;

@@ -10,7 +10,7 @@ import { TextInput } from "react-native-paper";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { CountryPicker } from "react-native-country-codes-picker";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 
 const UpdateContactModal = ({
   isVisible,
@@ -43,8 +43,8 @@ const UpdateContactModal = ({
           color={AppColor.primary}
         />
       </TouchableOpacity>
-      <Text style={styles.modalTitle}>UPDATE CoNTACT</Text>
-      <Text style={styles.inputText}>Mobile No.</Text>
+      <Text style={styles.modalTitle}>{"Update Contact"}</Text>
+      <Text style={styles.inputLabel}>{"Mobile No."}</Text>
       <View
         style={{
           flexDirection: "row",
@@ -100,7 +100,7 @@ const UpdateContactModal = ({
         show={countryPickerVisible}
         pickerButtonOnPress={onCountrySelect}
         onBackdropPress={() => setCountryPickerVisible(false)}
-        style={{
+        style={{   
           modal: { height: "70%" },
           backdrop: { backgroundColor: "rgba(0,0,0,0.1)" },
         }}
@@ -120,18 +120,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: 20,
     fontSize: 22,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.text,
     textAlign: "center",
-    letterSpacing: 1.5,
   },
   inputText: {
-    fontSize: 15,
-    fontFamily: Secondary400,
+    fontSize: 14,
+    fontFamily: Mulish400,
     marginBottom: 6,
   },
   input: {
     backgroundColor: AppColor.white,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontFamily: Mulish400,
+    marginBottom: 4,
   },
   countryPickerButton: {
     borderWidth: 1,
@@ -145,8 +149,8 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   countryCodeText: {
-    fontSize: 16,
-    fontFamily: Primary400,
+    fontSize: 14,
+    fontFamily: Mulish400,
     color: AppColor.text,
     marginRight: 4,
   },
@@ -172,7 +176,7 @@ const styles = StyleSheet.create({
   },
   updateBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   cancelBtn: {
@@ -187,12 +191,12 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   errorText: {
     color: AppColor.red,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 13,
     marginTop: 2,
     marginBottom: 2,

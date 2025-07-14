@@ -8,15 +8,20 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Pressable,
+  Linking,
+  Alert,
 } from "react-native";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useRoute } from "@react-navigation/native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import OrderTrackingSteps from "../components/OrderTrackingSteps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import moment from "moment";
+import FastImage from "@d11/react-native-fast-image";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -40,7 +45,7 @@ const pickupRegion = {
   longitudeDelta: LONGITUDE_DELTA,
 };
 
-const OrderTrackingScreen = (props) => {
+const OrderTrackingScreen = ({ navigation }) => {
   const { params } = useRoute();
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
@@ -71,8 +76,48 @@ const OrderTrackingScreen = (props) => {
     return history;
   };
 
+  const [progress, setProgress] = useState(0);
+
+  const calculateProgress = () => {
+    if (order?.statusTime?.readyAt) {
+      setProgress(100);
+    } else if (order?.statusTime?.preparingAt) {
+      const startTime = moment(order.statusTime.preparingAt);
+      const finishTime = moment(order.statusTime.preparingAt).add(
+        order?.pickupTime || 0,
+        "minutes"
+      );
+      const currentTime = moment();
+
+      if (currentTime.isBefore(finishTime)) {
+        const totalDuration = finishTime.diff(startTime);
+        const elapsedDuration = currentTime.diff(startTime);
+        const calculatedProgress = (elapsedDuration / totalDuration) * 100;
+        setProgress(Math.min(Math.max(calculatedProgress, 0), 100));
+      } else {
+        setProgress(100);
+      }
+    } else {
+      setProgress(0);
+    }
+  };
+
   useEffect(() => {
+    console.log("order data => ", order);
     setiamstate(getStatusHistory(order?.statusTime));
+    calculateProgress();
+
+    // Set up interval to update progress
+    let progressInterval;
+    if (order?.statusTime?.preparingAt && !order?.statusTime?.readyAt) {
+      progressInterval = setInterval(calculateProgress, 30000); // Update every 30 seconds
+    }
+
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
   }, [order]);
 
   const formattedSteps = iamstate.map((item) => ({
@@ -83,11 +128,35 @@ const OrderTrackingScreen = (props) => {
     }),
   }));
 
+  // Function to handle the button press and open the phone app
+  const handleCallPress = (phoneNumber) => {
+    // Construct the URL with the 'tel:' scheme
+    const url = `tel:${phoneNumber}`;
+
+    // Check if the device can open the URL
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (!supported) {
+          // If not supported, log an error or show a user-friendly message
+          console.log("Phone dialing is not supported on this device.");
+          // In a real React Native app, you might use an Alert:
+          Alert.alert(
+            "Error",
+            "Phone dialing is not supported on this device."
+          );
+        } else {
+          // If supported, open the URL
+          return Linking.openURL(url);
+        }
+      })
+      .catch((err) => console.error("An error occurred", err));
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      <AppHeader headerTitle="ORDER TRACKING" />
+      <AppHeader headerTitle="Order Tracking" />
 
       <ScrollView
         style={{
@@ -96,6 +165,7 @@ const OrderTrackingScreen = (props) => {
         }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Map Container */}
         <View
           style={{
             overflow: "hidden",
@@ -127,25 +197,41 @@ const OrderTrackingScreen = (props) => {
           </MapView>
         </View>
 
+        {/* Order Details with FT */}
         <View style={styles.commonCard}>
           <View style={styles.headerRow}>
-            <Text style={styles.orderId}>Order #{order.id}</Text>
+            <Text style={styles.orderId} numberOfLines={1}>
+              Order #{order?.orderNumber || order._id}
+            </Text>
             <Text style={styles.orderTotal}>
               ${Number(order.total).toFixed(2)}
             </Text>
           </View>
-          <View style={styles.orderCardRow}>
-            <Image source={order.image} style={styles.truckImg} />
+          <Pressable
+            style={styles.orderCardRow}
+            onPress={() =>
+              navigation.navigate("foodTruckDetailScreen", {
+                item: order?.foodTruck,
+              })
+            }
+          >
+            <FastImage
+              source={{ uri: order?.foodTruck?.logo }}
+              style={styles.truckImg}
+            />
             <View style={styles.orderCardInfo}>
-              <Text style={styles.truckName}>{order.truck}</Text>
-              <Text style={styles.orderItems}>{order.items.length} Items</Text>
+              <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
+              <Text style={styles.orderItems}>
+                {order?.items?.length} Items
+              </Text>
             </View>
-          </View>
+          </Pressable>
         </View>
 
+        {/* Status Container */}
         <View style={styles.commonCard}>
           <View style={styles.statusHeaderRow}>
-            <Text style={styles.statusLabel}>STATUS</Text>
+            <Text style={styles.statusLabel}>{"Status"}</Text>
             <Text style={styles.statusBadge}>
               {formattedSteps.length > 0
                 ? formattedSteps[formattedSteps.length - 1].title
@@ -155,6 +241,7 @@ const OrderTrackingScreen = (props) => {
           <OrderTrackingSteps steps={formattedSteps} />
         </View>
 
+        {/* Estimated Time Container */}
         <View style={styles.commonCard}>
           <View
             style={{
@@ -164,7 +251,7 @@ const OrderTrackingScreen = (props) => {
               marginBottom: 16,
             }}
           >
-            <Text style={styles.estimateLabel}>ESTIMATED TIME</Text>
+            <Text style={styles.estimateLabel}>{"Estimated Time"}</Text>
 
             <View style={styles.timeRow}>
               <MaterialIcons
@@ -173,26 +260,58 @@ const OrderTrackingScreen = (props) => {
                 color={AppColor.grayText}
                 style={styles.timeIcon}
               />
-              <Text style={styles.orderDate}>{order.time}</Text>
+              <Text style={styles.orderDate}>
+                {moment(order.statusTime.placedAt).format("hh:mm A")}
+              </Text>
             </View>
           </View>
           <View style={styles.progressBar}>
-            <View style={styles.progressFill} />
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
           <View style={styles.estimateRow}>
-            <Text style={styles.estimateTime}>10:19 AM</Text>
-            <Text style={styles.estimateTime}>10:39 AM</Text>
+            <Text style={styles.estimateTime}>
+              {order.statusTime.preparingAt
+                ? moment(order.statusTime.preparingAt).format("hh:mm A")
+                : "Not Started Yet"}
+            </Text>
+            <Text style={styles.estimateTime}>
+              {order.statusTime.preparingAt
+                ? order.statusTime.readyAt
+                  ? moment(order.statusTime.readyAt).format("hh:mm A")
+                  : moment(order.statusTime.preparingAt)
+                      .add(order?.pickupTime || 0, "minutes")
+                      .format("hh:mm A")
+                : null}
+            </Text>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              console.log("order data => ", order);
+              navigation.navigate("orderDetailsScreen", { orderId: order._id });
+            }}
+          >
             <Text style={styles.viewOrder}>View Order</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Call Vendor Container */}
         <View style={[styles.commonCard, { marginBottom: 50 }]}>
           <View style={styles.bottomCardRow}>
-            <Image source={order.image} style={styles.truckImg} />
-            <Text style={styles.truckName}>{order.truck}</Text>
-            <TouchableOpacity style={styles.phoneBtn}>
+            <FastImage
+              source={{ uri: order?.foodTruck?.logo }}
+              style={styles.truckImg}
+            />
+            <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.phoneBtn}
+              onPress={() =>
+                handleCallPress(
+                  `${order?.vendor?.countryCode}${order?.vendor?.mobileNumber}`
+                )
+              }
+            >
               <Image
                 source={require("../assets/images/phone.png")}
                 style={styles.phoneIcon}
@@ -245,7 +364,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   orderId: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.grayText,
   },
@@ -264,15 +383,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   truckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   orderItems: {
     color: AppColor.subText,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   orderTotal: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
   },
   statusHeaderRow: {
@@ -282,7 +401,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statusLabel: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 15,
   },
   statusBadge: {
@@ -290,16 +409,16 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
     borderRadius: 8,
     padding: 6,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   estimateLabel: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     marginBottom: 8,
   },
   orderDate: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.grayText,
     marginLeft: 5,
@@ -313,9 +432,10 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.border,
     overflow: "hidden",
     marginBottom: 8,
+    borderRadius: 4,
   },
   progressFill: {
-    width: "50%",
+    width: "0%",
     height: 8,
     borderRadius: 4,
     backgroundColor: AppColor.snackbarSuccess,
@@ -326,12 +446,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   estimateTime: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.grayText,
   },
   viewOrder: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     marginTop: 10,
   },

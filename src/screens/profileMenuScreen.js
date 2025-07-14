@@ -10,7 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useDispatch, useSelector } from "react-redux";
 import { onSignOut } from "../redux/slices/authSlice";
 import usePermission from "../hooks/usePermission";
@@ -95,7 +95,7 @@ const ProfileMenuScreen = ({ navigation }) => {
   );
   const [contactError, setContactError] = useState("");
 
-  const ordersCompleted = 5;
+  const ordersCompleted = 0;
   const totalOrders = 10;
   const progress = ordersCompleted / totalOrders;
 
@@ -410,25 +410,39 @@ const ProfileMenuScreen = ({ navigation }) => {
         data={favorites.slice(0, 2)}
         keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <View style={styles.favTruckRow}>
-            <FastImage
-              source={
-                item.foodTruck?.logo ? { uri: item.foodTruck?.logo } : favTruck1
+        renderItem={({ item }) => {
+          console.log("ITEM => ", item);
+          return (
+            <TouchableOpacity
+              key={item._id}
+              activeOpacity={0.7}
+              style={styles.favTruckRow}
+              onPress={() =>
+                navigation.navigate("foodTruckDetailScreen", {
+                  item: item.foodTruck,
+                })
               }
-              style={styles.favTruckImg}
-            />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
-              <Text style={styles.favTruckReview}>
-                ⭐ {item.foodTruck?.reviews || "0"} reviews
-                {/* -{" "}
+            >
+              <FastImage
+                source={
+                  item.foodTruck?.logo
+                    ? { uri: item.foodTruck?.logo }
+                    : favTruck1
+                }
+                style={styles.favTruckImg}
+              />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
+                <Text style={styles.favTruckReview}>
+                  ⭐ {item.foodTruck?.totalReviews || "0"} reviews
+                  {/* -{" "}
                 {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
                   " miles away" || "0 miles away"} */}
-              </Text>
-            </View>
-          </View>
-        )}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ItemSeparatorComponent={<HR />}
       />
     );
@@ -437,17 +451,13 @@ const ProfileMenuScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Header */}
         <View style={styles.headerWrap}>
-          <View style={{ width: 20 }} />
-          <Text
-            style={styles.profileTitle}
-            onPress={() => getUserDetailFromAPI()}
-          >
-            PRoFILE
-          </Text>
-          <Entypo name="dots-three-vertical" size={20} color={AppColor.text} />
+          <Text style={styles.profileTitle}>{"Profile"}</Text>
         </View>
         <View style={styles.avatarWrap}>
           <FastImage
@@ -455,6 +465,7 @@ const ProfileMenuScreen = ({ navigation }) => {
             style={styles.avatarImg}
           />
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.cameraIcon}
             onPress={() => setModalVisible(true)}
             disabled={uploadingImage}
@@ -481,6 +492,7 @@ const ProfileMenuScreen = ({ navigation }) => {
         >
           <Text style={styles.userName}>{displayName}</Text>
           <TouchableOpacity
+            activeOpacity={0.7}
             style={styles.editIcon}
             onPress={() => setUpdateNameModalVisible(true)}
           >
@@ -488,6 +500,7 @@ const ProfileMenuScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Main Content Goes Here */}
         <View
           style={{
             paddingHorizontal: 16,
@@ -501,7 +514,7 @@ const ProfileMenuScreen = ({ navigation }) => {
             style={{ borderRadius: 10 }}
           >
             <View style={styles.dessertCard}>
-              <Text style={styles.dessertTitle}>GET FREE DESSERT!</Text>
+              <Text style={styles.dessertTitle}>{"Get Free Dessert!"}</Text>
               <View
                 style={{
                   alignItems: "center",
@@ -544,26 +557,26 @@ const ProfileMenuScreen = ({ navigation }) => {
               onPress={() => navigation.navigate("addressScreen")}
             />
           </View>
+
           {/* Favorite Food Trucks */}
-          <TouchableOpacity
-            style={styles.sectionHeaderRow}
-            onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}
-          >
-            <Text style={styles.sectionTitle}>FAVoRITE FooD TRUCKS</Text>
-            <Entypo
-              name="chevron-small-right"
-              size={24}
-              color={AppColor.black}
-            />
-          </TouchableOpacity>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>{"Favorite Food Trucks"}</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}
+            >
+              <Text style={styles.seeAll}>{"See All"}</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.favTrucksCard}>{renderFavoriteTrucks()}</View>
+
           {/* Menu Items */}
           <View style={styles.infoCard}>
             <CustomProfileItem
               imageUri={require("../assets/images/lock.png")}
               label="Privacy Policy"
               rightIcon={true}
-              onPress={() => navigation.navigate("privacyPolicy")}
+              onPress={() => navigation.navigate("appPrivacyPolicy")}
             />
             <HR />
             <CustomProfileItem
@@ -589,6 +602,7 @@ const ProfileMenuScreen = ({ navigation }) => {
             />
           </View>
         </View>
+
         {/* Media Picker Modal */}
         <MediaPickerDialog
           isVisible={modalVisible}
@@ -670,13 +684,13 @@ const styles = StyleSheet.create({
   headerWrap: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginTop: 16,
     marginBottom: 32,
     paddingHorizontal: 8,
   },
   profileTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     color: AppColor.text,
     letterSpacing: 1.5,
@@ -713,7 +727,7 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.primary,
   },
   userName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     color: AppColor.text,
     textAlign: "center",
@@ -724,13 +738,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   dessertTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     color: AppColor.white,
     marginBottom: 6,
   },
   dessertSub: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.white,
   },
@@ -748,7 +762,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   dessertRemain: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.white,
   },
@@ -783,10 +797,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   sectionTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 15,
     color: AppColor.text,
     letterSpacing: 1,
+  },
+  seeAll: {
+    fontFamily: Mulish700,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
   },
   favTrucksCard: {
     borderWidth: 1,
@@ -821,13 +840,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   favTruckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.text,
     marginBottom: 8,
   },
   favTruckReview: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textHighlighter,
   },
@@ -845,7 +864,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: AppColor.snackbarError,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   noDataContainer: {
@@ -854,7 +873,7 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     color: AppColor.textHighlighter,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
 });

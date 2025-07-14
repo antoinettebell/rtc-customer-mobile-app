@@ -2,7 +2,7 @@ import React from "react";
 import { TouchableOpacity, Text, View, StyleSheet } from "react-native";
 import FastImage from "@d11/react-native-fast-image";
 import Entypo from "react-native-vector-icons/Entypo";
-import { AppColor, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish400 } from "../utils/theme";
 
 const CustomProfileItem = ({ imageUri, label, rightIcon, isRed, onPress }) => (
   <TouchableOpacity
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   },
   componentLabel: {
     flex: 1,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
 });

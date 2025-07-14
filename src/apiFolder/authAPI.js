@@ -1,10 +1,13 @@
 import apiClient from "./apiClient";
 import {
+  AGREEMENT,
   CHANGE_PASSWORD,
   FORGOT_PASSWORD,
   LOGIN,
+  PRIVACY_POLICY,
   REGISTER_USER,
   RESEND_OTP,
+  TNC,
   VERIFY_OTP,
 } from "./apiEndPoint";
 
@@ -68,6 +71,39 @@ export const register_API = async (payload) => {
   try {
     const URL = `${REGISTER_USER}`;
     const response = await apiClient.post(URL, payload, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// TnC API
+export const tnc_API = async () => {
+  try {
+    const URL = `${TNC}`;
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// privacy pollicy API
+export const privacyPolicy_API = async () => {
+  try {
+    const URL = `${PRIVACY_POLICY}`;
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Agreement API
+export const agreement_API = async () => {
+  try {
+    const URL = `${AGREEMENT}`;
+    const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

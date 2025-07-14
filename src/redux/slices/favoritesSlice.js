@@ -22,12 +22,13 @@ export const fetchFavorites = createAsyncThunk(
       }
 
       const response = await getFavoriteFoodTruck_API(params); // Pass params to the API call
+      console.log("Response => ", response);
       if (response?.success) {
         const normalizedFavorites = response.data.favoriteList.map((fav) => ({
           _id: fav._id, // The favorite entry ID
           foodTruck: fav.foodTruck || fav, // Ensure foodTruck object is present
-          reviews: fav.reviews,
-          distance: fav.distance,
+          reviews: fav.foodTruck?.totalReview || "0",
+          distance: fav.distance || "0",
           // Add other necessary fields from the favorite object if they exist directly on `fav`
         }));
         return normalizedFavorites;
@@ -66,6 +67,7 @@ export const toggleFavorite = createAsyncThunk(
       } else {
         // Add to favorites
         const response = await addFavoriteFoodTruck_API(foodTruckId);
+        console.log("added to fav foodtruck response => ", response);
         if (response?.success) {
           const addedFoodTruck = response.data?.foodTruck || {
             _id: foodTruckId,
@@ -133,10 +135,11 @@ const favoritesSlice = createSlice({
               (fav) => fav.foodTruck._id === action.payload.foodTruck._id
             )
           ) {
+            console.log(action.payload.action, action.payload.foodTruck);
             state.favorites.push({
               _id: action.payload.foodTruck._id, // Using foodTruck._id as a fallback for favorite entry ID
               foodTruck: action.payload.foodTruck,
-              reviews: action.payload.foodTruck.reviews || "0",
+              reviews: action.payload.foodTruck.totalReviews || "0",
               distance: action.payload.foodTruck.distanceInMeters || "0",
             });
           }

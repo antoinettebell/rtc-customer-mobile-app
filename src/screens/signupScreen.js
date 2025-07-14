@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CountryPicker } from "react-native-country-codes-picker";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import { register_API } from "../apiFolder/authAPI";
 import StatusBarManager from "../components/StatusBarManager";
@@ -346,6 +346,7 @@ const SignupScreen = () => {
                     icon={passwordVisible ? "eye-off" : "eye"}
                     onPress={togglePasswordVisibility}
                     color={AppColor.textHighlighter}
+                    forceTextInputFocus={false}
                   />
                 }
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
@@ -446,26 +447,35 @@ const SignupScreen = () => {
                 onBackdropPress={() => setCountryPickerVisible(false)}
               />
 
+              {/* T&C */}
               <View style={styles.termsContainer}>
                 <TouchableOpacity
+                  activeOpacity={0.7}
                   onPress={() => setAgreed(!agreed)}
                   style={styles.iconBox}
                 >
                   <Ionicons
                     name={agreed ? "checkbox" : "square-outline"}
                     size={22}
-                    color={errors.agreed ? AppColor.error : AppColor.primary}
+                    color={AppColor.primary}
                   />
                 </TouchableOpacity>
 
-                <Text
-                  style={styles.termsText}
-                  onPress={() => setAgreed(!agreed)}
-                >
+                <Text style={styles.termsText}>
                   {"I agree to the"}
-                  <Text style={styles.linkText}>{" Terms of Service"}</Text>
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("termsOfService")}
+                  >
+                    {" Terms of Service"}
+                  </Text>
                   {" and "}
-                  <Text style={styles.linkText}>{"Privacy Policy."}</Text>
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("privacyPolicy")}
+                  >
+                    {"Privacy Policy."}
+                  </Text>
                 </Text>
               </View>
               {errors.agreed ? (
@@ -478,15 +488,15 @@ const SignupScreen = () => {
                 </HelperText>
               ) : null}
 
-              <View style={styles.signUpContainer}>
-                <Text style={styles.signUpText}>
+              <View style={styles.signInContainer}>
+                <Text style={styles.signInText}>
                   {"Already have an account? "}{" "}
                 </Text>
                 <TouchableOpacity
                   onPress={handleSigninPress}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.signUpLink}>{"Sign In"}</Text>
+                  <Text style={styles.signInLink}>{"Sign In"}</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
@@ -543,7 +553,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: AppColor.white,
     fontSize: 20,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   content: {
     flex: 1,
@@ -555,13 +565,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 24,
     color: AppColor.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
     marginBottom: 50,
@@ -570,7 +580,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
     color: AppColor.text,
     marginBottom: 8,
@@ -579,7 +589,7 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   inputText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   countryPickerButton: {
     height: "100%",
@@ -597,12 +607,13 @@ const styles = StyleSheet.create({
   countryCodeText: {
     color: AppColor.text,
     fontSize: 15,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   helper: {
     marginBottom: 8,
     paddingLeft: 0,
     paddingTop: 0,
+    fontFamily: Mulish400,
   },
   signInButton: {
     height: 48,
@@ -626,24 +637,24 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  signUpContainer: {
+  signInContainer: {
     flexDirection: "row",
     justifyContent: "center",
     marginTop: 10,
     marginBottom: 20,
   },
-  signUpText: {
+  signInText: {
     color: AppColor.textHighlighter,
     fontSize: 14,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
-  signUpLink: {
+  signInLink: {
     color: AppColor.text,
     fontSize: 14,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
   },
   buttonLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,
   },
@@ -657,7 +668,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: AppColor.text,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
   },
   linkText: {
     color: AppColor.primary,

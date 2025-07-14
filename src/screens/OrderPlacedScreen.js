@@ -1,11 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 
-const OrderPlacedScreen = () => {
-  const navigation = useNavigation();
-  const orderNumber = "#126265";
+const OrderPlacedScreen = ({ navigation, route }) => {
+  const orderNumber = route?.params?.orderNumber;
 
   return (
     <View style={styles.container}>
@@ -14,8 +12,9 @@ const OrderPlacedScreen = () => {
         style={styles.icon}
       />
       <Text style={styles.placedText}>YOUR ORDER HAS BEEN PLACED!</Text>
-      <Text style={styles.orderNum}>Order {orderNumber}</Text>
+      <Text style={styles.orderNum}>Order #{orderNumber}</Text>
       <TouchableOpacity
+        activeOpacity={0.7}
         style={styles.trackBtn}
         onPress={() => {
           navigation.navigate("bottomRoot", {
@@ -46,14 +45,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 8,
     textAlign: "center",
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.primary,
   },
   orderNum: {
     fontSize: 15,
     marginBottom: 24,
     textAlign: "center",
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     color: AppColor.textHighlighter,
   },
   trackBtn: {
@@ -70,7 +69,7 @@ const styles = StyleSheet.create({
   },
   trackBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
 });

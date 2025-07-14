@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -19,7 +20,7 @@ import {
   useNavigation,
   useFocusEffect,
 } from "@react-navigation/native";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
@@ -45,6 +46,7 @@ import webIcon from "../assets/images/global.png";
 import FastImage from "@d11/react-native-fast-image";
 import moment from "moment";
 import FoodTruckAvailabilityModal from "../components/FoodTruckAvailabilityModal";
+import ActionSheet from "react-native-actions-sheet";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -150,19 +152,21 @@ const getCurrentStatus = (availability) => {
   return isOpen ? "Open Now" : "Closed Now";
 };
 
-const FoodTruckDetailScreen = () => {
+const FoodTruckDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const route = useRoute();
-  const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { item } = route.params;
-  const [selectedTab, setSelectedTab] = useState(0);
   const tabListRef = useRef();
   const tabContentRef = useRef();
+  const actionSheetRef = useRef(null);
+
+  const { item } = route.params;
+
+  const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [menuLoading, setMenuLoading] = useState(true);
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [menuTabs, setMenuTabs] = useState([]);
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [isScheduleVisible, setIsScheduleVisible] = useState(false);
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
@@ -197,7 +201,8 @@ const FoodTruckDetailScreen = () => {
     try {
       setLoading(true);
       const response = await getFoodTruckDetailById_API(item._id);
-      if (response?.success) {
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
         setFoodTruckDetail(response?.data?.foodtruck);
       }
     } catch (error) {
@@ -289,6 +294,7 @@ const FoodTruckDetailScreen = () => {
       value: todaysHours,
       icon2: (
         <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => setIsScheduleVisible(true)}
           hitSlop={12}
         >
@@ -382,6 +388,7 @@ const FoodTruckDetailScreen = () => {
                 addItemToOrder({
                   foodTruckId: item._id,
                   foodTruckName: item.name,
+                  foodTruckLogo: item.logo,
                   item: {
                     id: menuItem.id,
                     name: menuItem.name,
@@ -411,6 +418,7 @@ const FoodTruckDetailScreen = () => {
       addItemToOrder({
         foodTruckId: item._id,
         foodTruckName: item.name,
+        foodTruckLogo: item.logo,
         item: {
           id: menuItem.id,
           name: menuItem.name,
@@ -448,79 +456,45 @@ const FoodTruckDetailScreen = () => {
     foodTruckDetail?.locations
   );
 
-  const handleGetDirection = () => {
+  const handleGetDirection = async () => {
     if (!truckLocation) {
       Alert.alert("Location Not Available", "Food truck location is not set.");
       return;
     }
 
     const { latitude, longitude } = truckLocation;
-    const appleMapsUrl = `http://maps.apple.com/?ll=${latitude},${longitude}`;
-    const googleMapsUrl = `http://maps.google.com/?q=${latitude},${longitude}`; // Corrected Google Maps URL for direct coordinates
+
+    const googleMapWebUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    const googleMapAppUrl = `comgooglemaps://?q=${latitude},${longitude}`;
+    const appleMapUrl = `maps://?q=${latitude},${longitude}`;
 
     if (Platform.OS === "ios") {
-      Alert.alert(
-        "Choose Map App",
-        "Which app would you like to use for directions?",
-        [
-          {
-            text: "Apple Maps",
-            onPress: () =>
-              Linking.openURL(appleMapsUrl).catch((err) =>
-                console.error("Failed to open Apple Maps:", err)
-              ),
-          },
-          {
-            text: "Google Maps",
-            onPress: () => {
-              Linking.canOpenURL("comgooglemaps://")
-                .then((supported) => {
-                  if (supported) {
-                    Linking.openURL(googleMapsUrl).catch((err) =>
-                      console.error("Failed to open Google Maps:", err)
-                    );
-                  } else {
-                    Alert.alert(
-                      "Google Maps Not Installed",
-                      "Google Maps app is not installed on your device. Opening in Apple Maps instead.",
-                      [
-                        {
-                          text: "OK",
-                          onPress: () =>
-                            Linking.openURL(appleMapsUrl).catch((err) =>
-                              console.error("Failed to open Apple Maps:", err)
-                            ),
-                        },
-                      ]
-                    );
-                  }
-                })
-                .catch((err) =>
-                  console.error(
-                    "An error occurred checking Google Maps support",
-                    err
-                  )
-                );
-            },
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
+      const canOpenGoogleMaps = await Linking.canOpenURL(googleMapAppUrl);
+      if (canOpenGoogleMaps) {
+        await Linking.openURL(googleMapAppUrl);
+        return;
+      }
+
+      const canOpenAppleMaps = await Linking.canOpenURL(appleMapUrl);
+      if (canOpenAppleMaps) {
+        await Linking.openURL(appleMapUrl);
+        return;
+      }
+
+      // Fallback to web
+      await Linking.openURL(googleMapWebUrl);
     } else {
-      // Android
-      Linking.openURL(googleMapsUrl).catch((err) =>
-        console.error("Failed to open Google Maps on Android:", err)
-      );
+      // Android: open Google Maps in browser (will redirect to app if available)
+      await Linking.openURL(googleMapWebUrl);
     }
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      <AppHeader headerTitle="DETAILS" />
+
+      <AppHeader headerTitle="Details" />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -552,10 +526,16 @@ const FoodTruckDetailScreen = () => {
             <TouchableOpacity
               style={styles.ratingsRow}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate("rateReviewScreen")}
+              onPress={() =>
+                navigation.navigate("rateReviewScreen", {
+                  foodTruckId: item?._id,
+                })
+              }
             >
               <FontAwesome name="star" size={16} color={AppColor.ratingStar} />
-              <Text style={styles.ratingText}>4.8 (200+ reviews)</Text>
+              <Text
+                style={styles.ratingText}
+              >{` ${foodTruckDetail?.avgRate || 0} (${foodTruckDetail?.totalReviews || 0} reviews)`}</Text>
               <Text style={styles.dot}>|</Text>
               <Text style={styles.cuisineText}>
                 {formatCuisines(foodTruckDetail?.cuisine)}
@@ -563,6 +543,7 @@ const FoodTruckDetailScreen = () => {
             </TouchableOpacity>
             {foodTruckDetail && isSignedIn && (
               <TouchableOpacity
+                activeOpacity={0.7}
                 onPress={() =>
                   dispatch(
                     toggleFavorite({
@@ -599,6 +580,7 @@ const FoodTruckDetailScreen = () => {
 
               return (
                 <TouchableOpacity
+                  activeOpacity={0.7}
                   key={`${social.mediaType}-${index}`}
                   onPress={() => handleSocialPress(social.mediaUrl)}
                 >
@@ -613,8 +595,9 @@ const FoodTruckDetailScreen = () => {
         {currentStatus === "Open Now" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>CURRENT LOCATION</Text>
+              <Text style={styles.sectionTitle}>{"Current Location"}</Text>
               <TouchableOpacity
+                activeOpacity={0.7}
                 style={styles.getDirectionBtn}
                 onPress={handleGetDirection}
               >
@@ -736,6 +719,7 @@ const FoodTruckDetailScreen = () => {
                 contentContainerStyle={styles.tabsRow}
                 renderItem={({ item: tab, index }) => (
                   <TouchableOpacity
+                    activeOpacity={0.7}
                     style={[
                       styles.tabBtn,
                       selectedTab === index && styles.tabBtnActive,
@@ -805,7 +789,15 @@ const FoodTruckDetailScreen = () => {
                               ]}
                             />
                           )}
-                          <View style={styles.menuDetails}>
+                          <Pressable
+                            onPress={() => {
+                              console.log("menu item => ", menu);
+                              setSelectedMenuItem(menu);
+                              actionSheetRef.current?.show();
+                            }}
+                            style={styles.menuDetails}
+                            disabled={isDisabled}
+                          >
                             <Text
                               style={[
                                 styles.menuTitle,
@@ -835,10 +827,11 @@ const FoodTruckDetailScreen = () => {
                                 Currently Unavailable
                               </Text>
                             )}
-                          </View>
+                          </Pressable>
                           {!isDisabled ? (
                             quantity === 0 ? (
                               <TouchableOpacity
+                                activeOpacity={0.7}
                                 style={styles.addButton}
                                 onPress={() => handleAddItem(menu)}
                               >
@@ -847,6 +840,7 @@ const FoodTruckDetailScreen = () => {
                             ) : (
                               <View style={styles.quantityContainer}>
                                 <TouchableOpacity
+                                  activeOpacity={0.7}
                                   style={styles.quantityButton}
                                   onPress={() => handleRemoveItem(menu)}
                                 >
@@ -858,6 +852,7 @@ const FoodTruckDetailScreen = () => {
                                   {quantity}
                                 </Text>
                                 <TouchableOpacity
+                                  activeOpacity={0.7}
                                   style={styles.quantityButton}
                                   onPress={() => handleAddItem(menu)}
                                   disabled={quantity >= menu.maxQty}
@@ -889,9 +884,11 @@ const FoodTruckDetailScreen = () => {
           </View>
         )}
       </ScrollView>
+
       {/* Bottom Bar - Conditional display */}
       {currentOrder.totalItems > 0 && currentOrder.foodTruckId === item._id && (
         <TouchableOpacity
+          activeOpacity={0.7}
           style={[
             styles.bottomBar,
             {
@@ -899,11 +896,7 @@ const FoodTruckDetailScreen = () => {
             },
           ]}
           onPress={() =>
-            navigation.navigate("checkoutScreen", {
-              order: currentOrder,
-              foodTruckStatus: currentStatus, // Pass truck status to checkout screen
-              foodTruckDetail: foodTruckDetail, // Pass full food truck detail to checkout screen
-            })
+            navigation.navigate("checkoutScreen", { foodTruckId: item?._id })
           }
         >
           <View style={styles.bottomBarBtn}>
@@ -915,6 +908,402 @@ const FoodTruckDetailScreen = () => {
           </View>
         </TouchableOpacity>
       )}
+
+      {/* <ActionSheet
+        ref={actionSheetRef}
+        headerAlwaysVisible={true}
+        gestureEnabled={true}
+        onClose={() => setSelectedMenuItem(null)}
+      >
+        <Text>{selectedMenuItem?.name}</Text>
+      </ActionSheet> */}
+
+      <ActionSheet
+        ref={actionSheetRef}
+        headerAlwaysVisible={true}
+        gestureEnabled={true}
+        onClose={() => setSelectedMenuItem(null)}
+      >
+        {selectedMenuItem && (
+          <View style={{ padding: 20 }}>
+            {/* Header with close button */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: Mulish700,
+                  fontSize: 20,
+                  color: AppColor.text,
+                }}
+              >
+                {selectedMenuItem.name || "Menu Item"}
+              </Text>
+              <TouchableOpacity onPress={() => actionSheetRef.current?.hide()}>
+                <MaterialIcons name="close" size={24} color={AppColor.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Image - using first image from imgUrls if available */}
+            {selectedMenuItem.img?.uri ||
+            selectedMenuItem.originalItem?.imgUrls?.[0] ? (
+              <Image
+                source={{
+                  uri:
+                    selectedMenuItem.img?.uri ||
+                    selectedMenuItem.originalItem?.imgUrls?.[0],
+                }}
+                style={{
+                  width: "100%",
+                  height: 200,
+                  borderRadius: 10,
+                  marginBottom: 15,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: "100%",
+                  height: 200,
+                  borderRadius: 10,
+                  backgroundColor: "#f0f0f0",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 15,
+                }}
+              >
+                <MaterialIcons
+                  name="fastfood"
+                  size={50}
+                  color={AppColor.textHighlighter}
+                />
+              </View>
+            )}
+
+            {/* Description */}
+            {(selectedMenuItem.desc ||
+              selectedMenuItem.originalItem?.description) && (
+              <Text
+                style={{
+                  fontFamily: Mulish400,
+                  fontSize: 15,
+                  color: AppColor.text,
+                  marginBottom: 15,
+                  lineHeight: 22,
+                }}
+              >
+                {selectedMenuItem.desc ||
+                  selectedMenuItem.originalItem?.description ||
+                  ""}
+              </Text>
+            )}
+
+            {/* Price and Availability */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: Mulish700,
+                  fontSize: 18,
+                  color: AppColor.primary,
+                }}
+              >
+                {selectedMenuItem.price ||
+                  `$${(selectedMenuItem.originalItem?.price || 0).toFixed(2)}`}
+                {(selectedMenuItem.discount || 0) > 0 && (
+                  <Text
+                    style={{
+                      fontFamily: Mulish400,
+                      fontSize: 14,
+                      color: AppColor.snackbarError,
+                      textDecorationLine: "line-through",
+                      marginLeft: 5,
+                    }}
+                  >
+                    $
+                    {(
+                      parseFloat(
+                        (selectedMenuItem.price || "0").replace("$", "")
+                      ) + (selectedMenuItem.discount || 0)
+                    ).toFixed(2)}
+                  </Text>
+                )}
+              </Text>
+
+              <Text
+                style={{
+                  fontFamily: Mulish400,
+                  fontSize: 14,
+                  color: (
+                    selectedMenuItem.available !== undefined
+                      ? selectedMenuItem.available
+                      : selectedMenuItem.originalItem?.available
+                  )
+                    ? AppColor.snackbarSuccess
+                    : AppColor.snackbarError,
+                  backgroundColor: (
+                    selectedMenuItem.available !== undefined
+                      ? selectedMenuItem.available
+                      : selectedMenuItem.originalItem?.available
+                  )
+                    ? AppColor.lightGreenBG
+                    : AppColor.lightRedBG,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 4,
+                }}
+              >
+                {(
+                  selectedMenuItem.available !== undefined
+                    ? selectedMenuItem.available
+                    : selectedMenuItem.originalItem?.available
+                )
+                  ? "Available"
+                  : "Unavailable"}
+              </Text>
+            </View>
+
+            {/* Dietary Information */}
+            {(selectedMenuItem.diet?.length > 0 ||
+              selectedMenuItem.originalItem?.diet?.length > 0) && (
+              <View style={{ marginBottom: 15 }}>
+                <Text
+                  style={{
+                    fontFamily: Mulish700,
+                    fontSize: 16,
+                    color: AppColor.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Dietary:
+                </Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {(
+                    selectedMenuItem.diet ||
+                    selectedMenuItem.originalItem?.diet ||
+                    []
+                  ).map((diet, index) => {
+                    // Handle both cases where diet might be string or object
+                    const dietName =
+                      diet?.name || (typeof diet === "string" ? diet : "");
+                    return dietName ? (
+                      <View
+                        key={diet?._id || index}
+                        style={{
+                          backgroundColor: AppColor.lightGrayBG,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 20,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: Mulish400,
+                            fontSize: 13,
+                            color: AppColor.text,
+                          }}
+                        >
+                          {dietName}
+                        </Text>
+                      </View>
+                    ) : null;
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Quantity Controls */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: 20,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text
+                  style={{
+                    fontFamily: Mulish400,
+                    fontSize: 15,
+                    color: AppColor.text,
+                    marginRight: 10,
+                  }}
+                >
+                  Quantity:
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: AppColor.primary,
+                  }}
+                >
+                  <TouchableOpacity
+                    style={{ paddingVertical: 8, paddingHorizontal: 12 }}
+                    onPress={() => handleRemoveItem(selectedMenuItem)}
+                    disabled={getItemQuantity(selectedMenuItem.id) === 0}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: Mulish700,
+                        fontSize: 16,
+                        color:
+                          getItemQuantity(selectedMenuItem.id) === 0
+                            ? AppColor.textHighlighter
+                            : AppColor.primary,
+                      }}
+                    >
+                      -
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text
+                    style={{
+                      fontFamily: Mulish700,
+                      fontSize: 16,
+                      color: AppColor.text,
+                      marginHorizontal: 10,
+                    }}
+                  >
+                    {getItemQuantity(selectedMenuItem.id)}
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 8, paddingHorizontal: 12 }}
+                    onPress={() => handleAddItem(selectedMenuItem)}
+                    disabled={
+                      getItemQuantity(selectedMenuItem.id) >=
+                      (selectedMenuItem.maxQty ||
+                        selectedMenuItem.originalItem?.maxQty ||
+                        10)
+                    }
+                  >
+                    <Text
+                      style={{
+                        fontFamily: Mulish700,
+                        fontSize: 16,
+                        color:
+                          getItemQuantity(selectedMenuItem.id) >=
+                          (selectedMenuItem.maxQty ||
+                            selectedMenuItem.originalItem?.maxQty ||
+                            10)
+                            ? AppColor.textHighlighter
+                            : AppColor.primary,
+                      }}
+                    >
+                      +
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: AppColor.primary,
+                  borderRadius: 8,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                }}
+                onPress={() => {
+                  if (getItemQuantity(selectedMenuItem.id) === 0) {
+                    handleAddItem(selectedMenuItem);
+                  }
+                  actionSheetRef.current?.hide();
+                }}
+                disabled={
+                  !(selectedMenuItem.available !== undefined
+                    ? selectedMenuItem.available
+                    : selectedMenuItem.originalItem?.available)
+                }
+              >
+                <Text
+                  style={{
+                    fontFamily: Mulish700,
+                    fontSize: 16,
+                    color: AppColor.white,
+                  }}
+                >
+                  {getItemQuantity(selectedMenuItem.id) === 0
+                    ? "Add to Order"
+                    : "Update Order"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sub-items (if any) */}
+            {(selectedMenuItem.subItem?.length > 0 ||
+              selectedMenuItem.originalItem?.subItem?.length > 0) && (
+              <View style={{ marginTop: 20 }}>
+                <Text
+                  style={{
+                    fontFamily: Mulish700,
+                    fontSize: 16,
+                    color: AppColor.text,
+                    marginBottom: 10,
+                  }}
+                >
+                  Customizations:
+                </Text>
+                {(
+                  selectedMenuItem.subItem ||
+                  selectedMenuItem.originalItem?.subItem ||
+                  []
+                ).map((subItem, index) => {
+                  const subItemName = subItem?.name || `Option ${index + 1}`;
+                  const subItemPrice = subItem?.price || 0;
+
+                  return (
+                    <View
+                      key={subItem?._id || index}
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: Mulish400,
+                          fontSize: 14,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {subItemName}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: Mulish400,
+                          fontSize: 14,
+                          color: AppColor.primary,
+                        }}
+                      >
+                        +${subItemPrice.toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+      </ActionSheet>
     </View>
   );
 };
@@ -930,12 +1319,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     color: AppColor.text,
   },
   subname: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   ratingAndHeartContainer: {
@@ -948,7 +1337,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
   },
@@ -957,7 +1346,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   cuisineText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
   },
@@ -982,7 +1371,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
   },
   getDirectionBtn: {
@@ -992,7 +1381,7 @@ const styles = StyleSheet.create({
   },
   getDirectionBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   mapViewWrap: {
@@ -1023,11 +1412,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   infoRowTitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   infoRowValue: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   tabsWrap: {
@@ -1037,7 +1426,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBlockColor: AppColor.borderColor,
     borderBottomWidth: 1,
-    flex: 1,
+    flexGrow: 1,
   },
   tabBtn: {
     paddingHorizontal: 16,
@@ -1050,13 +1439,14 @@ const styles = StyleSheet.create({
     borderBottomColor: AppColor.primary,
   },
   tabText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   tabTextActive: {
     color: AppColor.primary,
   },
   tabContentContainer: {
+    flexGrow: 1,
     backgroundColor: AppColor.white,
   },
   tabContent: {
@@ -1090,15 +1480,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   menuTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   menuDesc: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   menuPrice: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.primary,
   },
@@ -1110,7 +1500,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
   },
   quantityContainer: {
@@ -1125,12 +1515,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
   },
   quantityButtonText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.primary,
   },
   quantityText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 14,
     color: AppColor.text,
     marginHorizontal: 4,
@@ -1151,19 +1541,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bottomBarText: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 17,
     color: AppColor.white,
     letterSpacing: 1,
   },
   bottomBarSubText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 13,
     color: AppColor.white,
     marginTop: 2,
   },
   noMenuText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 15,
     color: AppColor.textHighlighter,
     marginHorizontal: 16,
@@ -1197,7 +1587,7 @@ const styles = StyleSheet.create({
     color: AppColor.textHighlighter,
   },
   unavailableText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.snackbarError,
     marginTop: 4,

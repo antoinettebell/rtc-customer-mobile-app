@@ -26,6 +26,12 @@ import {
   UPDATE_FCM_TOKEN,
   REMOVE_FCM_TOKEN,
   GET_NEARBY_FOODTRUCK_NEW,
+  ADD_REVIEW,
+  UPDATE_REVIEW_BY_ID,
+  GET_REVIEW_STATS_BY_FOODTRUCK_ID,
+  GET_REVIEW_BY_FOODTRUCK_ID,
+  GET_RECENT_FOODTRUCK,
+  GET_ALL_BANNER,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -59,7 +65,7 @@ export const uploadImage_API = async (payload) => {
   }
 };
 
-// Cuisine List API
+// Get Cuisine List API
 export const cuisineList_API = async (payload) => {
   try {
     const URL = `${CUISINE}?page=${payload.page}&limit=50`;
@@ -92,7 +98,7 @@ export const updateUserDetail_API = async ({ payload, user_id }) => {
   }
 };
 
-// Favorite FoodTruck
+// Get Favorite FoodTruck
 export const getFavoriteFoodTruck_API = async (params = {}) => {
   try {
     const { lat, long, page, limit, search } = params;
@@ -195,30 +201,63 @@ export const deleteAddress_API = async (addressId) => {
   }
 };
 
-// privacy pollicy API
-export const privacyPolicy_API = async () => {
+// Get Food Trucks
+export const getRecentFoodTrucks_API = async (params = {}) => {
   try {
-    const URL = `${PRIVACY_POLICY}`;
-    const response = await apiClient.get(URL, { skipToken: true });
+    const { authToken } = store.getState().userReducer;
+    const { page = 1, limit = 10, search } = params;
+    let URL = `${GET_RECENT_FOODTRUCK}`;
+
+    // Build query string with required and optional parameters
+    const queryParams = [`page=${page}`, `limit=${limit}`];
+
+    if (search) {
+      queryParams.push(`search=${search}`);
+    }
+
+    URL += `?${queryParams.join("&")}`;
+
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
   }
 };
 
-// Get Nearby Food Trucks
+// Get Nearby/Popular/Featured Food Trucks
 export const getNearbyFoodTrucks_API = async (params = {}) => {
   try {
     const { authToken } = store.getState().userReducer;
-    const { userLat, userLong, distanceInMeters } = params;
+    const {
+      search = "",
+      page = 1,
+      limit = 10,
+      distanceInMeters,
+      userLat,
+      userLong,
+      featured = false,
+    } = params;
     let URL = `${GET_NEARBY_FOODTRUCK_NEW}`;
 
     // Build query string with required and optional parameters
-    const queryParams = [`userLat=${userLat}`, `userLong=${userLong}`];
+    const queryParams = [
+      `userLat=${userLat}`,
+      `userLong=${userLong}`,
+      `page=${page}`,
+      `limit=${limit}`,
+    ];
 
     // Add optional parameters if they exist
+    if (search?.trim()?.length > 0) {
+      queryParams.push(`search=${search}`);
+    }
     if (distanceInMeters) {
       queryParams.push(`distanceInMeters=${distanceInMeters}`);
+    }
+    if (featured) {
+      queryParams.push(`featured=${featured}`);
     }
 
     URL += `?${queryParams.join("&")}`;
@@ -276,9 +315,21 @@ export const placeFoodOrder_API = async (payload) => {
 };
 
 // Get All Food Order
-export const getAllOrders_API = async () => {
+export const getAllOrders_API = async (params = {}) => {
   try {
-    const URL = `${GET_ALL_ORDERS}`;
+    const { page = 1, limit = 10, orderStatus = null } = params;
+    let URL = `${GET_ALL_ORDERS}`;
+
+    // Build query string with required and optional parameters
+    const queryParams = [`page=${page}`, `limit=${limit}`];
+
+    // Add optional parameters if they exist
+    if (orderStatus) {
+      queryParams.push(`orderStatus=${orderStatus}`);
+    }
+
+    URL += `?${queryParams.join("&")}`;
+
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
@@ -357,6 +408,72 @@ export const removeFcmToken_API = async (device_id) => {
   try {
     const URL = REMOVE_FCM_TOKEN(device_id);
     const response = await apiClient.delete(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Add review & reating
+export const addReviewRating_API = async (payload) => {
+  try {
+    const URL = `${ADD_REVIEW}`;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Update review & reating
+export const updateReviewRating_API = async ({ review_id, payload }) => {
+  try {
+    const URL = UPDATE_REVIEW_BY_ID(review_id);
+    const response = await apiClient.put(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// get review & reating stats of food-truck
+export const getReviewRatingStats_API = async (foodTruck_id) => {
+  try {
+    const URL = GET_REVIEW_STATS_BY_FOODTRUCK_ID(foodTruck_id);
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// get review & reating of food-truck
+export const getReviewRating_API = async (params = {}) => {
+  try {
+    const { foodTruck_id, page = 1, limit = 10 } = params;
+    let URL = `${GET_REVIEW_BY_FOODTRUCK_ID}`;
+
+    // Build query string with required and optional parameters
+    const queryParams = [
+      `foodTruckId=${foodTruck_id}`,
+      `page=${page}`,
+      `limit=${limit}`,
+    ];
+
+    URL += `?${queryParams.join("&")}`;
+
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// get all banner
+export const getAllBanner_API = async () => {
+  try {
+    const URL = `${GET_ALL_BANNER}?page=1&limit=10`;
+    const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

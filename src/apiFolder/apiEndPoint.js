@@ -23,6 +23,7 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 // HomeScreen
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
 export const GET_NEARBY_FOODTRUCK_NEW = "/public/food-truck-filter-new";
+export const GET_RECENT_FOODTRUCK = "/public/food-truck";
 
 // FoodTruck Detail Screen
 export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/public/food-truck";
@@ -58,3 +59,15 @@ export const UPDATE_FCM_TOKEN = (device_id) =>
   `/user/update-fcm-token/${device_id}`;
 export const REMOVE_FCM_TOKEN = (device_id) =>
   `/user/remove-fcm-token/${device_id}`;
+
+// Ratings and Review
+export const ADD_REVIEW = "/review";
+export const UPDATE_REVIEW_BY_ID = (review_id) => `/review/${review_id}`;
+export const GET_REVIEW_BY_FOODTRUCK_ID = "/review";
+export const GET_REVIEW_STATS_BY_FOODTRUCK_ID = (foodTruck_id) =>
+  `/review/stats?foodTruckId=${foodTruck_id}`;
+export const GET_A_REVIEW_BY_ID = (review_id) => `/review/${review_id}`;
+export const REMOVE_A_REVIEW_BY_ID = (review_id) => `/review/${review_id}`;
+
+// Banner (advertisement)
+export const GET_ALL_BANNER = "/public/banner";

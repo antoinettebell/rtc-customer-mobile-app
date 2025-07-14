@@ -12,8 +12,7 @@ import {
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
-import { useRoute } from "@react-navigation/native";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
 import ImagePicker from "react-native-image-crop-picker";
@@ -21,14 +20,19 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { RESULTS } from "react-native-permissions";
 import FastImage from "@d11/react-native-fast-image";
+import MediaPickerDialog from "../components/MediaPickerDialog";
+import { ActivityIndicator } from "react-native-paper";
+import { addReviewRating_API, uploadImage_API } from "../apiFolder/appAPI";
 
-const RateTruckScreen = (props) => {
-  const { params } = useRoute();
-  const order = params?.order;
+const RateTruckScreen = ({ navigation, route }) => {
+  const { foodTruckId } = route?.params;
   const insets = useSafeAreaInsets();
 
   const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
     permission.camera
+  );
+  const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
+    permission.photos
   );
 
   // Configuration for max photos
@@ -38,7 +42,8 @@ const RateTruckScreen = (props) => {
   const [rating, setRating] = useState(4);
   const [review, setReview] = useState("");
   const [capturedImages, setCapturedImages] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLaoding] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Camera handling functions
   const handleCameraPress = async () => {
@@ -49,7 +54,6 @@ const RateTruckScreen = (props) => {
       setTimeout(
         async () => {
           await ImagePicker.openCamera({
-            cropping: false,
             mediaType: "photo",
             width: 500,
             height: 500,
@@ -58,9 +62,8 @@ const RateTruckScreen = (props) => {
               const newImage = {
                 id: Date.now().toString(),
                 uri: image.path,
-                width: image.width,
-                height: image.height,
-                mime: image.mime,
+                name: `${image?.path?.split("/").pop()}`,
+                type: image.mime,
               };
               setCapturedImages((prev) => [...prev, newImage]);
             })
@@ -82,6 +85,54 @@ const RateTruckScreen = (props) => {
         "Error",
         "Failed to access camera. Please check permissions."
       );
+    }
+  };
+
+  // Gallery handling functions
+  const handleGalleryPress = async () => {
+    setModalVisible(false);
+    try {
+      const photosStatus = await photosPermissionStatus();
+      if (photosStatus !== RESULTS.GRANTED && photosStatus !== RESULTS.LIMITED)
+        return;
+
+      setTimeout(
+        async () => {
+          await ImagePicker.openPicker({
+            mediaType: "photo",
+            width: 500,
+            height: 500,
+            multiple: false,
+          })
+            .then(async (image) => {
+              try {
+                const payload =
+                  Platform.OS == "ios"
+                    ? {
+                        id: Date.now().toString(),
+                        uri: image?.sourceURL,
+                        name: image?.filename,
+                        type: image.mime,
+                      }
+                    : {
+                        id: Date.now().toString(),
+                        uri: image?.path,
+                        name: `${image?.path?.split("/").pop()}`, // did this because in android > choose from gallary; not have filename
+                        type: image.mime,
+                      };
+                setCapturedImages((prev) => [...prev, payload]);
+              } catch (error) {
+                console.log("error => ", error);
+              }
+            })
+            .catch((error) => {
+              console.log("error => ", error);
+            });
+        },
+        Platform.OS === "ios" ? 600 : 0
+      );
+    } catch (error) {
+      console.error("error => ", error);
     }
   };
 
@@ -121,43 +172,60 @@ const RateTruckScreen = (props) => {
       return;
     }
 
-    setIsSubmitting(true);
-
+    setLaoding(true);
     try {
-      // Here you would typically upload images and submit the review
-      // For now, we'll simulate the submission
+      // manage image upload
+      const imageResult = [];
+      for (const image of capturedImages) {
+        const formData = new FormData();
+        formData.append("file", {
+          uri: image.uri,
+          name: image.name,
+          type: image.type,
+        });
+        try {
+          const response = await uploadImage_API(formData);
+          if (response?.success && response?.data) {
+            imageResult.push(response.data.file);
+          }
+        } catch (error) {
+          console.log("photo upload error => ", error);
+        }
+      }
 
-      const reviewData = {
-        rating,
-        review: review.trim(),
-        images: capturedImages,
-        orderId: order?.id,
-        timestamp: new Date().toISOString(),
+      let reqPayload = {
+        foodTruckId: foodTruckId,
+        rate: rating,
       };
+      if (review?.trim()?.length > 0) {
+        reqPayload.review = review.trim();
+      }
+      if (imageResult?.length > 0) {
+        reqPayload.images = imageResult;
+      }
 
-      console.log("Submitting review:", reviewData);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      Alert.alert(
-        "Thank You!",
-        "Your review has been submitted successfully.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              // Navigate back to previous screen
-              props.navigation.goBack();
+      const response = await addReviewRating_API(reqPayload);
+      console.log("response => ", response);
+      if (response.success && response.data) {
+        Alert.alert(
+          "Thank You!",
+          "Your review has been submitted successfully.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate back to previous screen
+                navigation.goBack();
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }
     } catch (error) {
       console.error("Submit review error:", error);
       Alert.alert("Error", "Failed to submit review. Please try again.");
     } finally {
-      setIsSubmitting(false);
+      setLaoding(false);
     }
   };
 
@@ -207,7 +275,7 @@ const RateTruckScreen = (props) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="RATE TRUCK" />
+      <AppHeader headerTitle="Rate Truck" />
 
       <ScrollView
         style={styles.scrollView}
@@ -222,7 +290,7 @@ const RateTruckScreen = (props) => {
             />
           </View>
 
-          <Text style={styles.title}>RATE FOOD TRUCK</Text>
+          <Text style={styles.title}>{"Rate Food Truck"}</Text>
 
           <View style={styles.starsRow}>{renderStars()}</View>
 
@@ -253,7 +321,7 @@ const RateTruckScreen = (props) => {
               styles.addPhotoBtn,
               capturedImages.length >= MAX_PHOTOS && styles.addPhotoBtnDisabled,
             ]}
-            onPress={handleAddPhoto}
+            onPress={() => setModalVisible(true)}
             disabled={capturedImages.length >= MAX_PHOTOS}
             activeOpacity={0.7}
           >
@@ -279,17 +347,27 @@ const RateTruckScreen = (props) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+            style={styles.submitBtn}
             onPress={handleSubmitReview}
-            disabled={isSubmitting}
-            activeOpacity={0.8}
+            disabled={loading}
+            activeOpacity={0.7}
           >
-            <Text style={styles.submitBtnText}>
-              {isSubmitting ? "Submitting..." : "Submit Review"}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color={AppColor.white} />
+            ) : (
+              <Text style={styles.submitBtnText}>{"Submit Review"}</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Media Picker Modal */}
+      <MediaPickerDialog
+        isVisible={modalVisible}
+        onCameraPress={() => handleCameraPress()}
+        onGalleryPress={() => handleGalleryPress()}
+        onClosePress={() => setModalVisible(false)}
+      />
     </View>
   );
 };
@@ -321,7 +399,7 @@ const styles = StyleSheet.create({
     tintColor: AppColor.primary,
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
     textAlign: "center",
   },
@@ -348,7 +426,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
   },
@@ -358,7 +436,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     margin: 16,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     minHeight: 100,
     maxHeight: 150,
@@ -370,7 +448,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   imagesTitle: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
     marginBottom: 12,
@@ -423,25 +501,35 @@ const styles = StyleSheet.create({
   },
   addPhotoText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
   },
   addPhotoTextDisabled: {
     color: AppColor.textPlaceholder,
   },
   submitBtn: {
+    height: 48,
+    borderRadius: 5,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: AppColor.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
+    marginVertical: 10,
     marginHorizontal: 16,
-    marginTop: 8,
-  },
-  submitBtnDisabled: {
-    backgroundColor: AppColor.textPlaceholder,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   submitBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 18,
     textAlign: "center",
   },

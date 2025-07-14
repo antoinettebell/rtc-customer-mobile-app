@@ -8,7 +8,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { AppColor, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish400 } from "../utils/theme";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import EvilIcons from "react-native-vector-icons/EvilIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -58,7 +58,7 @@ const AddressScreen = ({ navigation }) => {
       setLoading(true);
       const response = await getAddress_API({ page: 1, limit: 1000 });
       if (response?.success) {
-        dispatch(setAllLocations(response.data.addressList));
+        dispatch(setAllLocations(response.data.addressList || []));
       }
     } catch (error) {
       showSnackbar(error?.message || "Failed to fetch addresses", "error");
@@ -75,7 +75,7 @@ const AddressScreen = ({ navigation }) => {
         const tempAddressData = allLocations.filter(
           (addr) => addr._id !== addressId
         );
-        dispatch(setAllLocations(tempAddressData));
+        dispatch(setAllLocations(tempAddressData || []));
       }
     } catch (error) {
       showSnackbar(error?.message || "Failed to delete address", "error");
@@ -124,6 +124,7 @@ const AddressScreen = ({ navigation }) => {
           onDismiss={() => setMenuVisible(null)}
           anchor={
             <TouchableOpacity
+              activeOpacity={0.7}
               onPress={() => setMenuVisible(index)}
               style={{
                 height: 24,
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   locationLabel: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.primary,
   },
@@ -303,11 +304,11 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   addressText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 18,
   },
   addressText2: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.grayText,
   },

@@ -9,7 +9,7 @@ import {
 import { TextInput, HelperText } from "react-native-paper";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400, Mulish500 } from "../utils/theme";
 
 const UpdateNameModal = ({
   isVisible,
@@ -38,8 +38,8 @@ const UpdateNameModal = ({
         />
       </TouchableOpacity>
 
-      <Text style={styles.modalTitle}>{"UPDATE NAME"}</Text>
-      <Text style={styles.inputText}>{"Enter your name:"}</Text>
+      <Text style={styles.modalTitle}>{"Update Name"}</Text>
+      <Text style={styles.inputLabel}>{"Enter your name:"}</Text>
       <TextInput
         dense
         value={value}
@@ -88,24 +88,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: 20,
     fontSize: 22,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     color: AppColor.text,
     textAlign: "center",
-    letterSpacing: 1.5,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: Secondary400,
-    color: AppColor.text,
-    marginBottom: 6,
   },
   input: {
     backgroundColor: AppColor.white,
     marginTop: 5,
   },
-  inputText: {
+  inputLabel: {
     fontSize: 15,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
+    marginBottom: 4,
+  },
+  inputText: {
+    fontSize: 14,
+    fontFamily: Mulish400,
   },
   updateBtn: {
     width: "100%",
@@ -129,7 +127,7 @@ const styles = StyleSheet.create({
   },
   updateBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   cancelBtn: {
@@ -144,13 +142,14 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     color: AppColor.primary,
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   helper: {
     marginBottom: 8,
     paddingLeft: 0,
     paddingTop: 0,
+    fontFamily: Mulish400,
   },
 });
 

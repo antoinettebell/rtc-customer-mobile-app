@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Checkbox } from "react-native-paper";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FastImage from "@d11/react-native-fast-image";
@@ -87,7 +87,7 @@ const CancelOrderScreen = ({ route }) => {
           selectedReason === "other" ? customReason.trim() : selectedReason,
       };
 
-      const response = await cancelFoodOrder_API(orderDetails?.id, payload);
+      const response = await cancelFoodOrder_API(orderDetails?._id, payload);
 
       if (response?.success) {
         Alert.alert(
@@ -129,7 +129,7 @@ const CancelOrderScreen = ({ route }) => {
     >
       <View style={[styles.innerContainer, { paddingTop: insets.top }]}>
         <StatusBarManager />
-        <AppHeader headerTitle="CANCEL ORDER" />
+        <AppHeader headerTitle="Cancel Order" />
 
         <ScrollView
           style={styles.scrollView}
@@ -149,7 +149,8 @@ const CancelOrderScreen = ({ route }) => {
           {orderDetails && (
             <View style={styles.orderInfo}>
               <Text style={styles.orderInfoText}>
-                Order #{orderDetails.id} • {orderDetails.restaurant}
+                Order #{orderDetails.orderNumber || orderDetails._id} •{" "}
+                {orderDetails.foodTruck?.name}
               </Text>
             </View>
           )}
@@ -221,7 +222,7 @@ const CancelOrderScreen = ({ route }) => {
             ]}
             onPress={handleSubmit}
             disabled={!canSubmit}
-            activeOpacity={1}
+            activeOpacity={0.7}
           >
             {isSubmitting ? (
               <ActivityIndicator color={AppColor.white} />
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
     tintColor: AppColor.primary,
   },
   title: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 22,
     fontWeight: "600",
     textAlign: "center",
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   orderInfoText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textSecondary,
     textAlign: "center",
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   reasonText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
   },
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
     borderColor: AppColor.border,
     borderRadius: 8,
     padding: 12,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     color: AppColor.text,
     minHeight: 80,
@@ -337,14 +338,14 @@ const styles = StyleSheet.create({
     borderColor: AppColor.error,
   },
   errorText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.error,
     marginTop: 4,
     marginLeft: 4,
   },
   characterCount: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
     textAlign: "right",
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
     borderLeftColor: AppColor.warning,
   },
   warningText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.warning,
     marginLeft: 8,
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
   },
 });

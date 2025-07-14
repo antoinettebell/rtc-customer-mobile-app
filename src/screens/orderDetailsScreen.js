@@ -4,19 +4,25 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Platform,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Primary400, Secondary400 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FastImage from "@d11/react-native-fast-image";
 import AppHeader from "../components/AppHeader";
 import { getOrderByOrderId_API } from "../apiFolder/appAPI";
+import {
+  orderCurrentStatusNames,
+  orderStatusStrings,
+} from "../utils/constants";
+import moment from "moment";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -38,6 +44,7 @@ const OrderDetailsScreen = () => {
       setLoading(true);
       const response = await getOrderByOrderId_API(orderId);
       if (response?.data?.order) {
+        console.log("response => ", response);
         setOrder(response.data.order);
       } else {
         setError("Order not found");
@@ -82,6 +89,7 @@ const OrderDetailsScreen = () => {
       <View style={[styles.container, styles.centerContainer]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity
+          activeOpacity={0.7}
           onPress={fetchOrderDetails}
           style={styles.retryButton}
         >
@@ -99,35 +107,10 @@ const OrderDetailsScreen = () => {
     );
   }
 
-  // Prepare order data for display
-  const orderData = {
-    id: order._id,
-    truck: order.foodTruck?.name || "Unknown Truck",
-    items: order.items.map((menuItem) => ({
-      qty: menuItem.qty,
-      name: menuItem.menuItem?.name || "Unknown Item",
-      desc: menuItem.menuItem?.description || "",
-      price: formatPrice(menuItem.price),
-    })),
-    total: formatPrice(order.total),
-    date: formatDate(order.createdAt),
-    time: formatTime(order.deliveryTime || order.pickupTime),
-    image: order.foodTruck?.logo
-      ? { uri: order.foodTruck.logo }
-      : require("../assets/images/FT-Demo-01.png"),
-    status: order.orderStatus,
-    currentOrderStatus: order.orderStatus,
-    taxAmount: formatPrice(order.taxAmount || 0),
-    discount: formatPrice(order.discount || 0),
-    subTotal: formatPrice(order.subTotal || order.total),
-    isAdvanceOrder: !!order.availabilityId,
-    statusTime: order.statusTime,
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="ORDER DETAILS" />
+      <AppHeader headerTitle="Order Details" />
 
       <ScrollView
         style={styles.scrollViewContainer}
@@ -136,21 +119,35 @@ const OrderDetailsScreen = () => {
         <View style={styles.contentWrap}>
           <View style={styles.card}>
             <View style={styles.headerRow}>
-              <Text style={styles.orderId}>Order #{orderData.id}</Text>
+              <Text style={styles.orderId}>
+                Order #{order.orderNumber || order._id}
+              </Text>
             </View>
 
             <View style={styles.truckRow}>
-              <View style={styles.truckRowLeft}>
-                <Image source={orderData.image} style={styles.truckImg} />
+              <Pressable
+                onPress={() =>
+                  navigation.navigate("foodTruckDetailScreen", {
+                    item: order?.foodTruck || {},
+                  })
+                }
+                style={styles.truckRowLeft}
+              >
+                <FastImage
+                  source={{ uri: order?.foodTruck?.logo }}
+                  style={styles.truckImg}
+                />
                 <View style={styles.truckInfo}>
-                  <Text style={styles.truckName}>{orderData.truck}</Text>
+                  <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
                   <Text style={styles.itemsCount}>
-                    {orderData.items.length} Items
+                    {order.items.length} Items
                   </Text>
                 </View>
-              </View>
+              </Pressable>
               <View style={styles.truckRowRight}>
-                <Text style={styles.orderDate}>{orderData.date}</Text>
+                <Text style={styles.orderDate}>
+                  {moment(order.createdAt).format("DD MMM, YYYY")}
+                </Text>
                 <View style={styles.timeRow}>
                   <MaterialIcons
                     name="access-time"
@@ -158,43 +155,49 @@ const OrderDetailsScreen = () => {
                     color={AppColor.grayText}
                     style={styles.timeIcon}
                   />
-                  <Text style={styles.orderDate}>{orderData.time}</Text>
+                  <Text style={styles.orderDate}>
+                    {moment(order.createdAt).format("hh:mm A")}
+                  </Text>
                 </View>
               </View>
             </View>
             <HR />
             <View style={styles.itemsList}>
-              {orderData.items.map((itm, idx) => (
-                <View style={styles.itemRow} key={idx}>
+              {order.items.map((itm) => (
+                <View style={styles.itemRow} key={itm?.menuItemId}>
                   <View style={styles.itemInfo}>
                     <Text
                       style={styles.itemText}
-                    >{`${itm.qty} x ${itm.name}`}</Text>
-                    <Text style={styles.itemDesc}>{itm.desc}</Text>
+                    >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
+                    <Text style={styles.itemDesc}>
+                      {itm.menuItem.description}
+                    </Text>
                   </View>
-                  <Text style={styles.itemText}>${itm.price}</Text>
+                  <Text style={styles.itemText}>${itm.total.toFixed(2)}</Text>
                 </View>
               ))}
             </View>
             <HR />
 
             <View style={styles.footerRow}>
-              <Text style={styles.total}>${orderData.total}</Text>
-              {orderData.status !== "COMPLETED" &&
-                orderData.status !== "CANCEL" &&
-                orderData.status !== "REJECTED" && (
+              <Text style={styles.total}>${order.subTotal.toFixed(2)}</Text>
+              {order.status !== "COMPLETED" &&
+                order.status !== "CANCEL" &&
+                order.status !== "REJECTED" && (
                   <View style={styles.actionRow}>
                     <TouchableOpacity
+                      activeOpacity={0.7}
                       style={styles.trackBtn}
                       onPress={() =>
                         navigation.navigate("orderTrackingScreen", {
-                          order: orderData,
+                          order: order,
                         })
                       }
                     >
-                      <FastImage
-                        source={require("../assets/images/trackOrder.png")}
-                        style={styles.actionIcon}
+                      <FontAwesome6
+                        name="map-location-dot"
+                        color={AppColor.white}
+                        size={20}
                       />
                       <Text style={styles.trackBtnText}>Track</Text>
                     </TouchableOpacity>
@@ -207,50 +210,66 @@ const OrderDetailsScreen = () => {
             <View style={styles.totalSection}>
               <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
                 <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
-                <Text style={styles.sectionTitle}>${orderData.subTotal}</Text>
+                <Text style={styles.sectionTitle}>
+                  ${order.subTotal.toFixed(2)}
+                </Text>
               </View>
               <HR />
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Sales Tax</Text>
                 <Text style={styles.orderDetailsTxt}>
-                  ${orderData.taxAmount}
+                  ${order.taxAmount.toFixed(2)}
                 </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Discount</Text>
                 <Text style={styles.orderDetailsTxt}>
-                  ${orderData.discount}
+                  ${order.discount.toFixed(2)}
                 </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
-                <Text style={styles.orderDetailsTxt}>${orderData.total}</Text>
+                <Text style={styles.orderDetailsTxt}>
+                  ${order.total.toFixed(2)}
+                </Text>
               </View>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      {orderData.status !== "COMPLETED" &&
-        orderData.status !== "CANCEL" &&
-        orderData.status !== "REJECTED" && (
-          <View style={styles.footerContainer}>
-            <View style={styles.totalAmountRow}>
-              <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-              <Text style={styles.totalAmountValue}>${orderData.total}</Text>
-            </View>
+      <View style={styles.footerContainer}>
+        <View style={styles.totalAmountRow}>
+          <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
+          <Text style={styles.totalAmountValue}>${order.total.toFixed(2)}</Text>
+        </View>
 
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                navigation.navigate("cancelOrderScreen", { order: orderData });
-              }}
-            >
-              <Text style={styles.cancelBtnText}>Cancel Order</Text>
-            </TouchableOpacity>
+        {order.orderStatus === orderStatusStrings.placed ? (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              navigation.navigate("cancelOrderScreen", { order: order });
+            }}
+          >
+            <Text style={styles.cancelBtnText}>Cancel Order</Text>
+          </TouchableOpacity>
+        ) : (
+          <View
+            style={{
+              height: 48,
+              borderRadius: 5,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: AppColor.primary + 20,
+            }}
+          >
+            <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
+              {orderCurrentStatusNames[order.orderStatus]}
+            </Text>
           </View>
         )}
+      </View>
     </View>
   );
 };
@@ -266,7 +285,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: AppColor.error,
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 16,
     marginBottom: 20,
     textAlign: "center",
@@ -279,7 +298,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: AppColor.white,
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
   },
   truckImg: {
     width: 48,
@@ -287,16 +306,16 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   truckName: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   orderDate: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.subText,
   },
   itemText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 13,
     color: AppColor.text,
     marginTop: 2,
@@ -313,8 +332,8 @@ const styles = StyleSheet.create({
   },
   trackBtnText: {
     color: AppColor.white,
-    fontFamily: Secondary400,
-    fontSize: 15,
+    fontFamily: Mulish600,
+    fontSize: 16,
   },
   totalSection: {
     borderWidth: 1,
@@ -339,7 +358,7 @@ const styles = StyleSheet.create({
     }),
   },
   sectionTitle: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 15,
   },
   row: {
@@ -358,11 +377,11 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   totalAmountLabel: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 16,
   },
   totalAmountValue: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 18,
   },
   cancelBtn: {
@@ -387,7 +406,7 @@ const styles = StyleSheet.create({
     }),
   },
   cancelBtnText: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,
   },
@@ -398,7 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   orderId: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: "#6F6F6F",
   },
@@ -440,12 +459,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   itemsCount: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
     color: "#6F6F6F",
   },
   orderDetailsTxt: {
-    fontFamily: Secondary400,
+    fontFamily: Mulish400,
     fontSize: 14,
   },
   actionRow: {
@@ -462,7 +481,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   total: {
-    fontFamily: Primary400,
+    fontFamily: Mulish700,
     fontSize: 20,
     marginLeft: 6,
   },
