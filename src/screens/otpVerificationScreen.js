@@ -24,17 +24,28 @@ import Octicons from "react-native-vector-icons/Octicons";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { resendOTP_API, verifyOTP_API } from "../apiFolder/authAPI";
 import { useDispatch } from "react-redux";
-import { setAuthToken, setUser } from "../redux/slices/userSlice";
-import { onSignin } from "../redux/slices/authSlice";
+import {
+  clearUserSlice,
+  setAuthToken,
+  setUser,
+} from "../redux/slices/userSlice";
+import { onSignin, onSignOut } from "../redux/slices/authSlice";
 import StatusBarManager from "../components/StatusBarManager";
 import {
   checkFcmToken,
   checkInstallationId,
 } from "../helpers/notification.helper";
 import { setFcmToken_API } from "../apiFolder/appAPI";
-import { setAllLocations } from "../redux/slices/locationSlice";
+import {
+  clearLocationSlice,
+  setAllLocations,
+} from "../redux/slices/locationSlice";
 import { GET_ADDRESS } from "../apiFolder/apiEndPoint";
 import Config from "react-native-config";
+import { clearFavorites } from "../redux/slices/favoritesSlice";
+import { clearOrderSlice } from "../redux/slices/orderSlice";
+import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
+import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 
 const API_URL = Config.API_URL;
 const API_PREFIX = Config.API_PREFIX;
@@ -102,7 +113,7 @@ const OtpVerificationScreen = ({ route }) => {
     setLoading(true);
     try {
       const response = await verifyOTP_API(payload);
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         if (params?.verificationFor === "sign-up") {
           // Get Address and set into redux
           const myHeaders = new Headers();
@@ -125,13 +136,34 @@ const OtpVerificationScreen = ({ route }) => {
             .catch((error) => console.error(error));
 
           setModalVisible(true); // Success -> show modal
+
           dispatch(setUser(response.data.user));
           dispatch(setAuthToken(response.data.authToken));
+
+          dispatch(
+            addOrUpdateUser({
+              emailid: response.data.user.email,
+              userData: {
+                emailid: response.data.user.email,
+                password: params?.data?.localPassword,
+                username: response?.data?.user?.firstName || "",
+                imageUrl: response?.data?.user?.profilePic || null,
+              },
+            })
+          );
         } else if (params?.verificationFor === "forget-password") {
           console.log("response.data => ", response.data);
           navigation.navigate("resetPassword", {
             data: { ...response.data },
           });
+        } else if (params?.verificationFor === "delete-account") {
+          console.log("response.data => ", response.data);
+          dispatch(clearUserSlice());
+          dispatch(clearFavorites());
+          dispatch(clearOrderSlice());
+          dispatch(clearFoodTruckProfileSlice());
+          dispatch(clearLocationSlice());
+          dispatch(onSignOut());
         }
       }
     } catch (error) {

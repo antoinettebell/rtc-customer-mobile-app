@@ -9,7 +9,9 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
+import Modal from "react-native-modal";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useDispatch, useSelector } from "react-redux";
 import { onSignOut } from "../redux/slices/authSlice";
@@ -31,6 +33,7 @@ import UpdateNameModal from "../components/UpdateNameModal";
 import UpdateContactModal from "../components/UpdateContactModal";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import {
+  deleteAccount_API,
   getUserDetail_API,
   removeFcmToken_API,
   updateUserDetail_API,
@@ -44,6 +47,8 @@ import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlic
 import { clearLocationSlice } from "../redux/slices/locationSlice";
 import { checkInstallationId } from "../helpers/notification.helper";
 import { PROFILE_AVATAR } from "../utils/constants";
+import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
+import AppImage from "../components/AppImage";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -60,6 +65,7 @@ const ProfileMenuScreen = ({ navigation }) => {
   );
 
   const [getDataLoading, setGetDataLoading] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [updateNameModalVisible, setUpdateNameModalVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
@@ -353,6 +359,41 @@ const ProfileMenuScreen = ({ navigation }) => {
     dispatch(onSignOut());
   };
 
+  const handleDeleteAccountPress = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent and cannot be reversed.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleteAccountLoading(true);
+            try {
+              const response = await deleteAccount_API();
+              console.log("response => ", response);
+              if (response?.success && response?.data) {
+                navigation.navigate("deleteOtpVerification", {
+                  verificationFor: "delete-account",
+                  data: { ...response.data, user: { email: user?.email } },
+                  nextScreen: "",
+                });
+              }
+            } catch (error) {
+              console.log("error => ", error);
+            } finally {
+              setDeleteAccountLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getUserDetailFromAPI = async () => {
     console.log("getUserDetailFromAPI => called");
     setGetDataLoading(true);
@@ -364,6 +405,16 @@ const ProfileMenuScreen = ({ navigation }) => {
         console.log("USER_DATA => ", USER_DATA);
 
         dispatch(setUser(USER_DATA));
+        dispatch(
+          addOrUpdateUser({
+            emailid: USER_DATA.email,
+            userData: {
+              emailid: USER_DATA.email,
+              username: USER_DATA.firstName || "",
+              imageUrl: USER_DATA.profilePic || null,
+            },
+          })
+        );
       }
     } catch (error) {
       console.log("error => ", error);
@@ -423,13 +474,9 @@ const ProfileMenuScreen = ({ navigation }) => {
                 })
               }
             >
-              <FastImage
-                source={
-                  item.foodTruck?.logo
-                    ? { uri: item.foodTruck?.logo }
-                    : favTruck1
-                }
-                style={styles.favTruckImg}
+              <AppImage
+                uri={item.foodTruck?.logo}
+                containerStyle={styles.favTruckImg}
               />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
@@ -460,9 +507,9 @@ const ProfileMenuScreen = ({ navigation }) => {
           <Text style={styles.profileTitle}>{"Profile"}</Text>
         </View>
         <View style={styles.avatarWrap}>
-          <FastImage
-            source={{ uri: user.profilePic || PROFILE_AVATAR }}
-            style={styles.avatarImg}
+          <AppImage
+            uri={user.profilePic || PROFILE_AVATAR}
+            containerStyle={styles.avatarImg}
           />
           <TouchableOpacity
             activeOpacity={0.7}
@@ -598,7 +645,7 @@ const ProfileMenuScreen = ({ navigation }) => {
               label="Delete Account"
               rightIcon={false}
               isRed={true}
-              onPress={() => {}}
+              onPress={handleDeleteAccountPress}
             />
           </View>
         </View>
@@ -651,6 +698,24 @@ const ProfileMenuScreen = ({ navigation }) => {
           onYesLogoutPress={handleLogout}
           onNoLogoutPress={() => setLogoutModalVisible(false)}
         />
+
+        {/* Delete account loader */}
+        <Modal
+          isVisible={deleteAccountLoading}
+          backdropOpacity={0.5}
+          animationIn="fadeIn"
+          animationOut="fadeOut"
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <ActivityIndicator size="large" color={AppColor.white} />
+          </View>
+        </Modal>
       </ScrollView>
 
       <Portal>

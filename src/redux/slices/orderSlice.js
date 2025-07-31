@@ -40,7 +40,7 @@ const orderSlice = createSlice({
 
       // Check if item already exists in order
       const existingItemIndex = state.currentOrder.items.findIndex(
-        (i) => i.id === item.id
+        (i) => i._id === item._id
       );
 
       if (existingItemIndex === -1) {
@@ -55,24 +55,21 @@ const orderSlice = createSlice({
       }
 
       // Update order totals
-      state.currentOrder.totalItems = state.currentOrder.items.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      );
+      state.currentOrder.totalItems = state.currentOrder.items.length;
+      // state.currentOrder.totalItems = state.currentOrder.items.reduce(
+      //   (sum, item) => sum + item.quantity,
+      //   0
+      // );
       state.currentOrder.subtotal = state.currentOrder.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) => sum + (item.price - item.discount) * item.quantity,
         0
       );
-      // Assuming a fixed tax rate for calculation example, adjust if dynamic
-      state.currentOrder.tax = state.currentOrder.subtotal * 0.1;
-      state.currentOrder.total =
-        state.currentOrder.subtotal + state.currentOrder.tax;
     },
 
     removeItemFromOrder: (state, { payload }) => {
       const { itemId } = payload;
       const itemIndex = state.currentOrder.items.findIndex(
-        (item) => item.id === itemId
+        (item) => item._id === itemId
       );
 
       if (itemIndex !== -1) {
@@ -91,16 +88,71 @@ const orderSlice = createSlice({
           0
         );
         state.currentOrder.subtotal = state.currentOrder.items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
+          (sum, item) => sum + (item.price - item.discount) * item.quantity,
           0
         );
-        state.currentOrder.tax = state.currentOrder.subtotal * 0.1;
-        state.currentOrder.total =
-          state.currentOrder.subtotal + state.currentOrder.tax;
 
         // If no items left, reset the order
         if (state.currentOrder.items.length === 0) {
           state.currentOrder = initialState.currentOrder;
+        }
+      }
+    },
+
+    updateAllItemsOfOrder: (state, { payload }) => {
+      const newItems = payload;
+
+      // Create maps of existing item data for quick lookup
+      const existingItemData = {};
+      state.currentOrder.items.forEach((item) => {
+        existingItemData[item._id] = {
+          quantity: item.quantity || 1,
+          customizationInput: item.customizationInput || "",
+        };
+      });
+
+      // Map new items while preserving existing data
+      const updatedItems = newItems.map((newItem) => {
+        const existingData = existingItemData[newItem._id] || {};
+        return {
+          ...newItem,
+          quantity: existingData.quantity || 1, // default to 1 if not found
+          customizationInput: existingData.customizationInput || "", // default to empty string
+        };
+      });
+
+      // Update the items array
+      state.currentOrder.items = updatedItems;
+
+      // Recalculate totals
+      state.currentOrder.totalItems = updatedItems.length;
+      state.currentOrder.subtotal = updatedItems.reduce(
+        (sum, item) => sum + (item.price - item.discount) * item.quantity,
+        0
+      );
+    },
+
+    updateItemProperty: (state, { payload }) => {
+      const { itemId, keyName, value } = payload;
+
+      // Find the item index
+      const itemIndex = state.currentOrder.items.findIndex(
+        (item) => item._id === itemId
+      );
+
+      if (itemIndex !== -1) {
+        // Update or add the property while preserving all other data
+        state.currentOrder.items[itemIndex] = {
+          ...state.currentOrder.items[itemIndex],
+          [keyName]: value,
+        };
+
+        // Recalculate totals if the updated property affects pricing
+        if (["price", "discount", "quantity"].includes(keyName)) {
+          state.currentOrder.subtotal = state.currentOrder.items.reduce(
+            (sum, item) => sum + (item.price - item.discount) * item.quantity,
+            0
+          );
         }
       }
     },
@@ -120,6 +172,8 @@ const orderSlice = createSlice({
 export const {
   addItemToOrder,
   removeItemFromOrder,
+  updateAllItemsOfOrder,
+  updateItemProperty,
   clearCurrentOrder,
   addToOrderHistory,
   clearOrderSlice,

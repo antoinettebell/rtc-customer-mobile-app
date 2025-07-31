@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -12,13 +12,11 @@ import {
 import {
   TextInput,
   IconButton,
-  Button,
   HelperText,
   ActivityIndicator,
   Portal,
   Snackbar,
 } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
@@ -31,17 +29,17 @@ import {
   checkFcmToken,
   checkInstallationId,
 } from "../helpers/notification.helper";
-import { getAddress_API, setFcmToken_API } from "../apiFolder/appAPI";
+import { setFcmToken_API } from "../apiFolder/appAPI";
 import { setAllLocations } from "../redux/slices/locationSlice";
 import Config from "react-native-config";
 import { GET_ADDRESS } from "../apiFolder/apiEndPoint";
+import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 
 const API_URL = Config.API_URL;
 const API_PREFIX = Config.API_PREFIX;
 
-const SignInScreen = () => {
+const SignInScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const dispatch = useDispatch();
 
   const [email, setEmail] = useState("");
@@ -80,17 +78,20 @@ const SignInScreen = () => {
     navigation.navigate("forgetPassword");
   };
 
-  const handleSignIn = async () => {
+  const handleSignIn = async (passedEmail, passedPassword) => {
+    const currentEmail = passedEmail || email;
+    const currentPassword = passedPassword || password;
+
     let isValid = true;
 
-    if (!validateEmail(email)) {
+    if (!validateEmail(currentEmail)) {
       setEmailError("Enter a valid email!");
       isValid = false;
     } else {
       setEmailError("");
     }
 
-    if (!validatePassword(password)) {
+    if (!validatePassword(currentPassword)) {
       setPasswordError(
         "Password must be 8–15 chars with 1 uppercase, 1 lowercase, 1 number, and 1 special char."
       );
@@ -100,13 +101,16 @@ const SignInScreen = () => {
     }
 
     if (isValid) {
-      console.log("✨ Logging in with:", email);
+      console.log("✨ Logging in with:", currentEmail);
       // Trigger login logic here
       setLoading(true);
       try {
-        const response = await login_API({ email, password });
+        const response = await login_API({
+          email: currentEmail,
+          password: currentPassword,
+        });
         console.log("login API response ====> ", response);
-        if (response.success && response.data) {
+        if (response?.success && response?.data) {
           // Get Address and set into redux
           const myHeaders = new Headers();
           const raw = "";
@@ -130,6 +134,18 @@ const SignInScreen = () => {
           dispatch(setUser(response.data.user));
           dispatch(setAuthToken(response.data.authToken));
           dispatch(onSignin(true));
+
+          dispatch(
+            addOrUpdateUser({
+              emailid: currentEmail,
+              userData: {
+                emailid: currentEmail,
+                password: currentPassword,
+                username: response?.data?.user?.firstName || "",
+                imageUrl: response?.data?.user?.profilePic || null,
+              },
+            })
+          );
 
           // set FCM Token & DeviceId after 1.5 sec
           setTimeout(async () => {
@@ -167,10 +183,19 @@ const SignInScreen = () => {
 
   const handleSignUpPress = () => {
     navigation.navigate("signup");
-    // setTimeout(() => {
-    //   resetStates();
-    // }, 1000);
   };
+
+  useEffect(() => {
+    if (route?.params?.savedUser) {
+      setEmail(route?.params?.savedUser?.emailid);
+      setPassword(route?.params?.savedUser?.password);
+
+      handleSignIn(
+        route?.params?.savedUser?.emailid,
+        route?.params?.savedUser?.password
+      );
+    }
+  }, [route]);
 
   return (
     <View style={styles.container}>
@@ -314,7 +339,7 @@ const SignInScreen = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={handleSignIn}
+                onPress={() => handleSignIn(email, password)}
                 activeOpacity={0.7}
                 style={styles.signInButton}
                 disabled={loading}

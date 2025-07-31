@@ -24,6 +24,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import Carousel from "react-native-reanimated-carousel";
 import { useSharedValue } from "react-native-reanimated";
 import FastImage from "@d11/react-native-fast-image";
+import AppImage from "../components/AppImage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -146,9 +147,9 @@ const NearMeScreen = ({ navigation }) => {
           onPress={() => navigation.navigate("foodTruckDetailScreen", { item })}
         >
           <View style={styles.cardImageContainer}>
-            <FastImage
-              source={{ uri: item.logo }}
-              style={styles.horizontalCardImage}
+            <AppImage
+              uri={item.logo}
+              containerStyle={styles.horizontalCardImage}
             />
           </View>
 

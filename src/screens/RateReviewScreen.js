@@ -26,6 +26,7 @@ import {
 import FastImage from "@d11/react-native-fast-image";
 import { PROFILE_AVATAR } from "../utils/constants";
 import { IconButton } from "react-native-paper";
+import AppImage from "../components/AppImage";
 
 const LIMIT = 20;
 
@@ -59,9 +60,9 @@ const RateReviewScreen = ({ navigation, route }) => {
   const renderReviewComponent = ({ item }) => {
     return (
       <View style={styles.reviewItem} key={item?._id}>
-        <FastImage
-          source={{ uri: item?.user?.profilePic || PROFILE_AVATAR }}
-          style={styles.reviewAvatar}
+        <AppImage
+          uri={item?.user?.profilePic || PROFILE_AVATAR}
+          containerStyle={styles.reviewAvatar}
         />
         <View style={{ flex: 1, marginLeft: 16, gap: 5 }}>
           <Text style={styles.userName}>
@@ -71,16 +72,15 @@ const RateReviewScreen = ({ navigation, route }) => {
             {renderStatsStars(item.rate)}
           </View>
           <Text style={styles.reviewText}>{item.review}</Text>
-          <View style={{ flexDirection: "row" }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
             {item?.images?.map((i) => (
-              <FastImage
+              <AppImage
                 key={i}
-                source={{ uri: i }}
-                style={{
+                uri={i}
+                containerStyle={{
                   width: 50,
                   height: 50,
                   borderRadius: 4,
-                  marginRight: 8,
                 }}
               />
             ))}
@@ -98,7 +98,11 @@ const RateReviewScreen = ({ navigation, route }) => {
         <View style={{ flex: 0.6 }}>
           <Text style={styles.statsTitle}>
             {"★ "}
-            <Text style={{ color: AppColor.black }}>{reviewStats.avgRate}</Text>
+            <Text style={{ color: AppColor.black }}>
+              {reviewStats.avgRate % 1 === 0
+                ? Math.floor(reviewStats.avgRate)
+                : (reviewStats.avgRate || 0).toFixed(1)}
+            </Text>
           </Text>
           <Text style={styles.totalReviews}>
             {reviewStats.totalReviews}

@@ -20,6 +20,7 @@ import FastImage from "@d11/react-native-fast-image";
 import moment from "moment";
 import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
 import { Divider } from "react-native-paper";
+import AppImage from "../components/AppImage";
 
 const OrdersScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -78,9 +79,9 @@ const OrdersScreen = ({ navigation }) => {
         {/* Order User Details */}
         <View style={styles.orderHeader}>
           <View style={styles.orderUserImageContainer}>
-            <FastImage
-              source={{ uri: item.user.profilePic || PROFILE_AVATAR }}
-              style={styles.orderUserImage}
+            <AppImage
+              uri={item.user.profilePic || PROFILE_AVATAR}
+              containerStyle={styles.orderUserImage}
             />
           </View>
           <View style={styles.orderUserInfo}>
@@ -134,21 +135,26 @@ const OrdersScreen = ({ navigation }) => {
         <View style={styles.orderTotalContainer}>
           <Text
             style={styles.orderTotalText}
-          >{`$${item.total.toFixed(2)}`}</Text>
+          >{`$${(item?.totalAfterDiscount || 0).toFixed(2)}`}</Text>
           {activeStage === "past" ? (
-            <TouchableOpacity
-              style={styles.rateBtn}
-              activeOpacity={0.7}
-              onPress={() =>
-                navigation.navigate("rateTruckScreen", {
-                  foodTruckId: item.foodTruckId,
-                })
-              }
-            >
-              <Text style={[styles.orderBtnText, { color: AppColor.primary }]}>
-                {"★ Rate"}
-              </Text>
-            </TouchableOpacity>
+            !item.hasReview ? (
+              <TouchableOpacity
+                style={styles.rateBtn}
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("rateTruckScreen", {
+                    foodTruckId: item.foodTruckId,
+                    orderId: item._id,
+                  })
+                }
+              >
+                <Text
+                  style={[styles.orderBtnText, { color: AppColor.primary }]}
+                >
+                  {"★ Rate"}
+                </Text>
+              </TouchableOpacity>
+            ) : null
           ) : (
             <TouchableOpacity
               style={styles.trackBtn}

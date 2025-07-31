@@ -23,6 +23,7 @@ import {
   orderStatusStrings,
 } from "../utils/constants";
 import moment from "moment";
+import AppImage from "../components/AppImage";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -133,9 +134,9 @@ const OrderDetailsScreen = () => {
                 }
                 style={styles.truckRowLeft}
               >
-                <FastImage
-                  source={{ uri: order?.foodTruck?.logo }}
-                  style={styles.truckImg}
+                <AppImage
+                  uri={order?.foodTruck?.logo}
+                  containerStyle={styles.truckImg}
                 />
                 <View style={styles.truckInfo}>
                   <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
@@ -224,13 +225,13 @@ const OrderDetailsScreen = () => {
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Discount</Text>
                 <Text style={styles.orderDetailsTxt}>
-                  ${order.discount.toFixed(2)}
+                  {`- $${order.discount.toFixed(2)}`}
                 </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
                 <Text style={styles.orderDetailsTxt}>
-                  ${order.total.toFixed(2)}
+                  ${(order.totalAfterDiscount || 0).toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -241,7 +242,9 @@ const OrderDetailsScreen = () => {
       <View style={styles.footerContainer}>
         <View style={styles.totalAmountRow}>
           <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-          <Text style={styles.totalAmountValue}>${order.total.toFixed(2)}</Text>
+          <Text style={styles.totalAmountValue}>
+            ${(order.totalAfterDiscount || 0).toFixed(2)}
+          </Text>
         </View>
 
         {order.orderStatus === orderStatusStrings.placed ? (

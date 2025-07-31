@@ -94,7 +94,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
           { paddingTop: insets.top, paddingBottom: insets.bottom },
         ]}
       >
-        <AppHeader headerTitle="Copon Code" />
+        <AppHeader headerTitle="Coupon Code" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <ActivityIndicator size="large" color={AppColor.primary} />
         </View>
@@ -110,7 +110,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
           { paddingTop: insets.top, paddingBottom: insets.bottom },
         ]}
       >
-        <AppHeader headerTitle="Copon Code" />
+        <AppHeader headerTitle="Coupon Code" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
@@ -127,7 +127,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <AppHeader headerTitle="Copon Code" />
+      <AppHeader headerTitle="Coupon Code" />
       <View
         style={{
           flex: 1,

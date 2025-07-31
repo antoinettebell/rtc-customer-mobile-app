@@ -25,7 +25,7 @@ import { ActivityIndicator } from "react-native-paper";
 import { addReviewRating_API, uploadImage_API } from "../apiFolder/appAPI";
 
 const RateTruckScreen = ({ navigation, route }) => {
-  const { foodTruckId } = route?.params;
+  const { foodTruckId, orderId } = route?.params;
   const insets = useSafeAreaInsets();
 
   const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
@@ -195,6 +195,7 @@ const RateTruckScreen = ({ navigation, route }) => {
 
       let reqPayload = {
         foodTruckId: foodTruckId,
+        orderId: orderId,
         rate: rating,
       };
       if (review?.trim()?.length > 0) {

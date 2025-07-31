@@ -48,6 +48,7 @@ import { checkInstallationId } from "../helpers/notification.helper";
 import Carousel from "react-native-reanimated-carousel";
 import FastImage from "@d11/react-native-fast-image";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
+import AppImage from "../components/AppImage";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -344,10 +345,10 @@ const ExploreScreen = (props) => {
 
   const renderBanner = ({ item }) => {
     return (
-      <FastImage
+      <AppImage
         key={item._id}
-        source={{ uri: item.imageUrl }}
-        style={{ width: "100%", height: "100%", borderRadius: 5 }}
+        uri={item.imageUrl}
+        containerStyle={{ width: "100%", height: "100%", borderRadius: 5 }}
       />
     );
   };
@@ -951,9 +952,9 @@ const ExploreScreen = (props) => {
             }),
           }}
         >
-          <FastImage
-            source={{ uri: OrderReducerStates?.currentOrder?.foodTruckLogo }}
-            style={{ height: 50, width: 50, borderRadius: 5 }}
+          <AppImage
+            uri={OrderReducerStates?.currentOrder?.foodTruckLogo}
+            containerStyle={{ height: 50, width: 50, borderRadius: 5 }}
           />
           <Pressable
             onPress={() =>
@@ -981,7 +982,7 @@ const ExploreScreen = (props) => {
                 color: AppColor.primary,
               }}
             >
-              {`${OrderReducerStates?.currentOrder?.items?.length || 0} items | View Menu`}
+              {"View Menu"}
             </Text>
           </Pressable>
           <TouchableOpacity
@@ -1021,7 +1022,7 @@ const ExploreScreen = (props) => {
                 textAlign: "center",
               }}
             >
-              {"$" + OrderReducerStates?.currentOrder?.total.toFixed(2)}
+              {`${OrderReducerStates?.currentOrder?.items?.length || 0} item${OrderReducerStates?.currentOrder?.items?.length > 1 ? "s" : ""}`}
             </Text>
           </TouchableOpacity>
           <IconButton

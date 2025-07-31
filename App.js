@@ -54,6 +54,7 @@ import {
 import TermsOfServiceScreen from "./src/screens/termsOfServiceScreen";
 import SeeAllTrucksScreen from "./src/screens/seeAllTrucksScreen";
 import SearchScreen from "./src/screens/searchScreen";
+import OneTapSignInScreen from "./src/screens/oneTapSigninScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -109,6 +110,7 @@ const AuthNavigator = () => (
     <Stack.Screen name="authIntro" component={AuthIntroScreen} />
     <Stack.Screen name="signin" component={SigninScreen} />
     <Stack.Screen name="signup" component={SignupScreen} />
+    <Stack.Screen name="oneTapSignin" component={OneTapSignInScreen} />
     <Stack.Screen name="otpVerification" component={OtpVerificationScreen} />
     <Stack.Screen name="resetPassword" component={ResetPasswordScreen} />
     <Stack.Screen name="forgetPassword" component={ForgetPasswordScreen} />
@@ -162,6 +164,7 @@ const BottomNavigator = ({ insets }) => {
               style={{ height: 24, width: 24 }}
             />
           ),
+          tabBarHideOnKeyboard: false,
         }}
       />
       <BottomTab.Screen
@@ -232,6 +235,10 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
     <Stack.Screen name="seeAllTrucksScreen" component={SeeAllTrucksScreen} />
     <Stack.Screen name="searchScreen" component={SearchScreen} />
+    <Stack.Screen
+      name="deleteOtpVerification"
+      component={OtpVerificationScreen}
+    />
   </Stack.Navigator>
 );
 

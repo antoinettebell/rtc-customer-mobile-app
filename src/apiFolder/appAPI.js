@@ -32,6 +32,9 @@ import {
   GET_REVIEW_BY_FOODTRUCK_ID,
   GET_RECENT_FOODTRUCK,
   GET_ALL_BANNER,
+  CHECK_ITEMS,
+  GET_TAX_OF_LOCATION,
+  REMOVE_ACCOUNT,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -362,7 +365,7 @@ export const cancelFoodOrder_API = async (orderId, payload) => {
 // Get All Coupon Codes
 export const getAllCoupons_API = async () => {
   try {
-    const URL = `${GET_ALL_COUPON_CODES}`;
+    const URL = `${GET_ALL_COUPON_CODES}?limit=1000`;
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
@@ -474,6 +477,39 @@ export const getAllBanner_API = async () => {
   try {
     const URL = `${GET_ALL_BANNER}?page=1&limit=10`;
     const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Check menu items
+export const checkItems_API = async (payload) => {
+  try {
+    const URL = `${CHECK_ITEMS}`;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Check location tax
+export const checkTax_API = async (params = {}) => {
+  try {
+    const URL = GET_TAX_OF_LOCATION(params?.foodTruck_id, params?.location_id);
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// delete account
+export const deleteAccount_API = async () => {
+  try {
+    const URL = `${REMOVE_ACCOUNT}`;
+    const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

@@ -20,6 +20,7 @@ import { Snackbar } from "react-native-paper";
 import AppHeader from "../components/AppHeader";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites, toggleFavorite } from "../redux/slices/favoritesSlice";
+import AppImage from "../components/AppImage";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -127,11 +128,9 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               })
             }
           >
-            <FastImage
-              source={
-                item.foodTruck?.logo ? { uri: item.foodTruck?.logo } : favTruck1
-              }
-              style={styles.truckImg}
+            <AppImage
+              uri={item.foodTruck?.logo}
+              containerStyle={styles.truckImg}
             />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.truckName}>{item.foodTruck?.name}</Text>

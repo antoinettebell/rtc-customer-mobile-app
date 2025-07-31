@@ -3,30 +3,48 @@ import { View, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { AppColor } from "../utils/theme";
 import FastImage from "@d11/react-native-fast-image";
+import AppImage from "./AppImage";
 
 const { width } = Dimensions.get("window");
 
-const ImageCarousel = ({ images, imageStyle, dotStyle, dotActiveStyle }) => {
+const ImageCarousel = ({
+  containerHeight = 210,
+  containerWidth = width,
+  containerStyle = {},
+  images,
+  imageResizeMode = "cover",
+  imageContainer = {},
+  imageStyle = {},
+  dotStyle,
+  dotActiveStyle,
+}) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (!images || images.length === 0) return null;
 
   return (
-    <View style={styles.carouselContainer}>
+    <View style={[styles.carouselContainer, containerStyle]}>
       <Carousel
-        width={width}
-        height={210}
+        width={containerWidth}
+        height={containerHeight}
         data={images}
         scrollAnimationDuration={500}
         onSnapToItem={setActiveIndex}
         renderItem={({ item }) => (
-          <FastImage
-            source={{
-              uri: item,
-              priority: FastImage.priority.high,
-              cache: FastImage.cacheControl.immutable,
+          <AppImage
+            uri={item}
+            priority={FastImage.priority.high}
+            cache={FastImage.cacheControl.immutable}
+            resizeMode={imageResizeMode}
+            containerStyle={{
+              width: "100%",
+              height: "100%",
+              ...imageContainer,
             }}
-            style={[styles.image, imageStyle]}
+            imageStyle={{
+              ...styles.image,
+              ...imageStyle,
+            }}
           />
         )}
         panGestureHandlerProps={{ activeOffsetX: [-10, 10] }}
@@ -60,9 +78,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   image: {
-    width: width,
-    height: 210,
-    resizeMode: "cover",
+    width: "100%",
+    height: "100%",
   },
   dotsRow: {
     flexDirection: "row",

@@ -18,7 +18,6 @@ import {
   Snackbar,
   ActivityIndicator,
 } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CountryPicker } from "react-native-country-codes-picker";
 import AntDesign from "react-native-vector-icons/AntDesign";
@@ -27,10 +26,12 @@ import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import { register_API } from "../apiFolder/authAPI";
 import StatusBarManager from "../components/StatusBarManager";
+import { useSelector } from "react-redux";
 
-const SignupScreen = () => {
+const SignupScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+
+  const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
 
   const [fname, setFname] = useState("");
   const [lname, setLname] = useState("");
@@ -140,7 +141,7 @@ const SignupScreen = () => {
       if (response.success && response.data) {
         navigation.navigate("otpVerification", {
           verificationFor: "sign-up",
-          data: response.data,
+          data: { ...response.data, localPassword: password },
           nextScreen: "",
         });
       }
@@ -157,8 +158,11 @@ const SignupScreen = () => {
   };
 
   const handleSigninPress = () => {
-    // resetStates();
-    navigation.navigate("signin");
+    if (allSigninUsers?.length > 0) {
+      navigation.navigate("oneTapSignin");
+    } else {
+      navigation.navigate("signin");
+    }
   };
 
   return (

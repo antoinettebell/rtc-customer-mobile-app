@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import authReducer from "./slices/authSlice";
 import userReducer from "./slices/userSlice";
+import userInfoReducer from "./slices/userInfoSlice";
 import foodTruckProfileReducer from "./slices/foodTruckProfileSlice";
 import orderReducer from "./slices/orderSlice";
 import favoritesReducer from "./slices/favoritesSlice";
@@ -15,6 +16,7 @@ const persistConfig = {
   whitelist: [
     "authReducer",
     "userReducer",
+    "userInfoReducer",
     "foodTruckProfileReducer",
     "orderReducer",
     "favoritesReducer",
@@ -25,6 +27,7 @@ const persistConfig = {
 const rootReducer = combineReducers({
   authReducer,
   userReducer,
+  userInfoReducer,
   foodTruckProfileReducer,
   orderReducer,
   favoritesReducer,

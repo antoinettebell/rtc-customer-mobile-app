@@ -15,6 +15,7 @@ import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavorite } from "../redux/slices/favoritesSlice";
 import FastImage from "@d11/react-native-fast-image";
+import AppImage from "./AppImage";
 
 const FoodTruckGridComponent = ({
   title,
@@ -60,10 +61,7 @@ const FoodTruckGridComponent = ({
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <FastImage
-        source={typeof uris === "string" ? { uri: uris } : uris}
-        style={styles.image}
-      />
+      <AppImage uri={uris} containerStyle={styles.image} />
       <View style={styles.subContainer}>
         <Text style={styles.titleText} numberOfLines={1}>
           {title}
@@ -143,8 +141,6 @@ const styles = StyleSheet.create({
     height: 118,
     width: 160,
     borderRadius: 10,
-    backgroundColor: "#D1D5DB",
-    resizeMode: "cover",
   },
   subContainer: {
     gap: 8,

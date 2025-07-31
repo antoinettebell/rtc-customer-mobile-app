@@ -22,6 +22,7 @@ import AppHeader from "../components/AppHeader";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import moment from "moment";
 import FastImage from "@d11/react-native-fast-image";
+import AppImage from "../components/AppImage";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -215,9 +216,9 @@ const OrderTrackingScreen = ({ navigation }) => {
               })
             }
           >
-            <FastImage
-              source={{ uri: order?.foodTruck?.logo }}
-              style={styles.truckImg}
+            <AppImage
+              uri={order?.foodTruck?.logo}
+              containerStyle={styles.truckImg}
             />
             <View style={styles.orderCardInfo}>
               <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
@@ -298,9 +299,9 @@ const OrderTrackingScreen = ({ navigation }) => {
         {/* Call Vendor Container */}
         <View style={[styles.commonCard, { marginBottom: 50 }]}>
           <View style={styles.bottomCardRow}>
-            <FastImage
-              source={{ uri: order?.foodTruck?.logo }}
-              style={styles.truckImg}
+            <AppImage
+              uri={order?.foodTruck?.logo}
+              containerStyle={styles.truckImg}
             />
             <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
             <TouchableOpacity
@@ -371,6 +372,7 @@ const styles = StyleSheet.create({
   orderCardRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
   orderCardInfo: {
     flex: 1,
@@ -380,7 +382,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 8,
   },
   truckName: {
     fontFamily: Mulish700,
@@ -458,6 +459,7 @@ const styles = StyleSheet.create({
   bottomCardRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
   phoneBtn: {
     marginLeft: "auto",

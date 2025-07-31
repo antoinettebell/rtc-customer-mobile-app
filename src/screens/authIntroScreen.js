@@ -17,7 +17,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
@@ -62,8 +62,18 @@ const AuthIntroScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
+  const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
+
   const onPageSelected = (e) => {
     activeIndex.value = e.nativeEvent.position;
+  };
+
+  const handleSigninPress = () => {
+    if (allSigninUsers?.length > 0) {
+      navigation.navigate("oneTapSignin");
+    } else {
+      navigation.navigate("signin");
+    }
   };
 
   const handleSigninLater = () => {
@@ -127,7 +137,7 @@ const AuthIntroScreen = ({ navigation }) => {
 
       <View style={styles.buttonRow}>
         <TouchableOpacity
-          onPress={() => navigation.navigate("signin")}
+          onPress={handleSigninPress}
           activeOpacity={0.7}
           style={styles.signInButton}
         >

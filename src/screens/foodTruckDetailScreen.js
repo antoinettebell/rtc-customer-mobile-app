@@ -47,6 +47,7 @@ import FastImage from "@d11/react-native-fast-image";
 import moment from "moment";
 import FoodTruckAvailabilityModal from "../components/FoodTruckAvailabilityModal";
 import ActionSheet from "react-native-actions-sheet";
+import AppImage from "../components/AppImage";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -231,33 +232,37 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     const categoriesMap = {};
 
     menuItems.forEach((item) => {
-      if (!categoriesMap[item.categoryId]) {
-        categoriesMap[item.categoryId] = {
-          key: item.categoryId,
-          label: item.category.name,
-          items: [],
-        };
-      }
+      // Only process items that are available
+      if (item.available) {
+        if (!categoriesMap[item.categoryId]) {
+          categoriesMap[item.categoryId] = {
+            key: item.categoryId,
+            label: item.category.name,
+            items: [],
+          };
+        }
 
-      categoriesMap[item.categoryId].items.push({
-        id: item._id,
-        name: item.name,
-        desc: item.description,
-        price: `$${item.price.toFixed(2)}`,
-        img:
-          item.imgUrls && item.imgUrls.length > 0
-            ? { uri: item.imgUrls[0] }
-            : null,
-        originalItem: item,
-        available: item.available,
-        minQty: item.minQty || 1,
-        maxQty: item.maxQty || 10,
-        allowCustomize: item.allowCustomize || false,
-        diet: item.diet || [],
-        discount: item.discount || 0,
-        itemType: item.itemType,
-        subItem: item.subItem || [],
-      });
+        // categoriesMap[item.categoryId].items.push({
+        //   id: item._id,
+        //   name: item.name,
+        //   desc: item.description,
+        //   price: `$${item.price.toFixed(2)}`,
+        //   img:
+        //     item.imgUrls && item.imgUrls.length > 0
+        //       ? { uri: item.imgUrls[0] }
+        //       : null,
+        //   originalItem: item,
+        //   available: item.available,
+        //   minQty: item.minQty || 1,
+        //   maxQty: item.maxQty || 10,
+        //   allowCustomize: item.allowCustomize || false,
+        //   diet: item.diet || [],
+        //   discount: item.discount || 0,
+        //   itemType: item.itemType,
+        //   subItem: item.subItem || [],
+        // });
+        categoriesMap[item.categoryId].items.push({ ...item });
+      }
     });
 
     const tabs = Object.values(categoriesMap);
@@ -362,7 +367,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const addItemToOrderHandler = (menuItem) => {
-    const currentQuantity = getItemQuantity(menuItem.id);
+    const currentQuantity = getItemQuantity(menuItem._id);
 
     if (currentQuantity >= menuItem.maxQty) {
       Alert.alert(
@@ -372,68 +377,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (currentQuantity === 0 && menuItem.minQty > 1) {
-      Alert.alert(
-        "Minimum Quantity Required",
-        `To order this item, you must add at least ${menuItem.minQty} quantity.`,
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: `Add ${menuItem.minQty}`,
-            onPress: () => {
-              dispatch(
-                addItemToOrder({
-                  foodTruckId: item._id,
-                  foodTruckName: item.name,
-                  foodTruckLogo: item.logo,
-                  item: {
-                    id: menuItem.id,
-                    name: menuItem.name,
-                    desc: menuItem.desc,
-                    price: parseFloat(menuItem.price.replace("$", "")),
-                    img: menuItem.img,
-                    originalItem: menuItem.originalItem,
-                    minQty: menuItem.minQty,
-                    maxQty: menuItem.maxQty,
-                    allowCustomize: menuItem.allowCustomize,
-                    diet: menuItem.diet,
-                    discount: menuItem.discount,
-                    itemType: menuItem.itemType,
-                    subItem: menuItem.subItem,
-                  },
-                  quantity: menuItem.minQty,
-                })
-              );
-            },
-          },
-        ]
-      );
-      return;
-    }
-
     dispatch(
       addItemToOrder({
         foodTruckId: item._id,
         foodTruckName: item.name,
         foodTruckLogo: item.logo,
-        item: {
-          id: menuItem.id,
-          name: menuItem.name,
-          desc: menuItem.desc,
-          price: parseFloat(menuItem.price.replace("$", "")),
-          img: menuItem.img,
-          originalItem: menuItem.originalItem,
-          minQty: menuItem.minQty,
-          maxQty: menuItem.maxQty,
-          allowCustomize: menuItem.allowCustomize,
-          diet: menuItem.diet,
-          discount: menuItem.discount,
-          itemType: menuItem.itemType,
-          subItem: menuItem.subItem,
-        },
+        item: { ...menuItem },
       })
     );
   };
@@ -441,13 +390,13 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const handleRemoveItem = (menuItem) => {
     dispatch(
       removeItemFromOrder({
-        itemId: menuItem.id,
+        itemId: menuItem._id,
       })
     );
   };
 
   const getItemQuantity = (itemId) => {
-    const orderItem = currentOrder.items.find((item) => item.id === itemId);
+    const orderItem = currentOrder.items.find((item) => item._id === itemId);
     return orderItem ? orderItem.quantity : 0;
   };
 
@@ -503,7 +452,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         }}
       >
         {/* Image Carousel */}
-        <ImageCarousel images={images} />
+        <ImageCarousel images={images} imageContainer={{ borderRadius: 0 }} />
         <View
           style={{
             paddingHorizontal: 16,
@@ -514,7 +463,24 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         >
           {/* Name & Subname */}
           <View style={styles.nameRow}>
-            <Text style={styles.title}>{foodTruckDetail?.name}</Text>
+            <View
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <AppImage
+                uri={foodTruckDetail?.logo}
+                containerStyle={{ height: 50, width: 50, borderRadius: 5 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {foodTruckDetail?.name}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.subname}>
               {foodTruckDetail?.infoType === "caterer"
                 ? "Food Caterer"
@@ -760,35 +726,38 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     </Text>
                   ) : (
                     tab?.items?.map((menu, index) => {
-                      const quantity = getItemQuantity(menu.id);
+                      const quantity = getItemQuantity(menu._id);
                       const isLastItem = index === tab.items.length - 1;
                       const isDisabled = !menu.available;
 
                       return (
                         <View
-                          key={menu.id}
+                          key={menu._id}
                           style={[
                             styles.menuItemRow,
                             !isLastItem && styles.menuItemBorder,
                             isDisabled && styles.disabledMenuItem,
                           ]}
                         >
-                          {menu.img ? (
-                            <Image
-                              source={menu.img}
-                              style={[
-                                styles.menuImg,
-                                isDisabled && styles.disabledImage,
-                              ]}
+                          <View>
+                            <AppImage
+                              uri={menu.imgUrls[0]}
+                              containerStyle={styles.menuImg}
                             />
-                          ) : (
-                            <View
-                              style={[
-                                styles.menuImgPlaceholder,
-                                isDisabled && styles.disabledImage,
-                              ]}
-                            />
-                          )}
+                            {menu?.newDish ? (
+                              <FastImage
+                                source={require("../assets/images/new.png")}
+                                style={{
+                                  height: 32,
+                                  width: 32,
+                                  position: "absolute",
+                                  top: -10,
+                                  left: -10,
+                                  transform: [{ rotate: "-20deg" }],
+                                }}
+                              />
+                            ) : null}
+                          </View>
                           <Pressable
                             onPress={() => {
                               console.log("menu item => ", menu);
@@ -807,21 +776,59 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                               {menu.name}
                             </Text>
                             <Text
+                              numberOfLines={2}
                               style={[
                                 styles.menuDesc,
                                 isDisabled && styles.disabledText,
                               ]}
                             >
-                              {menu.desc}
+                              {menu.description}
                             </Text>
-                            <Text
-                              style={[
-                                styles.menuPrice,
-                                isDisabled && styles.disabledText,
-                              ]}
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "baseline",
+                              }}
                             >
-                              {menu.price}
-                            </Text>
+                              {/* <Text
+                                style={[
+                                  styles.menuPrice,
+                                  isDisabled && styles.disabledText,
+                                ]}
+                              >
+                                {`$${menu.price}`}
+                              </Text> */}
+                              {(menu.discount || 0) > 0 && (
+                                <Text
+                                  style={{
+                                    fontFamily: Mulish700,
+                                    fontSize: 14,
+                                    color: AppColor.primary,
+                                  }}
+                                >
+                                  {`$${(parseFloat(menu.price || "0") - (menu.discount || 0)).toFixed(2)} `}
+                                </Text>
+                              )}
+                              <Text
+                                style={{
+                                  fontFamily:
+                                    (menu.discount || 0) > 0
+                                      ? Mulish400
+                                      : Mulish700,
+                                  fontSize: (menu.discount || 0) > 0 ? 12 : 14,
+                                  color:
+                                    (menu.discount || 0) > 0
+                                      ? AppColor.text
+                                      : AppColor.primary,
+                                  textDecorationLine:
+                                    (menu.discount || 0) > 0
+                                      ? "line-through"
+                                      : "none",
+                                }}
+                              >
+                                {`$${(menu?.price || 0).toFixed(2)} `}
+                              </Text>
+                            </View>
                             {isDisabled && (
                               <Text style={styles.unavailableText}>
                                 Currently Unavailable
@@ -909,15 +916,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       )}
 
-      {/* <ActionSheet
-        ref={actionSheetRef}
-        headerAlwaysVisible={true}
-        gestureEnabled={true}
-        onClose={() => setSelectedMenuItem(null)}
-      >
-        <Text>{selectedMenuItem?.name}</Text>
-      </ActionSheet> */}
-
       <ActionSheet
         ref={actionSheetRef}
         headerAlwaysVisible={true}
@@ -949,20 +947,20 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Image - using first image from imgUrls if available */}
-            {selectedMenuItem.img?.uri ||
-            selectedMenuItem.originalItem?.imgUrls?.[0] ? (
-              <Image
-                source={{
-                  uri:
-                    selectedMenuItem.img?.uri ||
-                    selectedMenuItem.originalItem?.imgUrls?.[0],
-                }}
-                style={{
-                  width: "100%",
-                  height: 200,
+            {/* Images */}
+            {selectedMenuItem?.imgUrls?.length > 0 ? (
+              <ImageCarousel
+                images={selectedMenuItem?.imgUrls}
+                imageResizeMode="cover"
+                containerHeight={200}
+                containerWidth={width - 40}
+                containerStyle={{
                   borderRadius: 10,
                   marginBottom: 15,
+                  overflow: "hidden",
+                }}
+                imageContainer={{
+                  borderRadius: 0,
                 }}
               />
             ) : (
@@ -986,8 +984,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             )}
 
             {/* Description */}
-            {(selectedMenuItem.desc ||
-              selectedMenuItem.originalItem?.description) && (
+            {selectedMenuItem.description && (
               <Text
                 style={{
                   fontFamily: Mulish400,
@@ -997,9 +994,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   lineHeight: 22,
                 }}
               >
-                {selectedMenuItem.desc ||
-                  selectedMenuItem.originalItem?.description ||
-                  ""}
+                {selectedMenuItem?.description || ""}
               </Text>
             )}
 
@@ -1012,71 +1007,67 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                 marginBottom: 15,
               }}
             >
-              <Text
+              <View
                 style={{
-                  fontFamily: Mulish700,
-                  fontSize: 18,
-                  color: AppColor.primary,
+                  flexDirection: "row",
+                  alignItems: "baseline",
                 }}
               >
-                {selectedMenuItem.price ||
-                  `$${(selectedMenuItem.originalItem?.price || 0).toFixed(2)}`}
                 {(selectedMenuItem.discount || 0) > 0 && (
                   <Text
                     style={{
-                      fontFamily: Mulish400,
-                      fontSize: 14,
-                      color: AppColor.snackbarError,
-                      textDecorationLine: "line-through",
-                      marginLeft: 5,
+                      fontFamily: Mulish700,
+                      fontSize: 18,
+                      color: AppColor.primary,
                     }}
                   >
-                    $
-                    {(
-                      parseFloat(
-                        (selectedMenuItem.price || "0").replace("$", "")
-                      ) + (selectedMenuItem.discount || 0)
-                    ).toFixed(2)}
+                    {`$${(parseFloat(selectedMenuItem.price || "0") - (selectedMenuItem.discount || 0)).toFixed(2)} `}
                   </Text>
                 )}
-              </Text>
+                <Text
+                  style={{
+                    fontFamily:
+                      (selectedMenuItem.discount || 0) > 0
+                        ? Mulish400
+                        : Mulish700,
+                    fontSize: (selectedMenuItem.discount || 0) > 0 ? 14 : 18,
+                    color:
+                      (selectedMenuItem.discount || 0) > 0
+                        ? AppColor.text
+                        : AppColor.primary,
+                    textDecorationLine:
+                      (selectedMenuItem.discount || 0) > 0
+                        ? "line-through"
+                        : "none",
+                  }}
+                >
+                  {`$${(selectedMenuItem?.price || 0).toFixed(2)} `}
+                </Text>
+              </View>
 
-              <Text
-                style={{
-                  fontFamily: Mulish400,
-                  fontSize: 14,
-                  color: (
-                    selectedMenuItem.available !== undefined
-                      ? selectedMenuItem.available
-                      : selectedMenuItem.originalItem?.available
-                  )
-                    ? AppColor.snackbarSuccess
-                    : AppColor.snackbarError,
-                  backgroundColor: (
-                    selectedMenuItem.available !== undefined
-                      ? selectedMenuItem.available
-                      : selectedMenuItem.originalItem?.available
-                  )
-                    ? AppColor.lightGreenBG
-                    : AppColor.lightRedBG,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 4,
-                }}
-              >
-                {(
-                  selectedMenuItem.available !== undefined
-                    ? selectedMenuItem.available
-                    : selectedMenuItem.originalItem?.available
-                )
-                  ? "Available"
-                  : "Unavailable"}
-              </Text>
+              {selectedMenuItem.itemType === "COMBO" && (
+                <Text
+                  style={{
+                    fontFamily: Mulish400,
+                    fontSize: 14,
+                    color: selectedMenuItem.available
+                      ? AppColor.snackbarSuccess
+                      : AppColor.snackbarError,
+                    backgroundColor: selectedMenuItem.available
+                      ? AppColor.lightGreenBG
+                      : AppColor.lightRedBG,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 4,
+                  }}
+                >
+                  {"COMBO"}
+                </Text>
+              )}
             </View>
 
             {/* Dietary Information */}
-            {(selectedMenuItem.diet?.length > 0 ||
-              selectedMenuItem.originalItem?.diet?.length > 0) && (
+            {selectedMenuItem.diet?.length > 0 && (
               <View style={{ marginBottom: 15 }}>
                 <Text
                   style={{
@@ -1091,11 +1082,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                 <View
                   style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                 >
-                  {(
-                    selectedMenuItem.diet ||
-                    selectedMenuItem.originalItem?.diet ||
-                    []
-                  ).map((diet, index) => {
+                  {(selectedMenuItem.diet || []).map((diet, index) => {
                     // Handle both cases where diet might be string or object
                     const dietName =
                       diet?.name || (typeof diet === "string" ? diet : "");
@@ -1122,6 +1109,47 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     ) : null;
                   })}
                 </View>
+              </View>
+            )}
+
+            {/* Sub-items (if any) */}
+            {selectedMenuItem.subItem?.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <Text
+                  style={{
+                    fontFamily: Mulish700,
+                    fontSize: 16,
+                    color: AppColor.text,
+                    marginBottom: 10,
+                  }}
+                >
+                  Combo Items:
+                </Text>
+                {(selectedMenuItem.subItem || []).map((subItem, index) => {
+                  const subItemName =
+                    subItem?.menuItem?.name || `Option ${index + 1}`;
+                  const subItemQty = subItem?.qty || 0;
+
+                  return (
+                    <View
+                      key={subItem?._id || index}
+                      style={{
+                        flexDirection: "row",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: Mulish400,
+                          fontSize: 14,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {`${subItemQty} x ${subItemName}`}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -1158,14 +1186,14 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   <TouchableOpacity
                     style={{ paddingVertical: 8, paddingHorizontal: 12 }}
                     onPress={() => handleRemoveItem(selectedMenuItem)}
-                    disabled={getItemQuantity(selectedMenuItem.id) === 0}
+                    disabled={getItemQuantity(selectedMenuItem._id) === 0}
                   >
                     <Text
                       style={{
                         fontFamily: Mulish700,
                         fontSize: 16,
                         color:
-                          getItemQuantity(selectedMenuItem.id) === 0
+                          getItemQuantity(selectedMenuItem._id) === 0
                             ? AppColor.textHighlighter
                             : AppColor.primary,
                       }}
@@ -1182,17 +1210,15 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                       marginHorizontal: 10,
                     }}
                   >
-                    {getItemQuantity(selectedMenuItem.id)}
+                    {getItemQuantity(selectedMenuItem._id)}
                   </Text>
 
                   <TouchableOpacity
                     style={{ paddingVertical: 8, paddingHorizontal: 12 }}
                     onPress={() => handleAddItem(selectedMenuItem)}
                     disabled={
-                      getItemQuantity(selectedMenuItem.id) >=
-                      (selectedMenuItem.maxQty ||
-                        selectedMenuItem.originalItem?.maxQty ||
-                        10)
+                      getItemQuantity(selectedMenuItem._id) >=
+                      (selectedMenuItem.maxQty || 10)
                     }
                   >
                     <Text
@@ -1200,10 +1226,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                         fontFamily: Mulish700,
                         fontSize: 16,
                         color:
-                          getItemQuantity(selectedMenuItem.id) >=
-                          (selectedMenuItem.maxQty ||
-                            selectedMenuItem.originalItem?.maxQty ||
-                            10)
+                          getItemQuantity(selectedMenuItem._id) >=
+                          (selectedMenuItem.maxQty || 10)
                             ? AppColor.textHighlighter
                             : AppColor.primary,
                       }}
@@ -1222,16 +1246,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   paddingHorizontal: 20,
                 }}
                 onPress={() => {
-                  if (getItemQuantity(selectedMenuItem.id) === 0) {
+                  if (getItemQuantity(selectedMenuItem._id) === 0) {
                     handleAddItem(selectedMenuItem);
                   }
                   actionSheetRef.current?.hide();
                 }}
-                disabled={
-                  !(selectedMenuItem.available !== undefined
-                    ? selectedMenuItem.available
-                    : selectedMenuItem.originalItem?.available)
-                }
+                disabled={!selectedMenuItem.available}
               >
                 <Text
                   style={{
@@ -1240,67 +1260,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     color: AppColor.white,
                   }}
                 >
-                  {getItemQuantity(selectedMenuItem.id) === 0
+                  {getItemQuantity(selectedMenuItem._id) === 0
                     ? "Add to Order"
                     : "Update Order"}
                 </Text>
               </TouchableOpacity>
             </View>
-
-            {/* Sub-items (if any) */}
-            {(selectedMenuItem.subItem?.length > 0 ||
-              selectedMenuItem.originalItem?.subItem?.length > 0) && (
-              <View style={{ marginTop: 20 }}>
-                <Text
-                  style={{
-                    fontFamily: Mulish700,
-                    fontSize: 16,
-                    color: AppColor.text,
-                    marginBottom: 10,
-                  }}
-                >
-                  Customizations:
-                </Text>
-                {(
-                  selectedMenuItem.subItem ||
-                  selectedMenuItem.originalItem?.subItem ||
-                  []
-                ).map((subItem, index) => {
-                  const subItemName = subItem?.name || `Option ${index + 1}`;
-                  const subItemPrice = subItem?.price || 0;
-
-                  return (
-                    <View
-                      key={subItem?._id || index}
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontFamily: Mulish400,
-                          fontSize: 14,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {subItemName}
-                      </Text>
-                      <Text
-                        style={{
-                          fontFamily: Mulish400,
-                          fontSize: 14,
-                          color: AppColor.primary,
-                        }}
-                      >
-                        +${subItemPrice.toFixed(2)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
           </View>
         )}
       </ActionSheet>

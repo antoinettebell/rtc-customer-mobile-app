@@ -24,3 +24,5 @@ export const orderStatusStrings = {
   ready_for_pickup: "READY_FOR_PICKUP",
   completed: "COMPLETED",
 };
+
+export const onlinePyamentApplicablePlanList = ["SUB_PLATINUM", "SUB_ELITE"];

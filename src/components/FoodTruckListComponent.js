@@ -5,20 +5,16 @@ import {
   TouchableOpacity,
   View,
   Platform,
-  Image,
   ActivityIndicator,
 } from "react-native";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
-import {
-  addFavoriteFoodTruck_API,
-  removeFavoriteFoodTruck_API,
-} from "../apiFolder/appAPI";
-import FastImage from "@d11/react-native-fast-image";
+
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavorite } from "../redux/slices/favoritesSlice";
+import AppImage from "./AppImage";
 
 const FoodTruckListComponent = ({
   title,
@@ -64,10 +60,7 @@ const FoodTruckListComponent = ({
       activeOpacity={0.7}
       onPress={onContainerPress}
     >
-      <FastImage
-        source={typeof uri === "string" ? { uri: uri } : uri}
-        style={styles.image}
-      />
+      <AppImage uri={uri} containerStyle={styles.image} />
       <View style={styles.subContainer}>
         <Text style={styles.titleText}>{title}</Text>
         {showReviews && (
@@ -145,8 +138,6 @@ const styles = StyleSheet.create({
     height: 83,
     width: 83,
     borderRadius: 10,
-    backgroundColor: "#D1D5DB",
-    resizeMode: "cover",
   },
   subContainer: {
     flex: 1,

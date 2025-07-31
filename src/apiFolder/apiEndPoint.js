@@ -6,6 +6,7 @@ export const REGISTER_USER = "/auth/register";
 export const RESEND_OTP = "/auth/resend-otp";
 export const CUISINE = "/cuisine";
 export const MEDIA_UPLOAD = "/file";
+export const REMOVE_ACCOUNT = "/user";
 
 // Get Location Name from Lat Long
 export const REVERSE_LOCATION =
@@ -38,6 +39,9 @@ export const GET_ALL_ORDERS = "/order";
 export const GET_ORDER_BY_ORDERID = "/order";
 export const CANCEL_FOOD_ORDER = "/order";
 
+// Menu
+export const CHECK_ITEMS = "public/menu-check-items";
+
 // Address
 export const GET_ADDRESS = "/user/address";
 export const ADD_ADDRESS = "/user/address";
@@ -50,8 +54,12 @@ export const PRIVACY_POLICY = "/public/privacy-policy";
 export const AGREEMENT = "/public/agreement";
 
 // Coupon
-export const GET_ALL_COUPON_CODES = "/coupon";
-export const VALIDATE_COUPON_CODE = "/coupon/validate";
+export const GET_ALL_COUPON_CODES = "/public/coupon";
+export const VALIDATE_COUPON_CODE = "/public/coupon-validate";
+
+// Tax
+export const GET_TAX_OF_LOCATION = (foodTruck_id, location_id) =>
+  `/public/tax-rates-check?foodTruckId=${foodTruck_id}&locationId=${location_id}`;
 
 // Notification
 export const SET_FCM_TOKEN = "/user/set-fcm-token";
