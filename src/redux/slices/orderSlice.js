@@ -61,7 +61,7 @@ const orderSlice = createSlice({
       //   0
       // );
       state.currentOrder.subtotal = state.currentOrder.items.reduce(
-        (sum, item) => sum + (item.price - item.discount) * item.quantity,
+        (sum, item) => sum + item.price * item.quantity,
         0
       );
     },
@@ -88,7 +88,7 @@ const orderSlice = createSlice({
           0
         );
         state.currentOrder.subtotal = state.currentOrder.items.reduce(
-          (sum, item) => sum + (item.price - item.discount) * item.quantity,
+          (sum, item) => sum + item.price * item.quantity,
           0
         );
 
@@ -127,7 +127,7 @@ const orderSlice = createSlice({
       // Recalculate totals
       state.currentOrder.totalItems = updatedItems.length;
       state.currentOrder.subtotal = updatedItems.reduce(
-        (sum, item) => sum + (item.price - item.discount) * item.quantity,
+        (sum, item) => sum + item.price * item.quantity,
         0
       );
     },
@@ -150,7 +150,7 @@ const orderSlice = createSlice({
         // Recalculate totals if the updated property affects pricing
         if (["price", "discount", "quantity"].includes(keyName)) {
           state.currentOrder.subtotal = state.currentOrder.items.reduce(
-            (sum, item) => sum + (item.price - item.discount) * item.quantity,
+            (sum, item) => sum + item.price * item.quantity,
             0
           );
         }

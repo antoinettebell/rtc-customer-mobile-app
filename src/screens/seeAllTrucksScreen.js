@@ -74,7 +74,16 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
       }
 
       if (response?.success && response?.data) {
-        setTrucksList(response?.data?.foodtruckList);
+        if (page === 0) {
+          // Reset the list when refreshing
+          setTrucksList(response?.data?.foodtruckList);
+        } else {
+          // Append new data to existing list when loading more
+          setTrucksList((prevList) => [
+            ...prevList,
+            ...response?.data?.foodtruckList,
+          ]);
+        }
         setCurrentPage(response?.data?.page);
         setTotalPage(response?.data?.totalPages);
       }

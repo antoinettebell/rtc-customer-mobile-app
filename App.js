@@ -53,8 +53,9 @@ import {
 } from "./src/helpers/notification.helper";
 import TermsOfServiceScreen from "./src/screens/termsOfServiceScreen";
 import SeeAllTrucksScreen from "./src/screens/seeAllTrucksScreen";
-import SearchScreen from "./src/screens/searchScreen";
+import GlobalSearchScreen from "./src/screens/globalSearchScreen";
 import OneTapSignInScreen from "./src/screens/oneTapSigninScreen";
+import SearchResultScreen from "./src/screens/searchResultScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -234,7 +235,8 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen name="appPrivacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
     <Stack.Screen name="seeAllTrucksScreen" component={SeeAllTrucksScreen} />
-    <Stack.Screen name="searchScreen" component={SearchScreen} />
+    <Stack.Screen name="globalSearchScreen" component={GlobalSearchScreen} />
+    <Stack.Screen name="searchResultScreen" component={SearchResultScreen} />
     <Stack.Screen
       name="deleteOtpVerification"
       component={OtpVerificationScreen}

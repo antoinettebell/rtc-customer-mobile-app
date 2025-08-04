@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Platform,
   ActivityIndicator,
   StyleSheet,
   Text,
   View,
   FlatList,
+  Pressable,
 } from "react-native";
 import { IconButton, Searchbar } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { useSelector } from "react-redux";
-import FoodTruckListComponent from "../components/FoodTruckListComponent";
-import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
+import AppImage from "../components/AppImage";
+import { getGlobalSearchResult_API } from "../apiFolder/appAPI";
 
-const LIMIT = 15;
 const DEBOUNCE_DELAY = 500;
 
-const SearchScreen = ({ navigation }) => {
+const GlobalSearchScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const debounceTimerRef = useRef(null);
 
@@ -25,48 +26,39 @@ const SearchScreen = ({ navigation }) => {
   const { defaultLocation } = useSelector((state) => state.locationReducer);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [trucksList, setTrucksList] = useState([]);
+  const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPage, setTotalPage] = useState(1);
+  const [foodTruckHeaderItem, setFoodTruckHeaderItem] = useState(null);
+  const [lastSearchQuery, setLastSearchQuery] = useState("");
 
-  const getTruckList = async (page = 0, searchText = searchQuery) => {
-    if (page === 0) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const getSearchResultFromAPI = async (searchText = searchQuery) => {
+    setLoading(true);
     try {
       let payload = {
-        page: page + 1,
-        limit: LIMIT,
         userLat: defaultLocation?.lat || 0,
         userLong: defaultLocation?.long || 0,
-        distanceInMeters: 160934, // 100 miles in meter
       };
       if (searchText?.trim()?.length > 0) {
         payload.search = searchText;
       }
-      const response = await getNearbyFoodTrucks_API(payload);
+      const response = await getGlobalSearchResult_API(payload);
+      console.log("response => ", response);
       if (response?.success && response?.data) {
-        if (page === 0) {
-          // Reset list if it's first page
-          setTrucksList(response?.data?.foodtruckList || []);
-        } else {
-          // Append to list if it's subsequent page
-          setTrucksList((prev) => [
-            ...prev,
-            ...(response?.data?.foodtruckList || []),
-          ]);
-        }
-        setCurrentPage(response?.data?.page || 0);
-        setTotalPage(response?.data?.totalPages || 1);
+        const searchList = response?.data?.searchList || [];
+        setSearchResult(searchList);
+        setLastSearchQuery(searchText);
+
+        const firstFoodTruck = searchList.find(
+          (item) => item.recordType === "FOOD_TRUCK"
+        );
+        setFoodTruckHeaderItem(firstFoodTruck || null);
+      } else {
+        setFoodTruckHeaderItem(null);
+        setLastSearchQuery("");
       }
     } catch (error) {
       console.log("error =>", error);
     } finally {
-      setRefreshing(false);
       setLoading(false);
     }
   };
@@ -81,69 +73,103 @@ const SearchScreen = ({ navigation }) => {
 
     // If search is cleared, reset everything
     if (text.trim().length === 0) {
-      setTrucksList([]);
-      setCurrentPage(0);
-      setTotalPage(1);
+      setSearchResult([]);
+      setFoodTruckHeaderItem(null);
+      setLastSearchQuery("");
       return;
     }
 
     // Set new timer for debounce
     debounceTimerRef.current = setTimeout(() => {
-      getTruckList(0, text);
+      getSearchResultFromAPI(text);
     }, DEBOUNCE_DELAY);
   };
 
-  const renderTruckComponent = ({ item }) => {
+  const renderSearchResult = ({ item }) => {
     return (
-      <FoodTruckListComponent
-        key={item._id.toString()}
-        title={item.name}
-        uri={item.logo}
-        foodTruckId={item._id}
-        reviews={item.totalReviews}
-        showLikeButton={isSignedIn}
-        showDistance={item?.distanceInMeters != undefined}
-        distance={item.distanceInMeters || 0}
-        onContainerPress={() =>
-          navigation.navigate("foodTruckDetailScreen", { item })
-        }
-      />
+      <Pressable
+        style={styles.resultItemContainer}
+        onPress={() => {
+          if (item.recordType === "FOOD_TRUCK") {
+            navigation.navigate("foodTruckDetailScreen", { item });
+          } else {
+            navigation.navigate("searchResultScreen", {
+              searchString: item.name,
+            });
+          }
+        }}
+      >
+        <AppImage
+          uri={item.recordType === "FOOD_TRUCK" ? item.logo : item.imgUrls[0]}
+          containerStyle={styles.resultItemImage}
+        />
+        <View style={styles.resultItemTextContainer}>
+          <Text style={styles.resultItemName}>{item.name}</Text>
+          <Text style={styles.resultItemType}>
+            {item.recordType === "FOOD_TRUCK" ? "Food Truck" : "Dish"}
+          </Text>
+        </View>
+        <IconButton
+          icon="chevron-right"
+          iconColor={AppColor.textSecondary}
+          size={24}
+        />
+      </Pressable>
+    );
+  };
+
+  const renderHeaderComponent = () => {
+    if (!foodTruckHeaderItem) {
+      return null;
+    }
+    return (
+      <Pressable
+        style={styles.resultItemContainer}
+        onPress={() => {
+          navigation.navigate("searchResultScreen", {
+            searchString: searchQuery,
+          });
+        }}
+      >
+        <AppImage
+          uri={foodTruckHeaderItem?.logo}
+          containerStyle={styles.resultItemImage}
+        />
+        <View style={styles.resultItemTextContainer}>
+          <Text style={styles.resultItemName}>{lastSearchQuery}</Text>
+          <Text
+            style={[
+              styles.resultItemType,
+              { color: AppColor.primary, fontFamily: Mulish700 },
+            ]}
+          >
+            {"See all trucks"}
+          </Text>
+        </View>
+        <IconButton
+          icon="chevron-right"
+          iconColor={AppColor.textSecondary}
+          size={24}
+        />
+      </Pressable>
     );
   };
 
   const renderEmptyComponent = () => (
-    <View style={styles.emptyComponentContainer}>
-      {loading || refreshing ? (
+    <View
+      style={[styles.emptyComponentContainer, { paddingBottom: insets.bottom }]}
+    >
+      {loading ? (
         <ActivityIndicator size="large" color={AppColor.primary} />
       ) : (
         <Text numberOfLines={3} style={styles.emptyComponentText}>
           {searchQuery?.trim()?.length > 0
             ? `No results found for "${searchQuery}"`
-            : `Search anything`}
+            : `Search something like Pizza, Burger, Sushi etc.`}
         </Text>
       )}
     </View>
   );
-
-  const renderFooter = () => {
-    return loading ? (
-      <View style={styles.footerContainer}>
-        <ActivityIndicator size="large" color={AppColor.primary} />
-      </View>
-    ) : null;
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && currentPage < totalPage && searchQuery.trim().length > 0) {
-      getTruckList(currentPage);
-    }
-  };
-
-  const handleRefresh = () => {
-    if (searchQuery.trim().length > 0) {
-      getTruckList(0);
-    }
-  };
 
   useEffect(() => {
     return () => {
@@ -159,14 +185,16 @@ const SearchScreen = ({ navigation }) => {
 
       {/* Header Container */}
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={AppColor.black}
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
-        <Text style={styles.headerTitle}>{"My Orders"}</Text>
-        <View style={{ width: 48 }} />
+        <View style={{ width: "20%" }}>
+          <IconButton
+            icon="arrow-left"
+            iconColor={AppColor.black}
+            size={24}
+            onPress={() => navigation.goBack()}
+          />
+        </View>
+        <Text style={styles.headerTitle}>{"Search"}</Text>
+        <View style={{ width: "20%" }} />
       </View>
 
       {/* Search Container */}
@@ -186,19 +214,15 @@ const SearchScreen = ({ navigation }) => {
       {/* Content List Container */}
       <View style={styles.contentContainer}>
         <FlatList
-          data={trucksList}
-          extraData={trucksList}
+          data={searchResult}
+          extraData={searchResult}
           keyExtractor={(item) => item._id.toString()}
-          renderItem={renderTruckComponent}
           contentContainerStyle={[
             styles.flatListContent,
             { paddingBottom: insets.bottom },
           ]}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.8}
-          ListFooterComponent={renderFooter}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
+          renderItem={renderSearchResult}
+          ListHeaderComponent={renderHeaderComponent}
           ListEmptyComponent={renderEmptyComponent}
           showsVerticalScrollIndicator={false}
         />
@@ -207,7 +231,7 @@ const SearchScreen = ({ navigation }) => {
   );
 };
 
-export default SearchScreen;
+export default GlobalSearchScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -277,11 +301,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Mulish600,
     color: AppColor.black,
+    textAlign: "center",
+    marginHorizontal: "20%",
   },
   footerContainer: {
     height: 50,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Search Result Item
+  resultItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: AppColor.border,
+  },
+  resultItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  resultItemTextContainer: {
+    flex: 1,
+  },
+  resultItemName: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.text,
+  },
+  resultItemType: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textSecondary,
+    marginTop: 4,
   },
 });

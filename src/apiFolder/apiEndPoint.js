@@ -25,6 +25,7 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
 export const GET_NEARBY_FOODTRUCK_NEW = "/public/food-truck-filter-new";
 export const GET_RECENT_FOODTRUCK = "/public/food-truck";
+export const GLOBAL_SEARCH = "/public/global-search"
 
 // FoodTruck Detail Screen
 export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/public/food-truck";

@@ -35,6 +35,7 @@ import {
   CHECK_ITEMS,
   GET_TAX_OF_LOCATION,
   REMOVE_ACCOUNT,
+  GLOBAL_SEARCH,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -510,6 +511,32 @@ export const deleteAccount_API = async () => {
   try {
     const URL = `${REMOVE_ACCOUNT}`;
     const response = await apiClient.delete(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// global search
+export const getGlobalSearchResult_API = async (params = {}) => {
+  try {
+    const { authToken } = store.getState().userReducer;
+    const { search = "", userLat, userLong } = params;
+    let URL = `${GLOBAL_SEARCH}`;
+
+    // Build query string with required and optional parameters
+    const queryParams = [`userLat=${userLat}`, `userLong=${userLong}`];
+
+    // Add optional parameters if they exist
+    if (search?.trim()?.length > 0) {
+      queryParams.push(`search=${search}`);
+    }
+
+    URL += `?${queryParams.join("&")}`;
+
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

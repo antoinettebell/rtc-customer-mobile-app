@@ -277,7 +277,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               {item.description}
             </Text>
             <Text style={styles.itemPrice}>
-              {`$${(parseFloat(item.price || "0") - (item.discount || 0)).toFixed(2)} `}
+              {`$${parseFloat(item.price || "0").toFixed(2)} `}
             </Text>
           </View>
           <View style={styles.qtyBox}>

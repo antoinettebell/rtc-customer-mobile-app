@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Linking,
 } from "react-native";
 import Modal from "react-native-modal";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
@@ -41,6 +42,7 @@ import {
 } from "../apiFolder/appAPI";
 import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar, Portal } from "react-native-paper";
+import { getBuildNumber, getVersion } from "react-native-device-info";
 import { fetchFavorites, clearFavorites } from "../redux/slices/favoritesSlice";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
@@ -394,6 +396,26 @@ const ProfileMenuScreen = ({ navigation }) => {
     );
   };
 
+  const handleHelpSupportPress = async () => {
+    const supportEmail = "support@roundthecorner.com";
+    const subject = "RTC - Customer";
+    const body = `Hello,\n\nCan you please help me?\n\n\n\n\n\nBest regards,\n${user?.firstName} ${user?.lastName}\n${user?.email}`;
+
+    const url = `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "Could not open email app");
+      }
+    } catch (error) {
+      console.log("Error opening email app:", error);
+      Alert.alert("Error", "Failed to open email app");
+    }
+  };
+
   const getUserDetailFromAPI = async () => {
     console.log("getUserDetailFromAPI => called");
     setGetDataLoading(true);
@@ -630,7 +652,7 @@ const ProfileMenuScreen = ({ navigation }) => {
               imageUri={require("../assets/images/support.png")}
               label="Help & Support"
               rightIcon={true}
-              onPress={() => {}}
+              onPress={handleHelpSupportPress}
             />
             <HR />
             <CustomProfileItem
@@ -648,6 +670,22 @@ const ProfileMenuScreen = ({ navigation }) => {
               onPress={handleDeleteAccountPress}
             />
           </View>
+        </View>
+
+        <View
+          style={{
+            alignItems: "center",
+            justifyContent: "center",
+            marginVertical: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: Mulish400,
+              color: AppColor.text,
+            }}
+          >{`v${getVersion()} (${getBuildNumber()})`}</Text>
         </View>
 
         {/* Media Picker Modal */}

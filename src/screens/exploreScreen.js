@@ -439,7 +439,7 @@ const ExploreScreen = (props) => {
             right: 0,
             borderRadius: 30,
           }}
-          onPress={() => navigation.navigate("searchScreen")}
+          onPress={() => navigation.navigate("globalSearchScreen")}
         />
       </Animated.View>
 
