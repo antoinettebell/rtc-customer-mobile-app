@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import Tooltip from "react-native-walkthrough-tooltip";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -44,7 +43,7 @@ import moment from "moment";
 import FoodTruckAvailabilityModal from "../components/FoodTruckAvailabilityModal";
 import ActionSheet from "react-native-actions-sheet";
 import AppImage from "../components/AppImage";
-import { IconButton } from "react-native-paper";
+import { Divider, IconButton, SegmentedButtons } from "react-native-paper";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -154,6 +153,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const tabListRef = useRef();
   const tabContentRef = useRef();
   const actionSheetRef = useRef(null);
+  const businessHoursActionSheetRef = useRef(null);
 
   const { item } = route.params;
 
@@ -163,7 +163,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [menuTabs, setMenuTabs] = useState([]);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
-  const [isScheduleVisible, setIsScheduleVisible] = useState(false);
+  const [segment, setSegment] = useState("business");
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
   // Get favorites and loading state specific to favorite actions from Redux
@@ -446,6 +446,29 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  const getFutureDateForDay = (dayOfWeek) => {
+    const today = moment();
+    const dayMap = {
+      sun: 0,
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
+    };
+    const targetDayIndex = dayMap[dayOfWeek.toLowerCase()];
+    const currentDayIndex = today.day();
+
+    let daysToAdd = targetDayIndex - currentDayIndex;
+
+    if (daysToAdd < 0) {
+      daysToAdd += 7;
+    }
+
+    return today.add(daysToAdd, "days");
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
@@ -453,54 +476,29 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       <AppHeader headerTitle="Details" />
 
       {loading ? (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingBottom: insets.bottom,
-          }}
-        >
+        <View style={[styles.loadingView, { paddingBottom: insets.bottom }]}>
           <ActivityIndicator size="large" color={AppColor.primary} />
         </View>
       ) : (
         <>
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              flexGrow: 1,
-              paddingBottom: 120,
-              backgroundColor: "#F0F1F2",
-            }}
+            contentContainerStyle={styles.scrollViewContent}
           >
             {/* Image Carousel */}
             <ImageCarousel
               images={images}
               imageContainer={{ borderRadius: 0 }}
             />
-            <View
-              style={{
-                paddingHorizontal: 16,
-                paddingVertical: 10,
-                backgroundColor: AppColor.white,
-                gap: 10,
-              }}
-            >
+            <View style={styles.infoContainer}>
               {/* Name & Subname */}
               <View style={styles.nameRow}>
-                <View
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
+                <View style={styles.nameRowLeft}>
                   <AppImage
                     uri={foodTruckDetail?.logo}
-                    containerStyle={{ height: 50, width: 50, borderRadius: 5 }}
+                    containerStyle={styles.logoImage}
                   />
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.titleContainer}>
                     <Text style={styles.title} numberOfLines={2}>
                       {foodTruckDetail?.name}
                     </Text>
@@ -637,145 +635,28 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
             {/* Dynamic Info Rows */}
             <View style={styles.infoRowsWrap}>
-              {/* Location Row */}
-              <View style={styles.infoRowContainer}>
-                <View style={[styles.infoRowContainer, { flex: 1 }]}>
-                  <View style={styles.infoRowLeft}>
-                    <FontAwesome6
-                      name="location-dot"
-                      size={20}
-                      color={AppColor.primary}
-                    />
-                    <Text style={styles.infoRowTitle}>{"Truck Location"}</Text>
-                  </View>
-                </View>
-                <View style={{ flex: 1, alignItems: "flex-end" }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.infoRowValue,
-                        {
-                          textAlign: "right",
-                          backgroundColor: "transparent",
-                          color: AppColor.black,
-                          padding: 0,
-                          borderRadius: 0,
-                          marginRight: 0,
-                        },
-                      ]}
-                    >
-                      {currentLocationInfo?.title || "Not Available Now"}
-                    </Text>
-                  </View>
-                  {currentLocationInfo?.address && (
-                    <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
-                      {currentLocationInfo?.address || ""}
-                    </Text>
-                  )}
-                </View>
-              </View>
-
-              {/* Business Hours Row */}
-              <View style={styles.infoRowContainer}>
-                <View style={[styles.infoRowContainer, { flex: 1 }]}>
-                  <View style={styles.infoRowLeft}>
-                    <MaterialIcons
-                      name="watch-later"
-                      size={20}
-                      color={AppColor.primary}
-                    />
-                    <Text style={styles.infoRowTitle}>{"Business Hours"}</Text>
-                  </View>
-                </View>
-                <View style={{ flex: 1, alignItems: "flex-end" }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.infoRowValue,
-                        {
-                          textAlign: "right",
-                          backgroundColor: "transparent",
-                          color: AppColor.black,
-                          padding: 0,
-                          borderRadius: 0,
-                          marginRight: 10,
-                        },
-                      ]}
-                    >
-                      {todaysHours}
-                    </Text>
-                    <Tooltip
-                      animated={true}
-                      disableShadow={true}
-                      placement="left"
-                      isVisible={isScheduleVisible}
-                      backgroundColor="rgba(0,0,0,0)"
-                      arrowSize={{ width: 16, height: 8, color: AppColor.text }}
-                      contentStyle={{
-                        padding: 18,
-                        borderRadius: 8,
-                        backgroundColor: AppColor.text,
-                      }}
-                      content={
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontFamily: Mulish400,
-                            color: AppColor.white,
-                          }}
-                        >
-                          {
-                            "This feature is for vendors who want to allot time for customers to schedule pick up and delivery during peek hours."
-                          }
-                        </Text>
-                      }
-                      onClose={() => setIsScheduleVisible(false)}
-                    >
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => setIsScheduleVisible(true)}
-                        hitSlop={12}
-                      >
-                        <MaterialIcons
-                          name="info"
-                          size={20}
-                          color={AppColor.black}
-                        />
-                      </TouchableOpacity>
-                    </Tooltip>
-                  </View>
-                </View>
-              </View>
-
               {/* Status Row */}
               <View style={styles.infoRowContainer}>
                 <View style={[styles.infoRowContainer, { flex: 1 }]}>
                   <View style={styles.infoRowLeft}>
-                    <MaterialIcons
-                      name="event-available"
-                      size={20}
-                      color={AppColor.primary}
-                    />
+                    <View
+                      style={{
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <MaterialIcons
+                        name="event-available"
+                        size={20}
+                        color={AppColor.primary}
+                      />
+                    </View>
                     <Text style={styles.infoRowTitle}>{"Status"}</Text>
                   </View>
                 </View>
-                <View style={{ flex: 1, alignItems: "flex-end" }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                    }}
-                  >
+                <View style={styles.infoRowRight}>
+                  <View style={styles.infoRowValueContainer}>
                     <Text
                       style={[
                         styles.infoRowValue,
@@ -804,6 +685,94 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   </View>
                 </View>
               </View>
+
+              {/* Location Row */}
+              <View style={styles.infoRowContainer}>
+                <View style={[styles.infoRowContainer, { flex: 1 }]}>
+                  <View style={styles.infoRowLeft}>
+                    <View
+                      style={{
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <FontAwesome6
+                        name="location-dot"
+                        size={20}
+                        color={AppColor.primary}
+                      />
+                    </View>
+                    <Text style={styles.infoRowTitle}>{"Truck Location"}</Text>
+                  </View>
+                </View>
+                <View style={styles.infoRowRight}>
+                  <View style={styles.infoRowValueContainer}>
+                    <Text
+                      style={[
+                        styles.infoRowValue,
+                        {
+                          textAlign: "right",
+                          backgroundColor: "transparent",
+                          color: AppColor.black,
+                          padding: 0,
+                          borderRadius: 0,
+                          marginRight: 0,
+                        },
+                      ]}
+                    >
+                      {currentLocationInfo?.title || "Not Available Now"}
+                    </Text>
+                  </View>
+                  {currentLocationInfo?.address && (
+                    <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
+                      {currentLocationInfo?.address || ""}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <Divider style={{ marginVertical: 8 }} />
+
+              {/* Business Hours Row */}
+              <View style={styles.infoRowContainer}>
+                <View style={[styles.infoRowContainer, { flex: 1 }]}>
+                  <View style={styles.infoRowLeft}>
+                    <View
+                      style={{
+                        width: 24,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <MaterialIcons
+                        name="watch-later"
+                        size={20}
+                        color={AppColor.primary}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.infoRowTitle,
+                        { flex: 1, flexWrap: "wrap" },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {"Business Hours and Pre-Order Availability"}
+                    </Text>
+                    <IconButton
+                      icon="information"
+                      size={24}
+                      color={AppColor.black}
+                      style={{ margin: 0 }}
+                      onPress={() =>
+                        businessHoursActionSheetRef.current?.show()
+                      }
+                    />
+                  </View>
+                </View>
+              </View>
+
               {/* <FoodTruckAvailabilityModal
                 visible={isScheduleVisible}
                 onClose={() => setIsScheduleVisible(false)}
@@ -890,14 +859,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                 {menu?.newDish ? (
                                   <FastImage
                                     source={require("../assets/images/new.png")}
-                                    style={{
-                                      height: 32,
-                                      width: 32,
-                                      position: "absolute",
-                                      top: -10,
-                                      left: -10,
-                                      transform: [{ rotate: "-20deg" }],
-                                    }}
+                                    style={styles.newDishBadge}
                                   />
                                 ) : null}
                               </View>
@@ -927,51 +889,22 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                 >
                                   {menu.description}
                                 </Text>
-                                <View
-                                  style={{
-                                    flexDirection: "row",
-                                    alignItems: "baseline",
-                                  }}
-                                >
-                                  {/* <Text
-                                style={[
-                                  styles.menuPrice,
-                                  isDisabled && styles.disabledText,
-                                ]}
-                              >
-                                {`$${menu.price}`}
-                              </Text> */}
-                                  {(menu.discount || 0) > 0 && (
+                                <View style={styles.priceContainer}>
+                                  <Text style={styles.discountedPrice}>
+                                    {`$${parseFloat(menu.price || "0").toFixed(2)} `}
+                                  </Text>
+                                  {(menu?.strikePrice || 0) > 0 && (
                                     <Text
-                                      style={{
-                                        fontFamily: Mulish700,
-                                        fontSize: 14,
-                                        color: AppColor.primary,
-                                      }}
+                                      style={[
+                                        styles.regularPrice,
+                                        (menu?.strikePrice || 0) > 0
+                                          ? styles.strikethroughPrice
+                                          : {},
+                                      ]}
                                     >
-                                      {`$${(parseFloat(menu.price || "0") - (menu.discount || 0)).toFixed(2)} `}
+                                      {`$${(menu?.strikePrice || 0).toFixed(2)} `}
                                     </Text>
                                   )}
-                                  <Text
-                                    style={{
-                                      fontFamily:
-                                        (menu.discount || 0) > 0
-                                          ? Mulish400
-                                          : Mulish700,
-                                      fontSize:
-                                        (menu.discount || 0) > 0 ? 12 : 14,
-                                      color:
-                                        (menu.discount || 0) > 0
-                                          ? AppColor.text
-                                          : AppColor.primary,
-                                      textDecorationLine:
-                                        (menu.discount || 0) > 0
-                                          ? "line-through"
-                                          : "none",
-                                    }}
-                                  >
-                                    {`$${(menu?.price || 0).toFixed(2)} `}
-                                  </Text>
                                 </View>
                                 {isDisabled && (
                                   <Text style={styles.unavailableText}>
@@ -1069,6 +1002,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         </>
       )}
 
+      {/* Dish/Item Details */}
       <ActionSheet
         ref={actionSheetRef}
         gestureEnabled={true}
@@ -1083,23 +1017,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             }}
           >
             {/* Header with close button */}
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 8,
-                marginRight: -10, // for icon button alignment
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: Mulish700,
-                  fontSize: 20,
-                  color: AppColor.text,
-                }}
-                numberOfLines={2}
-              >
+            <View style={styles.actionSheetHeader}>
+              <Text style={styles.actionSheetTitle} numberOfLines={2}>
                 {selectedMenuItem.name || "Menu Item"}
               </Text>
               <IconButton
@@ -1111,7 +1030,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             </View>
 
             <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={styles.actionSheetScrollContent}
               showsVerticalScrollIndicator={false}
             >
               {/* Images */}
@@ -1121,11 +1040,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   imageResizeMode="cover"
                   containerHeight={200}
                   containerWidth={width - 40}
-                  containerStyle={{
-                    borderRadius: 10,
-                    marginBottom: 16,
-                    overflow: "hidden",
-                  }}
+                  containerStyle={styles.actionSheetImageCarousel}
                   imageContainer={{
                     borderRadius: 0,
                   }}
@@ -1151,50 +1066,19 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               )}
 
               {/* Price and Food Type */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: Mulish700,
-                      fontSize: 18,
-                      color: AppColor.primary,
-                    }}
-                  >
+              <View style={styles.actionSheetPriceRow}>
+                <View style={styles.actionSheetPriceContainer}>
+                  <Text style={styles.actionSheetPrice}>
                     {`$${(selectedMenuItem?.price || 0).toFixed(2)} `}
                   </Text>
                   {selectedMenuItem?.strikePrice > 0 ? (
-                    <Text
-                      style={{
-                        fontFamily: Mulish400,
-                        fontSize: 14,
-                        color: AppColor.text,
-                        textDecorationLine: "line-through",
-                      }}
-                    >
+                    <Text style={styles.actionSheetStrikePrice}>
                       {`$${(selectedMenuItem?.strikePrice || 0).toFixed(2)} `}
                     </Text>
                   ) : null}
                 </View>
 
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
+                <View style={styles.actionSheetFoodTypeContainer}>
                   <FontAwesome6
                     name="clock"
                     size={14}
@@ -1224,55 +1108,19 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   }}
                 >
                   {selectedMenuItem?.newDish ? (
-                    <Text
-                      style={{
-                        fontFamily: Mulish400,
-                        fontSize: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 1,
-                        borderRadius: 20,
-                        color: AppColor.white,
-                        backgroundColor: AppColor.orderProgressbar,
-                      }}
-                    >
-                      {"New"}
-                    </Text>
+                    <Text style={styles.newBadge}>{"New"}</Text>
                   ) : null}
                   {selectedMenuItem?.popularDish ? (
-                    <Text
-                      style={{
-                        fontFamily: Mulish400,
-                        fontSize: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 1,
-                        borderRadius: 20,
-                        color: AppColor.white,
-                        backgroundColor: AppColor.primary,
-                      }}
-                    >
-                      {"Popular"}
-                    </Text>
+                    <Text style={styles.popularBadge}>{"Popular"}</Text>
                   ) : null}
                   {selectedMenuItem.itemType === "COMBO" ? (
-                    <Text
-                      style={{
-                        fontFamily: Mulish400,
-                        fontSize: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 1,
-                        borderRadius: 20,
-                        color: AppColor.primary,
-                        backgroundColor: AppColor.lightGreenBG,
-                      }}
-                    >
-                      {"Combo"}
-                    </Text>
+                    <Text style={styles.comboBadge}>{"Combo"}</Text>
                   ) : null}
                 </View>
               ) : null}
 
               {/* Description */}
-              <View style={{ marginBottom: 16, marginTop: 8 }}>
+              <View style={styles.actionSheetDescriptionContainer}>
                 <Text
                   style={{
                     fontSize: 16,
@@ -1305,22 +1153,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     gap: 8,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: Mulish700,
-                      color: AppColor.text,
-                    }}
-                  >
+                  <Text style={styles.actionSheetSectionTitle}>
                     {"Meat Type:"}
                   </Text>
-                  <Text
-                    style={{
-                      fontFamily: Mulish400,
-                      fontSize: 14,
-                      color: AppColor.text,
-                    }}
-                  >
+                  <Text style={styles.actionSheetDescription}>
                     {selectedMenuItem?.meat?.name}
                   </Text>
                 </View>
@@ -1328,24 +1164,16 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
               {/* Dietary Information */}
               {selectedMenuItem?.meatWellness && (
-                <View style={{ marginBottom: 16 }}>
+                <View style={styles.actionSheetSection}>
                   <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: Mulish700,
-                      color: AppColor.text,
-                      marginBottom: 8,
-                    }}
+                    style={[
+                      styles.actionSheetSectionTitle,
+                      styles.actionSheetSectionTitleWithMargin,
+                    ]}
                   >
                     {"Meat Information:"}
                   </Text>
-                  <Text
-                    style={{
-                      fontFamily: Mulish400,
-                      fontSize: 14,
-                      color: AppColor.text,
-                    }}
-                  >
+                  <Text style={styles.actionSheetDescription}>
                     {selectedMenuItem?.meatWellness}
                   </Text>
                 </View>
@@ -1353,14 +1181,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
               {/* Dietary Information */}
               {selectedMenuItem.diet?.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
+                <View style={styles.actionSheetSection}>
                   <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: Mulish700,
-                      color: AppColor.text,
-                      marginBottom: 8,
-                    }}
+                    style={[
+                      styles.actionSheetSectionTitle,
+                      styles.actionSheetSectionTitleWithMargin,
+                    ]}
                   >
                     {"Dietary Information:"}
                   </Text>
@@ -1550,12 +1376,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               </View>
 
               <TouchableOpacity
-                style={{
-                  backgroundColor: AppColor.primary,
-                  borderRadius: 8,
-                  paddingVertical: 12,
-                  paddingHorizontal: 20,
-                }}
+                style={styles.actionSheetAddButton}
                 onPress={() => {
                   if (getItemQuantity(selectedMenuItem._id) === 0) {
                     handleAddItem(selectedMenuItem);
@@ -1564,13 +1385,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                 }}
                 disabled={!selectedMenuItem.available}
               >
-                <Text
-                  style={{
-                    fontFamily: Mulish700,
-                    fontSize: 16,
-                    color: AppColor.white,
-                  }}
-                >
+                <Text style={styles.actionSheetAddButtonText}>
                   {getItemQuantity(selectedMenuItem._id) === 0
                     ? "Add to Order"
                     : "Update Order"}
@@ -1580,6 +1395,259 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
           </View>
         )}
       </ActionSheet>
+
+      {/* Business Hours  and Pre-Order Availability */}
+      <ActionSheet ref={businessHoursActionSheetRef} gestureEnabled={true}>
+        <View
+          style={{
+            maxHeight: height - insets.top - insets.bottom - 10,
+            paddingBottom: 10,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Header with close button */}
+          <View style={styles.actionSheetHeader}>
+            <View style={{ flex: 1 }}>
+              <SegmentedButtons
+                value={segment}
+                onValueChange={setSegment}
+                buttons={[
+                  {
+                    value: "business",
+                    label: "Business Hours",
+                  },
+                  {
+                    value: "preOrder",
+                    label: "Pre-Order",
+                  },
+                ]}
+                theme={{
+                  colors: {
+                    secondaryContainer: AppColor.primary,
+                    onSecondaryContainer: AppColor.white,
+                  },
+                }}
+              />
+            </View>
+            <IconButton
+              icon="close"
+              iconColor={AppColor.text}
+              onPress={() => businessHoursActionSheetRef.current?.hide()}
+            />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.actionSheetScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {segment === "business" ? (
+              <View>
+                {foodTruckDetail?.locations.map((loc) => {
+                  const locationAvailability =
+                    foodTruckDetail.businessHours.filter(
+                      (slot) => slot.locationId === loc._id && slot.available
+                    );
+                  return (
+                    <View key={loc._id}>
+                      {/* Location Title */}
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: AppColor.primary,
+                          borderRadius: 6,
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          marginTop: 8,
+                          backgroundColor: AppColor.primary + 20,
+                        }}
+                      >
+                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
+                          {`${loc.title}\n`}
+                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                            {`${loc.address}`}
+                          </Text>
+                        </Text>
+                      </View>
+
+                      {/* Availability of Locations */}
+                      {locationAvailability.length === 0 ? (
+                        <View
+                          style={{
+                            marginLeft: 16,
+                            borderLeftWidth: 2,
+                            borderLeftColor: AppColor.primary,
+                            paddingLeft: 16,
+                            paddingVertical: 10,
+                          }}
+                        >
+                          <Text>No business hours for this location.</Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            marginLeft: 16,
+                            borderLeftWidth: 2,
+                            borderLeftColor: AppColor.primary,
+                            paddingTop: 10,
+                            paddingLeft: 16,
+                            gap: 10,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {locationAvailability.map((slot) => {
+                            const openTime = moment(
+                              slot.startTime,
+                              "HH:mm"
+                            ).format("hh:mm A");
+                            const closeTime = moment(
+                              slot.endTime,
+                              "HH:mm"
+                            ).format("hh:mm A");
+
+                            return (
+                              <View
+                                key={slot._id}
+                                style={{
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 8,
+                                  borderWidth: 1,
+                                  borderRadius: 6,
+                                  borderColor: AppColor.borderColor,
+                                }}
+                              >
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    fontSize: 15,
+                                    fontFamily: Mulish400,
+                                    textTransform: "capitalize",
+                                    color: AppColor.text,
+                                  }}
+                                >
+                                  {`${openTime} - ${closeTime}`}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View>
+                {foodTruckDetail?.locations.map((loc) => {
+                  const locationAvailability =
+                    foodTruckDetail.availability.filter(
+                      (slot) => slot.locationId === loc._id && slot.available
+                    );
+                  return (
+                    <View key={loc._id}>
+                      {/* Location Title */}
+                      <View
+                        style={{
+                          borderWidth: 1,
+                          borderColor: AppColor.primary,
+                          borderRadius: 6,
+                          paddingHorizontal: 16,
+                          paddingVertical: 8,
+                          marginTop: 8,
+                          backgroundColor: AppColor.primary + 20,
+                        }}
+                      >
+                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
+                          {`${loc.title}\n`}
+                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                            {`${loc.address}`}
+                          </Text>
+                        </Text>
+                      </View>
+
+                      {/* Availability of Locations */}
+                      {locationAvailability.length === 0 ? (
+                        <View
+                          style={{
+                            marginLeft: 16,
+                            borderLeftWidth: 2,
+                            borderLeftColor: AppColor.primary,
+                            paddingLeft: 16,
+                            paddingVertical: 10,
+                          }}
+                        >
+                          <Text>No availability for this location.</Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={{
+                            marginLeft: 16,
+                            borderLeftWidth: 2,
+                            borderLeftColor: AppColor.primary,
+                            paddingTop: 10,
+                            paddingLeft: 16,
+                            gap: 10,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {locationAvailability.map((slot) => {
+                            const dateOfTheDay = getFutureDateForDay(slot.day);
+                            const openTime = moment(
+                              slot.startTime,
+                              "HH:mm"
+                            ).format("hh:mm A");
+                            const closeTime = moment(
+                              slot.endTime,
+                              "HH:mm"
+                            ).format("hh:mm A");
+
+                            return (
+                              <View
+                                key={slot._id}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 8,
+                                  borderWidth: 1,
+                                  borderRadius: 6,
+                                  borderColor: AppColor.borderColor,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontFamily: Mulish400,
+                                    fontSize: 15,
+                                    textTransform: "capitalize",
+                                    color: AppColor.text,
+                                  }}
+                                >
+                                  {dateOfTheDay.format("ddd (DD-MMM)")}
+                                </Text>
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    fontSize: 15,
+                                    fontFamily: Mulish400,
+                                    textTransform: "capitalize",
+                                    color: AppColor.text,
+                                  }}
+                                >
+                                  {`${openTime} - ${closeTime}`}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </ActionSheet>
     </View>
   );
 };
@@ -1588,6 +1656,193 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  loadingView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: AppColor.white,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 100,
+    backgroundColor: "#F0F1F2",
+  },
+  infoContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: AppColor.white,
+    gap: 16,
+  },
+  nameRowLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logoImage: {
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  infoRowRight: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  infoRowValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  tooltipContent: {
+    padding: 18,
+    borderRadius: 8,
+    backgroundColor: AppColor.text,
+  },
+  tooltipText: {
+    fontSize: 14,
+    fontFamily: Mulish400,
+    color: AppColor.white,
+  },
+  newDishBadge: {
+    height: 32,
+    width: 32,
+    position: "absolute",
+    top: -10,
+    left: -10,
+    transform: [{ rotate: "-20deg" }],
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  discountedPrice: {
+    fontFamily: Mulish700,
+    fontSize: 14,
+    color: AppColor.primary,
+  },
+  regularPrice: {
+    fontFamily: Mulish700,
+    fontSize: 14,
+    color: AppColor.primary,
+  },
+  strikethroughPrice: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.text,
+    textDecorationLine: "line-through",
+  },
+  dietaryInfoContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  actionSheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+    marginRight: -10, // for icon button alignment
+  },
+  actionSheetTitle: {
+    fontFamily: Mulish700,
+    fontSize: 20,
+    color: AppColor.text,
+  },
+  actionSheetScrollContent: {
+    flexGrow: 1,
+  },
+  actionSheetImageCarousel: {
+    borderRadius: 10,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  actionSheetPriceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  actionSheetPriceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  actionSheetPrice: {
+    fontFamily: Mulish700,
+    fontSize: 18,
+    color: AppColor.primary,
+  },
+  actionSheetStrikePrice: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+    textDecorationLine: "line-through",
+  },
+  actionSheetFoodTypeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  newBadge: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+    borderRadius: 20,
+    color: AppColor.white,
+    backgroundColor: AppColor.orderProgressbar,
+  },
+  popularBadge: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+    borderRadius: 20,
+    color: AppColor.white,
+    backgroundColor: AppColor.primary,
+  },
+  comboBadge: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+    borderRadius: 20,
+    color: AppColor.primary,
+    backgroundColor: AppColor.lightGreenBG,
+  },
+  actionSheetDescriptionContainer: {
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  actionSheetDescription: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+  },
+  actionSheetSectionTitle: {
+    fontSize: 16,
+    fontFamily: Mulish700,
+    color: AppColor.text,
+  },
+  actionSheetSectionTitleWithMargin: {
+    marginBottom: 8,
+  },
+  actionSheetSection: {
+    marginBottom: 16,
+  },
+  actionSheetAddButton: {
+    backgroundColor: AppColor.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  actionSheetAddButtonText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.white,
   },
   nameRow: {
     flexDirection: "row",

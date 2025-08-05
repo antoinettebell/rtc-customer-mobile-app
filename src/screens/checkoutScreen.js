@@ -20,6 +20,7 @@ import Modal from "react-native-modal"; // Import react-native-modal
 import moment from "moment";
 import { Divider, ActivityIndicator, TextInput } from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import {
   AppColor,
   Mulish700,
@@ -77,6 +78,8 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
+  const [pickupTime, setPickupTime] = useState(null);
 
   const [preventAPI, setPreventAPI] = useState(false);
 
@@ -118,10 +121,18 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const hasFreeDessert = subtotal > 15;
 
-  const getDeliveryTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 30);
-    return now.toTimeString().slice(0, 5);
+  const showTimePicker = () => {
+    setTimePickerVisibility(true);
+  };
+
+  const hideTimePicker = () => {
+    setTimePickerVisibility(false);
+  };
+
+  const handleConfirmTime = (date) => {
+    const selectedTime24Hr = moment(date).format("HH:mm");
+    setPickupTime(selectedTime24Hr);
+    hideTimePicker();
   };
 
   const handleAdd = (item) => {
@@ -150,23 +161,164 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   const handleConfirmOrder = async () => {
+    // Determine order type
+    const isPreOrder =
+      !foodTruckDetail?.currentLocation ||
+      foodTruckDetail?.currentLocation !== selectedLocation?._id ||
+      selectedAvailability;
+
     if (order.items.length === 0) {
-      Alert.alert("No Items", "Please add items to your order first.");
+      Alert.alert("Empty Order", "Please add items to your order first.");
       return;
     }
 
-    if (
-      !foodTruckDetail?.currentLocation &&
-      !selectedLocation &&
-      !selectedAvailability
-    ) {
-      Alert.alert("Location required", "Please select a location.");
-      return;
-    } else if (foodTruckDetail?.currentLocation !== selectedLocation?._id) {
+    const now = moment(); // Declare 'now' once here
+
+    // Normal order validations
+    if (!isPreOrder) {
+      if (!pickupTime) {
+        Alert.alert(
+          "Pickup Time Required",
+          "Please select a pickup time for your order."
+        );
+        return;
+      }
+
+      const selectedTime = moment(pickupTime, "HH:mm");
+      if (selectedTime.isBefore(now)) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          "Pickup time cannot be in the past. Please select a future time."
+        );
+        return;
+      }
+
+      const oneHourFromNow = moment().add(1, "hour");
+      if (selectedTime.isAfter(oneHourFromNow)) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          "Pickup time cannot be more than 1 hour from now for a normal order."
+        );
+        return;
+      }
+    }
+
+    // Pre-order validations
+    if (isPreOrder) {
+      if (!selectedLocation) {
+        Alert.alert(
+          "Location Required",
+          "Please select a location for your pre-order."
+        );
+        return;
+      }
+
       if (!selectedAvailability) {
         Alert.alert(
-          "Time slot required",
-          "Please select a time slot to place your order."
+          "Availability Required",
+          "Please select an availability for your pre-order."
+        );
+        return;
+      }
+
+      if (!pickupTime) {
+        Alert.alert(
+          "Pickup Time Required",
+          "Please select a pickup time for your pre-order."
+        );
+        return;
+      }
+
+      const selectedDateTime = moment(pickupTime, "HH:mm");
+      const availabilityStartTime = moment(
+        selectedAvailability.startTime,
+        "HH:mm"
+      );
+      const availabilityEndTime = moment(selectedAvailability.endTime, "HH:mm");
+
+      // If the selected availability date is today, check if the pickup time is in the past.
+      if (
+        moment(selectedAvailability.date).isSame(now, "day") &&
+        selectedDateTime.isBefore(now)
+      ) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          `Pickup time cannot be in the past for today's availability. Please select a time between ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} and ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`
+        );
+        return;
+      }
+
+      if (
+        selectedDateTime.isBefore(availabilityStartTime) ||
+        selectedDateTime.isAfter(availabilityEndTime)
+      ) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          `Pickup time must be within the selected availability range: ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`
+        );
+        return;
+      }
+
+      const fiveMinutesBeforeEnd = moment(availabilityEndTime).subtract(
+        5,
+        "minutes"
+      );
+      if (selectedDateTime.isAfter(fiveMinutesBeforeEnd)) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          "Pickup time is too close to the end of availability. Please select an earlier time."
+        );
+        return;
+      }
+
+      if (!selectedAvailability) {
+        Alert.alert(
+          "Time Slot Required",
+          "Please select an available time slot for your pre-order."
+        );
+        return;
+      }
+
+      if (!pickupTime) {
+        Alert.alert(
+          "Pickup Time Required",
+          "Please select a pickup time for your pre-order."
+        );
+        return;
+      }
+
+      const selectedTime = moment(pickupTime, "HH:mm");
+      const slotStart = moment(selectedAvailability.startTime, "HH:mm");
+      const slotEnd = moment(selectedAvailability.endTime, "HH:mm");
+
+      // Check if selected day is today
+      const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const slotDay = dayMap[selectedAvailability.day.toLowerCase()];
+      const currentDay = now.day();
+
+      if (slotDay === currentDay && selectedTime.isBefore(now)) {
+        Alert.alert(
+          "Invalid Pickup Time",
+          "Pickup time cannot be in the past for today's order."
+        );
+        return;
+      }
+
+      // Check if within availability range
+      if (selectedTime.isBefore(slotStart) || selectedTime.isAfter(slotEnd)) {
+        Alert.alert(
+          "Invalid Time Slot",
+          "Pickup time must be within the selected availability time range."
+        );
+        return;
+      }
+
+      // Check 1 hour buffer before end time
+      const oneHourBeforeEnd = moment(slotEnd).subtract(1, "hour");
+      if (selectedTime.isAfter(oneHourBeforeEnd)) {
+        Alert.alert(
+          "Time Too Late",
+          "Pickup time must be at least 1 hour before the end of the availability slot."
         );
         return;
       }
@@ -175,14 +327,17 @@ const CheckoutScreen = ({ navigation, route }) => {
     let payload = {
       foodTruckId: foodTruckId,
       locationId: selectedLocation?._id,
-      // deliveryTime: getDeliveryTime(),
+      deliveryTime: pickupTime,
       items: order.items.map((item) => {
         const itemPayload = {
           menuItemId: item._id,
           qty: item.quantity,
         };
 
-        if (item.allowCustomize) {
+        if (
+          item.allowCustomize &&
+          item?.customizationInput?.trim()?.length > 0
+        ) {
           itemPayload.customization = item.customizationInput;
         }
 
@@ -195,6 +350,8 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (coupon) {
       payload.couponId = coupon?._id;
     }
+
+    console.log("Order Payload:", payload);
 
     setLoading(true);
     try {
@@ -357,7 +514,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                 color: AppColor.gray,
               }}
             >
-              {"Add instruction?"}
+              {"Add customisation?"}
             </Text>
           </Pressable>
         ) : null}
@@ -392,58 +549,129 @@ const CheckoutScreen = ({ navigation, route }) => {
         >
           {"Select Availability :"}
         </Text>
-        {locationAvailability.map((slot) => (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            key={slot._id}
-            style={[
-              styles.radioOption,
-              selectedAvailability?._id === slot._id &&
-                styles.radioOptionActive,
-              {
-                flexDirection: "row",
-                alignItems: "center",
-              },
-            ]}
-            onPress={() => setSelectedAvailability(slot)}
-          >
-            <Text
-              style={{
-                width: "20%",
-                fontFamily: Mulish400,
-                fontSize: 15,
-                textTransform: "capitalize",
-              }}
+        {locationAvailability.map((slot) => {
+          const isSelected = selectedAvailability?._id === slot._id;
+          const isDisabled = isSlotPast(slot.day, slot.startTime, slot.endTime);
+          const dateOfTheDay = getFutureDateForDay(slot.day);
+          const openTime = moment(slot.startTime, "HH:mm").format("hh:mm A");
+          const closeTime = moment(slot.endTime, "HH:mm").format("hh:mm A");
+
+          return (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              key={slot._id}
+              style={[
+                styles.radioOption,
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingLeft: 0,
+                  paddingRight: 8,
+                },
+                isSelected && styles.radioOptionActive,
+              ]}
+              onPress={() =>
+                setSelectedAvailability({ ...slot, date: dateOfTheDay })
+              }
+              disabled={isDisabled}
             >
-              {`${slot.day}:`}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                fontFamily: Mulish400,
-                fontSize: 15,
-                textTransform: "capitalize",
-              }}
-            >
-              {`${moment(slot.startTime, "HH:mm").format("hh:mm A")} - ${moment(slot.endTime, "HH:mm").format("hh:mm A")}`}
-            </Text>
-            {selectedAvailability?._id === slot._id && (
+              <View
+                style={{
+                  flex: 1,
+                  gap: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingLeft: 16,
+                  paddingRight: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: Mulish400,
+                    fontSize: 15,
+                    textTransform: "capitalize",
+                    color: isDisabled ? AppColor.gray : AppColor.text,
+                  }}
+                >
+                  {dateOfTheDay.format("ddd (DD-MMM)")}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 15,
+                    fontFamily: Mulish400,
+                    textTransform: "capitalize",
+                    color: isDisabled ? AppColor.gray : AppColor.text,
+                  }}
+                >
+                  {`${openTime} - ${closeTime}`}
+                </Text>
+              </View>
               <Pressable
                 hitSlop={5}
+                disabled={!isSelected}
                 onPress={() => setSelectedAvailability(null)}
+                style={{ opacity: isSelected ? 1 : 0 }}
               >
                 <Ionicons
                   name="close-circle-sharp"
                   color={AppColor.text}
-                  size={20}
+                  size={24}
                 />
               </Pressable>
-            )}
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
+  };
+
+  const isSlotPast = (dayOfWeek, startTime, endTime) => {
+    const now = moment();
+    const currentDay = now.day(); // 0 for Sunday, 1 for Monday, etc.
+
+    const dayMap = {
+      sun: 0,
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
+    };
+    const slotDay = dayMap[dayOfWeek.toLowerCase()];
+
+    // Only check if the slot is past if it's for the current day
+    if (currentDay === slotDay) {
+      const end = moment(endTime, "HH:mm");
+      return now.isAfter(end, "minute");
+    }
+    return false;
+  };
+
+  const getFutureDateForDay = (dayOfWeek) => {
+    const today = moment();
+    const dayMap = {
+      sun: 0,
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
+    };
+    const targetDayIndex = dayMap[dayOfWeek.toLowerCase()];
+    const currentDayIndex = today.day();
+
+    let daysToAdd = targetDayIndex - currentDayIndex;
+
+    if (daysToAdd < 0) {
+      daysToAdd += 7;
+    }
+
+    return today.add(daysToAdd, "days");
   };
 
   const handleSignIn = () => {
@@ -568,7 +796,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               />
             </View>
 
-            {/* Location Container */}
+            {/* Pickup availability Container */}
             <View>
               <View
                 style={{
@@ -577,22 +805,11 @@ const CheckoutScreen = ({ navigation, route }) => {
                   justifyContent: "space-between",
                 }}
               >
-                <Text style={styles.sectionTitle}>{"Location"}</Text>
-                {/* <Pressable>
-              <Text
-                style={{
-                  fontFamily: Mulish400,
-                  fontSize: 14,
-                  color: AppColor.primary,
-                }}
-              >
-                {"Change"}
-              </Text>
-            </Pressable> */}
+                <Text style={styles.sectionTitle}>{"Pickup Availability"}</Text>
               </View>
               <View style={[styles.screenGenericCard, { paddingVertical: 8 }]}>
                 {selectedLocation ? (
-                  <>
+                  <View style={{ gap: 16 }}>
                     <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
                       {`${selectedLocation.title}\n`}
                       <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
@@ -602,14 +819,13 @@ const CheckoutScreen = ({ navigation, route }) => {
                     {selectedAvailability && (
                       <Text
                         style={{
-                          marginTop: 10,
                           fontFamily: Mulish600,
                           fontSize: 14,
                           color: AppColor.text,
                           textTransform: "capitalize",
                         }}
                       >
-                        {`${selectedAvailability.day},  ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}`}
+                        {`${getFutureDateForDay(selectedAvailability.day).format("ddd (DD-MMM)")}  ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}`}
                       </Text>
                     )}
                     {truckCurrentLocation?._id !== selectedLocation?._id &&
@@ -622,10 +838,10 @@ const CheckoutScreen = ({ navigation, route }) => {
                             color: AppColor.red,
                           }}
                         >
-                          {"* Please select an availability"}
+                          {"* Please select pre-order availability"}
                         </Text>
                       )}
-                  </>
+                  </View>
                 ) : (
                   <View style={{ height: 40, justifyContent: "center" }}>
                     <Text
@@ -635,7 +851,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                         color: AppColor.red,
                       }}
                     >
-                      {"* Please select location to order"}
+                      {"* Please select pre-order location and availability"}
                     </Text>
                   </View>
                 )}
@@ -644,15 +860,44 @@ const CheckoutScreen = ({ navigation, route }) => {
                 <Pressable onPress={() => actionSheetRef.current?.show()}>
                   <Text
                     style={{
-                      fontFamily: Mulish500,
-                      fontSize: 14,
-                      color: AppColor.text,
+                      fontFamily: Mulish700,
+                      fontSize: 15,
+                      color: AppColor.primary,
                       textDecorationLine: "underline",
                     }}
                   >
                     {selectedAvailability
                       ? "Change slot"
                       : "Want this later? Schedule it"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Pickup time Container */}
+            <View style={{ marginTop: 18 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={[styles.sectionTitle, { marginVertical: 0 }]}>
+                  {"Pickup Time"}
+                </Text>
+                <Pressable onPress={showTimePicker}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: Mulish700,
+                      color: AppColor.primary,
+                      textDecorationLine: "underline",
+                    }}
+                  >
+                    {pickupTime
+                      ? moment(pickupTime, "HH:mm").format("hh:mm A")
+                      : "Select Time"}
                   </Text>
                 </Pressable>
               </View>
@@ -874,9 +1119,10 @@ const CheckoutScreen = ({ navigation, route }) => {
             )}
           </View>
 
+          {/* Pre-Order Availability */}
           <ActionSheet ref={actionSheetRef} headerAlwaysVisible={true}>
             <View style={{ paddingVertical: 8 }}>
-              <Text style={styles.modalTitle}>{"Select Location"}</Text>
+              <Text style={styles.modalTitle}>{"Pre-Order Availability"}</Text>
               <Divider style={{ marginVertical: 16 }} />
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -920,13 +1166,14 @@ const CheckoutScreen = ({ navigation, route }) => {
             </View>
           </ActionSheet>
 
+          {/* Add Customisation */}
           <ActionSheet
             ref={actionSheetRef2}
             headerAlwaysVisible={true}
             onClose={onCloseInstructionPress}
           >
             <View style={{ paddingVertical: 8 }}>
-              <Text style={styles.modalTitle}>{"Add Instruction"}</Text>
+              <Text style={styles.modalTitle}>{"Customisation"}</Text>
               <Divider style={{ marginVertical: 8 }} />
               <View style={{ paddingHorizontal: 16 }}>
                 <TextInput
@@ -939,7 +1186,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                     fontFamily: Mulish400,
                     fontSize: 15,
                   }}
-                  placeholder="Enter instruction"
+                  placeholder="Enter customisation"
                   placeholderTextColor={AppColor.border}
                   mode="outlined"
                   multiline={true}
@@ -947,6 +1194,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                   activeOutlineColor={AppColor.primary}
                   outlineStyle={{ borderRadius: 8 }}
                   autoCapitalize="sentences"
+                  autoFocus={true}
                   theme={{ colors: { onSurfaceVariant: "#777" } }}
                 />
                 <TouchableOpacity
@@ -961,6 +1209,15 @@ const CheckoutScreen = ({ navigation, route }) => {
           </ActionSheet>
         </>
       )}
+
+      {/* Time Picker Modal */}
+      <DateTimePickerModal
+        isVisible={isTimePickerVisible}
+        mode="time"
+        onConfirm={handleConfirmTime}
+        onCancel={hideTimePicker}
+        date={pickupTime ? moment(pickupTime, "HH:mm").toDate() : new Date()}
+      />
     </View>
   );
 };
@@ -989,25 +1246,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     backgroundColor: AppColor.white,
-    // ...Platform.select({
-    //   ios: {
-    //     shadowColor: AppColor.black,
-    //     shadowOffset: {
-    //       width: 0,
-    //       height: 1,
-    //     },
-    //     shadowOpacity: 0.1,
-    //     shadowRadius: 2,
-    //   },
-    //   android: {
-    //     elevation: 2,
-    //   },
-    // }),
   },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
-    // paddingVertical: 15,
   },
   foodImg: {
     width: 80,
