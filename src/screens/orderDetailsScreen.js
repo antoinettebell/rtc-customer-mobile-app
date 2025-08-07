@@ -10,12 +10,17 @@ import {
   Pressable,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  AppColor,
+  Mulish700,
+  Mulish400,
+  Mulish600,
+  Mulish500,
+} from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import FastImage from "@d11/react-native-fast-image";
 import AppHeader from "../components/AppHeader";
 import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 import {
@@ -24,30 +29,37 @@ import {
 } from "../utils/constants";
 import moment from "moment";
 import AppImage from "../components/AppImage";
+import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
+import { Divider } from "react-native-paper";
 
-const HR = () => <View style={styles.HR} />;
-
-const OrderDetailsScreen = () => {
-  const navigation = useNavigation();
-  const { params } = useRoute();
+const OrderDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+
+  const params = route?.params;
+  const orderId = params?.orderId;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [order, setOrder] = useState(null);
-  const orderId = params?.orderId;
+  const [locationTimeAdvanceData, setLocationTimeAdvanceData] = useState(null);
 
   useEffect(() => {
     fetchOrderDetails();
   }, [orderId]);
 
   const fetchOrderDetails = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await getOrderByOrderId_API(orderId);
-      if (response?.data?.order) {
-        console.log("response => ", response);
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
         setOrder(response.data.order);
+        setLocationTimeAdvanceData(
+          extractAdvanceOrderLocationAndTime(response.data.order)
+        );
       } else {
+        setOrder(null);
+        setLocationTimeAdvanceData(null);
         setError("Order not found");
       }
     } catch (err) {
@@ -58,221 +70,357 @@ const OrderDetailsScreen = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const options = { day: "numeric", month: "short", year: "numeric" };
-    return date.toLocaleDateString("en-US", options);
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return "";
-    const [hours, minutes] = timeString.split(":");
-    const hour = parseInt(hours, 10);
-    const period = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    return `${displayHour}:${minutes} ${period}`;
-  };
-
-  const formatPrice = (price) => {
-    return parseFloat(price).toFixed(2);
-  };
-
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <ActivityIndicator size="large" color={AppColor.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={fetchOrderDetails}
-          style={styles.retryButton}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (!order) {
-    return (
-      <View style={[styles.container, styles.centerContainer]}>
-        <Text style={styles.errorText}>Order not found</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
+
       <AppHeader headerTitle="Order Details" />
 
-      <ScrollView
-        style={styles.scrollViewContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.contentWrap}>
-          <View style={styles.card}>
-            <View style={styles.headerRow}>
-              <Text style={styles.orderId}>
-                Order #{order.orderNumber || order._id}
+      {loading ? (
+        <View
+          style={[
+            styles.container,
+            styles.centerContainer,
+            { paddingBottom: insets.bottom },
+          ]}
+        >
+          <ActivityIndicator size="large" color={AppColor.primary} />
+        </View>
+      ) : error ? (
+        <View style={[styles.container, styles.centerContainer]}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={fetchOrderDetails}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !order ? (
+        <View style={[styles.container, styles.centerContainer]}>
+          <Text style={styles.errorText}>Order not found</Text>
+        </View>
+      ) : (
+        <>
+          <ScrollView
+            contentContainerStyle={styles.scrollViewContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.contentWrap}>
+              {/* Advance Order Location and Time */}
+              {locationTimeAdvanceData?.advanceOrder ? (
+                <View
+                  style={{
+                    marginBottom: 16,
+                    paddingHorizontal: 8,
+                    paddingVertical: 16,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    borderColor: AppColor.border,
+                    backgroundColor: "rgba(252, 123, 3, 0.1)",
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontFamily: Mulish700,
+                      fontSize: 18,
+                      color: AppColor.primary,
+                      alignSelf: "center",
+                    }}
+                  >
+                    {"Advance Order"}
+                  </Text>
+                  <Divider
+                    style={{
+                      marginVertical: 16,
+                      backgroundColor: AppColor.primary,
+                    }}
+                  />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginHorizontal: 8,
+                      marginTop: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.black,
+                      }}
+                    >
+                      {"Location"}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.black,
+                      }}
+                    >
+                      {locationTimeAdvanceData?.advanceLocationTitle}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginHorizontal: 8,
+                      marginTop: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.black,
+                      }}
+                    >
+                      {"Time"}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.black,
+                      }}
+                    >
+                      {locationTimeAdvanceData?.advanceTime}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Order Details Card */}
+              <View style={styles.card}>
+                <View style={styles.headerRow}>
+                  <Text style={styles.orderId}>
+                    Order #{order.orderNumber || order._id}
+                  </Text>
+                  <View
+                    style={{
+                      maxWidth: "25%",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: 4,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name="map-marker-outline"
+                      size={16}
+                      color={AppColor.black}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.black,
+                      }}
+                    >
+                      {locationTimeAdvanceData?.locationTitle || ""}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.truckRow}>
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate("foodTruckDetailScreen", {
+                        item: order?.foodTruck || {},
+                      })
+                    }
+                    style={styles.truckRowLeft}
+                  >
+                    <AppImage
+                      uri={order?.foodTruck?.logo}
+                      containerStyle={styles.truckImg}
+                    />
+                    <View style={styles.truckInfo}>
+                      <Text style={styles.truckName}>
+                        {order?.foodTruck?.name}
+                      </Text>
+                      <Text style={styles.itemsCount}>
+                        {order.items.length} Items
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <View style={styles.truckRowRight}>
+                    <Text style={styles.orderDate}>
+                      {moment(order.createdAt).format("DD MMM, YYYY")}
+                    </Text>
+                    <View style={styles.timeRow}>
+                      <MaterialIcons
+                        name="access-time"
+                        size={14}
+                        color={AppColor.grayText}
+                      />
+                      <Text style={styles.orderDate}>
+                        {moment(order.createdAt).format("hh:mm A")}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <Divider />
+                <View style={styles.itemsList}>
+                  {order.items.map((itm) => (
+                    <View style={styles.itemRow} key={itm?.menuItemId}>
+                      <View style={styles.itemInfo}>
+                        <Text
+                          style={[
+                            styles.itemText,
+                            { fontSize: 15, fontFamily: Mulish500 },
+                          ]}
+                        >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
+                        <Text style={styles.itemDesc} numberOfLines={2}>
+                          {itm.menuItem.description}
+                        </Text>
+                        {itm.menuItem.customization && (
+                          <Text
+                            style={[
+                              styles.itemDesc,
+                              {
+                                flex: 1,
+                                color: AppColor.text,
+                                flexWrap: "wrap",
+                              },
+                            ]}
+                          >
+                            {itm.menuItem.customization}
+                          </Text>
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.itemText,
+                          { flex: 0.3, textAlign: "right" },
+                        ]}
+                      >
+                        ${itm.total.toFixed(2)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Divider />
+                <View style={styles.footerRow}>
+                  <Text style={styles.total}>${order.subTotal.toFixed(2)}</Text>
+                  {order.status !== "COMPLETED" &&
+                    order.status !== "CANCEL" &&
+                    order.status !== "REJECTED" && (
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={styles.trackBtn}
+                          onPress={() =>
+                            navigation.navigate("orderTrackingScreen", {
+                              order: order,
+                            })
+                          }
+                        >
+                          <FontAwesome6
+                            name="map-location-dot"
+                            color={AppColor.white}
+                            size={20}
+                          />
+                          <Text style={styles.trackBtnText}>Track</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                </View>
+              </View>
+
+              {/* Order Summary Card */}
+              <View style={styles.bottomSection}>
+                <View style={styles.totalSection}>
+                  <View
+                    style={[styles.row, { marginTop: 0, marginBottom: 15 }]}
+                  >
+                    <Text style={styles.sectionTitle}>{"Total Order"}</Text>
+                    <Text style={styles.sectionTitle}>
+                      ${(order?.subTotal || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <Divider />
+                  <View style={styles.row}>
+                    <Text style={styles.orderDetailsTxt}>{"Sales Tax"}</Text>
+                    <Text style={styles.orderDetailsTxt}>
+                      ${(order?.taxAmount || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.orderDetailsTxt}>
+                      {"Coupon Discount"}
+                    </Text>
+                    <Text style={styles.orderDetailsTxt}>
+                      {`- $${(order?.discount || 0).toFixed(2)}`}
+                    </Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.orderDetailsTxt}>
+                      {"Total with Tax"}
+                    </Text>
+                    <Text style={styles.orderDetailsTxt}>
+                      ${(order?.totalAfterDiscount || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.orderDetailsTxt}>
+                      {"Payment Processing Fee"}
+                    </Text>
+                    <Text style={styles.orderDetailsTxt}>
+                      ${(order?.paymentProcessingFee || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+          <View style={styles.footerContainer}>
+            <View style={styles.totalAmountRow}>
+              <Text style={styles.totalAmountLabel}>{"Total Amount"}</Text>
+              <Text style={styles.totalAmountValue}>
+                ${(order?.total || 0).toFixed(2)}
               </Text>
             </View>
 
-            <View style={styles.truckRow}>
-              <Pressable
-                onPress={() =>
-                  navigation.navigate("foodTruckDetailScreen", {
-                    item: order?.foodTruck || {},
-                  })
-                }
-                style={styles.truckRowLeft}
+            {order.orderStatus === orderStatusStrings.placed ? (
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                activeOpacity={0.7}
+                onPress={() => {
+                  navigation.navigate("cancelOrderScreen", { order: order });
+                }}
               >
-                <AppImage
-                  uri={order?.foodTruck?.logo}
-                  containerStyle={styles.truckImg}
-                />
-                <View style={styles.truckInfo}>
-                  <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
-                  <Text style={styles.itemsCount}>
-                    {order.items.length} Items
-                  </Text>
-                </View>
-              </Pressable>
-              <View style={styles.truckRowRight}>
-                <Text style={styles.orderDate}>
-                  {moment(order.createdAt).format("DD MMM, YYYY")}
+                <Text style={styles.cancelBtnText}>Cancel Order</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={{
+                  height: 48,
+                  borderRadius: 5,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: AppColor.primary + 20,
+                }}
+              >
+                <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
+                  {orderCurrentStatusNames[order.orderStatus]}
                 </Text>
-                <View style={styles.timeRow}>
-                  <MaterialIcons
-                    name="access-time"
-                    size={14}
-                    color={AppColor.grayText}
-                    style={styles.timeIcon}
-                  />
-                  <Text style={styles.orderDate}>
-                    {moment(order.createdAt).format("hh:mm A")}
-                  </Text>
-                </View>
               </View>
-            </View>
-            <HR />
-            <View style={styles.itemsList}>
-              {order.items.map((itm) => (
-                <View style={styles.itemRow} key={itm?.menuItemId}>
-                  <View style={styles.itemInfo}>
-                    <Text
-                      style={styles.itemText}
-                    >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
-                    <Text style={styles.itemDesc}>
-                      {itm.menuItem.description}
-                    </Text>
-                  </View>
-                  <Text style={styles.itemText}>${itm.total.toFixed(2)}</Text>
-                </View>
-              ))}
-            </View>
-            <HR />
-
-            <View style={styles.footerRow}>
-              <Text style={styles.total}>${order.subTotal.toFixed(2)}</Text>
-              {order.status !== "COMPLETED" &&
-                order.status !== "CANCEL" &&
-                order.status !== "REJECTED" && (
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      style={styles.trackBtn}
-                      onPress={() =>
-                        navigation.navigate("orderTrackingScreen", {
-                          order: order,
-                        })
-                      }
-                    >
-                      <FontAwesome6
-                        name="map-location-dot"
-                        color={AppColor.white}
-                        size={20}
-                      />
-                      <Text style={styles.trackBtnText}>Track</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-            </View>
+            )}
           </View>
-
-          <View style={styles.bottomSection}>
-            <View style={styles.totalSection}>
-              <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
-                <Text style={styles.sectionTitle}>TOTAL ORDER</Text>
-                <Text style={styles.sectionTitle}>
-                  ${order.subTotal.toFixed(2)}
-                </Text>
-              </View>
-              <HR />
-              <View style={styles.row}>
-                <Text style={styles.orderDetailsTxt}>Sales Tax</Text>
-                <Text style={styles.orderDetailsTxt}>
-                  ${order.taxAmount.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.orderDetailsTxt}>Discount</Text>
-                <Text style={styles.orderDetailsTxt}>
-                  {`- $${order.discount.toFixed(2)}`}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.orderDetailsTxt}>Total With Tax</Text>
-                <Text style={styles.orderDetailsTxt}>
-                  ${(order.totalAfterDiscount || 0).toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.footerContainer}>
-        <View style={styles.totalAmountRow}>
-          <Text style={styles.totalAmountLabel}>TOTAL AMOUNT</Text>
-          <Text style={styles.totalAmountValue}>
-            ${(order.totalAfterDiscount || 0).toFixed(2)}
-          </Text>
-        </View>
-
-        {order.orderStatus === orderStatusStrings.placed ? (
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              navigation.navigate("cancelOrderScreen", { order: order });
-            }}
-          >
-            <Text style={styles.cancelBtnText}>Cancel Order</Text>
-          </TouchableOpacity>
-        ) : (
-          <View
-            style={{
-              height: 48,
-              borderRadius: 5,
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: AppColor.primary + 20,
-            }}
-          >
-            <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
-              {orderCurrentStatusNames[order.orderStatus]}
-            </Text>
-          </View>
-        )}
-      </View>
+        </>
+      )}
     </View>
   );
 };
@@ -321,6 +469,12 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 13,
     color: AppColor.text,
+    marginTop: 2,
+  },
+  itemDesc: {
+    fontSize: 13,
+    fontFamily: Mulish400,
+    color: AppColor.subText,
     marginTop: 2,
   },
   trackBtn: {
@@ -445,6 +599,7 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
   timeIcon: {
     marginRight: 8,
@@ -459,6 +614,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   itemInfo: {
+    flex: 1,
     gap: 4,
   },
   itemsCount: {
@@ -488,10 +644,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginLeft: 6,
   },
-  HR: {
-    height: 1,
-    backgroundColor: "#E5E5EA",
-  },
   card: {
     borderWidth: 1,
     borderColor: AppColor.borderColor,
@@ -515,7 +667,7 @@ const styles = StyleSheet.create({
     }),
   },
   scrollViewContainer: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: AppColor.screenBg,
   },
   contentWrap: {

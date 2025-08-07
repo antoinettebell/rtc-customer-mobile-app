@@ -52,7 +52,7 @@ const OrdersScreen = ({ navigation }) => {
         {/* Order Header */}
         <View style={[styles.orderHeader, { marginTop: 0 }]}>
           <Text style={[styles.orderIdText, { color: AppColor.black }]}>
-            {"Order Status"}
+            {item?.availabilityId ? "Pre-Order" : "Regular Order"}
           </Text>
           <Text style={styles.orderStatusText}>
             {orderCurrentStatusNames[item.orderStatus]}
@@ -80,7 +80,7 @@ const OrdersScreen = ({ navigation }) => {
         <View style={styles.orderHeader}>
           <View style={styles.orderUserImageContainer}>
             <AppImage
-              uri={item.user.profilePic || PROFILE_AVATAR}
+              uri={item.foodTruck.logo}
               containerStyle={styles.orderUserImage}
             />
           </View>
@@ -88,7 +88,7 @@ const OrdersScreen = ({ navigation }) => {
             <Text
               numberOfLines={1}
               style={styles.orderUserName}
-            >{`${item.user.firstName} ${item.user.lastName}`}</Text>
+            >{`${item.foodTruck.name}`}</Text>
             <Text
               style={styles.orderItemCount}
             >{`${item.items.length} Items`}</Text>
@@ -112,15 +112,15 @@ const OrdersScreen = ({ navigation }) => {
         {/* Divider */}
         <Divider style={styles.orderDivider} />
         {/* Items */}
-        {item.items.map((i, index) => (
+        {item.items.slice(0, 3).map((i, index) => (
           <View style={styles.orderItemContainer} key={index}>
             <View style={styles.orderItemDetails}>
               <Text
                 style={styles.orderItemName}
               >{`${i.qty} x ${i.menuItem.name}`}</Text>
-              <Text style={styles.orderItemDescription}>
+              {/* <Text style={styles.orderItemDescription} numberOfLines={2}>
                 {i.menuItem.description}
-              </Text>
+              </Text> */}
             </View>
             <View>
               <Text
@@ -129,13 +129,18 @@ const OrdersScreen = ({ navigation }) => {
             </View>
           </View>
         ))}
+        {item.items.length > 3 && (
+          <Text style={styles.moreItemsText}>{`+${
+            item.items.length - 3
+          } more items`}</Text>
+        )}
         {/* Divider */}
         <Divider style={styles.orderDivider} />
         {/* Total */}
         <View style={styles.orderTotalContainer}>
           <Text
             style={styles.orderTotalText}
-          >{`$${(item?.totalAfterDiscount || 0).toFixed(2)}`}</Text>
+          >{`$${(item?.total || 0).toFixed(2)}`}</Text>
           {activeStage === "past" ? (
             !item.hasReview ? (
               <TouchableOpacity
@@ -480,9 +485,11 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     color: "#6F6F6F",
+    textAlign: "right",
   },
   orderTimeContainer: {
     flexDirection: "row",
+    justifyContent: "flex-end",
     alignItems: "center",
     gap: 4,
     paddingVertical: 5,
@@ -491,15 +498,16 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     color: "#6F6F6F",
+    textAlign: "right",
   },
   orderDivider: {
-    marginHorizontal: 8,
+    // marginHorizontal: 8,
   },
   orderTotalContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 16,
+    marginTop: 8,
   },
   orderTotalText: {
     fontFamily: Mulish400,
@@ -530,6 +538,15 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.black,
+  },
+
+  moreItemsText: {
+    fontFamily: Mulish600,
+    fontSize: 14,
+    color: AppColor.primary,
+    textAlign: "left",
+    marginVertical: 10,
+    marginHorizontal: 8,
   },
 
   trackBtn: {

@@ -12,17 +12,15 @@ import {
   Linking,
   Alert,
 } from "react-native";
-import StatusBarManager from "../components/StatusBarManager";
-import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
-import { useRoute } from "@react-navigation/native";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import OrderTrackingSteps from "../components/OrderTrackingSteps";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AppHeader from "../components/AppHeader";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import moment from "moment";
-import FastImage from "@d11/react-native-fast-image";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import StatusBarManager from "../components/StatusBarManager";
+import AppHeader from "../components/AppHeader";
 import AppImage from "../components/AppImage";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
+import OrderTrackingSteps from "../components/OrderTrackingSteps";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -46,12 +44,13 @@ const pickupRegion = {
   longitudeDelta: LONGITUDE_DELTA,
 };
 
-const OrderTrackingScreen = ({ navigation }) => {
-  const { params } = useRoute();
+const OrderTrackingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
 
+  const params = route?.params;
   const order = params?.order;
+
   const [iamstate, setiamstate] = useState([]);
 
   const getStatusHistory = (statusTime) => {
@@ -205,7 +204,7 @@ const OrderTrackingScreen = ({ navigation }) => {
               Order #{order?.orderNumber || order._id}
             </Text>
             <Text style={styles.orderTotal}>
-              ${Number(order.total).toFixed(2)}
+              {`$${(order?.total || 0).toFixed(2)}`}
             </Text>
           </View>
           <Pressable
