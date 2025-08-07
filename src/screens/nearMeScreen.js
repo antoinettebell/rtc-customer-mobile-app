@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   Dimensions,
   FlatList,
   Pressable,
+  Keyboard,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -54,6 +56,8 @@ const NearMeScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [filteredTrucks, setFilteredTrucks] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
 
   const fetchNearByFoodTrucks = async () => {
     if (!defaultLocation) return; // Don't fetch if no location is set
@@ -159,16 +163,18 @@ const NearMeScreen = ({ navigation }) => {
                 flexDirection: "row",
                 justifyContent: "center",
                 alignItems: "center",
+                gap: 4,
               }}
             >
-              <Text style={styles.horizontalCardName} numberOfLines={1}>
+              <Text
+                style={[styles.horizontalCardName, { maxWidth: "70%" }]}
+                numberOfLines={1}
+              >
                 {item.name}
               </Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>
-                  {`(${item?.currentLocation ? " Open " : " Closed "})`}
-                </Text>
-              </View>
+              <Text style={styles.statusBadgeText}>
+                {`(${item?.currentLocation ? " Open " : " Closed "})`}
+              </Text>
             </View>
             <View style={styles.horizontalCardDetails}>
               <View style={styles.ratingContainer}>
@@ -247,6 +253,31 @@ const NearMeScreen = ({ navigation }) => {
     }, [defaultLocation])
   );
 
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (e) => {
+      const newKeyboardHeight = e.endCoordinates.height - (insets.bottom + 60);
+      setKeyboardHeight(newKeyboardHeight);
+      Animated.timing(animatedKeyboardHeight, {
+        toValue: newKeyboardHeight,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+      Animated.timing(animatedKeyboardHeight, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [insets.bottom, animatedKeyboardHeight]);
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -323,12 +354,22 @@ const NearMeScreen = ({ navigation }) => {
             </View>
           </Marker>
           {filteredTrucks.map((truck, index) => {
+            const isSameLocationAsUser =
+              parseFloat(truck.location.lat) ===
+                parseFloat(defaultLocation?.lat) &&
+              parseFloat(truck.location.long) ===
+                parseFloat(defaultLocation?.long);
+
+            const truckLongitude = isSameLocationAsUser
+              ? parseFloat(truck.location.long) + 0.00001 // Add a small offset to avoid marker flicker
+              : parseFloat(truck.location.long);
+
             return (
               <Marker
                 key={truck._id}
                 coordinate={{
                   latitude: parseFloat(truck.location.lat),
-                  longitude: parseFloat(truck.location.long),
+                  longitude: truckLongitude,
                 }}
                 onPress={() => handleMarkerPress(truck)}
               >
@@ -345,13 +386,20 @@ const NearMeScreen = ({ navigation }) => {
 
       {/* Horizontal Food Trucks List */}
       {filteredTrucks.length > 0 && (
-        <View style={styles.horizontalListContainer}>
+        <Animated.View
+          style={[
+            styles.horizontalListContainer,
+            {
+              bottom: animatedKeyboardHeight,
+            },
+          ]}
+        >
           <Carousel
             ref={carouselRef}
             mode="parallax"
             modeConfig={{
-              parallaxScrollingScale: 1,
-              parallaxAdjacentItemScale: 0.8,
+              parallaxScrollingScale: 0.9,
+              parallaxAdjacentItemScale: 0.62,
             }}
             width={width}
             data={filteredTrucks}
@@ -362,12 +410,19 @@ const NearMeScreen = ({ navigation }) => {
             scrollAnimationDuration={500}
             onSnapToItem={onSnapToItem}
           />
-        </View>
+        </Animated.View>
       )}
 
       {/* No Results Message */}
       {filteredTrucks.length === 0 && searchQuery && !isLoading && (
-        <View style={styles.noResultsContainer}>
+        <Animated.View
+          style={[
+            styles.noResultsContainer,
+            {
+              bottom: Animated.add(10, animatedKeyboardHeight),
+            },
+          ]}
+        >
           <MaterialIcons
             name="search-off"
             size={48}
@@ -383,7 +438,7 @@ const NearMeScreen = ({ navigation }) => {
           >
             <Text style={styles.clearSearchText}>Clear Search</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -747,6 +802,7 @@ const styles = StyleSheet.create({
   },
   horizontalCardContent: {
     alignItems: "center",
+    gap: 4,
   },
   horizontalCardName: {
     fontFamily: Mulish700,
@@ -800,7 +856,7 @@ const styles = StyleSheet.create({
   // No Results Styles
   noResultsContainer: {
     position: "absolute",
-    bottom: 20,
+    bottom: 10,
     left: 20,
     right: 20,
     backgroundColor: AppColor.white,
