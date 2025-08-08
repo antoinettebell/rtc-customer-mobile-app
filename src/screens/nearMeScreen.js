@@ -351,6 +351,8 @@ const NearMeScreen = ({ navigation }) => {
           value={searchQuery}
           onChangeText={handleSearch}
           placeholderTextColor={AppColor.textPlaceholder}
+          returnKeyType="search"
+          returnKeyLabel="Search"
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity

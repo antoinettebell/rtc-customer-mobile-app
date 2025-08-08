@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -36,6 +36,9 @@ const ResetPasswordScreen = ({ route }) => {
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const newPasswordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errors, setErrors] = useState({
     password: "",
@@ -191,6 +194,7 @@ const ResetPasswordScreen = ({ route }) => {
               {/* New Password */}
               <Text style={styles.inputLabel}>New Password</Text>
               <TextInput
+                ref={newPasswordRef}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Must be at least 8 characters"
@@ -210,6 +214,8 @@ const ResetPasswordScreen = ({ route }) => {
                     color={AppColor.textHighlighter}
                   />
                 }
+                returnKeyType="next"
+                onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
               />
               {!!errors.password && (
@@ -223,6 +229,7 @@ const ResetPasswordScreen = ({ route }) => {
                 Confirm New Password
               </Text>
               <TextInput
+                ref={confirmPasswordRef}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Repeat new password"
@@ -242,6 +249,8 @@ const ResetPasswordScreen = ({ route }) => {
                     color={AppColor.textHighlighter}
                   />
                 }
+                returnKeyType="done"
+                onSubmitEditing={handleResetPassword}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
               />
               {!!errors.confirmPassword && (

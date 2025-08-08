@@ -123,18 +123,18 @@ const CancelOrderScreen = ({ route }) => {
   const canSubmit = !!selectedReason && !isSubmitting;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={[styles.innerContainer, { paddingTop: insets.top }]}>
-        <StatusBarManager />
-        <AppHeader headerTitle="Cancel Order" />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBarManager />
+      <AppHeader headerTitle="Cancel Order" />
 
+      <KeyboardAvoidingView
+        style={styles.innerContainer}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
-          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.iconContainer}>
             <FastImage
@@ -201,38 +201,27 @@ const CancelOrderScreen = ({ route }) => {
               </View>
             )}
           </View>
-
-          {/* <View style={styles.warningContainer}>
-            <MaterialIcons
-              name="info-outline"
-              size={16}
-              color={AppColor.warning}
-            />
-            <Text style={styles.warningText}>
-              Cancellation may take 3-5 business days for refund processing.
-            </Text>
-          </View> */}
         </ScrollView>
+      </KeyboardAvoidingView>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              !canSubmit && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            activeOpacity={0.7}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={AppColor.white} />
-            ) : (
-              <Text style={styles.submitButtonText}>Cancel Order</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      <View style={[styles.buttonContainer, { marginBottom: insets.bottom }]}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            !canSubmit && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          activeOpacity={0.7}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={AppColor.white} />
+          ) : (
+            <Text style={styles.submitButtonText}>Cancel Order</Text>
+          )}
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -248,6 +237,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: 20,
   },
   iconContainer: {
@@ -372,7 +362,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingHorizontal: 16,
     marginVertical: 16,
-    marginBottom: 30,
   },
   submitButton: {
     height: 48,

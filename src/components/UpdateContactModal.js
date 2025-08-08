@@ -78,6 +78,8 @@ const UpdateContactModal = ({
           activeOutlineColor={AppColor.primary}
           outlineStyle={{ borderRadius: 8 }}
           keyboardType="phone-pad"
+          returnKeyLabel="done"
+          returnKeyType="done"
           theme={{ colors: { onSurfaceVariant: "#777" } }}
         />
       </View>

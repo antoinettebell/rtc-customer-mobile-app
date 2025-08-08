@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -37,11 +37,17 @@ const SignupScreen = ({ navigation }) => {
   const [lname, setLname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const fnameRef = useRef(null);
+  const lnameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const mobileNumberRef = useRef(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -228,6 +234,7 @@ const SignupScreen = ({ navigation }) => {
                   <TextInput
                     dense
                     value={fname}
+                    ref={fnameRef}
                     onChangeText={setFname}
                     style={styles.input}
                     contentStyle={styles.inputText}
@@ -239,6 +246,8 @@ const SignupScreen = ({ navigation }) => {
                     activeOutlineColor={AppColor.primary}
                     outlineStyle={{ borderRadius: 8 }}
                     autoCapitalize="none"
+                    returnKeyType="next"
+                    onSubmitEditing={() => lnameRef.current?.focus()}
                     theme={{ colors: { onSurfaceVariant: "#777" } }}
                     onBlur={() =>
                       setErrors((prev) => ({
@@ -263,6 +272,7 @@ const SignupScreen = ({ navigation }) => {
                   <TextInput
                     dense
                     value={lname}
+                    ref={lnameRef}
                     onChangeText={setLname}
                     style={styles.input}
                     contentStyle={styles.inputText}
@@ -274,6 +284,8 @@ const SignupScreen = ({ navigation }) => {
                     activeOutlineColor={AppColor.primary}
                     outlineStyle={{ borderRadius: 8 }}
                     autoCapitalize="none"
+                    returnKeyType="next"
+                    onSubmitEditing={() => emailRef.current?.focus()}
                     theme={{ colors: { onSurfaceVariant: "#777" } }}
                     onBlur={() =>
                       setErrors((prev) => ({
@@ -300,6 +312,7 @@ const SignupScreen = ({ navigation }) => {
               <TextInput
                 dense
                 value={email}
+                ref={emailRef}
                 onChangeText={setEmail}
                 style={styles.input}
                 contentStyle={styles.inputText}
@@ -310,6 +323,8 @@ const SignupScreen = ({ navigation }) => {
                 outlineStyle={{ borderRadius: 8 }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
                 onBlur={() =>
                   setErrors((prev) => ({
@@ -334,6 +349,7 @@ const SignupScreen = ({ navigation }) => {
               <TextInput
                 dense
                 value={password}
+                ref={passwordRef}
                 onChangeText={setPassword}
                 style={styles.input}
                 contentStyle={styles.inputText}
@@ -353,6 +369,8 @@ const SignupScreen = ({ navigation }) => {
                     forceTextInputFocus={false}
                   />
                 }
+                returnKeyType="next"
+                onSubmitEditing={() => mobileNumberRef.current?.focus()}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
                 onBlur={() =>
                   setErrors((prev) => ({
@@ -393,8 +411,11 @@ const SignupScreen = ({ navigation }) => {
                 <TextInput
                   dense
                   value={mobileNumber}
+                  ref={mobileNumberRef}
                   onChangeText={setMobileNumber}
                   style={[styles.input, { flex: 1 }]}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignUp}
                   contentStyle={styles.inputText}
                   placeholder=""
                   mode="outlined"
@@ -404,7 +425,7 @@ const SignupScreen = ({ navigation }) => {
                   }
                   activeOutlineColor={AppColor.primary}
                   outlineStyle={{ borderRadius: 8 }}
-                  keyboardType="phone-pad"
+                  keyboardType="number-pad"
                   theme={{ colors: { onSurfaceVariant: "#777" } }}
                   onBlur={() =>
                     setErrors((prev) => ({

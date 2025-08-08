@@ -148,6 +148,8 @@ const CouponCodeScreen = ({ navigation, route }) => {
             placeholderTextColor={AppColor.textPlaceholder}
             value={search}
             onChangeText={setSearch}
+            returnKeyType="search"
+            returnKeyLabel="Search"
           />
           <TouchableOpacity
             activeOpacity={0.7}
@@ -203,20 +205,6 @@ const CouponCodeScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.couponCodeBox}>
                 <Text style={styles.couponCodeText}>{item.code}</Text>
-                <MaterialIcons
-                  name={
-                    selected === item.code
-                      ? "check-box"
-                      : "check-box-outline-blank"
-                  }
-                  size={22}
-                  color={
-                    selected === item.code
-                      ? AppColor.primary
-                      : AppColor.textPlaceholder
-                  }
-                  style={{ marginLeft: 8 }}
-                />
               </View>
             </View>
           )}

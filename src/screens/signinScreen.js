@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -53,6 +53,9 @@ const SignInScreen = ({ navigation, route }) => {
     message: "",
     type: "info",
   });
+
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
 
   const resetStates = () => {
     setEmail("");
@@ -273,6 +276,9 @@ const SignInScreen = ({ navigation, route }) => {
                 outlineStyle={{ borderRadius: 8 }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                ref={emailRef}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
               />
               {!!emailError && (
@@ -316,6 +322,9 @@ const SignInScreen = ({ navigation, route }) => {
                     forceTextInputFocus={false}
                   />
                 }
+                returnKeyType="done"
+                ref={passwordRef}
+                onSubmitEditing={() => handleSignIn(email, password)}
                 theme={{ colors: { onSurfaceVariant: "#777" } }}
               />
               {!!passwordError && (

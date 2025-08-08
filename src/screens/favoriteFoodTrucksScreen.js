@@ -188,6 +188,8 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               placeholderTextColor={AppColor.textHighlighter}
               value={search}
               onChangeText={setSearch}
+              returnKeyType="search"
+              returnKeyLabel="Search"
             />
           </View>
         )}

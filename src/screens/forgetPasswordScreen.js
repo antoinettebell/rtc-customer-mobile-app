@@ -149,6 +149,8 @@ const ForgetPasswordScreen = () => {
               outlineStyle={{ borderRadius: 8 }}
               autoCapitalize="none"
               keyboardType="email-address"
+              returnKeyType="done"
+              returnKeyLabel="done"
               theme={{ colors: { onSurfaceVariant: "#777" } }}
             />
             {!!emailError && (

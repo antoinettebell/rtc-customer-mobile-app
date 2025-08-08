@@ -52,6 +52,8 @@ const UpdateNameModal = ({
         outlineColor={error ? AppColor.red : AppColor.border}
         activeOutlineColor={AppColor.primary}
         outlineStyle={{ borderRadius: 8 }}
+        returnKeyLabel="done"
+        returnKeyType="done"
         theme={{ colors: { onSurfaceVariant: "#777" } }}
       />
       {error ? (
