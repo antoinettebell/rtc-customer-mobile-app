@@ -181,9 +181,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     favoritesActionLoading[foodTruckDetail?._id] || false;
 
   useEffect(() => {
-    fetchFoodTruckDetails();
-    fetchMenuDetails();
-  }, [item._id]); // Re-fetch when item changes
+    if (item?._id) {
+      fetchFoodTruckDetails();
+      fetchMenuDetails();
+    }
+  }, [item?._id]); // Re-fetch when item changes
 
   useFocusEffect(
     useCallback(() => {
@@ -196,7 +198,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const fetchFoodTruckDetails = async () => {
     try {
       setLoading(true);
-      const response = await getFoodTruckDetailById_API(item._id);
+      const response = await getFoodTruckDetailById_API(item?._id);
       console.log("response => ", response);
       if (response?.success && response?.data) {
         setFoodTruckDetail(response?.data?.foodtruck);
@@ -209,10 +211,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const fetchMenuDetails = async () => {
+    setMenuLoading(true);
     try {
-      setMenuLoading(true);
-      const response = await getFoodTruckMenuDetailById_API(item._id);
-      if (response?.success) {
+      const response = await getFoodTruckMenuDetailById_API(item?._id);
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
         let menuItems = response.data.menuList;
         // Sort menu items: popularDish = true items come first
         menuItems.sort(

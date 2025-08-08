@@ -137,9 +137,6 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               <Text style={styles.truckReview}>
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
                 {item.foodTruck?.totalReviews || "0"} reviews
-                {/* -{" "}
-                {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
-                  " miles away" || "0 miles away"} */}
               </Text>
             </View>
             <TouchableOpacity

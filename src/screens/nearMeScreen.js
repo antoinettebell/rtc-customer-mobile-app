@@ -84,8 +84,8 @@ const NearMeScreen = ({ navigation }) => {
 
       const params = {
         page: 1,
-        limit: 50,
-        distanceInMeters: 16093.44, // 10 miles in meters
+        limit: 100,
+        distanceInMeters: 32186.9, // 20 miles in meters
         userLat: defaultLocation?.lat || 0,
         userLong: defaultLocation?.long || 0,
       };
@@ -108,8 +108,8 @@ const NearMeScreen = ({ navigation }) => {
                 {
                   latitude: parseFloat(trucks[0].location.lat),
                   longitude: parseFloat(trucks[0].location.long),
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
+                  latitudeDelta: region.latitudeDelta,
+                  longitudeDelta: region.longitudeDelta,
                 },
                 1000
               );
@@ -257,8 +257,8 @@ const NearMeScreen = ({ navigation }) => {
             {
               latitude: parseFloat(truck.location.lat),
               longitude: parseFloat(truck.location.long),
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
+              latitudeDelta: region.latitudeDelta,
+              longitudeDelta: region.longitudeDelta,
             },
             500
           );
@@ -269,11 +269,9 @@ const NearMeScreen = ({ navigation }) => {
     syncMapWithCarousel();
   }, [selectedIndex, filteredTrucks]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchNearByFoodTrucks();
-    }, [defaultLocation])
-  );
+  useEffect(() => {
+    fetchNearByFoodTrucks();
+  }, [defaultLocation]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (e) => {
@@ -330,7 +328,7 @@ const NearMeScreen = ({ navigation }) => {
               <MaterialIcons
                 name="keyboard-arrow-down"
                 size={18}
-                color={AppColor.white}
+                color={AppColor.primary}
               />
             </View>
             <Text style={styles.locationSubtitle} numberOfLines={1}>
@@ -381,7 +379,7 @@ const NearMeScreen = ({ navigation }) => {
           showsMyLocationButton={false}
           loadingEnabled={true}
         >
-          <Marker
+          {/* <Marker
             coordinate={{
               latitude: parseFloat(defaultLocation?.lat) || 0,
               longitude: parseFloat(defaultLocation?.long) || 0,
@@ -395,7 +393,13 @@ const NearMeScreen = ({ navigation }) => {
                 style={{ backgroundColor: AppColor.primary, borderRadius: 5 }}
               />
             </View>
-          </Marker>
+          </Marker> */}
+          <Marker
+            coordinate={{
+              latitude: parseFloat(defaultLocation?.lat) || 0,
+              longitude: parseFloat(defaultLocation?.long) || 0,
+            }}
+          />
           {filteredTrucks.map((truck, index) => {
             const isSameLocationAsUser =
               parseFloat(truck.location.lat) ===

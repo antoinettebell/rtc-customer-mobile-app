@@ -166,6 +166,7 @@ const BottomNavigator = ({ insets }) => {
             />
           ),
           tabBarHideOnKeyboard: false,
+          unmountOnBlur: true,
         }}
       />
       <BottomTab.Screen

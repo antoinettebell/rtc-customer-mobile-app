@@ -417,6 +417,7 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     flexGrow: 1,
+    gap: 10,
   },
   footerContainer: {
     padding: 20,
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
 
   // Order Details Container
   orderDetailsContainer: {
-    margin: 16,
+    marginHorizontal: 16,
     padding: 16,
     borderWidth: 1,
     borderRadius: 8,

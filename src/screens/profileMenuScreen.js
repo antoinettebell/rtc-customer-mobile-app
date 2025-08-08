@@ -484,7 +484,6 @@ const ProfileMenuScreen = ({ navigation }) => {
         keyExtractor={(item) => item._id.toString()}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
-          console.log("ITEM => ", item);
           return (
             <TouchableOpacity
               key={item._id}
@@ -504,9 +503,6 @@ const ProfileMenuScreen = ({ navigation }) => {
                 <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
                 <Text style={styles.favTruckReview}>
                   ⭐ {item.foodTruck?.totalReviews || "0"} reviews
-                  {/* -{" "}
-                {(item.foodTruck?.distanceInMeters * 0.000621371).toFixed(2) +
-                  " miles away" || "0 miles away"} */}
                 </Text>
               </View>
             </TouchableOpacity>
