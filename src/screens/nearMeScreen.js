@@ -20,14 +20,18 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
 import { useFocusEffect } from "@react-navigation/native";
 import Carousel from "react-native-reanimated-carousel";
 import { useSharedValue } from "react-native-reanimated";
 import FastImage from "@d11/react-native-fast-image";
 import AppImage from "../components/AppImage";
+import ActionSheet, { ScrollView } from "react-native-actions-sheet";
+import { setDefaultLocation } from "../redux/slices/locationSlice";
+import { Divider, RadioButton } from "react-native-paper";
 
+const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const { width, height } = Dimensions.get("window");
 
 // Set up geolocation for navigator
@@ -42,11 +46,17 @@ const initialRegion = {
 
 const NearMeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
   const mapRef = useRef(null);
   const carouselRef = useRef(null);
+  const actionSheetRef = useRef(null);
+  const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
   const progress = useSharedValue(0);
 
-  const { defaultLocation } = useSelector((state) => state.locationReducer);
+  const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { defaultLocation, allLocations } = useSelector(
+    (state) => state.locationReducer
+  );
 
   // State management
   const [region, setRegion] = useState(initialRegion);
@@ -57,7 +67,8 @@ const NearMeScreen = ({ navigation }) => {
   const [filteredTrucks, setFilteredTrucks] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
+  const [tempSelectedLocation, setTempSelectedLocation] =
+    useState(defaultLocation);
 
   const fetchNearByFoodTrucks = async () => {
     if (!defaultLocation) return; // Don't fetch if no location is set
@@ -200,6 +211,17 @@ const NearMeScreen = ({ navigation }) => {
     setSelectedIndex(index);
   };
 
+  const handleLocationTextPress = () => {
+    // If user is a guest OR a signed-in user with no addresses, navigate to the map screen.
+    if (!isSignedIn || (isSignedIn && allLocations.length === 0)) {
+      navigation.navigate("authMapScreen", { mode: "add" });
+    } else {
+      // Otherwise, for a signed-in user with addresses, show the selection modal.
+      actionSheetRef.current?.show();
+      setTempSelectedLocation(defaultLocation);
+    }
+  };
+
   // Debounce effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -294,7 +316,28 @@ const NearMeScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>{"Near By Food Trucks"}</Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleLocationTextPress}
+          style={styles.locationContainer}
+        >
+          <Ionicons name="location-sharp" size={30} color={AppColor.primary} />
+          <View style={{ flex: 1 }}>
+            <View style={styles.locationRow}>
+              <Text style={styles.locationTitle} numberOfLines={1}>
+                {defaultLocation?.title || "NA"}
+              </Text>
+              <MaterialIcons
+                name="keyboard-arrow-down"
+                size={18}
+                color={AppColor.white}
+              />
+            </View>
+            <Text style={styles.locationSubtitle} numberOfLines={1}>
+              {defaultLocation?.address || "Please select a location"}
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -440,6 +483,97 @@ const NearMeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      <ActionSheet ref={actionSheetRef} gestureEnabled={true}>
+        <View
+          style={{
+            maxHeight: height - insets.top - insets.bottom - 10,
+            paddingVertical: 10,
+            paddingHorizontal: 20,
+          }}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderText}>{"Select a Location"}</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                actionSheetRef.current?.hide();
+                navigation.navigate("authMapScreen", { mode: "add" });
+              }}
+            >
+              <MaterialIcons name="add" size={28} color={AppColor.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <Divider style={{ marginTop: 16 }} />
+
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {allLocations?.map((item) => (
+              <TouchableOpacity
+                key={item?._id}
+                activeOpacity={0.7}
+                style={styles.locationModalItem}
+                onPress={() => setTempSelectedLocation(item)}
+              >
+                <View style={styles.addressRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={24}
+                    color={AppColor.primary}
+                    style={styles.locationModalIcon}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.locationModalTitle}>{item.title}</Text>
+                    <Text style={styles.locationModalAddress}>
+                      {item.address}
+                    </Text>
+                  </View>
+                  <RadioButton.Android
+                    value={item._id}
+                    status={
+                      tempSelectedLocation?._id === item._id
+                        ? "checked"
+                        : "unchecked"
+                    }
+                    onPress={() => setTempSelectedLocation(item)}
+                    color={AppColor.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Divider style={{ marginBottom: 6 }} />
+
+          <View
+            style={[
+              styles.bottomButtonContainer,
+              { paddingBottom: insets.bottom },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => actionSheetRef.current?.hide()}
+            >
+              <Text style={styles.cancelButtonText}>{"Cancel"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.modalButton, styles.selectButton]}
+              onPress={() => {
+                dispatch(setDefaultLocation(tempSelectedLocation));
+                actionSheetRef.current?.hide();
+              }}
+            >
+              <Text style={styles.selectButtonText}>{"Select Location"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ActionSheet>
     </View>
   );
 };
@@ -460,8 +594,6 @@ const styles = StyleSheet.create({
     color: AppColor.text,
   },
   header: {
-    justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
@@ -472,6 +604,32 @@ const styles = StyleSheet.create({
     fontFamily: Mulish700,
     fontSize: 18,
     color: AppColor.text,
+  },
+  locationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+  },
+  locationTitle: {
+    color: AppColor.primary,
+    fontFamily: Mulish400,
+    fontSize: 20,
+  },
+  locationSubtitle: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.primary,
+    maxWidth: "95%",
+  },
+  iconImage: {
+    height: 37,
+    width: 37,
+    resizeMode: "contain",
   },
   searchContainer: {
     flexDirection: "row",
@@ -887,6 +1045,72 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     fontWeight: "600",
+  },
+
+  // Action sheet
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalHeaderText: {
+    fontSize: 20,
+    fontFamily: Mulish700,
+    color: AppColor.black,
+  },
+  locationModalItem: {
+    paddingVertical: 15,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationModalIcon: {
+    marginRight: 10,
+  },
+  locationModalTitle: {
+    fontFamily: Mulish400,
+    fontSize: 18,
+    color: AppColor.black,
+  },
+  locationModalAddress: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: "#6b7280", // gray-500
+    marginTop: 4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: "#e5e7eb", // gray-200
+  },
+  bottomButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  cancelButton: {
+    backgroundColor: "#F3F4F6", // gray-100
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    color: AppColor.black,
+    fontFamily: Mulish700,
+    fontSize: 16,
+  },
+  selectButton: {
+    backgroundColor: AppColor.primary,
+  },
+  selectButtonText: {
+    color: AppColor.white,
+    fontFamily: Mulish700,
+    fontSize: 16,
   },
 });
 

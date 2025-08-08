@@ -10,6 +10,7 @@ const initialState = {
     subtotal: 0,
     tax: 0,
     total: 0,
+    lastUpdate: null,
   },
   orderHistory: [],
 };
@@ -35,6 +36,7 @@ const orderSlice = createSlice({
           subtotal: 0,
           tax: 0,
           total: 0,
+          lastUpdate: new Date().toISOString(),
         };
       }
 
@@ -64,6 +66,7 @@ const orderSlice = createSlice({
         (sum, item) => sum + item.price * item.quantity,
         0
       );
+      state.currentOrder.lastUpdate = new Date().toISOString();
     },
 
     removeItemFromOrder: (state, { payload }) => {
@@ -96,6 +99,7 @@ const orderSlice = createSlice({
         if (state.currentOrder.items.length === 0) {
           state.currentOrder = initialState.currentOrder;
         }
+        state.currentOrder.lastUpdate = new Date().toISOString();
       }
     },
 
@@ -154,6 +158,7 @@ const orderSlice = createSlice({
             0
           );
         }
+        state.currentOrder.lastUpdate = new Date().toISOString();
       }
     },
 

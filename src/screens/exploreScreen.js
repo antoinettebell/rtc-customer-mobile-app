@@ -47,7 +47,7 @@ import { getMessaging } from "@react-native-firebase/messaging";
 import { checkInstallationId } from "../helpers/notification.helper";
 import Carousel from "react-native-reanimated-carousel";
 import FastImage from "@d11/react-native-fast-image";
-import { clearOrderSlice } from "../redux/slices/orderSlice";
+import { clearCurrentOrder, clearOrderSlice } from "../redux/slices/orderSlice";
 import AppImage from "../components/AppImage";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
@@ -120,6 +120,35 @@ const ExploreScreen = (props) => {
   const handleCancelSelection = () => {
     setLocationModalVisible(false);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      // Check if currentOrder needs to be cleared based on lastUpdate
+      if (OrderReducerStates?.currentOrder?.lastUpdate) {
+        const lastUpdate = moment(OrderReducerStates.currentOrder.lastUpdate);
+        const now = moment();
+        const diffHours = now.diff(lastUpdate, "hours");
+
+        if (diffHours >= 24) {
+          Alert.alert(
+            "Order Cleared",
+            "Your previous order has been cleared due to inactivity (over 24 hours).",
+            [
+              {
+                text: "Okay",
+                onPress: () => {
+                  dispatch(clearCurrentOrder());
+                },
+              },
+            ],
+            {
+              cancelable: false,
+            }
+          );
+        }
+      }
+    }, [])
+  );
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
   const HEADER_MIN_HEIGHT = insets.top + 60;
