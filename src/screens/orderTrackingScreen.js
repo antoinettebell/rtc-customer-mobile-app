@@ -11,6 +11,8 @@ import {
   Pressable,
   Linking,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import moment from "moment";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
@@ -21,6 +23,7 @@ import AppHeader from "../components/AppHeader";
 import AppImage from "../components/AppImage";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import OrderTrackingSteps from "../components/OrderTrackingSteps";
+import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -49,9 +52,12 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   const mapRef = useRef(null);
 
   const params = route?.params;
-  const order = params?.order;
 
+  const [order, setOrder] = useState(null);
   const [iamstate, setiamstate] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const getStatusHistory = (statusTime) => {
     const statusMap = {
@@ -75,8 +81,6 @@ const OrderTrackingScreen = ({ navigation, route }) => {
 
     return history;
   };
-
-  const [progress, setProgress] = useState(0);
 
   const calculateProgress = () => {
     if (order?.statusTime?.readyAt) {
@@ -102,23 +106,50 @@ const OrderTrackingScreen = ({ navigation, route }) => {
     }
   };
 
-  useEffect(() => {
-    console.log("order data => ", order);
-    setiamstate(getStatusHistory(order?.statusTime));
-    calculateProgress();
+  const fetchOrderDetails = async ({ type }) => {
+    if (type === "refresh") {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    try {
+      const response = await getOrderByOrderId_API(params?.order?._id);
+      console.log("response => ", response);
+      if (response?.success && response?.data) {
+        setOrder(response.data.order);
+        setiamstate(getStatusHistory(response.data?.order?.statusTime));
+      } else {
+        setOrder(null);
+      }
+    } catch (err) {
+      console.error("Error fetching order details:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
+  useEffect(() => {
+    if (params?.order?._id) {
+      fetchOrderDetails({ type: "init" });
+    }
+  }, [params?.order]);
+
+  useEffect(() => {
+    if (order) {
+      calculateProgress();
+    }
     // Set up interval to update progress
     let progressInterval;
     if (order?.statusTime?.preparingAt && !order?.statusTime?.readyAt) {
       progressInterval = setInterval(calculateProgress, 30000); // Update every 30 seconds
     }
-
     return () => {
       if (progressInterval) {
         clearInterval(progressInterval);
       }
     };
-  }, [order]);
+  }, [order?.statusTime]);
 
   const formattedSteps = iamstate.map((item) => ({
     title: statusTitleMap[item.status] || item.status,
@@ -159,166 +190,196 @@ const OrderTrackingScreen = ({ navigation, route }) => {
       <AppHeader headerTitle="Order Tracking" />
 
       <ScrollView
-        style={{
-          backgroundColor: AppColor.screenBg,
+        contentContainerStyle={{
+          flexGrow: 1,
           padding: 16,
+          backgroundColor: AppColor.screenBg,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchOrderDetails({ type: "refresh" })}
+            tintColor={AppColor.primary}
+          />
+        }
       >
-        {/* Map Container */}
-        <View
-          style={{
-            overflow: "hidden",
-            borderRadius: 10,
-            marginBottom: 10,
-          }}
-        >
-          <MapView
-            ref={mapRef}
-            provider={PROVIDER_GOOGLE}
-            style={styles.mapView}
-            loadingEnabled={true}
-            loadingIndicatorColor={AppColor.primary}
-            zoomEnabled={true}
-            zoomControlEnabled={true}
-            rotateEnabled={false}
-            scrollEnabled={false}
-            scrollDuringRotateOrZoomEnabled={false}
-            pitchEnabled={true}
-            region={pickupRegion}
-            // onPress={() => openMap(postData.lat, postData.long)}
-          >
-            <Marker coordinate={pickupRegion} anchor={{ x: 0.5, y: 0.5 }}>
-              <Image
-                source={require("../assets/images/location.png")}
-                style={styles.mapImg}
-              />
-            </Marker>
-          </MapView>
-        </View>
-
-        {/* Order Details with FT */}
-        <View style={styles.commonCard}>
-          <View style={styles.headerRow}>
-            <Text style={styles.orderId} numberOfLines={1}>
-              Order #{order?.orderNumber || order._id}
-            </Text>
-            <Text style={styles.orderTotal}>
-              {`$${(order?.total || 0).toFixed(2)}`}
-            </Text>
-          </View>
-          <Pressable
-            style={styles.orderCardRow}
-            onPress={() =>
-              navigation.navigate("foodTruckDetailScreen", {
-                item: order?.foodTruck,
-              })
-            }
-          >
-            <AppImage
-              uri={order?.foodTruck?.logo}
-              containerStyle={styles.truckImg}
-            />
-            <View style={styles.orderCardInfo}>
-              <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
-              <Text style={styles.orderItems}>
-                {order?.items?.length} Items
-              </Text>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Status Container */}
-        <View style={styles.commonCard}>
-          <View style={styles.statusHeaderRow}>
-            <Text style={styles.statusLabel}>{"Status"}</Text>
-            <Text style={styles.statusBadge}>
-              {formattedSteps.length > 0
-                ? formattedSteps[formattedSteps.length - 1].title
-                : "..."}
-            </Text>
-          </View>
-          <OrderTrackingSteps steps={formattedSteps} />
-        </View>
-
-        {/* Estimated Time Container */}
-        <View style={styles.commonCard}>
+        {loading ? (
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignContent: "center",
-              marginBottom: 16,
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingBottom: insets.bottom,
             }}
           >
-            <Text style={styles.estimateLabel}>{"Estimated Time"}</Text>
-
-            <View style={styles.timeRow}>
-              <MaterialIcons
-                name="access-time"
-                size={14}
-                color={AppColor.grayText}
-                style={styles.timeIcon}
-              />
-              <Text style={styles.orderDate}>
-                {moment(order.statusTime.placedAt).format("hh:mm A")}
-              </Text>
-            </View>
+            <ActivityIndicator size="large" color={AppColor.primary} />
           </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          </View>
-          <View style={styles.estimateRow}>
-            <Text style={styles.estimateTime}>
-              {order.statusTime.preparingAt
-                ? moment(order.statusTime.preparingAt).format("hh:mm A")
-                : "Not Started Yet"}
-            </Text>
-            <Text style={styles.estimateTime}>
-              {order.statusTime.preparingAt
-                ? order.statusTime.readyAt
-                  ? moment(order.statusTime.readyAt).format("hh:mm A")
-                  : moment(order.statusTime.preparingAt)
-                      .add(order?.pickupTime || 0, "minutes")
-                      .format("hh:mm A")
-                : null}
-            </Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              console.log("order data => ", order);
-              navigation.navigate("orderDetailsScreen", { orderId: order._id });
-            }}
-          >
-            <Text style={styles.viewOrder}>View Order</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Call Vendor Container */}
-        <View style={[styles.commonCard, { marginBottom: 50 }]}>
-          <View style={styles.bottomCardRow}>
-            <AppImage
-              uri={order?.foodTruck?.logo}
-              containerStyle={styles.truckImg}
-            />
-            <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.phoneBtn}
-              onPress={() =>
-                handleCallPress(
-                  `${order?.vendor?.countryCode}${order?.vendor?.mobileNumber}`
-                )
-              }
+        ) : (
+          <>
+            {/* Map Container */}
+            <View
+              style={{
+                overflow: "hidden",
+                borderRadius: 10,
+                marginBottom: 10,
+              }}
             >
-              <Image
-                source={require("../assets/images/phone.png")}
-                style={styles.phoneIcon}
+              <MapView
+                ref={mapRef}
+                provider={PROVIDER_GOOGLE}
+                style={styles.mapView}
+                loadingEnabled={true}
+                loadingIndicatorColor={AppColor.primary}
+                zoomEnabled={true}
+                zoomControlEnabled={true}
+                rotateEnabled={false}
+                scrollEnabled={false}
+                scrollDuringRotateOrZoomEnabled={false}
+                pitchEnabled={true}
+                region={pickupRegion}
+                // onPress={() => openMap(postData.lat, postData.long)}
+              >
+                <Marker coordinate={pickupRegion} anchor={{ x: 0.5, y: 0.5 }}>
+                  <Image
+                    source={require("../assets/images/location.png")}
+                    style={styles.mapImg}
+                  />
+                </Marker>
+              </MapView>
+            </View>
+
+            {/* Order Details with FT */}
+            <View style={styles.commonCard}>
+              <View style={styles.headerRow}>
+                <Text style={styles.orderId} numberOfLines={1}>
+                  Order #{order?.orderNumber || order._id}
+                </Text>
+                <Text style={styles.orderTotal}>
+                  {`$${(order?.total || 0).toFixed(2)}`}
+                </Text>
+              </View>
+              <Pressable
+                style={styles.orderCardRow}
+                onPress={() =>
+                  navigation.navigate("foodTruckDetailScreen", {
+                    item: order?.foodTruck,
+                  })
+                }
+              >
+                <AppImage
+                  uri={order?.foodTruck?.logo}
+                  containerStyle={styles.truckImg}
+                />
+                <View style={styles.orderCardInfo}>
+                  <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
+                  <Text style={styles.orderItems}>
+                    {order?.items?.length} Items
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+
+            {/* Status Container */}
+            <View style={styles.commonCard}>
+              <View style={styles.statusHeaderRow}>
+                <Text style={styles.statusLabel}>{"Status"}</Text>
+                <Text style={styles.statusBadge}>
+                  {formattedSteps.length > 0
+                    ? formattedSteps[formattedSteps.length - 1].title
+                    : "..."}
+                </Text>
+              </View>
+              <OrderTrackingSteps
+                steps={formattedSteps}
+                animationTrigger={refreshing}
               />
-            </TouchableOpacity>
-          </View>
-        </View>
+            </View>
+
+            {/* Estimated Time Container */}
+            <View style={styles.commonCard}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignContent: "center",
+                }}
+              >
+                <Text style={styles.estimateLabel}>{"Estimated Time"}</Text>
+
+                {/* <View style={styles.timeRow}>
+                  <MaterialIcons
+                    name="access-time"
+                    size={14}
+                    color={AppColor.grayText}
+                    style={styles.timeIcon}
+                  />
+                  <Text style={styles.orderDate}>
+                    {moment(order.statusTime.placedAt).format("hh:mm A")}
+                  </Text>
+                </View> */}
+
+                <TouchableOpacity
+                  hitSlop={5}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    navigation.navigate("orderDetailsScreen", {
+                      orderId: order._id,
+                    });
+                  }}
+                >
+                  <Text style={styles.viewOrder}>View Order</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.progressBar}>
+                <View
+                  style={[styles.progressFill, { width: `${progress}%` }]}
+                />
+              </View>
+              <View style={styles.estimateRow}>
+                <Text style={styles.estimateTime}>
+                  {order.statusTime.preparingAt
+                    ? moment(order.statusTime.preparingAt).format("hh:mm A")
+                    : "Not Started Yet"}
+                </Text>
+                <Text style={styles.estimateTime}>
+                  {order.statusTime.preparingAt
+                    ? order.statusTime.readyAt
+                      ? moment(order.statusTime.readyAt).format("hh:mm A")
+                      : moment(order.statusTime.preparingAt)
+                          .add(order?.pickupTime || 0, "minutes")
+                          .format("hh:mm A")
+                    : null}
+                </Text>
+              </View>
+            </View>
+
+            {/* Call Vendor Container */}
+            <View style={[styles.commonCard, { marginBottom: 50 }]}>
+              <View style={styles.bottomCardRow}>
+                <AppImage
+                  uri={order?.foodTruck?.logo}
+                  containerStyle={styles.truckImg}
+                />
+                <Text style={styles.truckName}>{order?.foodTruck?.name}</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.phoneBtn}
+                  onPress={() =>
+                    handleCallPress(
+                      `${order?.vendor?.countryCode}${order?.vendor?.mobileNumber}`
+                    )
+                  }
+                >
+                  <Image
+                    source={require("../assets/images/phone.png")}
+                    style={styles.phoneIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -431,8 +492,9 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: AppColor.border,
     overflow: "hidden",
-    marginBottom: 8,
     borderRadius: 4,
+    marginTop: 5,
+    marginBottom: 10,
   },
   progressFill: {
     width: "0%",
@@ -451,9 +513,9 @@ const styles = StyleSheet.create({
     color: AppColor.grayText,
   },
   viewOrder: {
-    fontFamily: Mulish400,
-    fontSize: 16,
-    marginTop: 10,
+    fontFamily: Mulish700,
+    fontSize: 14,
+    color: AppColor.primary,
   },
   bottomCardRow: {
     flexDirection: "row",

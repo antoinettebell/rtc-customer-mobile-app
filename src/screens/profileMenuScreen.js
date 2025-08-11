@@ -625,7 +625,7 @@ const ProfileMenuScreen = ({ navigation }) => {
 
           {/* Favorite Food Trucks */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>{"Favorite Food Trucks"}</Text>
+            <Text style={styles.sectionTitle}>{"Favorite Trucks"}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}

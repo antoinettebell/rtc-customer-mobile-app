@@ -16,7 +16,7 @@ const statusIcons = {
   default: "radio-button-unchecked",
 };
 
-const OrderTrackingSteps = ({ steps }) => {
+const OrderTrackingSteps = ({ steps, animationTrigger }) => {
   // Animation values for the ripple effect
   const rippleScale = new Animated.Value(1);
   const rippleOpacity = new Animated.Value(0.7);
@@ -52,7 +52,7 @@ const OrderTrackingSteps = ({ steps }) => {
       rippleScale.setValue(1);
       rippleOpacity.setValue(0.7);
     };
-  }, [currentStep, steps.length]);
+  }, [currentStep, steps.length, animationTrigger]);
 
   const getIconForStep = (stepTitle, index) => {
     if (index < currentStep) return "check-circle";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, memo, useCallback } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import moment from "moment";
 import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
 import { Divider } from "react-native-paper";
 import AppImage from "../components/AppImage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const OrdersScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -272,12 +273,14 @@ const OrdersScreen = ({ navigation }) => {
     }
   };
 
-  useEffect(() => {
-    setCurrentPage(1);
-    setHasMoreData(true);
-    setOrderData([]);
-    getOrderDataFromAPI(1, false, activeStage === "past");
-  }, [activeStage]);
+  useFocusEffect(
+    useCallback(() => {
+      setCurrentPage(1);
+      setHasMoreData(true);
+      setOrderData([]);
+      getOrderDataFromAPI(1, false, activeStage === "past");
+    }, [activeStage])
+  );
 
   return (
     <View style={styles.container}>

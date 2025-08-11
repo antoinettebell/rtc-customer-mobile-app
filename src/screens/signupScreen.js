@@ -22,16 +22,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CountryPicker } from "react-native-country-codes-picker";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import ImagePicker from "react-native-image-crop-picker";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import { register_API } from "../apiFolder/authAPI";
 import StatusBarManager from "../components/StatusBarManager";
 import { useSelector } from "react-redux";
+import MediaPickerDialog from "../components/MediaPickerDialog";
+import usePermission from "../hooks/usePermission";
+import { permission } from "../helpers/permission.helper";
+import { RESULTS } from "react-native-permissions";
+import AppImage from "../components/AppImage";
 
 const SignupScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
 
   const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
+  const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
+    permission.photos
+  );
+  const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
+    permission.camera
+  );
 
   const [fname, setFname] = useState("");
   const [lname, setLname] = useState("");
@@ -43,12 +56,15 @@ const SignupScreen = ({ navigation }) => {
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const mobileNumberRef = useRef(null);
+
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
   const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
@@ -131,18 +147,26 @@ const SignupScreen = ({ navigation }) => {
       setErrors((prev) => ({ ...prev, agreed: "You must agree to the terms" }));
       return;
     }
-    const payload = {
-      firstName: fname,
-      lastName: lname,
-      email: email,
-      password: password,
-      countryCode: countryCode,
-      mobileNumber: mobileNumber,
-    };
-    console.log("Payload:", payload);
+
     setLoading(true);
     try {
-      const response = await register_API(payload);
+      const formData = new FormData();
+      formData.append("firstName", fname);
+      formData.append("lastName", lname);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("countryCode", countryCode);
+      formData.append("mobileNumber", mobileNumber);
+
+      if (selectedPhoto) {
+        formData.append("file", {
+          uri: selectedPhoto.uri,
+          name: selectedPhoto.name,
+          type: selectedPhoto.type,
+        });
+      }
+
+      const response = await register_API({ payload: formData });
       console.log("Response => ", response);
       if (response.success && response.data) {
         navigation.navigate("otpVerification", {
@@ -168,6 +192,78 @@ const SignupScreen = ({ navigation }) => {
       navigation.navigate("oneTapSignin");
     } else {
       navigation.navigate("signin");
+    }
+  };
+
+  const handleCameraPress = async () => {
+    setModalVisible(false);
+    try {
+      const cameraStatus = await cameraPermissionStatus();
+      if (cameraStatus !== RESULTS.GRANTED) return;
+
+      setTimeout(
+        async () => {
+          // Permission granted, open the camera
+          await ImagePicker.openCamera({
+            cropping: false,
+            mediaType: "photo",
+          })
+            .then(async (image) => {
+              const imagedata = {
+                uri: image?.path,
+                name: `${image?.path?.split("/").pop()}`, // did this because not able to get filename in ios
+                type: image.mime,
+              };
+              setSelectedPhoto(imagedata);
+            })
+            .catch((error) => {
+              console.log("error => ", error);
+            });
+        },
+        Platform.OS === "ios" ? 600 : 0
+      );
+    } catch (error) {
+      console.error("error => ", error);
+    } finally {
+    }
+  };
+
+  const handleGalleryPress = async (mediaType) => {
+    setModalVisible(false);
+    try {
+      const photosStatus = await photosPermissionStatus();
+      if (photosStatus !== RESULTS.GRANTED && photosStatus !== RESULTS.LIMITED)
+        return;
+
+      setTimeout(
+        async () => {
+          await ImagePicker.openPicker({
+            mediaType: "photo",
+          })
+            .then((images) => {
+              const payload =
+                Platform.OS == "ios"
+                  ? {
+                      uri: images?.sourceURL,
+                      name: images?.filename,
+                      type: images.mime,
+                    }
+                  : {
+                      uri: images?.path,
+                      name: `${images?.path?.split("/").pop()}`, // did this because in android > choose from gallary; not have filename
+                      type: images.mime,
+                    };
+              setSelectedPhoto(payload);
+            })
+            .catch((error) => {
+              console.log("error => ", error);
+            });
+        },
+        Platform.OS === "ios" ? 600 : 0
+      );
+    } catch (error) {
+      console.error("error => ", error);
+    } finally {
     }
   };
 
@@ -222,13 +318,65 @@ const SignupScreen = ({ navigation }) => {
             </Text>
 
             <View style={styles.formContainer}>
+              {/* profile-photo */}
+              <View style={{ alignSelf: "center" }}>
+                {selectedPhoto?.uri ? (
+                  <View
+                    style={{
+                      width: 140,
+                      height: 140,
+                      borderRadius: 70,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <AppImage
+                      uri={selectedPhoto?.uri}
+                      containerStyle={{ width: "100%", height: "100%" }}
+                    />
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      width: 140,
+                      height: 140,
+                      borderRadius: 70,
+                      marginTop: 10,
+                      backgroundColor: AppColor.primary,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FontAwesome6
+                      name="user"
+                      color={AppColor.white}
+                      size={50}
+                    />
+                  </View>
+                )}
+                <IconButton
+                  icon="camera"
+                  iconColor={AppColor.white}
+                  size={18}
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    backgroundColor: AppColor.primaryLight,
+                  }}
+                  onPress={() => setModalVisible(true)}
+                />
+              </View>
+
+              {/* full-name */}
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "baseline",
                   gap: 12,
+                  marginTop: 16,
                 }}
               >
+                {/* fname */}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>{"First Name*"}</Text>
                   <TextInput
@@ -266,7 +414,7 @@ const SignupScreen = ({ navigation }) => {
                     </HelperText>
                   ) : null}
                 </View>
-
+                {/* lname */}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>{"Last Name*"}</Text>
                   <TextInput
@@ -306,6 +454,7 @@ const SignupScreen = ({ navigation }) => {
                 </View>
               </View>
 
+              {/* email */}
               <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                 {"Email*"}
               </Text>
@@ -343,6 +492,7 @@ const SignupScreen = ({ navigation }) => {
                 </HelperText>
               ) : null}
 
+              {/* password */}
               <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                 {"Password*"}
               </Text>
@@ -389,6 +539,7 @@ const SignupScreen = ({ navigation }) => {
                 </HelperText>
               ) : null}
 
+              {/* mobile */}
               <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                 {"Enter mobile no.*"}
               </Text>
@@ -538,6 +689,7 @@ const SignupScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
+
           <Portal>
             <Snackbar
               visible={snackbar.visible}
@@ -555,6 +707,14 @@ const SignupScreen = ({ navigation }) => {
               {snackbar.message}
             </Snackbar>
           </Portal>
+
+          {/* Media Picker Modal */}
+          <MediaPickerDialog
+            isVisible={modalVisible}
+            onCameraPress={() => handleCameraPress()}
+            onGalleryPress={() => handleGalleryPress()}
+            onClosePress={() => setModalVisible(false)}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -599,7 +759,7 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
-    marginBottom: 50,
+    marginBottom: 30,
   },
   formContainer: {
     flex: 1,

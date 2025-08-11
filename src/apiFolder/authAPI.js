@@ -67,10 +67,13 @@ export const changePassword_API = async (payload) => {
 };
 
 // Register API
-export const register_API = async (payload) => {
+export const register_API = async ({ payload }) => {
   try {
     const URL = `${REGISTER_USER}`;
-    const response = await apiClient.post(URL, payload, { skipToken: true });
+    const response = await apiClient.post(URL, payload, {
+      skipToken: true,
+      formData: true,
+    });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
