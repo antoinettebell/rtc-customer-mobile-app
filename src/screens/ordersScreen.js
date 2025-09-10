@@ -287,7 +287,7 @@ const OrdersScreen = ({ navigation }) => {
       <StatusBarManager />
 
       {/* Header */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.headerTitle}>{"My Orders"}</Text>
       </View>
 
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: Mulish700,
-    fontSize: 18,
+    fontSize: 20,
     color: AppColor.text,
   },
 

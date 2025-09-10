@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: Mulish700,
-    fontSize: 18,
+    fontSize: 20,
     color: AppColor.text,
   },
 

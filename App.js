@@ -56,6 +56,8 @@ import SeeAllTrucksScreen from "./src/screens/seeAllTrucksScreen";
 import GlobalSearchScreen from "./src/screens/globalSearchScreen";
 import OneTapSignInScreen from "./src/screens/oneTapSigninScreen";
 import SearchResultScreen from "./src/screens/searchResultScreen";
+import UserProfileScreen from "./src/screens/userProfileScreen";
+import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -242,6 +244,8 @@ const AppNavigator = ({ insets }) => (
       name="deleteOtpVerification"
       component={OtpVerificationScreen}
     />
+    <Stack.Screen name="userProfileScreen" component={UserProfileScreen} />
+    <Stack.Screen name="dietRestrictionScreen" component={DietRestrictionScreen} />
   </Stack.Navigator>
 );
 

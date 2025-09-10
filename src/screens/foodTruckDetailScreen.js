@@ -476,7 +476,16 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
 
-      <AppHeader headerTitle="Details" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={{ width: "20%" }}>
+            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          </View>
+          <Text style={styles.headerTitle}>{"Details"}</Text>
+          <View style={{ width: "20%" }} />
+        </View>
+      </View>
 
       {loading ? (
         <View style={[styles.loadingView, { paddingBottom: insets.bottom }]}>
@@ -1009,13 +1018,14 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       <ActionSheet
         ref={actionSheetRef}
         gestureEnabled={true}
+        isModal={Platform.OS === "ios"}
         onClose={() => setSelectedMenuItem(null)}
       >
         {selectedMenuItem && (
           <View
             style={{
               maxHeight: height - insets.top - insets.bottom - 10,
-              paddingBottom: 10,
+              paddingBottom: Platform.OS === "ios" ? 10 : 0,
               paddingHorizontal: 20,
             }}
           >
@@ -1400,11 +1410,15 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       </ActionSheet>
 
       {/* Business Hours  and Pre-Order Availability */}
-      <ActionSheet ref={businessHoursActionSheetRef} gestureEnabled={true}>
+      <ActionSheet
+        ref={businessHoursActionSheetRef}
+        gestureEnabled={true}
+        isModal={Platform.OS === "ios"}
+      >
         <View
           style={{
             maxHeight: height - insets.top - insets.bottom - 10,
-            paddingBottom: 10,
+            paddingBottom: Platform.OS === "ios" ? 10 : 0,
             paddingHorizontal: 20,
           }}
         >
@@ -1659,6 +1673,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  header: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Mulish700,
+    textAlign: "center",
+    color: AppColor.text,
   },
   loadingView: {
     flex: 1,

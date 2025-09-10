@@ -12,9 +12,13 @@ export const REMOVE_ACCOUNT = "/user";
 export const REVERSE_LOCATION =
   "https://maps.googleapis.com/maps/api/geocode/json?latlng=";
 
-// Get User Details
+// User Details
 export const GET_USER_DETAILS = "/user";
 export const UPDATE_USER_DETAILS = "/user";
+export const UPDATE_PASSWORD = (user_id) => `/user/${user_id}/change-password`;
+
+// Free Desert
+export const GET_FREE_DESERT_DETAIL = "/user/free-dessert/progress";
 
 // Favorite FoodTruck
 export const GET_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
@@ -25,7 +29,12 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
 export const GET_NEARBY_FOODTRUCK_NEW = "/public/food-truck-filter-new";
 export const GET_RECENT_FOODTRUCK = "/public/food-truck";
-export const GLOBAL_SEARCH = "/public/global-search"
+export const GLOBAL_SEARCH = "/public/global-search";
+
+// Diet
+export const GET_DIET_LIST = "/public/diet";
+export const GET_DIET_RESTRICT_LIST = "/diet/user-restrict-diet-list";
+export const UPDATE_DIET_RESTRICT_LIST = "/diet/user-restrict-diet";
 
 // FoodTruck Detail Screen
 export const GET_FOOD_TRUCK_DETAIL_BY_ID = "/public/food-truck";

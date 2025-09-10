@@ -638,18 +638,15 @@ const ExploreScreen = (props) => {
                   />
                 );
               }}
-              contentContainerStyle={[
-                {
-                  gap: 20,
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                },
-                popularFoodTrucks?.length === 0 && { flex: 1 },
-              ]}
+              contentContainerStyle={{
+                gap: 20,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+              }}
               ListEmptyComponent={() => (
                 <View
                   style={{
-                    flex: 1,
+                    width: width - 40,
                     height: 100,
                     justifyContent: "center",
                     alignItems: "center",
@@ -736,18 +733,15 @@ const ExploreScreen = (props) => {
                   />
                 );
               }}
-              contentContainerStyle={[
-                {
-                  gap: 20,
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                },
-                nearbyFoodTrucks?.length === 0 && { flex: 1 },
-              ]}
+              contentContainerStyle={{
+                gap: 20,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+              }}
               ListEmptyComponent={() => (
                 <View
                   style={{
-                    flex: 1,
+                    width: width - 40,
                     height: 100,
                     justifyContent: "center",
                     alignItems: "center",
@@ -837,18 +831,15 @@ const ExploreScreen = (props) => {
                   />
                 );
               }}
-              contentContainerStyle={[
-                {
-                  gap: 20,
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                },
-                featuredFoodTrucks?.length === 0 && { flex: 1 },
-              ]}
+              contentContainerStyle={{
+                gap: 20,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+              }}
               ListEmptyComponent={() => (
                 <View
                   style={{
-                    flex: 1,
+                    width: width - 40,
                     height: 100,
                     justifyContent: "center",
                     alignItems: "center",

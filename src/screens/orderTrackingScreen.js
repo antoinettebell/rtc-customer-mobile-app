@@ -24,6 +24,7 @@ import AppImage from "../components/AppImage";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import OrderTrackingSteps from "../components/OrderTrackingSteps";
 import { getOrderByOrderId_API } from "../apiFolder/appAPI";
+import { IconButton } from "react-native-paper";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -187,7 +188,16 @@ const OrderTrackingScreen = ({ navigation, route }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      <AppHeader headerTitle="Order Tracking" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={{ width: "20%" }}>
+            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          </View>
+          <Text style={styles.headerTitle}>{"Order Tracking"}</Text>
+          <View style={{ width: "20%" }} />
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={{
@@ -389,6 +399,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  header: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Mulish700,
+    textAlign: "center",
+    color: AppColor.text,
   },
   mapImg: {
     width: 30,

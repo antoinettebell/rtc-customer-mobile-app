@@ -6,7 +6,7 @@ import {
   View,
   Platform,
 } from "react-native";
-import { TextInput } from "react-native-paper";
+import { ActivityIndicator, TextInput } from "react-native-paper";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { CountryPicker } from "react-native-country-codes-picker";
@@ -24,6 +24,7 @@ const UpdateContactModal = ({
   onUpdate,
   onCancel,
   error,
+  loading,
 }) => (
   <Modal
     isVisible={isVisible}
@@ -88,8 +89,13 @@ const UpdateContactModal = ({
         style={styles.updateBtn}
         activeOpacity={0.7}
         onPress={onUpdate}
+        disabled={loading}
       >
-        <Text style={styles.updateBtnText}>Update</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={AppColor.white} />
+        ) : (
+          <Text style={styles.updateBtnText}>Update</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.cancelBtn}
@@ -102,7 +108,7 @@ const UpdateContactModal = ({
         show={countryPickerVisible}
         pickerButtonOnPress={onCountrySelect}
         onBackdropPress={() => setCountryPickerVisible(false)}
-        style={{   
+        style={{
           modal: { height: "70%" },
           backdrop: { backgroundColor: "rgba(0,0,0,0.1)" },
         }}

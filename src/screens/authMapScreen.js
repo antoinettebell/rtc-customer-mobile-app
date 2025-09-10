@@ -52,13 +52,12 @@ const initialRegion = {
   longitudeDelta: 0.0421,
 };
 
-const AuthMapScreen = ({ route }) => {
+const AuthMapScreen = ({ navigation, route }) => {
   const { mode = "add", hideBackBtn = false } = route.params || {
     mode: "add",
     hideBackBtn: false,
   };
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const dispatch = useDispatch();
   const searchTxtRef = useRef(null);
   const mapRef = useRef(null); // Ref for the MapView

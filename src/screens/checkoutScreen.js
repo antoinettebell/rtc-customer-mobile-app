@@ -18,7 +18,12 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Modal from "react-native-modal"; // Import react-native-modal
 import moment from "moment";
-import { Divider, ActivityIndicator, TextInput } from "react-native-paper";
+import {
+  Divider,
+  ActivityIndicator,
+  TextInput,
+  IconButton,
+} from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import {
@@ -767,7 +772,18 @@ const CheckoutScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
-      <AppHeader headerTitle="Checkout" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={{ width: "20%" }}>
+            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          </View>
+          <Text style={styles.headerTitle}>{"Checkout"}</Text>
+          <View style={{ width: "20%" }} />
+        </View>
+      </View>
+
       {dataLoading ? (
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
@@ -1226,6 +1242,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  header: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Mulish700,
+    textAlign: "center",
+    color: AppColor.text,
   },
   scrollContent: {
     paddingBottom: 30,

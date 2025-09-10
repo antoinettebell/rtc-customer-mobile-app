@@ -13,6 +13,7 @@ import {
   FlatList,
   Pressable,
   Keyboard,
+  Platform,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -490,11 +491,15 @@ const NearMeScreen = ({ navigation }) => {
         </Animated.View>
       )}
 
-      <ActionSheet ref={actionSheetRef} gestureEnabled={true}>
+      <ActionSheet
+        ref={actionSheetRef}
+        gestureEnabled={true}
+        isModal={Platform.OS === "ios"}
+      >
         <View
           style={{
             maxHeight: height - insets.top - insets.bottom - 10,
-            paddingVertical: 10,
+            paddingBottom: Platform.OS === "ios" ? 10 : 0,
             paddingHorizontal: 20,
           }}
         >
@@ -608,7 +613,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: Mulish700,
-    fontSize: 18,
+    fontSize: 20,
     color: AppColor.text,
   },
   locationContainer: {

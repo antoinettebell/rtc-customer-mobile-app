@@ -1,348 +1,71 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ScrollView,
   Platform,
-  FlatList,
-  Dimensions,
   ActivityIndicator,
   Alert,
   Linking,
+  RefreshControl,
 } from "react-native";
 import Modal from "react-native-modal";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useDispatch, useSelector } from "react-redux";
 import { onSignOut } from "../redux/slices/authSlice";
-import usePermission from "../hooks/usePermission";
-import ImagePicker from "react-native-image-crop-picker";
-import { RESULTS } from "react-native-permissions";
-import { permission } from "../helpers/permission.helper";
 import { clearUserSlice, setUser } from "../redux/slices/userSlice";
 import StatusBarManager from "../components/StatusBarManager";
-import FastImage from "@d11/react-native-fast-image";
-import Entypo from "react-native-vector-icons/Entypo";
-import Feather from "react-native-vector-icons/Feather";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import CustomProfileItem from "../components/CustomProfileItem";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LogoutModal from "../components/LogoutModal";
-import UpdateNameModal from "../components/UpdateNameModal";
-import UpdateContactModal from "../components/UpdateContactModal";
-import MediaPickerDialog from "../components/MediaPickerDialog";
 import {
   deleteAccount_API,
-  getUserDetail_API,
   removeFcmToken_API,
-  updateUserDetail_API,
-  uploadImage_API,
+  getUserDetail_API,
+  getFreeDessertDetail_API,
+  updatePassword_API,
 } from "../apiFolder/appAPI";
-import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar, Portal } from "react-native-paper";
 import { getBuildNumber, getVersion } from "react-native-device-info";
-import { fetchFavorites, clearFavorites } from "../redux/slices/favoritesSlice";
+import { clearFavorites } from "../redux/slices/favoritesSlice";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 import { clearLocationSlice } from "../redux/slices/locationSlice";
 import { checkInstallationId } from "../helpers/notification.helper";
 import { PROFILE_AVATAR } from "../utils/constants";
-import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
+import { addOrUpdateUser, updateUserKey } from "../redux/slices/userInfoSlice";
 import AppImage from "../components/AppImage";
-
-const favTruck1 = require("../assets/images/FT-Demo-01.png");
+import ChangePasswordModal from "../components/ChangePasswordModal";
 
 const HR = () => <View style={styles.HR} />;
 
 const ProfileMenuScreen = ({ navigation }) => {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
-  const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
-    permission.photos
-  );
-  const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
-    permission.camera
-  );
+  const { user } = useSelector((state) => state.userReducer);
 
   const [getDataLoading, setGetDataLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [updateNameModalVisible, setUpdateNameModalVisible] = useState(false);
-  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  const [updateContactModalVisible, setUpdateContactModalVisible] =
-    useState(false);
+  const [changePWDModalVisible, setChangePWDModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [freeDessertDetail, setFreeDessertDetail] = useState(null);
+
+  const [snackbarPWD, setSnackbarPWD] = useState({
+    visible: false,
+    message: "",
+    type: "info",
+  });
+
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
     type: "info",
   });
-  const [uploadingImage, setUploadingImage] = useState(false);
-
-  const { user } = useSelector((state) => state.userReducer);
-  // Get favorites and loading/error states from Redux
-  const {
-    favorites,
-    isLoadingFavorites, // NEW: global loading state for fetching favorites list
-    error: favoritesError,
-  } = useSelector((state) => state.favoritesReducer);
-  const insets = useSafeAreaInsets();
-
-  const [editedName, setEditedName] = useState(user?.firstName || "");
-  const [displayName, setDisplayName] = useState(user?.firstName || "");
-  const [nameError, setNameError] = useState("");
-
-  const [countryCode, setCountryCode] = useState(user?.countryCode || "+1");
-  const [mobileNumber, setMobileNumber] = useState(
-    user?.mobileNumber?.replace(/^\+\d+\s*/, "") || ""
-  );
-  const [displayContact, setDisplayContact] = useState(
-    user?.countryCode + " " + user?.mobileNumber || "+1 000 000 0000"
-  );
-  const [contactError, setContactError] = useState("");
-
-  const ordersCompleted = 0;
-  const totalOrders = 10;
-  const progress = ordersCompleted / totalOrders;
-
-  const onMediaModalClose = () => {
-    setModalVisible(false);
-  };
-
-  const handleCameraPress = async () => {
-    setModalVisible(false);
-    try {
-      const cameraStatus = await cameraPermissionStatus();
-      if (cameraStatus !== RESULTS.GRANTED) return;
-
-      setTimeout(
-        async () => {
-          await ImagePicker.openCamera({
-            mediaType: "photo",
-            width: 500,
-            height: 500,
-          })
-            .then(async (image) => {
-              try {
-                await uploadAndUpdateProfilePic({
-                  uri: image?.path,
-                  name: `${image?.path?.split("/").pop()}`, // did this because not able to get filename in ios
-                  type: image.mime,
-                });
-              } catch (error) {
-                console.log("error => ", error);
-                setSnackbar({
-                  visible: true,
-                  message: error?.message || "Failed to upload image",
-                  type: "error",
-                });
-              }
-            })
-            .catch((error) => {
-              console.log("error => ", error);
-            });
-        },
-        Platform.OS === "ios" ? 600 : 0
-      );
-    } catch (error) {
-      console.error("error => ", error);
-    }
-  };
-
-  const handleGalleryPress = async () => {
-    setModalVisible(false);
-    try {
-      const photosStatus = await photosPermissionStatus();
-      if (photosStatus !== RESULTS.GRANTED && photosStatus !== RESULTS.LIMITED)
-        return;
-
-      setTimeout(
-        async () => {
-          await ImagePicker.openPicker({
-            mediaType: "photo",
-            width: 500,
-            height: 500,
-          })
-            .then(async (image) => {
-              try {
-                const payload =
-                  Platform.OS == "ios"
-                    ? {
-                        uri: image?.sourceURL,
-                        name: image?.filename,
-                        type: image.mime,
-                      }
-                    : {
-                        uri: image?.path,
-                        name: `${image?.path?.split("/").pop()}`, // did this because in android > choose from gallary; not have filename
-                        type: image.mime,
-                      };
-                await uploadAndUpdateProfilePic(payload);
-              } catch (error) {
-                console.log("error => ", error);
-                setSnackbar({
-                  visible: true,
-                  message: error?.message || "Failed to upload image",
-                  type: "error",
-                });
-              }
-            })
-            .catch((error) => {
-              console.log("error => ", error);
-            });
-        },
-        Platform.OS === "ios" ? 600 : 0
-      );
-    } catch (error) {
-      console.error("error => ", error);
-    }
-  };
-
-  const uploadAndUpdateProfilePic = async (image) => {
-    setUploadingImage(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", {
-        uri: image?.uri,
-        name: image?.name,
-        type: image?.type,
-      });
-
-      const uploadResponse = await uploadImage_API(formData);
-
-      if (uploadResponse?.success && uploadResponse?.data?.file) {
-        const updateResponse = await updateUserDetail_API({
-          user_id: user._id,
-          payload: { profilePic: uploadResponse.data.file },
-        });
-
-        if (updateResponse?.success) {
-          setSnackbar({
-            visible: true,
-            message: "Profile picture updated successfully",
-            type: "success",
-          });
-          getUserDetailFromAPI();
-        } else {
-          throw new Error(
-            updateResponse?.message || "Failed to update profile picture"
-          );
-        }
-      } else {
-        throw new Error(uploadResponse?.message || "Failed to upload image");
-      }
-    } catch (error) {
-      console.log("Error uploading image:", error);
-      setSnackbar({
-        visible: true,
-        message: error?.message || "Failed to update profile picture",
-        type: "error",
-      });
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const validateName = (name) => {
-    if (!name || !name.trim()) {
-      return "Name cannot be empty";
-    }
-    return "";
-  };
-
-  const handleUpdateName = async () => {
-    const error = validateName(editedName);
-    setNameError(error);
-    if (error) {
-      return;
-    }
-
-    try {
-      const response = await updateUserDetail_API({
-        user_id: user._id,
-        payload: { firstName: editedName },
-      });
-
-      if (response?.success) {
-        setDisplayName(editedName);
-        setUpdateNameModalVisible(false);
-        setSnackbar({
-          visible: true,
-          message: "Name updated successfully",
-          type: "success",
-        });
-        getUserDetailFromAPI();
-      } else {
-        setSnackbar({
-          visible: true,
-          message: response?.message || "Failed to update name",
-          type: "error",
-        });
-      }
-    } catch (error) {
-      console.log("Error updating name:", error);
-      setSnackbar({
-        visible: true,
-        message: error?.message || "Failed to update name",
-        type: "error",
-      });
-    }
-  };
-
-  const validateMobileNumber = (value) => {
-    if (!value) return "Mobile number is required";
-    if (!/^\d{10}$/.test(value)) return "Enter a valid 10-digit mobile number";
-    return "";
-  };
-
-  const handleUpdateContact = async () => {
-    const error = validateMobileNumber(mobileNumber);
-    if (error) {
-      setContactError(error);
-      setSnackbar({
-        visible: true,
-        message: error,
-        type: "error",
-      });
-      return;
-    }
-
-    try {
-      const response = await updateUserDetail_API({
-        user_id: user._id,
-        payload: {
-          countryCode: countryCode,
-          mobileNumber: mobileNumber,
-        },
-      });
-
-      if (response?.success) {
-        setDisplayContact(`${countryCode} ${mobileNumber}`);
-        setUpdateContactModalVisible(false);
-        setSnackbar({
-          visible: true,
-          message: "Contact updated successfully",
-          type: "success",
-        });
-        getUserDetailFromAPI();
-      } else {
-        setSnackbar({
-          visible: true,
-          message: response?.message || "Failed to update contact",
-          type: "error",
-        });
-      }
-    } catch (error) {
-      console.log("Error updating contact:", error);
-      setSnackbar({
-        visible: true,
-        message: error?.message || "Failed to update contact",
-        type: "error",
-      });
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -359,6 +82,39 @@ const ProfileMenuScreen = ({ navigation }) => {
     dispatch(clearFoodTruckProfileSlice());
     dispatch(clearLocationSlice());
     dispatch(onSignOut());
+  };
+
+  const handleChangePassword = async ({ payload, setLoading }) => {
+    try {
+      setLoading(true);
+      const user_id = user._id;
+      const response = await updatePassword_API(payload, user_id);
+      if (response?.success) {
+        setChangePWDModalVisible(false);
+        setSnackbar({
+          visible: true,
+          message: response.message,
+          type: "success",
+        });
+
+        dispatch(
+          updateUserKey({
+            emailid: user.email,
+            keyName: "password",
+            keyValue: payload.newPassword,
+          })
+        );
+      }
+    } catch (error) {
+      console.log("Error => ", error);
+      setSnackbarPWD({
+        visible: true,
+        message: error.message,
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteAccountPress = () => {
@@ -445,174 +201,133 @@ const ProfileMenuScreen = ({ navigation }) => {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      getUserDetailFromAPI();
-      dispatch(fetchFavorites()); // Fetch favorites whenever the screen is focused
-    }, [dispatch])
-  );
-
-  const renderFavoriteTrucks = () => {
-    // Use isLoadingFavorites for the main list loading state
-    if (isLoadingFavorites) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={AppColor.primary} />
-        </View>
-      );
+  const getFreeDessertDetail = async () => {
+    try {
+      const response = await getFreeDessertDetail_API();
+      console.log("response => ", response);
+      if (response?.success && response.data) {
+        setFreeDessertDetail(response.data.progress);
+      }
+    } catch (error) {
+      console.log("error => ", error);
     }
-
-    if (favoritesError) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{favoritesError}</Text>
-        </View>
-      );
-    }
-
-    if (favorites.length === 0) {
-      return (
-        <View style={styles.noDataContainer}>
-          <Text style={styles.noDataText}>No favorite trucks yet</Text>
-        </View>
-      );
-    }
-
-    return (
-      <FlatList
-        data={favorites.slice(0, 2)}
-        keyExtractor={(item) => item._id.toString()}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          return (
-            <TouchableOpacity
-              key={item._id}
-              activeOpacity={0.7}
-              style={styles.favTruckRow}
-              onPress={() =>
-                navigation.navigate("foodTruckDetailScreen", {
-                  item: item.foodTruck,
-                })
-              }
-            >
-              <AppImage
-                uri={item.foodTruck?.logo}
-                containerStyle={styles.favTruckImg}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.favTruckName}>{item.foodTruck?.name}</Text>
-                <Text style={styles.favTruckReview}>
-                  ⭐ {item.foodTruck?.totalReviews || "0"} reviews
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-        ItemSeparatorComponent={<HR />}
-      />
-    );
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      getUserDetailFromAPI();
+      getFreeDessertDetail();
+    } catch (error) {
+      console.error("Error during refresh:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    getUserDetailFromAPI();
+    getFreeDessertDetail();
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
+
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>{"Profile"}</Text>
+      </View>
+
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Profile Header */}
-        <View style={styles.headerWrap}>
-          <Text style={styles.profileTitle}>{"Profile"}</Text>
-        </View>
-        <View style={styles.avatarWrap}>
-          <AppImage
-            uri={user.profilePic || PROFILE_AVATAR}
-            containerStyle={styles.avatarImg}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={AppColor.primary}
           />
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.cameraIcon}
-            onPress={() => setModalVisible(true)}
-            disabled={uploadingImage}
-          >
-            {uploadingImage ? (
-              <ActivityIndicator size="small" color={AppColor.white} />
-            ) : (
+        }
+      >
+        <View style={styles.profileInfoContainer}>
+          <View style={styles.avatarWrap}>
+            <AppImage
+              uri={user.profilePic || PROFILE_AVATAR}
+              containerStyle={styles.avatarImg}
+            />
+          </View>
+          <View style={styles.userInfoContainer}>
+            <View style={styles.userNameContainer}>
+              <Text style={styles.userName}>
+                {user?.firstName} {user?.lastName}
+              </Text>
+            </View>
+            <View style={styles.userContactRow}>
               <MaterialIcons
-                name="camera-alt"
-                size={18}
-                color={AppColor.white}
+                name="email"
+                size={14}
+                color="#888"
+                style={styles.contactIcon}
               />
-            )}
-          </TouchableOpacity>
-        </View>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 30,
-            marginTop: 10,
-          }}
-        >
-          <Text style={styles.userName}>{displayName}</Text>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.editIcon}
-            onPress={() => setUpdateNameModalVisible(true)}
-          >
-            <Feather name="edit" size={12} color={AppColor.white} />
-          </TouchableOpacity>
+              <Text style={styles.userEmail}>{user?.email}</Text>
+            </View>
+            <View style={styles.userContactRow}>
+              <MaterialIcons
+                name="phone"
+                size={14}
+                color="#888"
+                style={styles.contactIcon}
+              />
+              <Text style={styles.userMobile}>
+                {user?.countryCode} {user?.mobileNumber}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Main Content Goes Here */}
-        <View
-          style={{
-            paddingHorizontal: 16,
-            paddingVertical: 16,
-            backgroundColor: "#F0F1F2",
-          }}
-        >
+        <View style={styles.mainContentContainer}>
           {/* Dessert Progress */}
           <LinearGradient
             colors={[AppColor.primary, AppColor.primaryLight]}
-            style={{ borderRadius: 10 }}
+            style={styles.gradientContainer}
           >
             <View style={styles.dessertCard}>
               <Text style={styles.dessertTitle}>{"Get Free Dessert!"}</Text>
-              <View
-                style={{
-                  alignItems: "center",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
+              <View style={styles.progressInfoRow}>
                 <Text style={styles.dessertSub}>
-                  {ordersCompleted}/{totalOrders} Orders completed
+                  {freeDessertDetail?.ordersDoneInCurrentCycle || 0}/
+                  {freeDessertDetail?.freeDessertOrderCount || 0} Orders
+                  completed
                 </Text>
-                <Text style={styles.dessertSub}>{`${progress * 100}%`}</Text>
+                <Text
+                  style={styles.dessertSub}
+                >{`${((freeDessertDetail?.ordersDoneInCurrentCycle || 0) / (freeDessertDetail?.freeDessertOrderCount || 0)) * 100}%`}</Text>
               </View>
               <View style={styles.progressBarBg}>
                 <View
                   style={[
                     styles.progressBarFill,
-                    { width: `${progress * 100}%` },
+                    {
+                      width: `${((freeDessertDetail?.ordersDoneInCurrentCycle || 0) / (freeDessertDetail?.freeDessertOrderCount || 0)) * 100}%`,
+                    },
                   ]}
                 />
               </View>
               <Text
                 style={styles.dessertRemain}
-              >{`${totalOrders - ordersCompleted} more orders remaining`}</Text>
+              >{`${freeDessertDetail?.ordersRemainingInCurrentCycle || 0} more orders remaining`}</Text>
             </View>
           </LinearGradient>
 
-          {/* Contact Info */}
+          {/* Menu Items */}
           <View style={styles.infoCard}>
             <CustomProfileItem
-              imageUri={require("../assets/images/phone.png")}
-              label={displayContact}
+              imageUri={require("../assets/images/yourProfileIcon.png")}
+              label={"My Profile"}
               rightIcon={true}
-              onPress={() => setUpdateContactModalVisible(true)}
+              onPress={() => navigation.navigate("userProfileScreen")}
             />
             <HR />
             <CustomProfileItem
@@ -621,24 +336,30 @@ const ProfileMenuScreen = ({ navigation }) => {
               rightIcon={true}
               onPress={() => navigation.navigate("addressScreen")}
             />
-          </View>
-
-          {/* Favorite Food Trucks */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>{"Favorite Trucks"}</Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
+            <HR />
+            <CustomProfileItem
+              imageUri={require("../assets/images/favourite.png")}
+              label="Favorite Trucks"
+              rightIcon={true}
               onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}
-            >
-              <Text style={styles.seeAll}>{"See All"}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.favTrucksCard}>{renderFavoriteTrucks()}</View>
-
-          {/* Menu Items */}
-          <View style={styles.infoCard}>
+            />
+            <HR />
+            <CustomProfileItem
+              imageUri={require("../assets/images/diet.png")}
+              label="Diet Restriction"
+              rightIcon={true}
+              onPress={() => navigation.navigate("dietRestrictionScreen")}
+            />
+            <HR />
             <CustomProfileItem
               imageUri={require("../assets/images/lock.png")}
+              label="Change Password"
+              rightIcon={true}
+              onPress={() => setChangePWDModalVisible(true)}
+            />
+            <HR />
+            <CustomProfileItem
+              imageUri={require("../assets/images/support.png")}
               label="Privacy Policy"
               rightIcon={true}
               onPress={() => navigation.navigate("appPrivacyPolicy")}
@@ -668,62 +389,19 @@ const ProfileMenuScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View
-          style={{
-            alignItems: "center",
-            justifyContent: "center",
-            marginVertical: 8,
-          }}
-        >
+        <View style={styles.versionContainer}>
           <Text
-            style={{
-              fontSize: 14,
-              fontFamily: Mulish400,
-              color: AppColor.text,
-            }}
+            style={styles.versionText}
           >{`v${getVersion()} (${getBuildNumber()})`}</Text>
         </View>
 
-        {/* Media Picker Modal */}
-        <MediaPickerDialog
-          isVisible={modalVisible}
-          onCameraPress={() => handleCameraPress()}
-          onGalleryPress={() => handleGalleryPress()}
-          onClosePress={onMediaModalClose}
-        />
-
-        {/* Update Name Modal */}
-        <UpdateNameModal
-          isVisible={updateNameModalVisible}
-          value={editedName}
-          onChangeText={(text) => {
-            setEditedName(text);
-            setNameError("");
-          }}
-          onUpdate={handleUpdateName}
-          onCancel={() => {
-            setUpdateNameModalVisible(false);
-            setNameError("");
-          }}
-          error={nameError}
-        />
-
-        {/* Update PhoneNo Modal */}
-        <UpdateContactModal
-          isVisible={updateContactModalVisible}
-          countryCode={countryCode}
-          onCountryCodePress={() => setCountryPickerVisible(true)}
-          countryPickerVisible={countryPickerVisible}
-          setCountryPickerVisible={setCountryPickerVisible}
-          onCountrySelect={(item) => {
-            setCountryCode(item.dial_code);
-            setCountryPickerVisible(false);
-          }}
-          mobileNumber={mobileNumber}
-          onMobileNumberChange={setMobileNumber}
-          onUpdate={handleUpdateContact}
-          onCancel={() => setUpdateContactModalVisible(false)}
-          error={contactError}
+        {/* Change Password Modal */}
+        <ChangePasswordModal
+          isModalVisible={changePWDModalVisible}
+          snackbarPWD={snackbarPWD}
+          setSnackbarPWD={setSnackbarPWD}
+          onUpdatePress={handleChangePassword}
+          onCancelPress={() => setChangePWDModalVisible(false)}
         />
 
         {/* Logout Modal */}
@@ -740,13 +418,7 @@ const ProfileMenuScreen = ({ navigation }) => {
           animationIn="fadeIn"
           animationOut="fadeOut"
         >
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
+          <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={AppColor.white} />
           </View>
         </Modal>
@@ -780,61 +452,89 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  headerWrap: {
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontFamily: Mulish700,
+    fontSize: 20,
+    color: AppColor.black,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  profileInfoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  profileTitle: {
-    fontFamily: Mulish700,
-    fontSize: 18,
-    color: AppColor.text,
-    letterSpacing: 1.5,
+    marginBottom: 30,
+    marginTop: 30,
+    paddingHorizontal: 16,
   },
   avatarWrap: {
-    alignItems: "center",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: AppColor.grey_3,
+    alignSelf: "center",
+    overflow: "hidden",
   },
   avatarImg: {
-    width: 95,
-    height: 95,
-    borderRadius: 47.5,
-    borderWidth: 1,
-    borderColor: AppColor.primary,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
-  cameraIcon: {
-    width: 24,
-    height: 24,
-    borderWidth: 1,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderColor: AppColor.primary,
-    backgroundColor: AppColor.primary,
-    position: "absolute",
-    bottom: 0,
-    right: Dimensions.get("window").width / 2 - 45,
+  userInfoContainer: {
+    marginLeft: 15,
+    flex: 1,
+    gap: 5,
   },
-  editIcon: {
-    height: 18,
-    width: 18,
+  userNameContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 4,
-    backgroundColor: AppColor.primary,
+  },
+  userContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  contactIcon: {
+    marginRight: 5,
   },
   userName: {
     fontFamily: Mulish700,
-    fontSize: 18,
-    color: AppColor.text,
-    textAlign: "center",
-    marginHorizontal: 8,
+    fontSize: 20,
+    color: AppColor.black,
+    marginRight: 5,
+  },
+  userEmail: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.grey_1,
+  },
+  userMobile: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.grey_1,
+  },
+  mainContentContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: "#F0F1F2",
+  },
+  gradientContainer: {
+    borderRadius: 10,
   },
   dessertCard: {
     paddingVertical: 20,
     paddingHorizontal: 15,
+  },
+  progressInfoRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   dessertTitle: {
     fontFamily: Mulish700,
@@ -888,91 +588,24 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  sectionHeaderRow: {
-    flexDirection: "row",
+
+  versionContainer: {
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
-    marginTop: 20,
+    justifyContent: "center",
+    marginVertical: 8,
   },
-  sectionTitle: {
-    fontFamily: Mulish700,
-    fontSize: 15,
-    color: AppColor.text,
-    letterSpacing: 1,
-  },
-  seeAll: {
-    fontFamily: Mulish700,
-    fontSize: 12,
-    color: AppColor.textHighlighter,
-  },
-  favTrucksCard: {
-    borderWidth: 1,
-    borderColor: AppColor.borderColor,
-    borderRadius: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 16,
-    backgroundColor: AppColor.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  favTruckRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-  },
-  favTruckImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-  },
-  favTruckName: {
-    fontFamily: Mulish700,
+  versionText: {
     fontSize: 14,
-    color: AppColor.text,
-    marginBottom: 8,
-  },
-  favTruckReview: {
     fontFamily: Mulish400,
-    fontSize: 12,
-    color: AppColor.textHighlighter,
+    color: AppColor.text,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   HR: {
     height: 1,
     backgroundColor: "#E5E5EA",
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: "center",
-  },
-  errorContainer: {
-    padding: 20,
-    alignItems: "center",
-  },
-  errorText: {
-    color: AppColor.snackbarError,
-    fontFamily: Mulish400,
-    fontSize: 14,
-  },
-  noDataContainer: {
-    padding: 20,
-    alignItems: "center",
-  },
-  noDataText: {
-    color: AppColor.textHighlighter,
-    fontFamily: Mulish400,
-    fontSize: 14,
   },
 });

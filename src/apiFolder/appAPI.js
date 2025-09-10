@@ -36,6 +36,11 @@ import {
   GET_TAX_OF_LOCATION,
   REMOVE_ACCOUNT,
   GLOBAL_SEARCH,
+  GET_FREE_DESERT_DETAIL,
+  UPDATE_PASSWORD,
+  GET_DIET_LIST,
+  GET_DIET_RESTRICT_LIST,
+  UPDATE_DIET_RESTRICT_LIST,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -96,6 +101,17 @@ export const updateUserDetail_API = async ({ payload, user_id }) => {
   try {
     const URL = `${UPDATE_USER_DETAILS}/${user_id}`;
     const response = await apiClient.put(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Update Password API
+export const updatePassword_API = async (payload, user_id) => {
+  try {
+    const URL = UPDATE_PASSWORD(user_id);
+    const response = await apiClient.put(URL, payload);
     return response?.data;
   } catch (error) {
     throw error?.response?.data;
@@ -295,9 +311,7 @@ export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
   try {
     const { authToken } = store.getState().userReducer;
 
-    const URL = authToken
-      ? GET_FOOD_TRUCK_MENU_BY_ID(foodTruck_id)
-      : GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
+    const URL = GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
     const response = await apiClient.get(URL, {
       skipToken: authToken ? false : true,
     });
@@ -537,6 +551,51 @@ export const getGlobalSearchResult_API = async (params = {}) => {
     const response = await apiClient.get(URL, {
       skipToken: authToken ? false : true,
     });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Fetch Free Dessert Detail
+export const getFreeDessertDetail_API = async () => {
+  try {
+    const URL = `${GET_FREE_DESERT_DETAIL}`;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Diet List
+export const getDietList_API = async () => {
+  try {
+    const URL = `${GET_DIET_LIST}?limit=1000`;
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Diet Restrict List
+export const getDietRestrictList_API = async () => {
+  try {
+    const URL = `${GET_DIET_RESTRICT_LIST}`;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data;
+  }
+};
+
+// Diet Restrict List Update
+export const updateDietRestrictList_API = async (payload) => {
+  try {
+    console.log("Payload => ", payload);
+    const URL = `${UPDATE_DIET_RESTRICT_LIST}`;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data;

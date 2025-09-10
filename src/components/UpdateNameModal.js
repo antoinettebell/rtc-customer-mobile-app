@@ -6,18 +6,22 @@ import {
   View,
   Platform,
 } from "react-native";
-import { TextInput, HelperText } from "react-native-paper";
+import { TextInput, HelperText, ActivityIndicator } from "react-native-paper";
 import Modal from "react-native-modal";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Mulish700, Mulish400, Mulish500 } from "../utils/theme";
 
 const UpdateNameModal = ({
   isVisible,
-  value,
-  onChangeText,
+  firstName,
+  lastName,
+  onFirstNameChange,
+  onLastNameChange,
   onUpdate,
   onCancel,
-  error,
+  firstNameError,
+  lastNameError,
+  loading,
 }) => (
   <Modal
     isVisible={isVisible}
@@ -39,34 +43,70 @@ const UpdateNameModal = ({
       </TouchableOpacity>
 
       <Text style={styles.modalTitle}>{"Update Name"}</Text>
-      <Text style={styles.inputLabel}>{"Enter your name:"}</Text>
+      <Text style={styles.inputLabel}>{"First Name:"}</Text>
       <TextInput
         dense
-        value={value}
-        onChangeText={onChangeText}
+        value={firstName}
+        onChangeText={onFirstNameChange}
         style={styles.input}
         contentStyle={styles.inputText}
         placeholder=""
         placeholderTextColor={AppColor.placeholderTextColor}
         mode="outlined"
-        outlineColor={error ? AppColor.red : AppColor.border}
+        outlineColor={firstNameError ? AppColor.red : AppColor.border}
+        activeOutlineColor={AppColor.primary}
+        outlineStyle={{ borderRadius: 8 }}
+        returnKeyLabel="next"
+        returnKeyType="next"
+        theme={{ colors: { onSurfaceVariant: "#777" } }}
+      />
+      {firstNameError ? (
+        <HelperText
+          type="error"
+          visible={!!firstNameError}
+          style={styles.helper}
+        >
+          {firstNameError}
+        </HelperText>
+      ) : null}
+
+      <Text style={[styles.inputLabel, { marginTop: 10 }]}>{"Last Name:"}</Text>
+      <TextInput
+        dense
+        value={lastName}
+        onChangeText={onLastNameChange}
+        style={styles.input}
+        contentStyle={styles.inputText}
+        placeholder=""
+        placeholderTextColor={AppColor.placeholderTextColor}
+        mode="outlined"
+        outlineColor={lastNameError ? AppColor.red : AppColor.border}
         activeOutlineColor={AppColor.primary}
         outlineStyle={{ borderRadius: 8 }}
         returnKeyLabel="done"
         returnKeyType="done"
         theme={{ colors: { onSurfaceVariant: "#777" } }}
       />
-      {error ? (
-        <HelperText type="error" visible={!!error} style={styles.helper}>
-          {error}
+      {lastNameError ? (
+        <HelperText
+          type="error"
+          visible={!!lastNameError}
+          style={styles.helper}
+        >
+          {lastNameError}
         </HelperText>
       ) : null}
       <TouchableOpacity
         style={styles.updateBtn}
         activeOpacity={0.7}
         onPress={onUpdate}
+        disabled={loading}
       >
-        <Text style={styles.updateBtnText}>Update</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={AppColor.white} />
+        ) : (
+          <Text style={styles.updateBtnText}>Update</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.cancelBtn}

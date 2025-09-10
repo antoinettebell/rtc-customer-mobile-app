@@ -15,6 +15,7 @@ import {
 } from "./src/helpers/notification.helper";
 import { getMessaging } from "@react-native-firebase/messaging";
 import notifee, { EventType } from "@notifee/react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const processOnNotification = async (notification) => {
   // Android: when user clicked on backgroud state notification
@@ -54,7 +55,9 @@ const RnApp = () => (
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
       <PaperProvider theme={DefaultTheme}>
-        <App />
+        <GestureHandlerRootView>
+          <App />
+        </GestureHandlerRootView>
       </PaperProvider>
     </PersistGate>
   </Provider>

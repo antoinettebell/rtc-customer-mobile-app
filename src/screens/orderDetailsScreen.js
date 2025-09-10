@@ -31,7 +31,7 @@ import {
 import moment from "moment";
 import AppImage from "../components/AppImage";
 import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
-import { Divider } from "react-native-paper";
+import { Divider, IconButton } from "react-native-paper";
 
 const OrderDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -81,7 +81,16 @@ const OrderDetailsScreen = ({ navigation, route }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      <AppHeader headerTitle="Order Details" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={{ width: "20%" }}>
+            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          </View>
+          <Text style={styles.headerTitle}>{"Order Details"}</Text>
+          <View style={{ width: "20%" }} />
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollViewContainer}
@@ -439,6 +448,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  header: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Mulish700,
+    textAlign: "center",
+    color: AppColor.text,
   },
   centerContainer: {
     justifyContent: "center",
