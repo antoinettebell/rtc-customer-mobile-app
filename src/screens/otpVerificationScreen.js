@@ -354,8 +354,8 @@ const OtpVerificationScreen = ({ route }) => {
       <Modal
         isVisible={isModalVisible}
         backdropOpacity={0.5}
-        animationIn="zoomIn"
-        animationOut="zoomOut"
+        useNativeDriver={true}
+        useNativeDriverForBackdrop={true}
       >
         <View style={styles.modalContainer}>
           <Octicons

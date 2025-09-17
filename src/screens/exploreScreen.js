@@ -859,65 +859,6 @@ const ExploreScreen = (props) => {
             />
           </View>
         </View>
-
-        {/* Location Selection Modal */}
-        <Modal
-          isVisible={isLocationModalVisible}
-          onSwipeComplete={handleCancelSelection}
-          swipeDirection={["down"]}
-          onBackdropPress={handleCancelSelection}
-          style={styles.locationModal}
-          animationIn="slideInUp"
-          animationOut="slideOutDown"
-          backdropOpacity={0.4}
-          statusBarTranslucent={true}
-        >
-          <View
-            style={[
-              styles.locationModalContainer,
-              { paddingBottom: insets.bottom || 10 },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderText}>Select a Location</Text>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  setLocationModalVisible(false);
-                  navigation.navigate("authMapScreen", { mode: "add" });
-                }}
-              >
-                <MaterialIcons name="add" size={28} color={AppColor.primary} />
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1 }}>
-              <FlatList
-                data={allLocations}
-                keyExtractor={(item) => item._id}
-                renderItem={renderLocationItem}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-
-            <View style={styles.bottomButtonContainer}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelSelection}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.modalButton, styles.selectButton]}
-                onPress={handleConfirmSelection}
-              >
-                <Text style={styles.selectButtonText}>Select Location</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
       </Animated.ScrollView>
 
       {/* Guest User Prompt */}
@@ -1072,6 +1013,75 @@ const ExploreScreen = (props) => {
           />
         </View>
       )}
+
+      <View
+        style={{
+          position: "absolute",
+          inset: 0,
+          flex: 1,
+        }}
+      >
+        {/* Location Selection Modal */}
+        <Modal
+          isVisible={isLocationModalVisible}
+          // onSwipeComplete={handleCancelSelection}
+          // swipeDirection={["down"]}
+          onBackdropPress={handleCancelSelection}
+          style={styles.locationModal}
+          // animationIn="slideInUp"
+          // animationOut="slideOutDown"
+          backdropOpacity={0.4}
+          statusBarTranslucent={true}
+          useNativeDriver={true}
+          useNativeDriverForBackdrop={true}
+        >
+          <View
+            style={[
+              styles.locationModalContainer,
+              { paddingBottom: insets.bottom || 10 },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalHeaderText}>Select a Location</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  setLocationModalVisible(false);
+                  navigation.navigate("authMapScreen", { mode: "add" });
+                }}
+              >
+                <MaterialIcons name="add" size={28} color={AppColor.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1 }}>
+              <FlatList
+                data={allLocations}
+                keyExtractor={(item) => item._id}
+                renderItem={renderLocationItem}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+
+            <View style={styles.bottomButtonContainer}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancelSelection}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.modalButton, styles.selectButton]}
+                onPress={handleConfirmSelection}
+              >
+                <Text style={styles.selectButtonText}>Select Location</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </View>
   );
 };

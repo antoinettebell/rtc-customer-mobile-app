@@ -415,8 +415,8 @@ const ProfileMenuScreen = ({ navigation }) => {
         <Modal
           isVisible={deleteAccountLoading}
           backdropOpacity={0.5}
-          animationIn="fadeIn"
-          animationOut="fadeOut"
+          useNativeDriver={true}
+          useNativeDriverForBackdrop={true}
         >
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={AppColor.white} />

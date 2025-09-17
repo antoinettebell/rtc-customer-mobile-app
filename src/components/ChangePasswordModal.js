@@ -98,9 +98,8 @@ const ChangePasswordModal = ({
     <Modal
       isVisible={isModalVisible}
       backdropOpacity={0.5}
-      animationIn="zoomIn"
-      animationOut="zoomOut"
-      backdropTransitionOutTiming={0.5}
+      useNativeDriver={true}
+      useNativeDriverForBackdrop={true}
     >
       <View style={styles.modalContainer}>
         <TouchableOpacity

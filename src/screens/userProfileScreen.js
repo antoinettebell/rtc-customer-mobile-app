@@ -149,9 +149,14 @@ const UserProfileScreen = ({ navigation }) => {
   const handleGalleryPress = async () => {
     setMediaModalVisible(false);
     try {
-      const photosStatus = await photosPermissionStatus();
-      if (photosStatus !== RESULTS.GRANTED && photosStatus !== RESULTS.LIMITED)
-        return;
+      if (Platform.OS === "ios") {
+        const photosStatus = await photosPermissionStatus();
+        if (
+          photosStatus !== RESULTS.GRANTED &&
+          photosStatus !== RESULTS.LIMITED
+        )
+          return;
+      }
 
       setTimeout(
         async () => {
