@@ -62,6 +62,7 @@ const SignupScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
   const [agreed, setAgreed] = useState(true);
+  const [offGrid, setOffGrid] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -157,6 +158,7 @@ const SignupScreen = ({ navigation }) => {
       formData.append("password", password);
       formData.append("countryCode", countryCode);
       formData.append("mobileNumber", mobileNumber);
+      formData.append("subscribedForOffGrid", offGrid);
 
       if (selectedPhoto) {
         formData.append("file", {
@@ -669,17 +671,28 @@ const SignupScreen = ({ navigation }) => {
                 </HelperText>
               ) : null}
 
-              <View style={styles.signInContainer}>
-                <Text style={styles.signInText}>
-                  {"Already have an account? "}{" "}
-                </Text>
+              {/* off-the-grid communication subscribe */}
+              <View style={styles.termsContainer}>
                 <TouchableOpacity
-                  onPress={handleSigninPress}
                   activeOpacity={0.7}
+                  onPress={() => setOffGrid(!offGrid)}
+                  style={styles.iconBox}
                 >
-                  <Text style={styles.signInLink}>{"Sign In"}</Text>
+                  <Ionicons
+                    name={offGrid ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={AppColor.primary}
+                  />
                 </TouchableOpacity>
+
+                <Text style={styles.termsText}>
+                  {
+                    "Would you like to join our nonprofit Underground of Wisdom Lane, an off-the-grid communication system?"
+                  }
+                </Text>
               </View>
+
+              {/* Signup btn */}
               <TouchableOpacity
                 onPress={handleSignUp}
                 activeOpacity={0.7}
@@ -692,6 +705,19 @@ const SignupScreen = ({ navigation }) => {
                   <Text style={styles.buttonLabel}>{"Signup"}</Text>
                 )}
               </TouchableOpacity>
+
+              {/* Signin btn */}
+              <View style={styles.signInContainer}>
+                <Text style={styles.signInText}>
+                  {"Already have an account? "}{" "}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleSigninPress}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.signInLink}>{"Sign In"}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -811,7 +837,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: AppColor.primary,
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 10,
     ...Platform.select({
       ios: {
         shadowColor: AppColor.black,
