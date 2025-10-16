@@ -11,17 +11,15 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImageCarousel from "../components/ImageCarousel";
-import AppHeader from "../components/AppHeader";
 import MapView, { Marker } from "react-native-maps";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleFavorite, fetchFavorites } from "../redux/slices/favoritesSlice";
@@ -39,11 +37,11 @@ import instagramIcon from "../assets/images/instagram.png";
 import twitterIcon from "../assets/images/twitter.png";
 import webIcon from "../assets/images/global.png";
 import FastImage from "@d11/react-native-fast-image";
-import moment from "moment";
-import FoodTruckAvailabilityModal from "../components/FoodTruckAvailabilityModal";
-import ActionSheet from "react-native-actions-sheet";
+import BusinessHoursModal from "../components/BusinessHoursModal";
+import DishItemDetailsModal from "../components/DishItemDetailsModal";
+import DishItemComponent from "../components/DishItemComponent";
 import AppImage from "../components/AppImage";
-import { Divider, IconButton, SegmentedButtons } from "react-native-paper";
+import { Divider, IconButton } from "react-native-paper";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -52,7 +50,7 @@ const socialMediaIcons = {
   WEB: webIcon,
 };
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 const formatCuisines = (cuisines, maxDisplay = 2) => {
   if (!cuisines?.length) return "";
@@ -101,52 +99,6 @@ const getLocationInfo = (currentLocation, locations) => {
   };
 };
 
-const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-const getTodaysAvailability = (availability) => {
-  if (!availability?.length) return "Closed Today";
-  const today = days[new Date().getDay()];
-
-  const todaysSlots = availability.filter(
-    (slot) => slot.day === today && slot.available
-  );
-
-  if (!todaysSlots.length) return "Closed Today";
-
-  const formattedSlots = todaysSlots.map((slot) => {
-    const start = formatTime(slot.startTime);
-    const end = formatTime(slot.endTime);
-    return `${start} - ${end}`;
-  });
-
-  return formattedSlots.join(", ");
-};
-
-const formatTime = (timeStr) => {
-  if (!timeStr || timeStr === "00:00") return "12:00 AM";
-  return moment(timeStr, "HH:mm").format("h:mm A");
-};
-
-const getCurrentStatus = (availability) => {
-  const todaysHours = getTodaysAvailability(availability);
-  if (todaysHours === "Closed Today") return "Closed Now";
-
-  const now = moment();
-  const isOpen = availability.some((slot) => {
-    if (slot?.day !== days[new Date().getDay()] || !slot.available)
-      return false;
-
-    const start = moment(slot.startTime, "HH:mm");
-    const end = moment(
-      slot.endTime === "00:00" ? "23:59" : slot.endTime,
-      "HH:mm"
-    );
-    return now.isBetween(start, end);
-  });
-
-  return isOpen ? "Open Now" : "Closed Now";
-};
-
 const FoodTruckDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -163,7 +115,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [menuTabs, setMenuTabs] = useState([]);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
-  const [segment, setSegment] = useState("business");
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
   // Get favorites and loading state specific to favorite actions from Redux
@@ -221,75 +172,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         menuItems.sort(
           (a, b) => (b.popularDish ? 1 : 0) - (a.popularDish ? 1 : 0)
         );
-        // response.data.menuList = [
-        //   {
-        //         "_id": "688789ed1a838d68e81b3815",
-        //         "name": "Test Discount",
-        //         "description": "10 price\n\n2% discount",
-        //         "imgUrls": [
-        //             "https://ft-media-storage.s3.us-east-1.amazonaws.com/72a0edcf-3b08-4c27-a5ce-7b29640d1d5a.JPG",
-        //             "https://ft-media-storage.s3.us-east-1.amazonaws.com/1979164d-e8cb-4a25-8f6b-907c349cd779.JPG",
-        //             "https://ft-media-storage.s3.us-east-1.amazonaws.com/cc43b321-061e-4347-99a2-cc041705079b.JPG",
-        //             "https://ft-media-storage.s3.us-east-1.amazonaws.com/4e9c89ae-476f-42b2-ab47-2cb4a866630c.JPG"
-        //         ],
-        //         "strikePrice": 19,
-        //         "discountType": "PERCENTAGE",
-        //         "discount": 90,
-        //         "price": 1.8999999999999986,
-        //         "minQty": 1,
-        //         "maxQty": 10,
-        //         "available": true,
-        //         "itemType": "INDIVIDUAL",
-        //         "meatWellness": "Chicken wellness",
-        //         "categoryId": "688726fbb009955ccf2c311f",
-        //         "meatId": "687b9791a4d17e420060e52b",
-        //         "preparationTime": 10,
-        //         "allowCustomize": false,
-        //         "newDish": false,
-        //         "popularDish": false,
-        //         "diet": [
-        //             {
-        //                 "_id": "683de39944f5ea8f91a26d0b",
-        //                 "name": "Pescatarian",
-        //                 "deletedAt": null,
-        //                 "createdAt": "2025-06-02T17:47:05.519Z",
-        //                 "updatedAt": "2025-06-02T17:47:05.519Z",
-        //                 "__v": 0
-        //             },
-        //             {
-        //                 "_id": "683de38a44f5ea8f91a26cfd",
-        //                 "name": "Non-Veg",
-        //                 "deletedAt": null,
-        //                 "createdAt": "2025-06-02T17:46:50.589Z",
-        //                 "updatedAt": "2025-06-02T17:46:50.589Z",
-        //                 "__v": 0
-        //             }
-        //         ],
-        //         "subItem": [],
-        //         "userId": "6831bc7a7115c023f983d442",
-        //         "deletedAt": null,
-        //         "createdAt": "2025-07-28T14:32:13.447Z",
-        //         "updatedAt": "2025-07-30T19:08:32.729Z",
-        //         "__v": 0,
-        //         "category": {
-        //             "_id": "688726fbb009955ccf2c311f",
-        //             "name": "Popular item",
-        //             "userId": "6831bc7a7115c023f983d442",
-        //             "deletedAt": null,
-        //             "createdAt": "2025-07-28T07:30:03.684Z",
-        //             "updatedAt": "2025-07-28T07:30:03.684Z",
-        //             "__v": 0
-        //         },
-        //         "meat": {
-        //             "_id": "687b9791a4d17e420060e52b",
-        //             "name": "Chicken",
-        //             "deletedAt": null,
-        //             "createdAt": "2025-07-19T13:03:13.760Z",
-        //             "updatedAt": "2025-07-19T13:03:13.760Z",
-        //             "__v": 0
-        //         }
-        //     }
-        // ]
         processMenuItems(menuItems);
       }
     } catch (error) {
@@ -325,9 +207,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     foodTruckDetail?.locations
   );
 
-  const todaysHours = getTodaysAvailability(foodTruckDetail?.availability);
-
-  // const currentStatus = getCurrentStatus(foodTruckDetail?.availability);
   const currentStatus = foodTruckDetail?.currentLocation
     ? "Open Now"
     : "Closed Now";
@@ -449,29 +328,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  const getFutureDateForDay = (dayOfWeek) => {
-    const today = moment();
-    const dayMap = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
-    const targetDayIndex = dayMap[dayOfWeek.toLowerCase()];
-    const currentDayIndex = today.day();
-
-    let daysToAdd = targetDayIndex - currentDayIndex;
-
-    if (daysToAdd < 0) {
-      daysToAdd += 7;
-    }
-
-    return today.add(daysToAdd, "days");
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
@@ -479,11 +335,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View style={{ width: "20%" }}>
+          <View style={styles.headerSide}>
             <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           </View>
           <Text style={styles.headerTitle}>{"Details"}</Text>
-          <View style={{ width: "20%" }} />
+          <View style={styles.headerSide} />
         </View>
       </View>
 
@@ -649,15 +505,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             <View style={styles.infoRowsWrap}>
               {/* Status Row */}
               <View style={styles.infoRowContainer}>
-                <View style={[styles.infoRowContainer, { flex: 1 }]}>
+                <View style={[styles.infoRowContainer, styles.flexOne]}>
                   <View style={styles.infoRowLeft}>
-                    <View
-                      style={{
-                        width: 24,
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
+                    <View style={styles.iconContainer}>
                       <MaterialIcons
                         name="event-available"
                         size={20}
@@ -672,24 +522,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     <Text
                       style={[
                         styles.infoRowValue,
-                        {
-                          textAlign: "right",
-                          backgroundColor:
-                            currentStatus === "Open Now"
-                              ? AppColor.lightGreenBG
-                              : currentStatus === "Closed Now"
-                                ? AppColor.lightRedBG
-                                : "transparent",
-                          color:
-                            currentStatus === "Open Now"
-                              ? AppColor.snackbarSuccess
-                              : currentStatus === "Closed Now"
-                                ? AppColor.snackbarError
-                                : AppColor.black,
-                          padding: 6,
-                          borderRadius: 4,
-                          marginRight: 0,
-                        },
+                        styles.statusText,
+                        currentStatus === "Open Now"
+                          ? styles.openStatusText
+                          : styles.closedStatusText,
                       ]}
                     >
                       {currentStatus}
@@ -700,15 +536,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
               {/* Location Row */}
               <View style={styles.infoRowContainer}>
-                <View style={[styles.infoRowContainer, { flex: 1 }]}>
+                <View style={[styles.infoRowContainer, styles.flexOne]}>
                   <View style={styles.infoRowLeft}>
-                    <View
-                      style={{
-                        width: 24,
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
+                    <View style={styles.iconContainer}>
                       <FontAwesome6
                         name="location-dot"
                         size={20}
@@ -720,31 +550,21 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                 </View>
                 <View style={styles.infoRowRight}>
                   <View style={styles.infoRowValueContainer}>
-                    <Text
-                      style={[
-                        styles.infoRowValue,
-                        {
-                          textAlign: "right",
-                          backgroundColor: "transparent",
-                          color: AppColor.black,
-                          padding: 0,
-                          borderRadius: 0,
-                          marginRight: 0,
-                        },
-                      ]}
-                    >
+                    <Text style={[styles.infoRowValue, styles.locationTitle]}>
                       {currentLocationInfo?.title || "Not Available Now"}
                     </Text>
                   </View>
                   {currentLocationInfo?.address && (
-                    <Text style={[styles.infoRowValue, { textAlign: "right" }]}>
+                    <Text
+                      style={[styles.infoRowValue, styles.rightAlignedText]}
+                    >
                       {currentLocationInfo?.address || ""}
                     </Text>
                   )}
                 </View>
               </View>
 
-              <Divider style={{ marginVertical: 8 }} />
+              <Divider style={styles.divider} />
 
               {/* Business Hours Row */}
               <View style={styles.infoRowContainer}>
@@ -764,10 +584,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                       />
                     </View>
                     <Text
-                      style={[
-                        styles.infoRowTitle,
-                        { flex: 1, flexWrap: "wrap" },
-                      ]}
+                      style={[styles.infoRowTitle, styles.flexWrapTitle]}
                       numberOfLines={2}
                     >
                       {"Business Hours and Pre-Order Availability"}
@@ -776,7 +593,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                       icon="information"
                       size={24}
                       color={AppColor.black}
-                      style={{ margin: 0 }}
+                      style={styles.infoIconButton}
                       onPress={() =>
                         businessHoursActionSheetRef.current?.show()
                       }
@@ -784,12 +601,6 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   </View>
                 </View>
               </View>
-
-              {/* <FoodTruckAvailabilityModal
-                visible={isScheduleVisible}
-                onClose={() => setIsScheduleVisible(false)}
-                availability={foodTruckDetail?.availability || []}
-              /> */}
             </View>
 
             {/* Dynamic Tabs (swipeable & tappable) - Always displayed */}
@@ -852,123 +663,20 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                         tab?.items?.map((menu, index) => {
                           const quantity = getItemQuantity(menu._id);
                           const isLastItem = index === tab.items.length - 1;
-                          const isDisabled = !menu.available;
 
                           return (
-                            <View
+                            <DishItemComponent
                               key={menu._id}
-                              style={[
-                                styles.menuItemRow,
-                                !isLastItem && styles.menuItemBorder,
-                                isDisabled && styles.disabledMenuItem,
-                              ]}
-                            >
-                              <View>
-                                <AppImage
-                                  uri={menu.imgUrls[0]}
-                                  containerStyle={styles.menuImg}
-                                />
-                                {menu?.newDish ? (
-                                  <FastImage
-                                    source={require("../assets/images/new.png")}
-                                    style={styles.newDishBadge}
-                                  />
-                                ) : null}
-                              </View>
-                              <Pressable
-                                onPress={() => {
-                                  console.log("menu item => ", menu);
-                                  setSelectedMenuItem(menu);
-                                  actionSheetRef.current?.show();
-                                }}
-                                style={styles.menuDetails}
-                                disabled={isDisabled}
-                              >
-                                <Text
-                                  style={[
-                                    styles.menuTitle,
-                                    isDisabled && styles.disabledText,
-                                  ]}
-                                >
-                                  {menu.name}
-                                </Text>
-                                <Text
-                                  numberOfLines={2}
-                                  style={[
-                                    styles.menuDesc,
-                                    isDisabled && styles.disabledText,
-                                  ]}
-                                >
-                                  {menu.description}
-                                </Text>
-                                <View style={styles.priceContainer}>
-                                  <Text style={styles.discountedPrice}>
-                                    {`$${parseFloat(menu.price || "0").toFixed(2)} `}
-                                  </Text>
-                                  {(menu?.strikePrice || 0) > 0 && (
-                                    <Text
-                                      style={[
-                                        styles.regularPrice,
-                                        (menu?.strikePrice || 0) > 0
-                                          ? styles.strikethroughPrice
-                                          : {},
-                                      ]}
-                                    >
-                                      {`$${(menu?.strikePrice || 0).toFixed(2)} `}
-                                    </Text>
-                                  )}
-                                </View>
-                                {isDisabled && (
-                                  <Text style={styles.unavailableText}>
-                                    Currently Unavailable
-                                  </Text>
-                                )}
-                              </Pressable>
-                              {!isDisabled ? (
-                                quantity === 0 ? (
-                                  <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    style={styles.addButton}
-                                    onPress={() => handleAddItem(menu)}
-                                  >
-                                    <Text style={styles.addButtonText}>
-                                      Add
-                                    </Text>
-                                  </TouchableOpacity>
-                                ) : (
-                                  <View style={styles.quantityContainer}>
-                                    <TouchableOpacity
-                                      activeOpacity={0.7}
-                                      style={styles.quantityButton}
-                                      onPress={() => handleRemoveItem(menu)}
-                                    >
-                                      <Text style={styles.quantityButtonText}>
-                                        -
-                                      </Text>
-                                    </TouchableOpacity>
-                                    <Text style={styles.quantityText}>
-                                      {quantity}
-                                    </Text>
-                                    <TouchableOpacity
-                                      activeOpacity={0.7}
-                                      style={styles.quantityButton}
-                                      onPress={() => handleAddItem(menu)}
-                                      disabled={quantity >= menu.maxQty}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.quantityButtonText,
-                                          quantity >= menu.maxQty &&
-                                            styles.disabledButtonText,
-                                        ]}
-                                      >
-                                        +
-                                      </Text>
-                                    </TouchableOpacity>
-                                  </View>
-                                )
-                              ) : null}
-                            </View>
+                              menuItem={menu}
+                              quantity={quantity}
+                              isLastItem={isLastItem}
+                              onItemPress={(item) => {
+                                setSelectedMenuItem(item);
+                                actionSheetRef.current?.show();
+                              }}
+                              onAddItem={handleAddItem}
+                              onRemoveItem={handleRemoveItem}
+                            />
                           );
                         })
                       )}
@@ -1015,656 +723,21 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       )}
 
       {/* Dish/Item Details */}
-      <ActionSheet
-        ref={actionSheetRef}
-        gestureEnabled={true}
-        isModal={Platform.OS === "ios"}
+      <DishItemDetailsModal
+        actionSheetRef={actionSheetRef}
+        selectedMenuItem={selectedMenuItem}
         onClose={() => setSelectedMenuItem(null)}
-      >
-        {selectedMenuItem && (
-          <View
-            style={{
-              maxHeight: height - insets.top - insets.bottom - 10,
-              paddingBottom: Platform.OS === "ios" ? 10 : 0,
-              paddingHorizontal: 20,
-            }}
-          >
-            {/* Header with close button */}
-            <View style={styles.actionSheetHeader}>
-              <Text style={styles.actionSheetTitle} numberOfLines={2}>
-                {selectedMenuItem.name || "Menu Item"}
-              </Text>
-              <IconButton
-                icon="close"
-                iconColor={AppColor.text}
-                onPress={() => actionSheetRef.current?.hide()}
-                style={{ margin: 0 }}
-              />
-            </View>
+        handleAddItem={handleAddItem}
+        handleRemoveItem={handleRemoveItem}
+        getItemQuantity={getItemQuantity}
+        insets={insets}
+      />
 
-            <ScrollView
-              contentContainerStyle={styles.actionSheetScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Images */}
-              {selectedMenuItem?.imgUrls?.length > 0 ? (
-                <ImageCarousel
-                  images={selectedMenuItem?.imgUrls}
-                  imageResizeMode="cover"
-                  containerHeight={200}
-                  containerWidth={width - 40}
-                  containerStyle={styles.actionSheetImageCarousel}
-                  imageContainer={{
-                    borderRadius: 0,
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: "100%",
-                    height: 200,
-                    borderRadius: 10,
-                    backgroundColor: "#f0f0f0",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  <MaterialIcons
-                    name="fastfood"
-                    size={50}
-                    color={AppColor.textHighlighter}
-                  />
-                </View>
-              )}
-
-              {/* Price and Food Type */}
-              <View style={styles.actionSheetPriceRow}>
-                <View style={styles.actionSheetPriceContainer}>
-                  <Text style={styles.actionSheetPrice}>
-                    {`$${(selectedMenuItem?.price || 0).toFixed(2)} `}
-                  </Text>
-                  {selectedMenuItem?.strikePrice > 0 ? (
-                    <Text style={styles.actionSheetStrikePrice}>
-                      {`$${(selectedMenuItem?.strikePrice || 0).toFixed(2)} `}
-                    </Text>
-                  ) : null}
-                </View>
-
-                <View style={styles.actionSheetFoodTypeContainer}>
-                  <FontAwesome6
-                    name="clock"
-                    size={14}
-                    color={AppColor.textPlaceholder}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: Mulish400,
-                      color: AppColor.textPlaceholder,
-                    }}
-                  >
-                    {`${selectedMenuItem?.preparationTime} mins`}
-                  </Text>
-                </View>
-              </View>
-
-              {selectedMenuItem?.newDish ||
-              selectedMenuItem?.popularDish ||
-              selectedMenuItem.itemType === "COMBO" ? (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 5,
-                    marginBottom: 8,
-                  }}
-                >
-                  {selectedMenuItem?.newDish ? (
-                    <Text style={styles.newBadge}>{"New"}</Text>
-                  ) : null}
-                  {selectedMenuItem?.popularDish ? (
-                    <Text style={styles.popularBadge}>{"Popular"}</Text>
-                  ) : null}
-                  {selectedMenuItem.itemType === "COMBO" ? (
-                    <Text style={styles.comboBadge}>{"Combo"}</Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {/* Description */}
-              <View style={styles.actionSheetDescriptionContainer}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: Mulish700,
-                    color: AppColor.text,
-                    marginBottom: 2,
-                  }}
-                >
-                  {"Description:"}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontFamily: Mulish400,
-                    color: AppColor.text,
-                    lineHeight: 22,
-                  }}
-                >
-                  {selectedMenuItem?.description || ""}
-                </Text>
-              </View>
-
-              {/* Dietary Information */}
-              {selectedMenuItem?.meat?.name && (
-                <View
-                  style={{
-                    marginBottom: 16,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Text style={styles.actionSheetSectionTitle}>
-                    {"Meat Type:"}
-                  </Text>
-                  <Text style={styles.actionSheetDescription}>
-                    {selectedMenuItem?.meat?.name}
-                  </Text>
-                </View>
-              )}
-
-              {/* Dietary Information */}
-              {selectedMenuItem?.meatWellness && (
-                <View style={styles.actionSheetSection}>
-                  <Text
-                    style={[
-                      styles.actionSheetSectionTitle,
-                      styles.actionSheetSectionTitleWithMargin,
-                    ]}
-                  >
-                    {"Meat Information:"}
-                  </Text>
-                  <Text style={styles.actionSheetDescription}>
-                    {selectedMenuItem?.meatWellness}
-                  </Text>
-                </View>
-              )}
-
-              {/* Dietary Information */}
-              {selectedMenuItem.diet?.length > 0 && (
-                <View style={styles.actionSheetSection}>
-                  <Text
-                    style={[
-                      styles.actionSheetSectionTitle,
-                      styles.actionSheetSectionTitleWithMargin,
-                    ]}
-                  >
-                    {"Dietary Information:"}
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      flexWrap: "wrap",
-                      gap: 8,
-                    }}
-                  >
-                    {(selectedMenuItem.diet || []).map((diet, index) => {
-                      // Handle both cases where diet might be string or object
-                      const dietName =
-                        diet?.name || (typeof diet === "string" ? diet : "");
-                      return dietName ? (
-                        <Text
-                          key={diet?._id || index}
-                          style={{
-                            fontFamily: Mulish400,
-                            fontSize: 13,
-                            borderRadius: 20,
-                            paddingVertical: 4,
-                            paddingHorizontal: 10,
-                            color: AppColor.text,
-                            backgroundColor: AppColor.lightGreenBG,
-                          }}
-                        >
-                          {dietName}
-                        </Text>
-                      ) : null;
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* Sub-items (if any) */}
-              {selectedMenuItem.subItem?.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: Mulish700,
-                      color: AppColor.text,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {"Combo Items:"}
-                  </Text>
-                  {(selectedMenuItem.subItem || []).map((subItem, index) => (
-                    <View
-                      key={subItem?._id || index}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 8,
-                        gap: 8,
-                      }}
-                    >
-                      <AppImage
-                        uri={subItem?.menuItem?.imgUrls?.[0]}
-                        containerStyle={{
-                          width: 50,
-                          height: 50,
-                          borderRadius: 4,
-                        }}
-                      />
-                      <View style={{ gap: 2, flex: 1 }}>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontSize: 14,
-                            fontFamily: Mulish700,
-                            color: AppColor.text,
-                          }}
-                        >
-                          {subItem?.menuItem?.name}
-                        </Text>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontSize: 14,
-                            fontFamily: Mulish400,
-                            color: AppColor.textHighlighter,
-                          }}
-                        >
-                          {subItem?.menuItem?.description}
-                        </Text>
-                      </View>
-                      <Text
-                        style={{
-                          fontFamily: Mulish600,
-                          fontSize: 16,
-                          color: AppColor.primary,
-                        }}
-                      >
-                        {`x${subItem?.qty}`}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Quantity Controls */}
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginTop: 20,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                {/* <Text
-                  style={{
-                    fontFamily: Mulish400,
-                    fontSize: 15,
-                    color: AppColor.text,
-                    marginRight: 10,
-                  }}
-                >
-                  Quantity:
-                </Text> */}
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: AppColor.primary,
-                  }}
-                >
-                  <TouchableOpacity
-                    style={{ paddingVertical: 8, paddingHorizontal: 12 }}
-                    onPress={() => handleRemoveItem(selectedMenuItem)}
-                    disabled={getItemQuantity(selectedMenuItem._id) === 0}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: Mulish700,
-                        fontSize: 16,
-                        color:
-                          getItemQuantity(selectedMenuItem._id) === 0
-                            ? AppColor.textHighlighter
-                            : AppColor.primary,
-                      }}
-                    >
-                      -
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text
-                    style={{
-                      fontFamily: Mulish700,
-                      fontSize: 16,
-                      color: AppColor.text,
-                      marginHorizontal: 10,
-                    }}
-                  >
-                    {getItemQuantity(selectedMenuItem._id)}
-                  </Text>
-
-                  <TouchableOpacity
-                    style={{ paddingVertical: 8, paddingHorizontal: 12 }}
-                    onPress={() => handleAddItem(selectedMenuItem)}
-                    disabled={
-                      getItemQuantity(selectedMenuItem._id) >=
-                      (selectedMenuItem.maxQty || 10)
-                    }
-                  >
-                    <Text
-                      style={{
-                        fontFamily: Mulish700,
-                        fontSize: 16,
-                        color:
-                          getItemQuantity(selectedMenuItem._id) >=
-                          (selectedMenuItem.maxQty || 10)
-                            ? AppColor.textHighlighter
-                            : AppColor.primary,
-                      }}
-                    >
-                      +
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.actionSheetAddButton}
-                onPress={() => {
-                  if (getItemQuantity(selectedMenuItem._id) === 0) {
-                    handleAddItem(selectedMenuItem);
-                  }
-                  actionSheetRef.current?.hide();
-                }}
-                disabled={!selectedMenuItem.available}
-              >
-                <Text style={styles.actionSheetAddButtonText}>
-                  {getItemQuantity(selectedMenuItem._id) === 0
-                    ? "Add to Order"
-                    : "Update Order"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </ActionSheet>
-
-      {/* Business Hours  and Pre-Order Availability */}
-      <ActionSheet
-        ref={businessHoursActionSheetRef}
-        gestureEnabled={true}
-        isModal={Platform.OS === "ios"}
-      >
-        <View
-          style={{
-            maxHeight: height - insets.top - insets.bottom - 10,
-            paddingBottom: Platform.OS === "ios" ? 10 : 0,
-            paddingHorizontal: 20,
-          }}
-        >
-          {/* Header with close button */}
-          <View style={styles.actionSheetHeader}>
-            <View style={{ flex: 1 }}>
-              <SegmentedButtons
-                value={segment}
-                onValueChange={setSegment}
-                buttons={[
-                  {
-                    value: "business",
-                    label: "Business Hours",
-                  },
-                  {
-                    value: "preOrder",
-                    label: "Pre-Order",
-                  },
-                ]}
-                theme={{
-                  colors: {
-                    secondaryContainer: AppColor.primary,
-                    onSecondaryContainer: AppColor.white,
-                  },
-                }}
-              />
-            </View>
-            <IconButton
-              icon="close"
-              iconColor={AppColor.text}
-              onPress={() => businessHoursActionSheetRef.current?.hide()}
-            />
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.actionSheetScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {segment === "business" ? (
-              <View>
-                {foodTruckDetail?.locations.map((loc) => {
-                  const locationAvailability =
-                    foodTruckDetail.businessHours.filter(
-                      (slot) => slot.locationId === loc._id && slot.available
-                    );
-                  return (
-                    <View key={loc._id}>
-                      {/* Location Title */}
-                      <View
-                        style={{
-                          borderWidth: 1,
-                          borderColor: AppColor.primary,
-                          borderRadius: 6,
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          marginTop: 8,
-                          backgroundColor: AppColor.primary + 20,
-                        }}
-                      >
-                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
-                          {`${loc.title}\n`}
-                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
-                            {`${loc.address}`}
-                          </Text>
-                        </Text>
-                      </View>
-
-                      {/* Availability of Locations */}
-                      {locationAvailability.length === 0 ? (
-                        <View
-                          style={{
-                            marginLeft: 16,
-                            borderLeftWidth: 2,
-                            borderLeftColor: AppColor.primary,
-                            paddingLeft: 16,
-                            paddingVertical: 10,
-                          }}
-                        >
-                          <Text>No business hours for this location.</Text>
-                        </View>
-                      ) : (
-                        <View
-                          style={{
-                            marginLeft: 16,
-                            borderLeftWidth: 2,
-                            borderLeftColor: AppColor.primary,
-                            paddingTop: 10,
-                            paddingLeft: 16,
-                            gap: 10,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {locationAvailability.map((slot) => {
-                            const openTime = moment(
-                              slot.startTime,
-                              "HH:mm"
-                            ).format("hh:mm A");
-                            const closeTime = moment(
-                              slot.endTime,
-                              "HH:mm"
-                            ).format("hh:mm A");
-
-                            return (
-                              <View
-                                key={slot._id}
-                                style={{
-                                  paddingHorizontal: 16,
-                                  paddingVertical: 8,
-                                  borderWidth: 1,
-                                  borderRadius: 6,
-                                  borderColor: AppColor.borderColor,
-                                }}
-                              >
-                                <Text
-                                  numberOfLines={1}
-                                  style={{
-                                    fontSize: 15,
-                                    fontFamily: Mulish400,
-                                    textTransform: "capitalize",
-                                    color: AppColor.text,
-                                  }}
-                                >
-                                  {`${openTime} - ${closeTime}`}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <View>
-                {foodTruckDetail?.locations.map((loc) => {
-                  const locationAvailability =
-                    foodTruckDetail.availability.filter(
-                      (slot) => slot.locationId === loc._id && slot.available
-                    );
-                  return (
-                    <View key={loc._id}>
-                      {/* Location Title */}
-                      <View
-                        style={{
-                          borderWidth: 1,
-                          borderColor: AppColor.primary,
-                          borderRadius: 6,
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          marginTop: 8,
-                          backgroundColor: AppColor.primary + 20,
-                        }}
-                      >
-                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
-                          {`${loc.title}\n`}
-                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
-                            {`${loc.address}`}
-                          </Text>
-                        </Text>
-                      </View>
-
-                      {/* Availability of Locations */}
-                      {locationAvailability.length === 0 ? (
-                        <View
-                          style={{
-                            marginLeft: 16,
-                            borderLeftWidth: 2,
-                            borderLeftColor: AppColor.primary,
-                            paddingLeft: 16,
-                            paddingVertical: 10,
-                          }}
-                        >
-                          <Text>No availability for this location.</Text>
-                        </View>
-                      ) : (
-                        <View
-                          style={{
-                            marginLeft: 16,
-                            borderLeftWidth: 2,
-                            borderLeftColor: AppColor.primary,
-                            paddingTop: 10,
-                            paddingLeft: 16,
-                            gap: 10,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {locationAvailability.map((slot) => {
-                            const dateOfTheDay = getFutureDateForDay(slot.day);
-                            const openTime = moment(
-                              slot.startTime,
-                              "HH:mm"
-                            ).format("hh:mm A");
-                            const closeTime = moment(
-                              slot.endTime,
-                              "HH:mm"
-                            ).format("hh:mm A");
-
-                            return (
-                              <View
-                                key={slot._id}
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  paddingHorizontal: 16,
-                                  paddingVertical: 8,
-                                  borderWidth: 1,
-                                  borderRadius: 6,
-                                  borderColor: AppColor.borderColor,
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    fontFamily: Mulish400,
-                                    fontSize: 15,
-                                    textTransform: "capitalize",
-                                    color: AppColor.text,
-                                  }}
-                                >
-                                  {dateOfTheDay.format("ddd (DD-MMM)")}
-                                </Text>
-                                <Text
-                                  numberOfLines={1}
-                                  style={{
-                                    fontSize: 15,
-                                    fontFamily: Mulish400,
-                                    textTransform: "capitalize",
-                                    color: AppColor.text,
-                                  }}
-                                >
-                                  {`${openTime} - ${closeTime}`}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
-        </View>
-      </ActionSheet>
+      {/* Business Hours and Pre-Order Availability */}
+      <BusinessHoursModal
+        actionSheetRef={businessHoursActionSheetRef}
+        foodTruckDetail={foodTruckDetail}
+      />
     </View>
   );
 };
@@ -1673,6 +746,52 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  headerSide: {
+    width: "20%",
+  },
+  iconContainer: {
+    width: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  divider: {
+    marginVertical: 8,
+  },
+  flexWrapTitle: {
+    flex: 1,
+    flexWrap: "wrap",
+  },
+  infoIconButton: {
+    margin: 0,
+  },
+  flexOne: {
+    flex: 1,
+  },
+  statusText: {
+    textAlign: "right",
+    padding: 6,
+    borderRadius: 4,
+    marginRight: 0,
+  },
+  openStatusText: {
+    backgroundColor: AppColor.lightGreenBG,
+    color: AppColor.snackbarSuccess,
+  },
+  closedStatusText: {
+    backgroundColor: AppColor.lightRedBG,
+    color: AppColor.snackbarError,
+  },
+  locationTitle: {
+    textAlign: "right",
+    backgroundColor: "transparent",
+    color: AppColor.black,
+    padding: 0,
+    borderRadius: 0,
+    marginRight: 0,
+  },
+  rightAlignedText: {
+    textAlign: "right",
   },
   header: {
     alignItems: "center",
@@ -1730,16 +849,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  tooltipContent: {
-    padding: 18,
-    borderRadius: 8,
-    backgroundColor: AppColor.text,
-  },
-  tooltipText: {
-    fontSize: 14,
-    fontFamily: Mulish400,
-    color: AppColor.white,
-  },
   newDishBadge: {
     height: 32,
     width: 32,
@@ -1767,116 +876,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: AppColor.text,
     textDecorationLine: "line-through",
-  },
-  dietaryInfoContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 8,
-  },
-  actionSheetHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    marginRight: -10, // for icon button alignment
-  },
-  actionSheetTitle: {
-    fontFamily: Mulish700,
-    fontSize: 20,
-    color: AppColor.text,
-  },
-  actionSheetScrollContent: {
-    flexGrow: 1,
-  },
-  actionSheetImageCarousel: {
-    borderRadius: 10,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  actionSheetPriceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  actionSheetPriceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  actionSheetPrice: {
-    fontFamily: Mulish700,
-    fontSize: 18,
-    color: AppColor.primary,
-  },
-  actionSheetStrikePrice: {
-    fontFamily: Mulish400,
-    fontSize: 14,
-    color: AppColor.text,
-    textDecorationLine: "line-through",
-  },
-  actionSheetFoodTypeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  newBadge: {
-    fontFamily: Mulish400,
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    borderRadius: 20,
-    color: AppColor.white,
-    backgroundColor: AppColor.orderProgressbar,
-  },
-  popularBadge: {
-    fontFamily: Mulish400,
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    borderRadius: 20,
-    color: AppColor.white,
-    backgroundColor: AppColor.primary,
-  },
-  comboBadge: {
-    fontFamily: Mulish400,
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    borderRadius: 20,
-    color: AppColor.primary,
-    backgroundColor: AppColor.lightGreenBG,
-  },
-  actionSheetDescriptionContainer: {
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  actionSheetDescription: {
-    fontFamily: Mulish400,
-    fontSize: 14,
-    color: AppColor.text,
-  },
-  actionSheetSectionTitle: {
-    fontSize: 16,
-    fontFamily: Mulish700,
-    color: AppColor.text,
-  },
-  actionSheetSectionTitleWithMargin: {
-    marginBottom: 8,
-  },
-  actionSheetSection: {
-    marginBottom: 16,
-  },
-  actionSheetAddButton: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  actionSheetAddButtonText: {
-    fontFamily: Mulish700,
-    fontSize: 16,
-    color: AppColor.white,
   },
   nameRow: {
     flexDirection: "row",
@@ -2018,78 +1017,6 @@ const styles = StyleSheet.create({
     width,
     backgroundColor: AppColor.white,
   },
-  menuItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: AppColor.borderColor,
-  },
-  menuImg: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-  },
-  menuImgPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-  },
-  menuDetails: {
-    flex: 1,
-    marginLeft: 10,
-    gap: 6,
-  },
-  menuTitle: {
-    fontFamily: Mulish700,
-    fontSize: 16,
-  },
-  menuDesc: {
-    fontFamily: Mulish400,
-    fontSize: 14,
-  },
-  menuPrice: {
-    fontFamily: Mulish700,
-    fontSize: 14,
-    color: AppColor.primary,
-  },
-  addButton: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    color: AppColor.white,
-    fontFamily: Mulish700,
-    fontSize: 14,
-  },
-  quantityContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: AppColor.primary,
-  },
-  quantityButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 9,
-  },
-  quantityButtonText: {
-    fontFamily: Mulish700,
-    fontSize: 14,
-    color: AppColor.primary,
-  },
-  quantityText: {
-    fontFamily: Mulish700,
-    fontSize: 14,
-    color: AppColor.text,
-    marginHorizontal: 4,
-  },
   bottomBar: {
     backgroundColor: AppColor.primary,
     alignItems: "center",
@@ -2134,28 +1061,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: AppColor.white,
-  },
-  HR: {
-    height: 1,
-    backgroundColor: AppColor.borderColor,
-  },
-  disabledMenuItem: {
-    opacity: 0.6,
-  },
-  disabledImage: {
-    opacity: 0.5,
-  },
-  disabledText: {
-    color: AppColor.textHighlighter,
-  },
-  disabledButtonText: {
-    color: AppColor.textHighlighter,
-  },
-  unavailableText: {
-    fontFamily: Mulish400,
-    fontSize: 12,
-    color: AppColor.snackbarError,
-    marginTop: 4,
   },
 });
 
