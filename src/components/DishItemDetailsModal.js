@@ -125,6 +125,8 @@ const DishItemDetailsModal = ({
 
             {selectedMenuItem?.newDish ||
             selectedMenuItem?.popularDish ||
+            selectedMenuItem?.discountType === "BOGO" ||
+            selectedMenuItem?.discountType === "BOGOHO" ||
             selectedMenuItem.itemType === "COMBO" ? (
               <View
                 style={{
@@ -139,6 +141,12 @@ const DishItemDetailsModal = ({
                 ) : null}
                 {selectedMenuItem?.popularDish ? (
                   <Text style={styles.popularBadge}>{"Popular"}</Text>
+                ) : null}
+                {selectedMenuItem?.discountType === "BOGO" ? (
+                  <Text style={styles.popularBadge}>{"BOGO"}</Text>
+                ) : null}
+                {selectedMenuItem?.discountType === "BOGOHO" ? (
+                  <Text style={styles.popularBadge}>{"BOGOHO"}</Text>
                 ) : null}
                 {selectedMenuItem.itemType === "COMBO" ? (
                   <Text style={styles.comboBadge}>{"Combo"}</Text>
@@ -246,6 +254,73 @@ const DishItemDetailsModal = ({
                     ) : null;
                   })}
                 </View>
+              </View>
+            )}
+
+            {/* BOGO item (if any) */}
+            {selectedMenuItem.bogoItems?.length > 0 && (
+              <View style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontFamily: Mulish700,
+                    color: AppColor.text,
+                    marginBottom: 8,
+                  }}
+                >
+                  {"BOGO Item:"}
+                </Text>
+                {(selectedMenuItem.bogoItems || []).map((bogoItem, index) => (
+                  <View
+                    key={bogoItem?._id || index}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <AppImage
+                      uri={bogoItem?.menuItem?.imgUrls?.[0]}
+                      containerStyle={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 4,
+                      }}
+                    />
+                    <View style={{ gap: 2, flex: 1 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 14,
+                          fontFamily: Mulish700,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {bogoItem?.menuItem?.name || "-"}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 14,
+                          fontFamily: Mulish400,
+                          color: AppColor.textHighlighter,
+                        }}
+                      >
+                        {bogoItem?.menuItem?.description || "-"}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontFamily: Mulish600,
+                        fontSize: 16,
+                        color: AppColor.primary,
+                      }}
+                    >
+                      {`x${bogoItem?.qty}`}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
 

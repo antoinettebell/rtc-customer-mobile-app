@@ -56,6 +56,7 @@ import {
   updateItemProperty,
 } from "../redux/slices/orderSlice";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
+import useDebounce from "../hooks/useDebounce";
 
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -80,6 +81,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [taxData, setTaxData] = useState(null);
 
   const [paymentMethod, setPaymentMethod] = useState("Google Pay");
+  const [pickupSource, setPickupSource] = useState("regular");
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
@@ -89,40 +91,49 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [preventAPI, setPreventAPI] = useState(false);
 
   const subtotal = useMemo(() => order.subtotal, [order.subtotal]);
-  const salesTaxRate = taxData?.salesTax || 0;
-  const processingFeeRate = taxData?.paymentProcessingFee || 0;
-  const salesTax = useMemo(
-    () => subtotal * (salesTaxRate / 100),
-    [subtotal, salesTaxRate]
+  console.log("subtotal => ", subtotal);
+  const debouncedSubtotal = useDebounce(subtotal, 1000);
+  console.log("debouncedSubtotal => ", debouncedSubtotal);
+  const processingFeeRate = useMemo(
+    () => taxData?.paymentProcessingFee || 0,
+    [taxData]
   );
-  const totalBeforeDiscount = useMemo(
-    () => subtotal + salesTax,
-    [subtotal, salesTax]
+  console.log("processingFeeRate => ", processingFeeRate);
+  const salesTaxAmount = useMemo(() => taxData?.salesTaxAmount || 0, [taxData]);
+  console.log("salesTaxAmount => ", salesTaxAmount);
+  const totalWithSalesTax = useMemo(
+    () => debouncedSubtotal + salesTaxAmount || 0,
+    [salesTaxAmount, debouncedSubtotal]
   );
+  console.log("totalWithSalesTax => ", totalWithSalesTax);
   const discount = useMemo(() => {
     if (!coupon) return 0;
     if (coupon.type === "PERCENTAGE") {
-      const discountValue = totalBeforeDiscount * (coupon.value / 100);
+      const discountValue = totalWithSalesTax * (coupon.value / 100);
       return coupon.maxDiscount > 0
         ? Math.min(discountValue, coupon.maxDiscount)
         : discountValue;
     } else if (coupon.type === "FIXED") {
-      return Math.min(coupon.value, totalBeforeDiscount);
+      return Math.min(coupon.value, totalWithSalesTax);
     }
     return 0;
-  }, [coupon, totalBeforeDiscount]);
-  const totalWithTax = useMemo(
-    () => totalBeforeDiscount - discount,
-    [totalBeforeDiscount, discount]
+  }, [coupon, totalWithSalesTax]);
+  console.log("discount => ", discount);
+  const totalAfterDiscount = useMemo(
+    () => totalWithSalesTax - discount,
+    [totalWithSalesTax, discount]
   );
-  const processingFee = useMemo(
-    () => totalWithTax * (processingFeeRate / 100),
-    [totalWithTax, processingFeeRate]
+  console.log("totalAfterDiscount => ", totalAfterDiscount);
+  const prosessingFeeAmount = useMemo(
+    () => totalAfterDiscount * (processingFeeRate / 100),
+    [totalAfterDiscount, processingFeeRate]
   );
-  const total = useMemo(
-    () => totalWithTax + processingFee,
-    [totalWithTax, processingFee]
+  console.log("prosessingFeeAmount => ", prosessingFeeAmount);
+  const totalAfterProsessingFee = useMemo(
+    () => totalAfterDiscount + prosessingFeeAmount,
+    [totalAfterDiscount, prosessingFeeAmount]
   );
+  console.log("totalAfterProsessingFee => ", totalAfterProsessingFee);
 
   const hasFreeDessert = subtotal > 15;
 
@@ -167,11 +178,9 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const handleConfirmOrder = async () => {
     // Determine order type
-    const isPreOrder =
-      !foodTruckDetail?.currentLocation ||
-      foodTruckDetail?.currentLocation !== selectedLocation?._id ||
-      selectedAvailability;
+    const isPreOrder = pickupSource === "pre_order";
 
+    // Check if the order is empty
     if (order.items.length === 0) {
       Alert.alert("Empty Order", "Please add items to your order first.");
       return;
@@ -179,57 +188,25 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     const now = moment(); // Declare 'now' once here
 
-    // Normal order validations
-    if (!isPreOrder) {
-      if (!pickupTime) {
-        Alert.alert(
-          "Pickup Time Required",
-          "Please select a pickup time for your order."
-        );
-        return;
-      }
-
-      const selectedTime = moment(pickupTime, "HH:mm");
-      if (selectedTime.isBefore(now)) {
-        Alert.alert(
-          "Invalid Pickup Time",
-          "Pickup time cannot be in the past. Please select a future time."
-        );
-        return;
-      }
-
-      const oneHourFromNow = moment().add(1, "hour");
-      if (selectedTime.isAfter(oneHourFromNow)) {
-        Alert.alert(
-          "Invalid Pickup Time",
-          "Pickup time cannot be more than 1 hour from now for a normal order."
-        );
-        return;
-      }
-    }
-
-    // Pre-order validations
+    // Validations
     if (isPreOrder) {
+      // Check if the selected location is valid
       if (!selectedLocation) {
-        Alert.alert(
-          "Location Required",
-          "Please select a location for your pre-order."
-        );
+        Alert.alert("Location required", "Please select a location.");
         return;
       }
 
+      // Check if the selected availability is valid
       if (!selectedAvailability) {
-        Alert.alert(
-          "Availability Required",
-          "Please select an availability for your pre-order."
-        );
+        Alert.alert("Availability required", "Please select a availability.");
         return;
       }
 
+      // Check if the selected pickup time is valid
       if (!pickupTime) {
         Alert.alert(
           "Pickup Time Required",
-          "Please select a pickup time for your pre-order."
+          "Please enter a pickup time for your pre-order."
         );
         return;
       }
@@ -241,7 +218,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       );
       const availabilityEndTime = moment(selectedAvailability.endTime, "HH:mm");
 
-      // If the selected availability date is today, check if the pickup time is in the past.
+      // Check if the selected time is not in the past for today's availability
       if (
         moment(selectedAvailability.date).isSame(now, "day") &&
         selectedDateTime.isBefore(now)
@@ -253,6 +230,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         return;
       }
 
+      // Check if the selected time is within the availability range
       if (
         selectedDateTime.isBefore(availabilityStartTime) ||
         selectedDateTime.isAfter(availabilityEndTime)
@@ -263,67 +241,11 @@ const CheckoutScreen = ({ navigation, route }) => {
         );
         return;
       }
-
-      const fiveMinutesBeforeEnd = moment(availabilityEndTime).subtract(
-        5,
-        "minutes"
-      );
-      if (selectedDateTime.isAfter(fiveMinutesBeforeEnd)) {
+    } else {
+      if (!truckCurrentLocation) {
         Alert.alert(
-          "Invalid Pickup Time",
-          "Pickup time is too close to the end of availability. Please select an earlier time."
-        );
-        return;
-      }
-
-      if (!selectedAvailability) {
-        Alert.alert(
-          "Time Slot Required",
-          "Please select an available time slot for your pre-order."
-        );
-        return;
-      }
-
-      if (!pickupTime) {
-        Alert.alert(
-          "Pickup Time Required",
-          "Please select a pickup time for your pre-order."
-        );
-        return;
-      }
-
-      const selectedTime = moment(pickupTime, "HH:mm");
-      const slotStart = moment(selectedAvailability.startTime, "HH:mm");
-      const slotEnd = moment(selectedAvailability.endTime, "HH:mm");
-
-      // Check if selected day is today
-      const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-      const slotDay = dayMap[selectedAvailability.day.toLowerCase()];
-      const currentDay = now.day();
-
-      if (slotDay === currentDay && selectedTime.isBefore(now)) {
-        Alert.alert(
-          "Invalid Pickup Time",
-          "Pickup time cannot be in the past for today's order."
-        );
-        return;
-      }
-
-      // Check if within availability range
-      if (selectedTime.isBefore(slotStart) || selectedTime.isAfter(slotEnd)) {
-        Alert.alert(
-          "Invalid Time Slot",
-          "Pickup time must be within the selected availability time range."
-        );
-        return;
-      }
-
-      // Check 1 hour buffer before end time
-      const oneHourBeforeEnd = moment(slotEnd).subtract(1, "hour");
-      if (selectedTime.isAfter(oneHourBeforeEnd)) {
-        Alert.alert(
-          "Time Too Late",
-          "Pickup time must be at least 1 hour before the end of the availability slot."
+          "Can not place order.",
+          "Vendor is not available at the moment. Please try again later or select pre-order."
         );
         return;
       }
@@ -331,8 +253,8 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     let payload = {
       foodTruckId: foodTruckId,
-      locationId: selectedLocation?._id,
-      deliveryTime: pickupTime,
+      locationId: truckCurrentLocation?._id, // for pre-order it'll change latter
+      taxAmount: salesTaxAmount || 0,
       items: order.items.map((item) => {
         const itemPayload = {
           menuItemId: item._id,
@@ -349,9 +271,17 @@ const CheckoutScreen = ({ navigation, route }) => {
         return itemPayload;
       }),
     };
-    if (selectedAvailability) {
+
+    // add params for pre-order
+    if (isPreOrder) {
+      const pickupDate = moment(selectedAvailability?.date).format("DD-MMM");
+      payload.locationId = selectedLocation?._id;
+      payload.deliveryTime = pickupTime;
+      payload.deliveryDate = pickupDate;
       payload.availabilityId = selectedAvailability?._id;
     }
+
+    // add "couponId" if discount is applied
     if (coupon) {
       payload.couponId = coupon?._id;
     }
@@ -380,14 +310,8 @@ const CheckoutScreen = ({ navigation, route }) => {
   const onLocationDonePress = () => {
     if (!selectedLocation) {
       Alert.alert("Location required", "Please select a location.");
-    } else if (
-      truckCurrentLocation?._id !== selectedLocation._id &&
-      !selectedAvailability
-    ) {
-      Alert.alert(
-        "Time slot required",
-        "Please select a time slot to place your order."
-      );
+    } else if (!selectedAvailability) {
+      Alert.alert("Availability required", "Please select a availability.");
     } else {
       getTaxInfoFromAPI();
       actionSheetRef.current?.hide();
@@ -715,13 +639,12 @@ const CheckoutScreen = ({ navigation, route }) => {
             )
           : null;
         setTruckCurrentLocation(current_location);
-        setSelectedLocation(current_location);
-        setSelectedAvailability(null);
 
         // Fetch TAX for location
         const response_3 = await checkTax_API({
           foodTruck_id: foodTruckId,
           location_id: response_2?.data?.foodtruck.currentLocation,
+          amount: debouncedSubtotal,
         });
         console.log("response_3 => ", response_3);
         if (response_3?.success && response_3?.data) {
@@ -735,12 +658,22 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   };
 
-  const getTaxInfoFromAPI = async () => {
+  const getTaxInfoFromAPI = async (amount) => {
+    console.log("getTaxInfoFromAPI function called => ", amount);
     setDataLoading(true);
     try {
+      const locationId =
+        pickupSource === "regular"
+          ? truckCurrentLocation?._id
+          : selectedLocation?._id;
+
+      console.log("locationId => ", locationId);
+      if (!locationId) return;
+
       const response = await checkTax_API({
         foodTruck_id: foodTruckId,
-        location_id: selectedLocation._id,
+        location_id: locationId,
+        amount: amount || subtotal,
       });
       console.log("response => ", response);
       if (response?.success && response?.data) {
@@ -752,6 +685,12 @@ const CheckoutScreen = ({ navigation, route }) => {
       setDataLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (debouncedSubtotal > 0) {
+      getTaxInfoFromAPI(debouncedSubtotal);
+    }
+  }, [debouncedSubtotal]);
 
   useEffect(() => {
     if (isFocused) {
@@ -812,112 +751,244 @@ const CheckoutScreen = ({ navigation, route }) => {
               />
             </View>
 
-            {/* Pickup availability Container */}
-            <View>
+            {/* Pickup Summary */}
+            <>
+              <View style={{ marginTop: 18 }}>
+                <Text style={[styles.sectionTitle, { marginVertical: 0 }]}>
+                  {"Pickup Summary"}
+                </Text>
+              </View>
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "space-between",
+                  gap: 8,
+                  paddingVertical: 8,
                 }}
               >
-                <Text style={styles.sectionTitle}>{"Pickup Availability"}</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 4,
+                    backgroundColor:
+                      pickupSource === "regular" ? AppColor.primary : "#E5E5EA",
+                  }}
+                  onPress={() => setPickupSource("regular")}
+                >
+                  <Text
+                    style={{
+                      fontFamily: Mulish600,
+                      fontSize: 14,
+                      color:
+                        pickupSource === "regular"
+                          ? AppColor.white
+                          : AppColor.text,
+                    }}
+                  >
+                    Regular
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 4,
+                    backgroundColor:
+                      pickupSource === "pre_order"
+                        ? AppColor.primary
+                        : "#E5E5EA",
+                  }}
+                  onPress={() => setPickupSource("pre_order")}
+                >
+                  <Text
+                    style={{
+                      fontFamily: Mulish600,
+                      fontSize: 14,
+                      color:
+                        pickupSource === "pre_order"
+                          ? AppColor.white
+                          : AppColor.text,
+                    }}
+                  >
+                    Pre-Order
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={[styles.screenGenericCard, { paddingVertical: 8 }]}>
-                {selectedLocation ? (
-                  <View style={{ gap: 16 }}>
-                    <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
-                      {`${selectedLocation.title}\n`}
-                      <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
-                        {`${selectedLocation.address}`}
-                      </Text>
-                    </Text>
-                    {selectedAvailability && (
+              {pickupSource === "regular" ? (
+                <View
+                  style={{
+                    padding: 16,
+                    borderWidth: 1,
+                    borderRadius: 10,
+                    borderColor: AppColor.borderColor,
+                    backgroundColor: AppColor.white,
+                  }}
+                >
+                  {truckCurrentLocation ? (
+                    <>
                       <Text
                         style={{
-                          fontFamily: Mulish600,
-                          fontSize: 14,
+                          fontFamily: Mulish700,
+                          fontSize: 18,
                           color: AppColor.text,
-                          textTransform: "capitalize",
                         }}
                       >
-                        {`${getFutureDateForDay(selectedAvailability.day).format("ddd (DD-MMM)")}  ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}`}
+                        {"Location:"}
                       </Text>
-                    )}
-                    {truckCurrentLocation?._id !== selectedLocation?._id &&
-                      !selectedAvailability && (
-                        <Text
-                          style={{
-                            marginTop: 10,
-                            fontFamily: Mulish700,
-                            fontSize: 14,
-                            color: AppColor.red,
-                          }}
-                        >
-                          {"* Please select pre-order availability"}
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
+                          {`${truckCurrentLocation.title}, `}
+                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                            {`${truckCurrentLocation.address}`}
+                          </Text>
                         </Text>
-                      )}
-                  </View>
-                ) : (
-                  <View style={{ height: 40, justifyContent: "center" }}>
-                    <Text
+                      </View>
+                    </>
+                  ) : (
+                    <View style={{ height: 40, justifyContent: "center" }}>
+                      <Text
+                        style={{
+                          fontFamily: Mulish700,
+                          fontSize: 14,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {
+                          "This vendor is not available at the moment. Kindly Check for pre-order."
+                        }
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+              {pickupSource === "pre_order" ? (
+                <View
+                  style={{
+                    gap: 16,
+                    padding: 16,
+                    borderWidth: 1,
+                    borderRadius: 10,
+                    borderColor: AppColor.borderColor,
+                    backgroundColor: AppColor.white,
+                  }}
+                >
+                  <View>
+                    <View
                       style={{
-                        fontFamily: Mulish700,
-                        fontSize: 14,
-                        color: AppColor.red,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                       }}
                     >
-                      {"* Please select pre-order location and availability"}
-                    </Text>
+                      <Text
+                        style={{
+                          fontFamily: Mulish700,
+                          fontSize: 18,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {"Location:"}
+                      </Text>
+                      <IconButton
+                        icon="plus"
+                        size={18}
+                        containerColor="#E5E5EA"
+                        style={{ margin: 0 }}
+                        onPress={() => actionSheetRef.current?.show()}
+                      />
+                    </View>
+                    {selectedLocation ? (
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
+                          {`${selectedLocation.title}, `}
+                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                            {`${selectedLocation.address}`}
+                          </Text>
+                        </Text>
+                        {selectedAvailability ? (
+                          <Text
+                            style={{
+                              fontFamily: Mulish600,
+                              fontSize: 14,
+                              color: AppColor.text,
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {`${getFutureDateForDay(selectedAvailability.day).format("ddd (DD-MMM)")}  ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}`}
+                          </Text>
+                        ) : (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontFamily: Mulish500,
+                              color: AppColor.text,
+                            }}
+                          >
+                            {"* Please select pre-order availability"}
+                          </Text>
+                        )}
+                      </View>
+                    ) : null}
                   </View>
-                )}
-
-                <Divider style={{ marginVertical: 8 }} />
-                <Pressable onPress={() => actionSheetRef.current?.show()}>
-                  <Text
-                    style={{
-                      fontFamily: Mulish700,
-                      fontSize: 15,
-                      color: AppColor.primary,
-                      textDecorationLine: "underline",
-                    }}
-                  >
-                    {selectedAvailability
-                      ? "Change slot"
-                      : "Want this later? Schedule it"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Pickup time Container */}
-            <View style={{ marginTop: 18 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={[styles.sectionTitle, { marginVertical: 0 }]}>
-                  {"Pickup Time"}
-                </Text>
-                <Pressable onPress={showTimePicker}>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontFamily: Mulish700,
-                      color: AppColor.primary,
-                      textDecorationLine: "underline",
-                    }}
-                  >
-                    {pickupTime
-                      ? moment(pickupTime, "HH:mm").format("hh:mm A")
-                      : "Select Time"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+                  <Divider />
+                  <View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: Mulish700,
+                          fontSize: 18,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {"Pickup Time:"}
+                      </Text>
+                      <IconButton
+                        icon="plus"
+                        size={18}
+                        containerColor="#E5E5EA"
+                        style={{ margin: 0 }}
+                        onPress={showTimePicker}
+                      />
+                    </View>
+                    {pickupTime ? (
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: Mulish500,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {moment(pickupTime, "HH:mm").format("hh:mm A")}
+                      </Text>
+                    ) : null}
+                    {!pickupTime && selectedLocation && selectedAvailability ? (
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: Mulish500,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {"* Please enter pickup time"}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              ) : null}
+            </>
 
             {/* coupon container */}
             <View style={{ marginTop: 8, marginBottom: coupon ? 8 : 0 }}>
@@ -983,11 +1054,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </Text>
                   </View>
                   <View style={styles.totalRow}>
+                    <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
-                      Sales Tax ({salesTaxRate}%)
-                    </Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      ${salesTax.toFixed(2)}
+                      ${salesTaxAmount.toFixed(2)}
                     </Text>
                   </View>
                   {/* <View style={styles.totalRow}>
@@ -1010,10 +1079,11 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                   )}
+                  <Divider />
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Total With Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
-                      ${totalWithTax.toFixed(2)}
+                      ${totalAfterDiscount.toFixed(2)}
                     </Text>
                   </View>
                   <View style={styles.totalRow}>
@@ -1021,7 +1091,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                       Payment Processing Fee ({processingFeeRate}%)
                     </Text>
                     <Text style={styles.totalRowItemTxt}>
-                      ${processingFee.toFixed(2)}
+                      ${prosessingFeeAmount.toFixed(2)}
                     </Text>
                   </View>
                   {/* {hasFreeDessert && (
@@ -1096,7 +1166,9 @@ const CheckoutScreen = ({ navigation, route }) => {
           >
             <View style={styles.totalRow}>
               <Text style={styles.totalText}>{"Total Amount"}</Text>
-              <Text style={styles.totalText}>${total.toFixed(2)}</Text>
+              <Text style={styles.totalText}>
+                ${totalAfterProsessingFee.toFixed(2)}
+              </Text>
             </View>
 
             {isSignedIn ? (
@@ -1114,10 +1186,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                     <ActivityIndicator color={AppColor.white} />
                   ) : (
                     <Text style={styles.confirmBtnText}>
-                      {selectedAvailability ||
-                      truckCurrentLocation?._id != selectedLocation?._id
-                        ? "Schedule Order"
-                        : "Order Now"}
+                      {pickupSource === "regular"
+                        ? "Order Now"
+                        : "Schedule Order"}
                     </Text>
                   )}
                 </TouchableOpacity>

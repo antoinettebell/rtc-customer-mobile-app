@@ -512,7 +512,11 @@ export const checkItems_API = async (payload) => {
 // Check location tax
 export const checkTax_API = async (params = {}) => {
   try {
-    const URL = GET_TAX_OF_LOCATION(params?.foodTruck_id, params?.location_id);
+    const URL = GET_TAX_OF_LOCATION(
+      params?.foodTruck_id,
+      params?.location_id,
+      params?.amount
+    );
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {

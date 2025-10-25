@@ -68,8 +68,8 @@ export const GET_ALL_COUPON_CODES = "/public/coupon";
 export const VALIDATE_COUPON_CODE = "/public/coupon-validate";
 
 // Tax
-export const GET_TAX_OF_LOCATION = (foodTruck_id, location_id) =>
-  `/public/tax-rates-check?foodTruckId=${foodTruck_id}&locationId=${location_id}`;
+export const GET_TAX_OF_LOCATION = (foodTruck_id, location_id, amount) =>
+  `/public/avalaratax-rates-check?foodTruckId=${foodTruck_id}&locationId=${location_id}&amount=${amount}`;
 
 // Notification
 export const SET_FCM_TOKEN = "/user/set-fcm-token";
