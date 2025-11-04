@@ -281,7 +281,7 @@ const DishItemDetailsModal = ({
                     }}
                   >
                     <AppImage
-                      uri={bogoItem?.menuItem?.imgUrls?.[0]}
+                      uri={bogoItem?.itemId?.imgUrls?.[0]}
                       containerStyle={{
                         width: 50,
                         height: 50,
@@ -297,7 +297,7 @@ const DishItemDetailsModal = ({
                           color: AppColor.text,
                         }}
                       >
-                        {bogoItem?.menuItem?.name || "-"}
+                        {bogoItem?.itemId?.name || "-"}
                       </Text>
                       <Text
                         numberOfLines={1}
@@ -307,7 +307,7 @@ const DishItemDetailsModal = ({
                           color: AppColor.textHighlighter,
                         }}
                       >
-                        {bogoItem?.menuItem?.description || "-"}
+                        {bogoItem?.itemId?.description || "-"}
                       </Text>
                     </View>
                     <Text

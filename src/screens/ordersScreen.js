@@ -119,9 +119,11 @@ const OrdersScreen = ({ navigation }) => {
               <Text
                 style={styles.orderItemName}
               >{`${i.qty} x ${i.menuItem.name}`}</Text>
-              {/* <Text style={styles.orderItemDescription} numberOfLines={2}>
-                {i.menuItem.description}
-              </Text> */}
+              {i.menuItem?.bogoItems?.length > 0 ? (
+                <Text style={styles.orderItemDescription} numberOfLines={2}>
+                  {"Buy 1 Get 1 Free"}
+                </Text>
+              ) : null}
             </View>
             <View>
               <Text
@@ -535,7 +537,7 @@ const styles = StyleSheet.create({
   },
   orderItemDescription: {
     fontFamily: Mulish400,
-    fontSize: 14,
+    fontSize: 10,
     color: AppColor.black,
   },
   orderItemPrice: {

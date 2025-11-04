@@ -47,19 +47,17 @@ apiClient.interceptors.response.use(
     return response;
   },
   function (error) {
-    // Handle 403 Forbidden (session expired)
+    // Handle 401 Forbidden (session expired)
     if (error?.response?.status === 401) {
-      //   // Perform action for 403 code [accestoken expire, not found]
-      //     store.dispatch(logout());
-
+      // Perform action for 401 code [accestoken expire, unauthorised]
       store.dispatch(clearUserSlice());
       store.dispatch(onSignOut());
 
-      //     showToast({
-      //       type: "error",
-      //       title: "Logged Out",
-      //       message: "Your session has expired. Please login again.",
-      //     });
+      showToast({
+        type: "error",
+        title: "Logged Out",
+        message: "Your session has expired. Please login again.",
+      });
       return Promise.reject(error);
     }
 

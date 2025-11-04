@@ -211,6 +211,7 @@ const RateReviewScreen = ({ navigation, route }) => {
       if (!foodTruck_id) throw new Error("Food truck ID not found");
 
       const ratingStatsResponse = await getReviewRatingStats_API(foodTruck_id);
+      console.log("ratingStatsResponse => ", ratingStatsResponse);
       if (ratingStatsResponse?.success && ratingStatsResponse?.data) {
         setReviewStats(ratingStatsResponse?.data?.reviewStats);
       }
@@ -220,6 +221,7 @@ const RateReviewScreen = ({ navigation, route }) => {
         page: page,
         limit: LIMIT,
       });
+      console.log("reviewResponse => ", reviewResponse);
       if (reviewResponse?.success && reviewResponse?.data) {
         setTotalPages(reviewResponse.data.totalPages);
         setCurrentPage(page);

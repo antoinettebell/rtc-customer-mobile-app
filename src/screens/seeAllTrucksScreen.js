@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Text,
   View,
   FlatList,
   Platform,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { IconButton } from "react-native-paper";
-import { useDispatch, useSelector } from "react-redux";
+import { IconButton, Searchbar } from "react-native-paper";
+import { useSelector } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import {
@@ -20,22 +19,24 @@ import {
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
 
 const LIMIT = 15;
+const DEBOUNCE_DELAY = 500;
 
 const SeeAllTrucksScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const dispatch = useDispatch();
+  const debounceTimerRef = useRef(null);
   const params = route?.params;
 
   const { defaultLocation } = useSelector((state) => state.locationReducer);
   const { isSignedIn } = useSelector((state) => state.authReducer);
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [trucksList, setTrucksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPage, setTotalPage] = useState(1);
 
-  const getTruckList = async (page = currentPage) => {
+  const getTruckList = async (page = currentPage, searchText = searchQuery) => {
     if (page === 0) {
       setRefreshing(true);
     } else {
@@ -48,6 +49,7 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
         response = await getRecentFoodTrucks_API({
           page: page + 1,
           limit: LIMIT,
+          search: searchText,
         });
       } else if (params?.screenType === "popular_nearby_trucks") {
         response = await getNearbyFoodTrucks_API({
@@ -55,6 +57,7 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
           userLong: defaultLocation?.long || 0,
           page: page + 1,
           limit: LIMIT,
+          search: searchText,
         });
       } else if (params?.screenType === "nearby_food_trucks") {
         response = await getNearbyFoodTrucks_API({
@@ -62,6 +65,7 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
           userLong: defaultLocation?.long || 0,
           page: page + 1,
           limit: LIMIT,
+          search: searchText,
         });
       } else if (params?.screenType === "featured_food_trucks") {
         response = await getNearbyFoodTrucks_API({
@@ -70,6 +74,7 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
           userLat: defaultLocation?.lat || 0,
           userLong: defaultLocation?.long || 0,
           featured: true,
+          search: searchText,
         });
       }
 
@@ -144,11 +149,33 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
     getTruckList(0);
   };
 
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+
+    // Clear previous timer if exists
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer for debounce
+    debounceTimerRef.current = setTimeout(() => {
+      getTruckList(0, text);
+    }, DEBOUNCE_DELAY);
+  };
+
   useEffect(() => {
     if (defaultLocation) {
       getTruckList(0);
     }
   }, [defaultLocation]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
@@ -166,6 +193,20 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
           {params?.screenTitle || ""}
         </Text>
         <View style={{ width: 48 }} />
+      </View>
+
+      {/* Search Container */}
+      <View style={styles.searchContainer}>
+        <Searchbar
+          autoFocus={true}
+          placeholder="Search food trucks or cuisines..."
+          placeholderTextColor={AppColor.textPlaceholder}
+          iconColor={AppColor.textPlaceholder}
+          onChangeText={handleSearchChange}
+          value={searchQuery}
+          style={styles.searchbar}
+          inputStyle={styles.searchbarInput}
+        />
       </View>
 
       {/* Content Container */}
@@ -210,6 +251,33 @@ const styles = StyleSheet.create({
     color: AppColor.black,
     fontSize: 20,
     fontFamily: Mulish700,
+  },
+
+  // Search
+  searchContainer: {
+    margin: 16,
+    borderRadius: 30,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  searchbar: {
+    backgroundColor: AppColor.white,
+  },
+  searchbarInput: {
+    fontFamily: Mulish400,
+    color: AppColor.text,
   },
 
   contentContainer: {

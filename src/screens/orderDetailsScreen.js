@@ -296,41 +296,64 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               <Divider />
               <View style={styles.itemsList}>
                 {order.items.map((itm) => (
-                  <View style={styles.itemRow} key={itm?.menuItemId}>
-                    <View style={styles.itemInfo}>
+                  <>
+                    <View style={styles.itemRow} key={itm?.menuItemId}>
+                      <View style={styles.itemInfo}>
+                        <Text
+                          style={[
+                            styles.itemText,
+                            { fontSize: 15, fontFamily: Mulish500 },
+                          ]}
+                        >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
+                        <Text style={styles.itemDesc} numberOfLines={2}>
+                          {itm.menuItem.description}
+                        </Text>
+                        {itm.customization && (
+                          <Text
+                            style={[
+                              styles.itemDesc,
+                              {
+                                flex: 1,
+                                color: AppColor.text,
+                                flexWrap: "wrap",
+                              },
+                            ]}
+                          >
+                            {itm.customization}
+                          </Text>
+                        )}
+                      </View>
                       <Text
                         style={[
                           styles.itemText,
-                          { fontSize: 15, fontFamily: Mulish500 },
+                          { flex: 0.3, textAlign: "right" },
                         ]}
-                      >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
-                      <Text style={styles.itemDesc} numberOfLines={2}>
-                        {itm.menuItem.description}
+                      >
+                        ${itm.total.toFixed(2)}
                       </Text>
-                      {itm.customization && (
+                    </View>
+                    {/* Below is for BOGO items */}
+                    {itm?.menuItem?.bogoItems?.map((bogoItem) => (
+                      <View style={styles.itemRow} key={bogoItem?.itemId}>
+                        <View style={styles.itemInfo}>
+                          <Text
+                            style={[
+                              styles.itemText,
+                              { fontSize: 15, fontFamily: Mulish500 },
+                            ]}
+                          >{`${bogoItem.qty} x ${bogoItem.name}`}</Text>
+                        </View>
                         <Text
                           style={[
-                            styles.itemDesc,
-                            {
-                              flex: 1,
-                              color: AppColor.text,
-                              flexWrap: "wrap",
-                            },
+                            styles.itemText,
+                            { flex: 0.3, textAlign: "right" },
                           ]}
                         >
-                          {itm.customization}
+                          {"$0.00"}
                         </Text>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.itemText,
-                        { flex: 0.3, textAlign: "right" },
-                      ]}
-                    >
-                      ${itm.total.toFixed(2)}
-                    </Text>
-                  </View>
+                      </View>
+                    ))}
+                  </>
                 ))}
               </View>
               <Divider />
