@@ -18,7 +18,7 @@ export const login_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -29,7 +29,7 @@ export const verifyOTP_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -40,7 +40,7 @@ export const resendOTP_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -51,7 +51,7 @@ export const forgotPassword_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -62,7 +62,7 @@ export const changePassword_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -76,7 +76,7 @@ export const register_API = async ({ payload }) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -87,7 +87,7 @@ export const tnc_API = async () => {
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -98,7 +98,7 @@ export const privacyPolicy_API = async () => {
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -109,6 +109,6 @@ export const agreement_API = async () => {
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };

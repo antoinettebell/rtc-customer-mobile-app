@@ -70,7 +70,7 @@ export const uploadImage_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { formData: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -92,7 +92,7 @@ export const getUserDetail_API = async (user_id) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -103,7 +103,7 @@ export const updateUserDetail_API = async ({ payload, user_id }) => {
     const response = await apiClient.put(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -114,7 +114,7 @@ export const updatePassword_API = async (payload, user_id) => {
     const response = await apiClient.put(URL, payload);
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -139,7 +139,7 @@ export const getFavoriteFoodTruck_API = async (params = {}) => {
 
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -150,7 +150,7 @@ export const addFavoriteFoodTruck_API = async (foodTruckId) => {
     const response = await apiClient.post(URL, {}, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -161,7 +161,7 @@ export const removeFavoriteFoodTruck_API = async (foodTruckId) => {
     const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -184,7 +184,7 @@ export const getAddress_API = async (params = {}) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -195,7 +195,7 @@ export const addAddress_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -206,7 +206,7 @@ export const updateAddress_API = async ({ addressId, payload }) => {
     const response = await apiClient.put(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -217,7 +217,7 @@ export const deleteAddress_API = async (addressId) => {
     const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -242,7 +242,7 @@ export const getRecentFoodTrucks_API = async (params = {}) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -287,7 +287,7 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -302,7 +302,7 @@ export const getFoodTruckDetailById_API = async (foodTruck_id) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -317,7 +317,7 @@ export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -328,7 +328,7 @@ export const placeFoodOrder_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -351,7 +351,7 @@ export const getAllOrders_API = async (params = {}) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -362,7 +362,7 @@ export const getOrderByOrderId_API = async (orderId) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -373,7 +373,7 @@ export const cancelFoodOrder_API = async (orderId, payload) => {
     const response = await apiClient.put(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -384,7 +384,7 @@ export const getAllCoupons_API = async () => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -395,7 +395,7 @@ export const validateCoupon_API = async (couponCode) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -406,7 +406,7 @@ export const setFcmToken_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -417,7 +417,7 @@ export const updateFcmToken_API = async ({ deviceId, payload }) => {
     const response = await apiClient.put(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -428,7 +428,7 @@ export const removeFcmToken_API = async (device_id) => {
     const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -439,7 +439,7 @@ export const addReviewRating_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -450,7 +450,7 @@ export const updateReviewRating_API = async ({ review_id, payload }) => {
     const response = await apiClient.put(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -461,7 +461,7 @@ export const getReviewRatingStats_API = async (foodTruck_id) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -483,7 +483,7 @@ export const getReviewRating_API = async (params = {}) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -494,7 +494,7 @@ export const getAllBanner_API = async () => {
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -505,7 +505,7 @@ export const checkItems_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -520,7 +520,7 @@ export const checkTax_API = async (params = {}) => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -531,7 +531,7 @@ export const deleteAccount_API = async () => {
     const response = await apiClient.delete(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -557,7 +557,7 @@ export const getGlobalSearchResult_API = async (params = {}) => {
     });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -568,7 +568,7 @@ export const getFreeDessertDetail_API = async () => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -579,7 +579,7 @@ export const getDietList_API = async () => {
     const response = await apiClient.get(URL, { skipToken: true });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -590,7 +590,7 @@ export const getDietRestrictList_API = async () => {
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
 
@@ -602,6 +602,6 @@ export const updateDietRestrictList_API = async (payload) => {
     const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
-    throw error?.response?.data;
+    throw error?.response?.data || error;
   }
 };
