@@ -9,6 +9,33 @@ import {
 } from "react-native";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+
+import { AppColor, Mulish400 } from "./src/utils/theme";
+import { navigationRef } from "./src/helpers/navigation.helper";
+import {
+  createAndroidChannel,
+  requestNotificationPermission,
+} from "./src/helpers/notification.helper";
+
+import { clearUserSlice } from "./src/redux/slices/userSlice";
+import { clearFavorites } from "./src/redux/slices/favoritesSlice";
+import { clearOrderSlice } from "./src/redux/slices/orderSlice";
+import { clearFoodTruckProfileSlice } from "./src/redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "./src/redux/slices/locationSlice";
+import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
+
+import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
+import AddressScreen from "./src/screens/addressScreen";
+import NearMeScreen from "./src/screens/nearMeScreen";
+import OrdersScreen from "./src/screens/ordersScreen";
+import ProfileMenuScreen from "./src/screens/profileMenuScreen";
+import ForgetPasswordScreen from "./src/screens/forgetPasswordScreen";
 import SigninScreen from "./src/screens/signinScreen";
 import SignupScreen from "./src/screens/signupScreen";
 import OtpVerificationScreen from "./src/screens/otpVerificationScreen";
@@ -17,40 +44,16 @@ import ResetPasswordScreen from "./src/screens/resetPasswordScreen";
 import SplashScreen from "./src/screens/splashScreen";
 import ExploreScreen from "./src/screens/exploreScreen";
 import FoodTruckDetailScreen from "./src/screens/foodTruckDetailScreen";
-import { useSelector, useDispatch } from "react-redux";
-import ForgetPasswordScreen from "./src/screens/forgetPasswordScreen";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import NearMeScreen from "./src/screens/nearMeScreen";
-import OrdersScreen from "./src/screens/ordersScreen";
-import ProfileMenuScreen from "./src/screens/profileMenuScreen";
-import FavoriteFoodTrucksScreen from "./src/screens/favoriteFoodTrucksScreen";
-import AddressScreen from "./src/screens/addressScreen";
-import { AppColor, Mulish400 } from "./src/utils/theme";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
 import AuthMapScreen from "./src/screens/authMapScreen";
 import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
 import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
 import CancelOrderScreen from "./src/screens/cancelOrderScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
 import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
-import { onGuest, onSignOut } from "./src/redux/slices/authSlice";
 import CheckoutScreen from "./src/screens/checkoutScreen";
 import CouponCodeScreen from "./src/screens/couponCodeScreen";
 import OrderPlacedScreen from "./src/screens/orderPlacedScreen";
 import RateReviewScreen from "./src/screens/rateReviewScreen";
-import { clearUserSlice } from "./src/redux/slices/userSlice";
-import { clearFavorites } from "./src/redux/slices/favoritesSlice";
-import { clearOrderSlice } from "./src/redux/slices/orderSlice";
-import { clearFoodTruckProfileSlice } from "./src/redux/slices/foodTruckProfileSlice";
-import { clearLocationSlice } from "./src/redux/slices/locationSlice";
-import { navigationRef } from "./src/helpers/navigation.helper";
-import {
-  createAndroidChannel,
-  requestNotificationPermission,
-} from "./src/helpers/notification.helper";
 import TermsOfServiceScreen from "./src/screens/termsOfServiceScreen";
 import SeeAllTrucksScreen from "./src/screens/seeAllTrucksScreen";
 import GlobalSearchScreen from "./src/screens/globalSearchScreen";
@@ -58,6 +61,7 @@ import OneTapSignInScreen from "./src/screens/oneTapSigninScreen";
 import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
+import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -245,7 +249,14 @@ const AppNavigator = ({ insets }) => (
       component={OtpVerificationScreen}
     />
     <Stack.Screen name="userProfileScreen" component={UserProfileScreen} />
-    <Stack.Screen name="dietRestrictionScreen" component={DietRestrictionScreen} />
+    <Stack.Screen
+      name="dietRestrictionScreen"
+      component={DietRestrictionScreen}
+    />
+    <Stack.Screen
+      name="paymentProcessingScreen"
+      component={PaymentProcessingScreen}
+    />
   </Stack.Navigator>
 );
 
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
   },
   authRequiredContainer: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: AppColor.white,
   },
   authRequiredContent: {
     flex: 1,
@@ -315,7 +326,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   signInButtonText: {
-    color: "#fff",
+    color: AppColor.white,
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",

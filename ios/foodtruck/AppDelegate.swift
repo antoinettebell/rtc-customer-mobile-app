@@ -5,6 +5,7 @@ import ReactAppDependencyProvider
 import GoogleMaps
 import RNBootSplash
 import Firebase
+import PassKit
 
 @main
 class AppDelegate: RCTAppDelegate {

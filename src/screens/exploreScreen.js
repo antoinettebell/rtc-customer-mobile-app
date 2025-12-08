@@ -131,8 +131,8 @@ const ExploreScreen = (props) => {
 
         if (diffHours >= 24) {
           Alert.alert(
-            "Order Cleared",
-            "Your previous order has been cleared due to inactivity (over 24 hours).",
+            "Cart Cleared",
+            "Your previous cart has been cleared due to inactivity (over 24 hours).",
             [
               {
                 text: "Okay",
@@ -547,26 +547,20 @@ const ExploreScreen = (props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-            <FlatList
-              data={recentTrucks}
-              keyExtractor={(item) => item._id.toString()}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                return (
-                  <FoodTruckListComponent
-                    title={item.name}
-                    uri={item.logo}
-                    foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
-                    showLikeButton={isSignedIn}
-                    showDistance={false}
-                    onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", { item })
-                    }
-                  />
-                );
-              }}
-            />
+            {recentTrucks?.map((item) => (
+              <FoodTruckListComponent
+                key={item._id}
+                title={item.name}
+                uri={item.logo}
+                foodTruckId={item._id}
+                reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                showLikeButton={isSignedIn}
+                showDistance={false}
+                onContainerPress={() =>
+                  navigation.navigate("foodTruckDetailScreen", { item })
+                }
+              />
+            ))}
           </View>
 
           {/* Popular nearby foodtruck container */}

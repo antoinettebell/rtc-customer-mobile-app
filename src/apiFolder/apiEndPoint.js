@@ -48,6 +48,9 @@ export const PLACE_FOOD_ORDER = "/order";
 export const GET_ALL_ORDERS = "/order";
 export const GET_ORDER_BY_ORDERID = "/order";
 export const CANCEL_FOOD_ORDER = "/order";
+export const CHECK_FREE_DESERT_ELIGIBILITY = "/order/free-dessert/eligibility";
+export const VALIDATE_ORDER = "/order/validate-order";
+export const PAYMENT_CHECKOUT = "/order/payment-checkout";
 
 // Menu
 export const CHECK_ITEMS = "public/menu-check-items";

@@ -8,7 +8,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator as NativeIndicator,
-  Platform,
   Pressable,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
@@ -16,7 +15,6 @@ import { useIsFocused } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Modal from "react-native-modal"; // Import react-native-modal
 import moment from "moment";
 import {
   Divider,
@@ -33,14 +31,14 @@ import {
   Mulish600,
   Mulish500,
 } from "../utils/theme";
-import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import AppImage from "../components/AppImage";
 import {
+  checkFreeDessertEligibility_API,
   checkItems_API,
   checkTax_API,
   getFoodTruckDetailById_API,
-  placeFoodOrder_API,
+  validateOrder_API,
 } from "../apiFolder/appAPI";
 import { onGuest, onSignOut } from "../redux/slices/authSlice";
 import { clearUserSlice } from "../redux/slices/userSlice";
@@ -50,12 +48,10 @@ import { clearLocationSlice } from "../redux/slices/locationSlice";
 import {
   addItemToOrder,
   removeItemFromOrder,
-  clearCurrentOrder,
   clearOrderSlice,
   updateAllItemsOfOrder,
   updateItemProperty,
 } from "../redux/slices/orderSlice";
-import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import useDebounce from "../hooks/useDebounce";
 
 const CheckoutScreen = ({ navigation, route }) => {
@@ -79,8 +75,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [truckCurrentLocation, setTruckCurrentLocation] = useState(null);
   const [taxData, setTaxData] = useState(null);
-
-  const [paymentMethod, setPaymentMethod] = useState("Google Pay");
+  const [dessert, setDessert] = useState(null);
   const [pickupSource, setPickupSource] = useState("regular");
 
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -91,21 +86,16 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [preventAPI, setPreventAPI] = useState(false);
 
   const subtotal = useMemo(() => order.subtotal, [order.subtotal]);
-  console.log("subtotal => ", subtotal);
   const debouncedSubtotal = useDebounce(subtotal, 1000);
-  console.log("debouncedSubtotal => ", debouncedSubtotal);
   const processingFeeRate = useMemo(
     () => taxData?.paymentProcessingFee || 0,
     [taxData]
   );
-  console.log("processingFeeRate => ", processingFeeRate);
   const salesTaxAmount = useMemo(() => taxData?.salesTaxAmount || 0, [taxData]);
-  console.log("salesTaxAmount => ", salesTaxAmount);
   const totalWithSalesTax = useMemo(
     () => debouncedSubtotal + salesTaxAmount || 0,
     [salesTaxAmount, debouncedSubtotal]
   );
-  console.log("totalWithSalesTax => ", totalWithSalesTax);
   const discount = useMemo(() => {
     if (!coupon) return 0;
     if (coupon.type === "PERCENTAGE") {
@@ -118,24 +108,18 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
     return 0;
   }, [coupon, totalWithSalesTax]);
-  console.log("discount => ", discount);
   const totalAfterDiscount = useMemo(
     () => totalWithSalesTax - discount,
     [totalWithSalesTax, discount]
   );
-  console.log("totalAfterDiscount => ", totalAfterDiscount);
   const prosessingFeeAmount = useMemo(
     () => totalAfterDiscount * (processingFeeRate / 100),
     [totalAfterDiscount, processingFeeRate]
   );
-  console.log("prosessingFeeAmount => ", prosessingFeeAmount);
   const totalAfterProsessingFee = useMemo(
     () => totalAfterDiscount + prosessingFeeAmount,
     [totalAfterDiscount, prosessingFeeAmount]
   );
-  console.log("totalAfterProsessingFee => ", totalAfterProsessingFee);
-
-  const hasFreeDessert = subtotal > 15;
 
   const showTimePicker = () => {
     setTimePickerVisibility(true);
@@ -287,21 +271,32 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
 
     console.log("Order Payload:", payload);
-
     setLoading(true);
     try {
-      const response = await placeFoodOrder_API(payload);
-      console.log("✅ Order placed:", response);
-      if (response?.success && response?.data) {
-        dispatch(clearCurrentOrder());
-        // Alert.alert("Success", "Your order has been placed!");
-        navigation.navigate("orderPlacedScreen", {
-          orderNumber: response?.data?.order?.orderNumber,
-        });
+      const response = await validateOrder_API(payload);
+      console.log("response", response);
+      if (response.success && response.data) {
+        const navigationPayload = {
+          orderDetail: payload,
+          foodTruckDetail: foodTruckDetail,
+          checkoutTime: moment.now(),
+          finalAmount: response.data.order.total,
+          // billDetail: {
+          //   itemTotalAmount: subtotal,
+          //   salesTaxAmount: salesTaxAmount,
+          //   coupon: coupon,
+          //   discountAmount: discount,
+          //   totalWithTaxAmount: totalAfterDiscount,
+          //   paymentProcessingFeePercent: processingFeeRate,
+          //   paymentProcessingFeeAmount: prosessingFeeAmount,
+          //   finalAmount: totalAfterProsessingFee,
+          //   freeDessert: dessert?.isEligibleNow || false,
+          // },
+        };
+        navigation.navigate("paymentProcessingScreen", navigationPayload);
       }
     } catch (error) {
-      console.error("❌ Order failed:", error);
-      Alert.alert("Error", error?.message || "Failed to place order.");
+      console.error("order validation error => ", error);
     } finally {
       setLoading(false);
     }
@@ -651,6 +646,12 @@ const CheckoutScreen = ({ navigation, route }) => {
           setTaxData(response_3?.data);
         }
       }
+
+      const response_4 = await checkFreeDessertEligibility_API();
+      console.log("response_4 => ", response_4);
+      if (response_4?.success && response_4?.data) {
+        setDessert(response_4?.data?.eligibility || null);
+      }
     } catch (error) {
       console.log("error => ", error);
     } finally {
@@ -659,7 +660,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   const getTaxInfoFromAPI = async (amount) => {
-    console.log("getTaxInfoFromAPI function called => ", amount);
     setDataLoading(true);
     try {
       const locationId =
@@ -667,7 +667,6 @@ const CheckoutScreen = ({ navigation, route }) => {
           ? truckCurrentLocation?._id
           : selectedLocation?._id;
 
-      console.log("locationId => ", locationId);
       if (!locationId) return;
 
       const response = await checkTax_API({
@@ -740,6 +739,7 @@ const CheckoutScreen = ({ navigation, route }) => {
             <View style={styles.itemSummaryBox}>
               <Text style={styles.sectionTitle}>{"Order Summary"}</Text>
               <FlatList
+                scrollEnabled={false}
                 data={order.items}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.screenGenericCard}
@@ -1042,7 +1042,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               ) : null}
             </View>
 
-            {/* Calculation container */}
+            {/* bill-summary container */}
             <View>
               <Text style={styles.sectionTitle}>{"Bill Summary"}</Text>
               <View style={[styles.screenGenericCard, { paddingBottom: 15 }]}>
@@ -1094,7 +1094,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                       ${prosessingFeeAmount.toFixed(2)}
                     </Text>
                   </View>
-                  {/* {hasFreeDessert && (
+                  {dessert?.isEligibleNow && (
                     <View style={styles.totalRow}>
                       <View style={styles.dessertRow}>
                         <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
@@ -1104,55 +1104,10 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </View>
                       <Text style={styles.totalRowItemTxt}>$0.00</Text>
                     </View>
-                  )} */}
+                  )}
                 </View>
               </View>
             </View>
-
-            {/* payment selection container */}
-            {onlinePyamentApplicablePlanList.includes(
-              foodTruckDetail?.plan?.slug
-            ) && (
-              <View style={styles.paymentBox}>
-                <Text style={styles.paymentTitleTxt}>Payment Method</Text>
-                {[
-                  { method: "Google Pay", icon: "google" },
-                  { method: "Apple Pay", icon: "apple" },
-                ].map(({ method, icon }) => (
-                  <TouchableOpacity
-                    key={method}
-                    onPress={() => setPaymentMethod(method)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.paymentOption,
-                      paymentMethod === method && styles.paymentOptionActive,
-                    ]}
-                  >
-                    <View style={styles.radioContainer}>
-                      <View
-                        style={[
-                          styles.radioOuter,
-                          paymentMethod === method && styles.radioOuterActive,
-                        ]}
-                      >
-                        {paymentMethod === method && (
-                          <View style={styles.radioInner} />
-                        )}
-                      </View>
-                    </View>
-                    <Icon
-                      name={icon}
-                      size={18}
-                      style={[
-                        styles.paymentIcon,
-                        paymentMethod === method && styles.paymentIconActive,
-                      ]}
-                    />
-                    <Text style={styles.paymentText}>{method}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </ScrollView>
 
           {/* Order btn container */}
@@ -1183,7 +1138,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                   disabled={order.items.length === 0 || loading}
                 >
                   {loading ? (
-                    <ActivityIndicator color={AppColor.white} />
+                    <ActivityIndicator color={AppColor.white} size="small" />
                   ) : (
                     <Text style={styles.confirmBtnText}>
                       {pickupSource === "regular"
@@ -1419,75 +1374,6 @@ const styles = StyleSheet.create({
   couponText: {
     color: AppColor.primary,
     fontFamily: Mulish400,
-  },
-  paymentBox: {
-    marginVertical: 8,
-  },
-  paymentTitleTxt: {
-    fontFamily: Mulish700,
-    fontSize: 18,
-    marginVertical: 10,
-  },
-  paymentOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: AppColor.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  paymentOptionActive: {
-    borderColor: AppColor.primary,
-    backgroundColor: "#FFF6ED",
-  },
-  radioContainer: {
-    width: 24,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  radioOuter: {
-    height: 18,
-    width: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioOuterActive: {
-    borderColor: AppColor.primary,
-  },
-  radioInner: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: AppColor.primary,
-  },
-  paymentIcon: {
-    marginRight: 8,
-    color: "#666",
-  },
-  paymentIconActive: {
-    color: AppColor.primary,
-  },
-  paymentText: {
-    fontFamily: Mulish400,
-    fontSize: 15,
   },
   totalCard: {
     marginVertical: 8,

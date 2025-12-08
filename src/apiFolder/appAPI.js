@@ -41,6 +41,9 @@ import {
   GET_DIET_LIST,
   GET_DIET_RESTRICT_LIST,
   UPDATE_DIET_RESTRICT_LIST,
+  CHECK_FREE_DESERT_ELIGIBILITY,
+  VALIDATE_ORDER,
+  PAYMENT_CHECKOUT,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -332,6 +335,17 @@ export const placeFoodOrder_API = async (payload) => {
   }
 };
 
+// Payment Checkout before Order Place
+export const paymentCheckout_API = async (payload) => {
+  try {
+    const URL = PAYMENT_CHECKOUT;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 // Get All Food Order
 export const getAllOrders_API = async (params = {}) => {
   try {
@@ -377,6 +391,17 @@ export const cancelFoodOrder_API = async (orderId, payload) => {
   }
 };
 
+// Check Free Dessert Eligibility
+export const checkFreeDessertEligibility_API = async () => {
+  try {
+    const URL = CHECK_FREE_DESERT_ELIGIBILITY;
+    const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 // Get All Coupon Codes
 export const getAllCoupons_API = async () => {
   try {
@@ -393,6 +418,17 @@ export const validateCoupon_API = async (couponCode) => {
   try {
     const URL = `${VALIDATE_COUPON_CODE}?code=${couponCode}`;
     const response = await apiClient.get(URL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+// Validate order
+export const validateOrder_API = async (payload) => {
+  try {
+    const URL = VALIDATE_ORDER;
+    const response = await apiClient.post(URL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
