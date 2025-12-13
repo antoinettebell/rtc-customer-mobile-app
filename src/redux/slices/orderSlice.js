@@ -15,6 +15,27 @@ const initialState = {
   orderHistory: [],
 };
 
+// Helper function to calculate item price with BOGO/BOGOHO discounts
+const calculateItemTotal = (item) => {
+  let total = item.price * item.quantity;
+
+  // Handle BOGOHO discount type
+  if (
+    item.discountType === "BOGOHO" &&
+    item.bogoItems &&
+    item.bogoItems.length > 0
+  ) {
+    // For BOGOHO, add half price of each bogo item for each quantity
+    item.bogoItems.forEach((bogoItem) => {
+      // Add half price of each bogo item for each quantity of the main item
+      total += bogoItem.itemId.price * 0.5 * item.quantity * bogoItem.qty;
+    });
+  }
+  // Note: For BOGO, no additional charge (free items)
+
+  return total;
+};
+
 const orderSlice = createSlice({
   name: "order",
   initialState,
@@ -63,7 +84,7 @@ const orderSlice = createSlice({
       //   0
       // );
       state.currentOrder.subtotal = state.currentOrder.items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) => sum + calculateItemTotal(item),
         0
       );
       state.currentOrder.lastUpdate = new Date().toISOString();
@@ -91,7 +112,7 @@ const orderSlice = createSlice({
           0
         );
         state.currentOrder.subtotal = state.currentOrder.items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
+          (sum, item) => sum + calculateItemTotal(item),
           0
         );
 
@@ -131,7 +152,7 @@ const orderSlice = createSlice({
       // Recalculate totals
       state.currentOrder.totalItems = updatedItems.length;
       state.currentOrder.subtotal = updatedItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, item) => sum + calculateItemTotal(item),
         0
       );
     },
@@ -154,7 +175,7 @@ const orderSlice = createSlice({
         // Recalculate totals if the updated property affects pricing
         if (["price", "discount", "quantity"].includes(keyName)) {
           state.currentOrder.subtotal = state.currentOrder.items.reduce(
-            (sum, item) => sum + item.price * item.quantity,
+            (sum, item) => sum + calculateItemTotal(item),
             0
           );
         }

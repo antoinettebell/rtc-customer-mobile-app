@@ -119,9 +119,9 @@ const OrdersScreen = ({ navigation }) => {
               <Text
                 style={styles.orderItemName}
               >{`${i.qty} x ${i.menuItem.name}`}</Text>
-              {i.menuItem?.bogoItems?.length > 0 ? (
+              {["BOGO", "BOGOHO"].includes(i.menuItem?.discountType) ? (
                 <Text style={styles.orderItemDescription} numberOfLines={2}>
-                  {"Buy 1 Get 1 Free"}
+                  {`${i.menuItem?.discountType}`}
                 </Text>
               ) : null}
             </View>

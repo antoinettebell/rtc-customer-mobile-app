@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   View,
   Platform,
-  ActivityIndicator,
 } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
@@ -94,7 +94,7 @@ const FoodTruckListComponent = ({
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={AppColor.primary} />
+            <ActivityIndicator color={AppColor.primary} />
           ) : (
             <MaterialCommunityIcons
               name={isLiked ? "heart" : "heart-outline"}

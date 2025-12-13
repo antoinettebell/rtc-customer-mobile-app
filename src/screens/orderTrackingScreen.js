@@ -41,13 +41,6 @@ const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-const pickupRegion = {
-  latitude: 23.0225,
-  longitude: 72.5714,
-  latitudeDelta: LATITUDE_DELTA,
-  longitudeDelta: LONGITUDE_DELTA,
-};
-
 const OrderTrackingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
@@ -56,6 +49,12 @@ const OrderTrackingScreen = ({ navigation, route }) => {
 
   const [order, setOrder] = useState(null);
   const [iamstate, setiamstate] = useState([]);
+  const [pickupRegion, setPickupRegion] = useState({
+    latitude: 43.0,
+    longitude: -75.0,
+    latitudeDelta: LATITUDE_DELTA,
+    longitudeDelta: LONGITUDE_DELTA,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -118,6 +117,12 @@ const OrderTrackingScreen = ({ navigation, route }) => {
       console.log("response => ", response);
       if (response?.success && response?.data) {
         setOrder(response.data.order);
+        setPickupRegion({
+          latitude: parseFloat(response.data.order?.locationData?.lat || 0),
+          longitude: parseFloat(response.data.order?.locationData?.long || 0),
+          latitudeDelta: LATITUDE_DELTA,
+          longitudeDelta: LONGITUDE_DELTA,
+        });
         setiamstate(getStatusHistory(response.data?.order?.statusTime));
       } else {
         setOrder(null);

@@ -84,8 +84,8 @@ const ANDROID_PAY_METHOD_DATA = {
     requestPayerEmail: false,
     requestShipping: false,
     gatewayConfig: {
-      gateway: "example",
-      gatewayMerchantId: "exampleGatewayMerchantId",
+      gateway: Config.ANDROID_PAYMENT_GATEWAY,
+      gatewayMerchantId: Config.ANDROID_PAYMENT_GATEWAY_MERCHANT_ID,
     },
   },
 };
@@ -222,6 +222,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           //   error: null,
           //   message: "Payment checkout was successful",
           // };
+
           const respose_1 = await paymentCheckout_API(reqPayload);
           console.log("Payment Checkout Response => ", respose_1);
           if (respose_1.success && respose_1.data) {
@@ -229,7 +230,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               message: "Payment successful. Thank you!",
               type: "success",
             });
-
             const respose_2 = await placeFoodOrder_API({
               ...orderDetail,
               paymentMethod:
@@ -395,7 +395,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               disabled={paymentLoading}
             >
               {paymentLoading ? (
-                <ActivityIndicator size="small" color={AppColor.white} />
+                <ActivityIndicator color={AppColor.white} />
               ) : (
                 <Text style={styles.nextBtnText}>Next</Text>
               )}
@@ -458,8 +458,8 @@ const styles = StyleSheet.create({
   },
 
   paymentBox: {
-    marginHorizontal: 16,
-    marginVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   paymentTitleTxt: {
     fontFamily: Mulish700,
@@ -472,29 +472,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
-    // paddingVertical: 20,
     paddingHorizontal: 16,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: AppColor.border,
     backgroundColor: AppColor.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: AppColor.black,
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   paymentOptionActive: {
     borderWidth: 1,
     borderColor: AppColor.primary,
-    // backgroundColor: "#FFF6ED",
   },
   paymentOptionContextContainer: {
     flexDirection: "row",
@@ -549,293 +535,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-// ==========================================================
-
-// import React, { useMemo, useState } from "react";
-// import {
-//   Alert,
-//   Platform,
-//   SafeAreaView,
-//   StyleSheet,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   View,
-// } from "react-native";
-// import {
-//   PaymentRequest,
-//   PaymentMethodNameEnum,
-//   SupportedNetworkEnum,
-//   EnvironmentEnum,
-// } from "@rnw-community/react-native-payments";
-
-// const applePayMerchantIdentifier = "merchant.roundthecorner.vendor";
-
-// function App() {
-//   // Apple Pay
-//   const iosPaymentMethod = {
-//     supportedMethods: PaymentMethodNameEnum.ApplePay,
-//     data: {
-//       merchantIdentifier: applePayMerchantIdentifier,
-//       supportedNetworks: [
-//         SupportedNetworkEnum.Visa,
-//         SupportedNetworkEnum.Mastercard,
-//       ],
-//       countryCode: "US",
-//       currencyCode: "USD",
-//       requestBillingAddress: false,
-//       requestPayerEmail: false,
-//       requestShipping: false,
-//     },
-//   };
-
-//   // Android Pay
-//   const androidPaymentMethod = {
-//     supportedMethods: PaymentMethodNameEnum.AndroidPay,
-//     data: {
-//       supportedNetworks: [
-//         SupportedNetworkEnum.Visa,
-//         SupportedNetworkEnum.Mastercard,
-//       ],
-//       environment: EnvironmentEnum.TEST,
-//       countryCode: "US",
-//       currencyCode: "USD",
-//       requestBillingAddress: false,
-//       requestPayerEmail: false,
-//       requestShipping: false,
-//       gatewayConfig: {
-//         gateway: "authorizenet",
-//         gatewayMerchantId: "exampleGatewayMerchantId",
-//       },
-//     },
-//   };
-
-//   const [price, setPrice] = useState("0.10");
-//   const [tax, setTax] = useState("0.00");
-
-//   const toAmount = (val) => {
-//     const n = parseFloat(val);
-//     return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-//   };
-
-//   const paymentDetails = useMemo(() => {
-//     const priceValue = toAmount(price);
-//     const taxValue = toAmount(tax);
-//     const total = (parseFloat(priceValue) + parseFloat(taxValue)).toFixed(2);
-//     return {
-//       displayItems: [
-//         { label: "Price", amount: { currency: "USD", value: priceValue } },
-//         { label: "Taxes", amount: { currency: "USD", value: taxValue } },
-//       ],
-//       total: {
-//         label: "Total",
-//         amount: { currency: "USD", value: total },
-//       },
-//     };
-//   }, [price, tax]);
-
-//   // Update the handlers to use the payment request
-//   const handleGooglePayPress = async () => {
-//     try {
-//       // Create a new payment request instance each time to handle cancellation properly
-//       const paymentRequest = new PaymentRequest(
-//         [androidPaymentMethod],
-//         paymentDetails
-//       );
-
-//       const response = await paymentRequest.show();
-//       console.log("Payment Response:", response);
-//       Alert.alert("Payment Success", "Transaction completed successfully");
-//       response.complete("success");
-//     } catch (error) {
-//       const errorMessage =
-//         error instanceof Error ? error.message : "Unknown error occurred";
-//       Alert.alert("Payment Error", errorMessage);
-//     }
-//   };
-
-//   const handleApplePayPress = async () => {
-//     try {
-//       if (Platform.OS === "ios") {
-//         const totalNumber = parseFloat(paymentDetails.total.amount.value);
-//         if (totalNumber === 0) {
-//           Alert.alert("Invalid Total", "Total must be greater than 0");
-//           return;
-//         }
-//         // Create a new payment request instance each time to handle cancellation properly
-//         const paymentRequest = new PaymentRequest(
-//           [iosPaymentMethod],
-//           paymentDetails
-//         );
-
-//         const response = await paymentRequest.show();
-//         setTimeout(() => {
-//           response.complete("success");
-//           Alert.alert("Payment Success", "Transaction completed successfully");
-//         }, 3000);
-//       } else {
-//         Alert.alert("Apple Pay", "Apple Pay is only available on iOS");
-//       }
-//     } catch (error) {
-//       console.log("Payment Error => ", error);
-//       const errorMessage =
-//         error instanceof Error ? error.message : "Unknown error occurred";
-//       Alert.alert("Payment Error", errorMessage);
-//     }
-//   };
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <Text style={styles.title}>Payment - POC</Text>
-//       <View style={styles.inputContainer}>
-//         <Text style={styles.inputLabel}>Price</Text>
-//         <TextInput
-//           style={styles.input}
-//           value={price}
-//           onChangeText={setPrice}
-//           keyboardType="decimal-pad"
-//           placeholder="Enter price"
-//         />
-//         <Text style={[styles.inputLabel, { marginTop: 10 }]}>Taxes</Text>
-//         <TextInput
-//           style={styles.input}
-//           value={tax}
-//           onChangeText={setTax}
-//           keyboardType="decimal-pad"
-//           placeholder="Enter taxes"
-//         />
-//       </View>
-
-//       {Platform.OS === "ios" ? (
-//         <Text
-//           style={[
-//             styles.versionText,
-//             { textTransform: "none", color: "#000000" },
-//           ]}
-//         >
-//           {applePayMerchantIdentifier}
-//         </Text>
-//       ) : null}
-
-//       {paymentDetails.displayItems?.map((item, index) => (
-//         <View key={index} style={styles.detailRow}>
-//           <Text style={styles.detailLabel}>{item.label}:</Text>
-//           <Text style={styles.detailValue}>
-//             {item.amount.currency} {item.amount.value}
-//           </Text>
-//         </View>
-//       ))}
-//       <View style={styles.totalRow}>
-//         <Text style={styles.totalLabel}>{paymentDetails.total.label}:</Text>
-//         <Text style={styles.totalValue}>
-//           {paymentDetails.total.amount.currency}{" "}
-//           {paymentDetails.total.amount.value}
-//         </Text>
-//       </View>
-
-//       <View style={styles.buttonContainer}>
-//         {Platform.OS === "android" && (
-//           <TouchableOpacity
-//             style={[styles.button, { backgroundColor: "#4285F4" }]}
-//             onPress={handleGooglePayPress}
-//           >
-//             <Text style={styles.buttonText}>Google Pay</Text>
-//           </TouchableOpacity>
-//         )}
-
-//         {Platform.OS === "ios" && (
-//           <TouchableOpacity
-//             style={[styles.button, { backgroundColor: "#000000" }]}
-//             onPress={handleApplePayPress}
-//           >
-//             <Text style={styles.buttonText}>Apple Pay</Text>
-//           </TouchableOpacity>
-//         )}
-//       </View>
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     alignItems: "center",
-//     padding: 20,
-//     backgroundColor: "#FFF",
-//   },
-//   title: {
-//     fontSize: 24,
-//     fontWeight: "bold",
-//     marginBottom: 10,
-//   },
-//   buttonContainer: {
-//     width: "80%",
-//     gap: 20,
-//     marginTop: 20,
-//   },
-//   button: {
-//     padding: 15,
-//     borderRadius: 5,
-//     alignItems: "center",
-//   },
-//   buttonText: {
-//     color: "white",
-//     fontSize: 18,
-//     fontWeight: "bold",
-//   },
-//   inputContainer: {
-//     width: "80%",
-//     marginVertical: 10,
-//   },
-//   inputLabel: {
-//     fontSize: 16,
-//   },
-//   input: {
-//     width: "100%",
-//     borderWidth: 1,
-//     borderColor: "#cccccc",
-//     borderRadius: 5,
-//     padding: 10,
-//   },
-//   detailRow: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     width: "80%",
-//     marginBottom: 5,
-//   },
-//   detailLabel: {
-//     fontSize: 16,
-//   },
-//   detailValue: {
-//     fontSize: 16,
-//     fontWeight: "bold",
-//   },
-//   totalRow: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     width: "80%",
-//     marginTop: 10,
-//     paddingTop: 10,
-//     borderTopWidth: 1,
-//     borderTopColor: "#cccccc",
-//   },
-//   totalLabel: {
-//     fontSize: 18,
-//     fontWeight: "bold",
-//   },
-//   totalValue: {
-//     fontSize: 18,
-//     fontWeight: "bold",
-//     color: "green",
-//   },
-//   versionText: {
-//     marginBottom: 10,
-//     fontSize: 12,
-//     fontWeight: "bold",
-//     color: "#4f4141ff",
-//     textTransform: "capitalize",
-//   },
-// });
-
-// export default App;

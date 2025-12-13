@@ -40,15 +40,9 @@ import {
   getFoodTruckDetailById_API,
   validateOrder_API,
 } from "../apiFolder/appAPI";
-import { onGuest, onSignOut } from "../redux/slices/authSlice";
-import { clearUserSlice } from "../redux/slices/userSlice";
-import { clearFavorites } from "../redux/slices/favoritesSlice";
-import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
-import { clearLocationSlice } from "../redux/slices/locationSlice";
 import {
   addItemToOrder,
   removeItemFromOrder,
-  clearOrderSlice,
   updateAllItemsOfOrder,
   updateItemProperty,
 } from "../redux/slices/orderSlice";
@@ -61,7 +55,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   const actionSheetRef = useRef(null);
   const actionSheetRef2 = useRef(null);
 
-  const { isSignedIn } = useSelector((state) => state.authReducer);
   const order = useSelector((state) => state.orderReducer.currentOrder);
 
   const { foodTruckId = null } = route.params || {};
@@ -442,6 +435,30 @@ const CheckoutScreen = ({ navigation, route }) => {
             </Text>
           </Pressable>
         ) : null}
+        {item.bogoItems.map((itm) => (
+          <View style={[styles.itemRow, { marginTop: 8 }]} key={itm?._id}>
+            <AppImage
+              uri={itm?.itemId?.imgUrls[0]}
+              containerStyle={styles.foodImg}
+            />
+            <View style={styles.itemDetails}>
+              <Text style={styles.itemTitle}>{itm.itemId.name}</Text>
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {itm.itemId.description}
+              </Text>
+              <Text style={styles.itemPrice}>
+                {item.discountType === "BOGO"
+                  ? "Free"
+                  : `$${(parseFloat(itm.itemId.price || "0") * 0.5).toFixed(2)}`}
+              </Text>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              {/* quantity will be same as original item */}
+              <Text style={styles.qtyText}>{`x ${item.quantity}`}</Text>
+              <Text style={styles.qtyText}>{item.discountType}</Text>
+            </View>
+          </View>
+        ))}
       </View>
     );
   };
@@ -596,16 +613,6 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
 
     return today.add(daysToAdd, "days");
-  };
-
-  const handleSignIn = () => {
-    dispatch(onGuest(false));
-    dispatch(clearUserSlice());
-    dispatch(clearFavorites());
-    dispatch(clearOrderSlice());
-    dispatch(clearFoodTruckProfileSlice());
-    dispatch(clearLocationSlice());
-    dispatch(onSignOut());
   };
 
   const getIntitalDataFromAPI = async () => {
@@ -1126,39 +1133,23 @@ const CheckoutScreen = ({ navigation, route }) => {
               </Text>
             </View>
 
-            {isSignedIn ? (
-              <>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={[
-                    styles.confirmBtn,
-                    (order.items.length === 0 || loading) && styles.disabledBtn,
-                  ]}
-                  onPress={handleConfirmOrder}
-                  disabled={order.items.length === 0 || loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={AppColor.white} size="small" />
-                  ) : (
-                    <Text style={styles.confirmBtnText}>
-                      {pickupSource === "regular"
-                        ? "Order Now"
-                        : "Schedule Order"}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.advanceOrderBtn}
-                onPress={handleSignIn}
-              >
-                <Text style={styles.advncOrderBtnText}>
-                  Login to Place Order
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.confirmBtn,
+                (order.items.length === 0 || loading) && styles.disabledBtn,
+              ]}
+              onPress={handleConfirmOrder}
+              disabled={order.items.length === 0 || loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={AppColor.white} />
+              ) : (
+                <Text style={styles.confirmBtnText}>
+                  {pickupSource === "regular" ? "Order Now" : "Schedule Order"}
                 </Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Pre-Order Availability */}

@@ -53,11 +53,11 @@ apiClient.interceptors.response.use(
       store.dispatch(clearUserSlice());
       store.dispatch(onSignOut());
 
-      showToast({
-        type: "error",
-        title: "Logged Out",
-        message: "Your session has expired. Please login again.",
-      });
+      // showToast({
+      //   type: "error",
+      //   title: "Logged Out",
+      //   message: "Your session has expired. Please login again.",
+      // });
       return Promise.reject(error);
     }
 

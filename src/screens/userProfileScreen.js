@@ -59,7 +59,7 @@ const UserProfileScreen = ({ navigation }) => {
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
 
-  const [userPic, setUserPic] = useState(null);
+  const [userPic, setUserPic] = useState(user?.profilePic || null);
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+1");
@@ -76,7 +76,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (user) {
-      setUserPic(user.profilePic || "");
+      setUserPic(user.profilePic || null);
       setCountryCode(user.countryCode || "+1");
       setMobileNumber(user.mobileNumber || "");
       setTempFirstName(user.firstName || "");

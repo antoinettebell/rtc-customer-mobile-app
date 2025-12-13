@@ -92,7 +92,7 @@ const UpdateContactModal = ({
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator size="small" color={AppColor.white} />
+          <ActivityIndicator color={AppColor.white} />
         ) : (
           <Text style={styles.updateBtnText}>Update</Text>
         )}

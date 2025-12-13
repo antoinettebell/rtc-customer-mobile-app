@@ -27,6 +27,7 @@ import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 import {
   orderCurrentStatusNames,
   orderStatusStrings,
+  PaymentMethodNames,
 } from "../utils/constants";
 import moment from "moment";
 import AppImage from "../components/AppImage";
@@ -296,7 +297,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               <Divider />
               <View style={styles.itemsList}>
                 {order.items.map((itm) => (
-                  <>
+                  <View>
                     <View style={styles.itemRow} key={itm?.menuItemId}>
                       <View style={styles.itemInfo}>
                         <Text
@@ -304,10 +305,10 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                             styles.itemText,
                             { fontSize: 15, fontFamily: Mulish500 },
                           ]}
-                        >{`${itm.qty} x ${itm.menuItem.name}`}</Text>
-                        <Text style={styles.itemDesc} numberOfLines={2}>
+                        >{`${itm.menuItem.name} (x${itm.qty})`}</Text>
+                        {/* <Text style={styles.itemDesc} numberOfLines={2}>
                           {itm.menuItem.description}
-                        </Text>
+                        </Text> */}
                         {itm.customization && (
                           <Text
                             style={[
@@ -332,7 +333,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                         ${itm.total.toFixed(2)}
                       </Text>
                     </View>
-                    {/* Below is for BOGO items */}
+                    {/* Below is for BOGO/BOGOHO items */}
                     {itm?.menuItem?.bogoItems?.map((bogoItem) => (
                       <View style={styles.itemRow} key={bogoItem?.itemId}>
                         <View style={styles.itemInfo}>
@@ -341,7 +342,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                               styles.itemText,
                               { fontSize: 15, fontFamily: Mulish500 },
                             ]}
-                          >{`${bogoItem.qty} x ${bogoItem.name}`}</Text>
+                          >{`• ${bogoItem.name} (x${bogoItem.qty})`}</Text>
                         </View>
                         <Text
                           style={[
@@ -349,11 +350,13 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                             { flex: 0.3, textAlign: "right" },
                           ]}
                         >
-                          {"$0.00"}
+                          {itm?.menuItem.discountType === "BOGOHO"
+                            ? `$${(bogoItem.price * bogoItem.qty * 0.5).toFixed(2)}`
+                            : "$0.00"}
                         </Text>
                       </View>
                     ))}
-                  </>
+                  </View>
                 ))}
               </View>
               <Divider />
@@ -408,7 +411,8 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     {`- $${(order?.discount || 0).toFixed(2)}`}
                   </Text>
                 </View>
-                <View style={styles.row}>
+                <Divider style={{ marginVertical: 10 }} />
+                <View style={[styles.row, { marginTop: 0 }]}>
                   <Text style={styles.orderDetailsTxt}>{"Total with Tax"}</Text>
                   <Text style={styles.orderDetailsTxt}>
                     ${(order?.totalAfterDiscount || 0).toFixed(2)}
@@ -422,6 +426,65 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     ${(order?.paymentProcessingFee || 0).toFixed(2)}
                   </Text>
                 </View>
+                {order?.freeDessertApplied && (
+                  <View style={styles.row}>
+                    <View style={styles.dessertRow}>
+                      <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
+                      <View style={styles.freeBadge}>
+                        <Text style={styles.freeBadgeText}>Free</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.totalRowItemTxt}>$0.00</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Payment Mode */}
+            <View style={styles.bottomSection}>
+              <View style={styles.totalSection}>
+                <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
+                  <Text style={styles.sectionTitle}>{"Payment Status"}</Text>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { textTransform: "capitalize" },
+                    ]}
+                  >
+                    {order?.paymentStatus || "N/A"}
+                  </Text>
+                </View>
+                <Divider />
+                <View style={styles.row}>
+                  <Text style={styles.orderDetailsTxt}>{"Payment Method"}</Text>
+                  <Text style={styles.orderDetailsTxt}>
+                    {PaymentMethodNames[order?.paymentMethod || "COD"]}
+                  </Text>
+                </View>
+                {["APPLE_PAY", "GOOGLE_PAY"].includes(order?.paymentMethod) && (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.orderDetailsTxt}>{"Auth Code"}</Text>
+                      <Text style={styles.orderDetailsTxt}>
+                        {order?.authCode || "N/A"}
+                      </Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.orderDetailsTxt}>{"Invoice No"}</Text>
+                      <Text style={styles.orderDetailsTxt}>
+                        {order?.invoiceNumber || "N/A"}
+                      </Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.orderDetailsTxt}>
+                        {"Transaction ID"}
+                      </Text>
+                      <Text style={styles.orderDetailsTxt}>
+                        {order?.transactionId || "N/A"}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
             </View>
           </View>
@@ -665,7 +728,7 @@ const styles = StyleSheet.create({
   },
   itemsList: {
     marginVertical: 15,
-    gap: 15,
+    gap: 8,
   },
   itemRow: {
     flexDirection: "row",
@@ -736,6 +799,24 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     marginTop: 16,
+  },
+  dessertRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  freeBadge: {
+    backgroundColor: "#C2FFFF",
+    borderRadius: 4,
+    marginLeft: 16,
+  },
+  freeBadgeText: {
+    color: "#008B8B",
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  totalRowItemTxt: {
+    fontFamily: Mulish400,
+    fontSize: 14,
   },
 });
 

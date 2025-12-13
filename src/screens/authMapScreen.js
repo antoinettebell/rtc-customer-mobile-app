@@ -230,7 +230,7 @@ const AuthMapScreen = ({ navigation, route }) => {
           });
         }
       } else if (error?.code === 3) {
-        showToast({
+        setSnackbar({
           visible: true,
           type: "info",
           message: "Please select location manually.",

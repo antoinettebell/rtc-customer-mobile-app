@@ -37,18 +37,21 @@ import {
   getAllBanner_API,
 } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchFavorites } from "../redux/slices/favoritesSlice";
+import { clearFavorites, fetchFavorites } from "../redux/slices/favoritesSlice";
 import {
   setDefaultLocation,
   setAllLocations,
+  clearLocationSlice,
 } from "../redux/slices/locationSlice";
 import moment from "moment";
 import { getMessaging } from "@react-native-firebase/messaging";
 import { checkInstallationId } from "../helpers/notification.helper";
 import Carousel from "react-native-reanimated-carousel";
-import FastImage from "@d11/react-native-fast-image";
 import { clearCurrentOrder, clearOrderSlice } from "../redux/slices/orderSlice";
 import AppImage from "../components/AppImage";
+import { onGuest, onSignOut } from "../redux/slices/authSlice";
+import { clearUserSlice } from "../redux/slices/userSlice";
+import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -951,13 +954,40 @@ const ExploreScreen = (props) => {
               backgroundColor: AppColor.primary,
             }}
             onPress={() => {
-              // navigate to 2 screen for previous screen history
-              navigation.navigate("foodTruckDetailScreen", {
-                item: { _id: OrderReducerStates?.currentOrder?.foodTruckId },
-              });
-              navigation.navigate("checkoutScreen", {
-                foodTruckId: OrderReducerStates?.currentOrder?.foodTruckId,
-              });
+              if (isSignedIn) {
+                // navigate to 2 screen for previous screen history
+                navigation.navigate("foodTruckDetailScreen", {
+                  item: { _id: OrderReducerStates?.currentOrder?.foodTruckId },
+                });
+                navigation.navigate("checkoutScreen", {
+                  foodTruckId: OrderReducerStates?.currentOrder?.foodTruckId,
+                });
+              } else {
+                // navigate to login screen
+                const handleSignIn = () => {
+                  dispatch(onGuest(false));
+                  dispatch(clearUserSlice());
+                  dispatch(clearFavorites());
+                  // dispatch(clearOrderSlice());
+                  dispatch(clearFoodTruckProfileSlice());
+                  dispatch(clearLocationSlice());
+                  dispatch(onSignOut());
+                };
+
+                Alert.alert("Sign In", "To order food, you need to sign in.", [
+                  {
+                    text: "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: "OK",
+                    style: "destructive",
+                    onPress: () => {
+                      handleSignIn();
+                    },
+                  },
+                ]);
+              }
             }}
           >
             <Text

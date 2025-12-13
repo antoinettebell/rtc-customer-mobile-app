@@ -26,3 +26,10 @@ export const orderStatusStrings = {
 };
 
 export const onlinePyamentApplicablePlanList = ["SUB_PLATINUM", "SUB_ELITE"];
+
+export const PaymentMethodNames = {
+  COD: "Cash on Pickup",
+  APPLE_PAY: "Apple Pay",
+  GOOGLE_PAY: "Google Pay",
+};
+

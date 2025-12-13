@@ -268,7 +268,7 @@ const DishItemDetailsModal = ({
                     marginBottom: 8,
                   }}
                 >
-                  {"BOGO Item:"}
+                  {`${selectedMenuItem.discountType} Item:`}
                 </Text>
                 {(selectedMenuItem.bogoItems || []).map((bogoItem, index) => (
                   <View
@@ -310,15 +310,28 @@ const DishItemDetailsModal = ({
                         {bogoItem?.itemId?.description || "-"}
                       </Text>
                     </View>
-                    <Text
-                      style={{
-                        fontFamily: Mulish600,
-                        fontSize: 16,
-                        color: AppColor.primary,
-                      }}
-                    >
-                      {`x${bogoItem?.qty}`}
-                    </Text>
+                    <View>
+                      <Text
+                        style={{
+                          fontFamily: Mulish600,
+                          fontSize: 16,
+                          color: AppColor.primary,
+                        }}
+                      >
+                        {`x${bogoItem?.qty}`}
+                      </Text>
+                      {selectedMenuItem.discountType === "BOGOHO" ? (
+                        <Text
+                          style={{
+                            fontFamily: Mulish600,
+                            fontSize: 16,
+                            color: AppColor.primary,
+                          }}
+                        >
+                          {`${((bogoItem?.itemId?.price || 0) * 0.5).toFixed(2)}`}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>

@@ -22,11 +22,16 @@ import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImageCarousel from "../components/ImageCarousel";
 import MapView, { Marker } from "react-native-maps";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleFavorite, fetchFavorites } from "../redux/slices/favoritesSlice";
+import {
+  toggleFavorite,
+  fetchFavorites,
+  clearFavorites,
+} from "../redux/slices/favoritesSlice";
 import {
   addItemToOrder,
   removeItemFromOrder,
   clearCurrentOrder,
+  clearOrderSlice,
 } from "../redux/slices/orderSlice";
 import {
   getFoodTruckDetailById_API,
@@ -42,6 +47,10 @@ import DishItemDetailsModal from "../components/DishItemDetailsModal";
 import DishItemComponent from "../components/DishItemComponent";
 import AppImage from "../components/AppImage";
 import { Divider, IconButton } from "react-native-paper";
+import { onGuest, onSignOut } from "../redux/slices/authSlice";
+import { clearUserSlice } from "../redux/slices/userSlice";
+import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
+import { clearLocationSlice } from "../redux/slices/locationSlice";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -702,11 +711,43 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     paddingBottom: insets.bottom || 12,
                   },
                 ]}
-                onPress={() =>
-                  navigation.navigate("checkoutScreen", {
-                    foodTruckId: item?._id,
-                  })
-                }
+                onPress={() => {
+                  if (isSignedIn) {
+                    navigation.navigate("checkoutScreen", {
+                      foodTruckId: item?._id,
+                    });
+                  } else {
+                    // navigate to login screen
+                    // navigate to login screen
+                    const handleSignIn = () => {
+                      dispatch(onGuest(false));
+                      dispatch(clearUserSlice());
+                      dispatch(clearFavorites());
+                      // dispatch(clearOrderSlice());
+                      dispatch(clearFoodTruckProfileSlice());
+                      dispatch(clearLocationSlice());
+                      dispatch(onSignOut());
+                    };
+
+                    Alert.alert(
+                      "Sign In",
+                      "To order food, you need to sign in.",
+                      [
+                        {
+                          text: "Cancel",
+                          style: "cancel",
+                        },
+                        {
+                          text: "OK",
+                          style: "destructive",
+                          onPress: () => {
+                            handleSignIn();
+                          },
+                        },
+                      ]
+                    );
+                  }
+                }}
               >
                 <View style={styles.bottomBarBtn}>
                   <Text style={styles.bottomBarText}>
