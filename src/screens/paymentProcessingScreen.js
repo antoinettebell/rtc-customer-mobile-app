@@ -32,15 +32,15 @@ let PAYMENT_METHODS = [
     type: "cashOnPickup",
     method: "Cash on Pickup",
     icon: require("../assets/images/cash-on-pickup.png"),
-    style: { height: 32, width: 40 },
+    style: { height: 44, width: 64, resizeMode: "contain" },
   },
   ...Platform.select({
     android: [
       {
         type: "googlePay",
         method: "Google Pay",
-        icon: require("../assets/images/google-pay.png"),
-        style: { height: 36, width: 40 },
+        icon: require("../assets/images/GPay.png"),
+        style: { height: 40, width: 64, resizeMode: "contain" },
       },
     ],
     ios: [
@@ -48,7 +48,7 @@ let PAYMENT_METHODS = [
         type: "applePay",
         method: "Apple Pay",
         icon: require("../assets/images/apple-pay.png"),
-        style: { height: 36, width: 40 },
+        style: { height: 52, width: 60, resizeMode: "contain" },
       },
     ],
   }),
@@ -77,7 +77,7 @@ const ANDROID_PAY_METHOD_DATA = {
       SupportedNetworkEnum.Visa,
       SupportedNetworkEnum.Mastercard,
     ],
-    environment: EnvironmentEnum.TEST,
+    environment: EnvironmentEnum.PRODUCTION,
     countryCode: Config.PAYMENT_COUNTRY_CODE,
     currencyCode: Config.PAYMENT_CURRENCY_CODE,
     requestBillingAddress: false,
@@ -356,11 +356,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 ]}
               >
                 <View style={styles.paymentOptionContextContainer}>
-                  <Image
-                    source={icon}
-                    style={[styles.paymentIcon, style]}
-                    resizeMode="contain"
-                  />
+                  <Image source={icon} style={[styles.paymentIcon, style]} />
                   <Text style={styles.paymentText}>{method}</Text>
                 </View>
                 <View style={styles.radioContainer}>
@@ -467,7 +463,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   paymentOption: {
-    height: 56,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
