@@ -150,7 +150,7 @@ const ExploreScreen = (props) => {
           );
         }
       }
-    }, [])
+    }, [OrderReducerStates?.currentOrder?.lastUpdate])
   );
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
