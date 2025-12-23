@@ -27,32 +27,7 @@ import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 
-let PAYMENT_METHODS = [
-  {
-    type: "cashOnPickup",
-    method: "Cash on Pickup",
-    icon: require("../assets/images/cash-on-pickup.png"),
-    style: { height: 44, width: 64, resizeMode: "contain" },
-  },
-  ...Platform.select({
-    android: [
-      {
-        type: "googlePay",
-        method: "Google Pay",
-        icon: require("../assets/images/GPay.png"),
-        style: { height: 40, width: 64, resizeMode: "contain" },
-      },
-    ],
-    ios: [
-      {
-        type: "applePay",
-        method: "Apple Pay",
-        icon: require("../assets/images/apple-pay.png"),
-        style: { height: 52, width: 60, resizeMode: "contain" },
-      },
-    ],
-  }),
-];
+import Apple_Pay_Mark from "../assets/images/Apple_Pay_Mark.svg";
 
 const APPLE_PAY_METHOD_DATA = {
   supportedMethods: PaymentMethodNameEnum.ApplePay,
@@ -99,11 +74,11 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     foodTruckDetail = null,
     checkoutTime = null,
     finalAmount = null,
+    validatedDetail = null,
   } = route.params || {};
 
   const [dataLoading, setDataLoading] = useState(true);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("cashOnPickup");
+  const [paymentLoading, setPaymentLoading] = useState(null);
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
@@ -119,8 +94,8 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     return Number.isFinite(n) ? n.toFixed(2) : "0.00";
   };
 
-  const handlePayment = async () => {
-    setPaymentLoading(true);
+  const handlePayment = async ({ paymentMethod = "cashOnPickup" }) => {
+    setPaymentLoading(paymentMethod);
     try {
       if (!paymentMethod || paymentMethod === "cashOnPickup") {
         try {
@@ -143,8 +118,38 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       } else {
         const payableAmount = toAmount(finalAmount);
         const DISPLAY_DATA = {
+          displayItems: [
+            {
+              label: "Item Total",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.subTotal),
+              },
+            },
+            {
+              label: "Sales Tax",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.taxAmount),
+              },
+            },
+            {
+              label: "Discount",
+              amount: {
+                currency: "USD",
+                value: `-${toAmount(validatedDetail?.discount)}`,
+              },
+            },
+            {
+              label: "Processing Fee",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.paymentProcessingFee),
+              },
+            },
+          ],
           total: {
-            label: "Total",
+            label: foodTruckDetail?.name || "Food Truck",
             amount: { currency: "USD", value: payableAmount },
           },
         };
@@ -277,11 +282,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
 
   useFocusEffect(
     useCallback(() => {
-      console.log("orderDetail", orderDetail);
-      console.log("foodTruckDetail", foodTruckDetail);
-      console.log("checkoutTime", checkoutTime);
-      console.log("finalAmount", finalAmount);
-
       const currentTime = moment();
       const checkoutMoment = moment(checkoutTime);
       if (!checkoutMoment.isValid()) {
@@ -294,19 +294,46 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
         return;
       }
 
-      const isOnlinePaymentApplicable =
-        onlinePyamentApplicablePlanList.includes(foodTruckDetail?.plan?.slug);
-      if (!isOnlinePaymentApplicable) {
-        PAYMENT_METHODS = PAYMENT_METHODS.filter(
-          (item) => item.type !== "googlePay" && item.type !== "applePay"
-        );
-      }
-
       setTimeout(() => {
         setDataLoading(false);
       }, 1000);
     }, [])
   );
+
+  const summaryData = [
+    {
+      label: "Item Total",
+      value: `$${toAmount(validatedDetail?.subTotal)}`,
+    },
+    {
+      label: "Sales Tax",
+      value: `$${toAmount(validatedDetail?.taxAmount)}`,
+    },
+    {
+      label: "Discount",
+      value: `- $${toAmount(validatedDetail?.discount)}`,
+    },
+    {
+      label: "Processing Fee",
+      value: `$${toAmount(validatedDetail?.paymentProcessingFee)}`,
+    },
+  ];
+
+  const ItemContainer = ({ title, value }) => {
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginVertical: 2,
+        }}
+      >
+        <Text style={{ fontFamily: Mulish600, fontSize: 14 }}>{title}:</Text>
+        <Text style={{ fontFamily: Mulish600, fontSize: 14 }}>{value}</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -332,70 +359,75 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       ) : (
         <View style={styles.subContainer}>
           <View style={styles.paymentBox}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
+            <Text style={styles.paymentTitleTxt}>Payment Summary:</Text>
+            {summaryData.map(({ label, value }) => (
+              <ItemContainer key={label} title={label} value={value} />
+            ))}
+            <ItemContainer
+              key={"Total"}
+              title={"Total"}
+              value={`$${toAmount(finalAmount)}`}
+            />
+
+            <Text style={[styles.paymentTitleTxt, { marginTop: 20 }]}>
+              Payment Method:
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => handlePayment({ paymentMethod: "cashOnPickup" })}
+              activeOpacity={0.7}
+              style={styles.paymentOption}
             >
-              <Text style={styles.paymentTitleTxt}>Final Amount: </Text>
-              <Text
-                style={styles.paymentTitleTxt}
-              >{`$${finalAmount.toFixed(2)}`}</Text>
-            </View>
-            <Text style={styles.paymentTitleTxt}>Select Payment Method</Text>
-            {PAYMENT_METHODS.map(({ type, method, icon, style }) => (
-              <TouchableOpacity
-                key={type}
-                onPress={() => setPaymentMethod(type)}
-                activeOpacity={0.7}
-                style={[
-                  styles.paymentOption,
-                  paymentMethod === type && styles.paymentOptionActive,
-                ]}
-              >
-                <View style={styles.paymentOptionContextContainer}>
-                  <Image source={icon} style={[styles.paymentIcon, style]} />
-                  <Text style={styles.paymentText}>{method}</Text>
-                </View>
-                <View style={styles.radioContainer}>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      paymentMethod === type && styles.radioOuterActive,
-                    ]}
-                  >
-                    {paymentMethod === type && (
-                      <View style={styles.radioInner} />
+              <View style={styles.paymentOptionContextContainer}>
+                {paymentLoading === "cashOnPickup" ? (
+                  <ActivityIndicator color={AppColor.primary} />
+                ) : (
+                  <Text style={styles.paymentText}>{"Cash on Pickup"}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {Platform.OS === "android" &&
+              onlinePyamentApplicablePlanList.includes(
+                foodTruckDetail?.plan?.slug
+              ) && (
+                <TouchableOpacity
+                  onPress={() => handlePayment({ paymentMethod: "googlePay" })}
+                  activeOpacity={0.7}
+                  style={styles.paymentOption}
+                >
+                  <View style={styles.paymentOptionContextContainer}>
+                    {paymentLoading === "googlePay" ? (
+                      <ActivityIndicator color={AppColor.primary} />
+                    ) : (
+                      <Image
+                        source={require("../assets/images/GPay.png")}
+                        style={{ height: 36 }}
+                        resizeMode="contain"
+                      />
                     )}
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Order btn container */}
-          <View
-            style={[
-              styles.bottomContainer,
-              {
-                paddingBottom: insets.bottom + 14,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.nextBtn}
-              onPress={() => handlePayment()}
-              disabled={paymentLoading}
-            >
-              {paymentLoading ? (
-                <ActivityIndicator color={AppColor.white} />
-              ) : (
-                <Text style={styles.nextBtnText}>Next</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+
+            {Platform.OS === "ios" &&
+              onlinePyamentApplicablePlanList.includes(
+                foodTruckDetail?.plan?.slug
+              ) && (
+                <TouchableOpacity
+                  onPress={() => handlePayment({ paymentMethod: "applePay" })}
+                  activeOpacity={0.7}
+                  style={styles.paymentOption}
+                >
+                  <View style={styles.paymentOptionContextContainer}>
+                    {paymentLoading === "applePay" ? (
+                      <ActivityIndicator color={AppColor.primary} />
+                    ) : (
+                      <Apple_Pay_Mark height={46} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
           </View>
         </View>
       )}
@@ -463,16 +495,30 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   paymentOption: {
-    minHeight: 56,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: AppColor.border,
+    borderColor: AppColor.black,
     backgroundColor: AppColor.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: AppColor.black,
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   paymentOptionActive: {
     borderWidth: 1,
@@ -482,52 +528,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  radioContainer: {
-    width: 24,
-    alignItems: "center",
-    marginRight: 8,
-  },
-  radioOuter: {
-    height: 18,
-    width: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioOuterActive: {
-    borderColor: AppColor.primary,
-  },
-  radioInner: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: AppColor.primary,
-  },
-  paymentIcon: {
-    marginRight: 8,
-  },
   paymentText: {
     fontFamily: Mulish600,
-    fontSize: 15,
-  },
-
-  bottomContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: AppColor.borderColor,
-  },
-  nextBtn: {
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: AppColor.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nextBtnText: {
-    color: AppColor.white,
-    fontFamily: Mulish700,
-    fontSize: 16,
+    fontSize: 18,
   },
 });

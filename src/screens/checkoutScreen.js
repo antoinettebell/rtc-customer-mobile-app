@@ -274,6 +274,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           foodTruckDetail: foodTruckDetail,
           checkoutTime: moment.now(),
           finalAmount: response.data.order.total,
+          validatedDetail: response.data.order,
           // billDetail: {
           //   itemTotalAmount: subtotal,
           //   salesTaxAmount: salesTaxAmount,
