@@ -1397,11 +1397,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   confirmBtn: {
-    backgroundColor: AppColor.primary,
-    borderRadius: 8,
-    padding: 16,
+    height: 46,
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: AppColor.primary,
   },
   advanceOrderBtn: {
     backgroundColor: AppColor.white,
