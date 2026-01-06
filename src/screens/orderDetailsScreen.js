@@ -398,12 +398,6 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                 </View>
                 <Divider />
                 <View style={styles.row}>
-                  <Text style={styles.orderDetailsTxt}>{"Sales Tax"}</Text>
-                  <Text style={styles.orderDetailsTxt}>
-                    ${(order?.taxAmount || 0).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.row}>
                   <Text style={styles.orderDetailsTxt}>
                     {"Coupon Discount"}
                   </Text>
@@ -411,11 +405,20 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     {`- $${(order?.discount || 0).toFixed(2)}`}
                   </Text>
                 </View>
+                <View style={styles.row}>
+                  <Text style={styles.orderDetailsTxt}>{"Sales Tax"}</Text>
+                  <Text style={styles.orderDetailsTxt}>
+                    ${(order?.taxAmount || 0).toFixed(2)}
+                  </Text>
+                </View>
                 <Divider style={{ marginVertical: 10 }} />
                 <View style={[styles.row, { marginTop: 0 }]}>
                   <Text style={styles.orderDetailsTxt}>{"Total with Tax"}</Text>
                   <Text style={styles.orderDetailsTxt}>
-                    ${(order?.totalAfterDiscount || 0).toFixed(2)}
+                    $
+                    {(
+                      (order?.totalAfterDiscount || 0) + (order?.taxAmount || 0)
+                    ).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.row}>

@@ -47,6 +47,7 @@ import {
   updateItemProperty,
 } from "../redux/slices/orderSlice";
 import useDebounce from "../hooks/useDebounce";
+import { showSnackbar } from "../redux/slices/snackbarSlice";
 
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -85,33 +86,35 @@ const CheckoutScreen = ({ navigation, route }) => {
     [taxData]
   );
   const salesTaxAmount = useMemo(() => taxData?.salesTaxAmount || 0, [taxData]);
-  const totalWithSalesTax = useMemo(
-    () => debouncedSubtotal + salesTaxAmount || 0,
-    [salesTaxAmount, debouncedSubtotal]
-  );
   const discount = useMemo(() => {
     if (!coupon) return 0;
     if (coupon.type === "PERCENTAGE") {
-      const discountValue = totalWithSalesTax * (coupon.value / 100);
+      const discountValue = debouncedSubtotal * (coupon.value / 100);
       return coupon.maxDiscount > 0
         ? Math.min(discountValue, coupon.maxDiscount)
         : discountValue;
     } else if (coupon.type === "FIXED") {
-      return Math.min(coupon.value, totalWithSalesTax);
+      return Math.min(coupon.value, debouncedSubtotal);
     }
     return 0;
-  }, [coupon, totalWithSalesTax]);
-  const totalAfterDiscount = useMemo(
-    () => totalWithSalesTax - discount,
-    [totalWithSalesTax, discount]
+  }, [coupon, debouncedSubtotal]);
+
+  const taxableAmount = useMemo(
+    () => Math.max(0, debouncedSubtotal - discount),
+    [debouncedSubtotal, discount]
+  );
+
+  const totalWithTax = useMemo(
+    () => taxableAmount + salesTaxAmount,
+    [taxableAmount, salesTaxAmount]
   );
   const prosessingFeeAmount = useMemo(
-    () => totalAfterDiscount * (processingFeeRate / 100),
-    [totalAfterDiscount, processingFeeRate]
+    () => totalWithTax * (processingFeeRate / 100),
+    [totalWithTax, processingFeeRate]
   );
   const totalAfterProsessingFee = useMemo(
-    () => totalAfterDiscount + prosessingFeeAmount,
-    [totalAfterDiscount, prosessingFeeAmount]
+    () => totalWithTax + prosessingFeeAmount,
+    [totalWithTax, prosessingFeeAmount]
   );
 
   const showTimePicker = () => {
@@ -280,7 +283,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           //   salesTaxAmount: salesTaxAmount,
           //   coupon: coupon,
           //   discountAmount: discount,
-          //   totalWithTaxAmount: totalAfterDiscount,
+          //   totalWithTaxAmount: totalWithTax,
           //   paymentProcessingFeePercent: processingFeeRate,
           //   paymentProcessingFeeAmount: prosessingFeeAmount,
           //   finalAmount: totalAfterProsessingFee,
@@ -290,7 +293,13 @@ const CheckoutScreen = ({ navigation, route }) => {
         navigation.navigate("paymentProcessingScreen", navigationPayload);
       }
     } catch (error) {
-      console.error("order validation error => ", error);
+      console.log("order validation error => ", error);
+      dispatch(
+        showSnackbar({
+          message: error.message,
+          type: "error",
+        })
+      );
     } finally {
       setLoading(false);
     }
@@ -647,7 +656,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         const response_3 = await checkTax_API({
           foodTruck_id: foodTruckId,
           location_id: response_2?.data?.foodtruck.currentLocation,
-          amount: debouncedSubtotal,
+          amount: taxableAmount,
         });
         console.log("response_3 => ", response_3);
         if (response_3?.success && response_3?.data) {
@@ -680,7 +689,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       const response = await checkTax_API({
         foodTruck_id: foodTruckId,
         location_id: locationId,
-        amount: amount || subtotal,
+        amount: typeof amount === "number" ? amount : subtotal,
       });
       console.log("response => ", response);
       if (response?.success && response?.data) {
@@ -695,9 +704,9 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (debouncedSubtotal > 0) {
-      getTaxInfoFromAPI(debouncedSubtotal);
+      getTaxInfoFromAPI(taxableAmount);
     }
-  }, [debouncedSubtotal]);
+  }, [taxableAmount]);
 
   useEffect(() => {
     if (isFocused) {
@@ -1061,18 +1070,6 @@ const CheckoutScreen = ({ navigation, route }) => {
                       {`$${subtotal.toFixed(2)}`}
                     </Text>
                   </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      ${salesTaxAmount.toFixed(2)}
-                    </Text>
-                  </View>
-                  {/* <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>Discount</Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      - ${discount.toFixed(2)}
-                    </Text>
-                  </View> */}
                   {coupon && (
                     <View style={styles.totalRow}>
                       <Text style={styles.totalRowItemTxt}>
@@ -1087,11 +1084,17 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                   )}
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
+                    <Text style={styles.totalRowItemTxt}>
+                      ${salesTaxAmount.toFixed(2)}
+                    </Text>
+                  </View>
                   <Divider />
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Total With Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
-                      ${totalAfterDiscount.toFixed(2)}
+                      ${totalWithTax.toFixed(2)}
                     </Text>
                   </View>
                   <View style={styles.totalRow}>

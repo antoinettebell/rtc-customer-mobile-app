@@ -127,17 +127,17 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               },
             },
             {
-              label: "Sales Tax",
-              amount: {
-                currency: "USD",
-                value: toAmount(validatedDetail?.taxAmount),
-              },
-            },
-            {
               label: "Discount",
               amount: {
                 currency: "USD",
                 value: `-${toAmount(validatedDetail?.discount)}`,
+              },
+            },
+            {
+              label: "Sales Tax",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.taxAmount),
               },
             },
             {
@@ -306,12 +306,12 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       value: `$${toAmount(validatedDetail?.subTotal)}`,
     },
     {
-      label: "Sales Tax",
-      value: `$${toAmount(validatedDetail?.taxAmount)}`,
-    },
-    {
       label: "Discount",
       value: `- $${toAmount(validatedDetail?.discount)}`,
+    },
+    {
+      label: "Sales Tax",
+      value: `$${toAmount(validatedDetail?.taxAmount)}`,
     },
     {
       label: "Processing Fee",

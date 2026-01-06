@@ -9,6 +9,7 @@ import foodTruckProfileReducer from "./slices/foodTruckProfileSlice";
 import orderReducer from "./slices/orderSlice";
 import favoritesReducer from "./slices/favoritesSlice";
 import locationReducer from "./slices/locationSlice";
+import snackbarReducer from "./slices/snackbarSlice";
 
 const persistConfig = {
   key: "root",
@@ -22,6 +23,7 @@ const persistConfig = {
     "favoritesReducer",
     "locationReducer",
   ],
+  blacklist: ["snackbarReducer"],
 };
 
 const rootReducer = combineReducers({
@@ -32,6 +34,7 @@ const rootReducer = combineReducers({
   orderReducer,
   favoritesReducer,
   locationReducer,
+  snackbarReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

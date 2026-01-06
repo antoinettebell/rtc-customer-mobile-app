@@ -62,6 +62,7 @@ import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
+import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
@@ -277,6 +278,7 @@ const App = () => {
 
   return (
     <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
+      <GlobalSnackbar />
       {isSignedIn ? (
         <AppNavigator insets={insets} />
       ) : isGuest ? (
