@@ -8,8 +8,16 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ScrollView,
+  Pressable,
 } from "react-native";
-import { ActivityIndicator, IconButton, Snackbar } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Divider,
+  IconButton,
+  Snackbar,
+} from "react-native-paper";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { useDispatch } from "react-redux";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,13 +29,16 @@ import {
 } from "@rnw-community/react-native-payments";
 import Config from "react-native-config";
 import StatusBarManager from "../components/StatusBarManager";
+import TipSelector from "../components/TipSelector";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import Apple_Pay_Mark from "../assets/images/Apple_Pay_Mark.svg";
+import Tooltip from "react-native-walkthrough-tooltip";
 
 const APPLE_PAY_METHOD_DATA = {
   supportedMethods: PaymentMethodNameEnum.ApplePay,
@@ -79,11 +90,13 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
 
   const [dataLoading, setDataLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(null);
+  const [tipAmount, setTipAmount] = useState(0);
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
     type: "success",
   });
+  const [toolTipVisible, setToolTipVisible] = useState(false);
 
   const showSnackbar = ({ message, type = "success" }) => {
     setSnackbar({ visible: true, message, type });
@@ -99,7 +112,10 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     try {
       if (!paymentMethod || paymentMethod === "cashOnPickup") {
         try {
-          const response = await placeFoodOrder_API(orderDetail);
+          const response = await placeFoodOrder_API({
+            ...orderDetail,
+            tipsAmount: Number(tipAmount),
+          });
           console.log("Order placed response:", response);
           if (response?.success && response?.data) {
             dispatch(clearCurrentOrder());
@@ -116,7 +132,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           });
         }
       } else {
-        const payableAmount = toAmount(finalAmount);
+        const payableAmount = toAmount(finalAmount + tipAmount);
         const DISPLAY_DATA = {
           displayItems: [
             {
@@ -145,6 +161,13 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               amount: {
                 currency: "USD",
                 value: toAmount(validatedDetail?.paymentProcessingFee),
+              },
+            },
+            {
+              label: "Tip",
+              amount: {
+                currency: "USD",
+                value: toAmount(tipAmount),
               },
             },
           ],
@@ -249,6 +272,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               invoiceNumber: respose_1.data.paymentsData.invoiceNumber,
               accountNumber: respose_1.data.paymentsData.accountNumber,
               accountType: respose_1.data.paymentsData.accountType,
+              tipsAmount: Number(tipAmount),
             });
             if (respose_2.success && respose_2.data) {
               dispatch(clearCurrentOrder());
@@ -357,80 +381,168 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           <NativeIndicator size="large" color={AppColor.primary} />
         </View>
       ) : (
-        <View style={styles.subContainer}>
+        <ScrollView
+          contentContainerStyle={styles.subContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.paymentBox}>
-            <Text style={styles.paymentTitleTxt}>Payment Summary:</Text>
-            {summaryData.map(({ label, value }) => (
-              <ItemContainer key={label} title={label} value={value} />
-            ))}
-            <ItemContainer
-              key={"Total"}
-              title={"Total"}
-              value={`$${toAmount(finalAmount)}`}
-            />
+            {/* Payment Summary */}
+            <>
+              <Text style={styles.paymentTitleTxt}>Payment summary</Text>
+              {summaryData.map(({ label, value }) => (
+                <ItemContainer key={label} title={label} value={value} />
+              ))}
+              <Divider style={{ marginVertical: 10 }} />
+              <ItemContainer
+                key={"Pre-Tip Total"}
+                title={"Pre-Tip Total"}
+                value={`$${toAmount(finalAmount)}`}
+              />
+              <ItemContainer
+                key={"Tip"}
+                title={"Tip"}
+                value={`$${toAmount(tipAmount)}`}
+              />
+              <Divider style={{ marginVertical: 10 }} />
+              <ItemContainer
+                key={"Final Total"}
+                title={"Final Total"}
+                value={`$${toAmount(finalAmount + tipAmount)}`}
+              />
+            </>
 
-            <Text style={[styles.paymentTitleTxt, { marginTop: 20 }]}>
-              Payment Method:
-            </Text>
-
-            {/* Cash On Pickup  */}
-            {/* <TouchableOpacity
-              onPress={() => handlePayment({ paymentMethod: "cashOnPickup" })}
-              activeOpacity={0.7}
-              style={styles.paymentOption}
-            >
-              <View style={styles.paymentOptionContextContainer}>
-                {paymentLoading === "cashOnPickup" ? (
-                  <ActivityIndicator color={AppColor.primary} />
-                ) : (
-                  <Text style={styles.paymentText}>{"Cash on Pickup"}</Text>
-                )}
+            {/* Tip */}
+            <>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 20,
+                }}
+              >
+                <Text style={styles.paymentTitleTxt}>
+                  {"Add a tip "}
+                  <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
+                    (optional)
+                  </Text>
+                </Text>
+                <Tooltip
+                  animated={true}
+                  disableShadow={true}
+                  placement="bottom"
+                  isVisible={toolTipVisible}
+                  backgroundColor="rgba(0,0,0,0)"
+                  arrowSize={{
+                    width: 16,
+                    height: 8,
+                    color: AppColor.text,
+                  }}
+                  contentStyle={{
+                    padding: 18,
+                    borderRadius: 8,
+                    backgroundColor: AppColor.text,
+                  }}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: Mulish400,
+                        color: AppColor.white,
+                      }}
+                    >
+                      {
+                        "Tips are clearly shown and passed 100% to the food truck owner, with no deductions."
+                      }
+                    </Text>
+                  }
+                  onClose={() => setToolTipVisible(false)}
+                >
+                  <IconButton
+                    icon="information"
+                    size={18}
+                    style={{
+                      height: 18,
+                      width: 18,
+                      marginTop: 10,
+                    }}
+                    onPress={() => setToolTipVisible(true)}
+                  />
+                </Tooltip>
               </View>
-            </TouchableOpacity> */}
+              <TipSelector
+                preTipTotal={parseFloat(finalAmount) || 0}
+                onTipChange={setTipAmount}
+              />
+            </>
 
-            {Platform.OS === "android" &&
-              onlinePyamentApplicablePlanList.includes(
-                foodTruckDetail?.plan?.slug
-              ) && (
-                <TouchableOpacity
-                  onPress={() => handlePayment({ paymentMethod: "googlePay" })}
-                  activeOpacity={0.7}
-                  style={styles.paymentOption}
-                >
-                  <View style={styles.paymentOptionContextContainer}>
-                    {paymentLoading === "googlePay" ? (
-                      <ActivityIndicator color={AppColor.primary} />
-                    ) : (
-                      <Image
-                        source={require("../assets/images/GPay.png")}
-                        style={{ height: 36 }}
-                        resizeMode="contain"
-                      />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
+            {/* Payment Method */}
+            <>
+              <Text style={[styles.paymentTitleTxt, { marginTop: 20 }]}>
+                Payment method
+              </Text>
 
-            {Platform.OS === "ios" &&
-              onlinePyamentApplicablePlanList.includes(
-                foodTruckDetail?.plan?.slug
-              ) && (
-                <TouchableOpacity
-                  onPress={() => handlePayment({ paymentMethod: "applePay" })}
-                  activeOpacity={0.7}
-                  style={styles.paymentOption}
-                >
-                  <View style={styles.paymentOptionContextContainer}>
-                    {paymentLoading === "applePay" ? (
-                      <ActivityIndicator color={AppColor.primary} />
-                    ) : (
-                      <Apple_Pay_Mark height={46} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
+              {/* Cash On Pickup  */}
+              {/* <TouchableOpacity
+                onPress={() => handlePayment({ paymentMethod: "cashOnPickup" })}
+                activeOpacity={0.7}
+                style={styles.paymentOption}
+              >
+                <View style={styles.paymentOptionContextContainer}>
+                  {paymentLoading === "cashOnPickup" ? (
+                    <ActivityIndicator color={AppColor.primary} />
+                  ) : (
+                    <Text style={styles.paymentText}>{"Cash on Pickup"}</Text>
+                  )}
+                </View>
+              </TouchableOpacity> */}
+
+              {Platform.OS === "android" &&
+                onlinePyamentApplicablePlanList.includes(
+                  foodTruckDetail?.plan?.slug
+                ) && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      handlePayment({ paymentMethod: "googlePay" })
+                    }
+                    activeOpacity={0.7}
+                    style={styles.paymentOption}
+                  >
+                    <View style={styles.paymentOptionContextContainer}>
+                      {paymentLoading === "googlePay" ? (
+                        <ActivityIndicator color={AppColor.primary} />
+                      ) : (
+                        <Image
+                          source={require("../assets/images/GPay.png")}
+                          style={{ height: 36 }}
+                          resizeMode="contain"
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+              {Platform.OS === "ios" &&
+                onlinePyamentApplicablePlanList.includes(
+                  foodTruckDetail?.plan?.slug
+                ) && (
+                  <TouchableOpacity
+                    onPress={() => handlePayment({ paymentMethod: "applePay" })}
+                    activeOpacity={0.7}
+                    style={styles.paymentOption}
+                  >
+                    <View style={styles.paymentOptionContextContainer}>
+                      {paymentLoading === "applePay" ? (
+                        <ActivityIndicator color={AppColor.primary} />
+                      ) : (
+                        <Apple_Pay_Mark height={46} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+            </>
           </View>
-        </View>
+        </ScrollView>
       )}
 
       <Snackbar
@@ -482,8 +594,7 @@ const styles = StyleSheet.create({
   },
 
   subContainer: {
-    flex: 1,
-    justifyContent: "space-between",
+    flexGrow: 1,
   },
 
   paymentBox: {

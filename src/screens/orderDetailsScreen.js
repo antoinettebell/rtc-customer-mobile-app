@@ -391,7 +391,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
             <View style={styles.bottomSection}>
               <View style={styles.totalSection}>
                 <View style={[styles.row, { marginTop: 0, marginBottom: 15 }]}>
-                  <Text style={styles.sectionTitle}>{"Total Order"}</Text>
+                  <Text style={styles.sectionTitle}>{"Order Total"}</Text>
                   <Text style={styles.sectionTitle}>
                     ${(order?.subTotal || 0).toFixed(2)}
                   </Text>
@@ -439,6 +439,17 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                     </View>
                     <Text style={styles.totalRowItemTxt}>$0.00</Text>
                   </View>
+                )}
+                {order?.tipsAmount > 0 && (
+                  <>
+                    <Divider style={{ marginVertical: 10 }} />
+                    <View style={[styles.row, { marginTop: 0 }]}>
+                      <Text style={styles.orderDetailsTxt}>{"Tip"}</Text>
+                      <Text style={styles.orderDetailsTxt}>
+                        ${(order?.tipsAmount || 0).toFixed(2)}
+                      </Text>
+                    </View>
+                  </>
                 )}
               </View>
             </View>
