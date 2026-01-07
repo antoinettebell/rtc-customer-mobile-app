@@ -373,7 +373,8 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               Payment Method:
             </Text>
 
-            <TouchableOpacity
+            {/* Cash On Pickup  */}
+            {/* <TouchableOpacity
               onPress={() => handlePayment({ paymentMethod: "cashOnPickup" })}
               activeOpacity={0.7}
               style={styles.paymentOption}
@@ -385,7 +386,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                   <Text style={styles.paymentText}>{"Cash on Pickup"}</Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {Platform.OS === "android" &&
               onlinePyamentApplicablePlanList.includes(
