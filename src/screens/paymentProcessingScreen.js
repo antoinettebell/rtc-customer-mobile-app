@@ -149,7 +149,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             },
           ],
           total: {
-            label: foodTruckDetail?.name || "Food Truck",
+            label: `${foodTruckDetail?.name || "Food Truck"} (via ROUND THE CORNER LLC)`,
             amount: { currency: "USD", value: payableAmount },
           },
         };
