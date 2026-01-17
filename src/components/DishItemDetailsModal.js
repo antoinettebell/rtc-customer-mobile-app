@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  Alert,
 } from "react-native";
 import PropTypes from "prop-types";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
@@ -16,8 +17,51 @@ import ImageCarousel from "./ImageCarousel";
 import AppImage from "./AppImage";
 import ActionSheet from "react-native-actions-sheet";
 import { IconButton } from "react-native-paper";
+import { foodTypeStrings } from "../utils/constants";
 
 const { width, height } = Dimensions.get("window");
+
+/**
+ * Optimized Sub-Item Row
+ * Memoized to prevent re-rendering all items when one is toggled.
+ */
+const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
+  <TouchableOpacity
+    style={styles.subItemRowContainer}
+    activeOpacity={0.7}
+    onPress={() => onToggle(subItem?.menuItem)}
+  >
+    <AppImage
+      uri={subItem?.menuItem?.imgUrls?.[0]}
+      containerStyle={styles.subItemImage}
+    />
+    <View style={{ gap: 2, flex: 1 }}>
+      <Text numberOfLines={1} style={styles.subItemName}>
+        {subItem?.menuItem?.name}
+      </Text>
+      <Text numberOfLines={1} style={styles.subItemDescription}>
+        {subItem?.menuItem?.description}
+      </Text>
+    </View>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Text style={styles.subItemPrice}>
+        {`$${(subItem?.menuItem?.price || 0).toFixed(2)}`}
+      </Text>
+      <View
+        style={[
+          styles.checkbox,
+          {
+            backgroundColor: isSelected ? AppColor.primary : "transparent",
+          },
+        ]}
+      >
+        {isSelected && (
+          <MaterialIcons name="check" size={18} color={AppColor.white} />
+        )}
+      </View>
+    </View>
+  </TouchableOpacity>
+));
 
 const DishItemDetailsModal = ({
   actionSheetRef,
@@ -27,11 +71,84 @@ const DishItemDetailsModal = ({
   handleRemoveItem,
   getItemQuantity,
   insets,
+  onSelectedSubItemsChange,
 }) => {
+  const [selectedSubItems, setSelectedSubItems] = useState(
+    selectedMenuItem?.selectedSubItems || []
+  );
+
+  // Sync selection with existing order item or reset when menu item changes
+  useEffect(() => {
+    setSelectedSubItems(selectedMenuItem?.selectedSubItems || []);
+  }, [selectedMenuItem?._id, selectedMenuItem?.selectedSubItems]);
+
+  // Clear subitems when main item quantity becomes 0
+  useEffect(() => {
+    const mainItemId = selectedMenuItem?._id;
+
+    if (!mainItemId || !getItemQuantity) {
+      return;
+    }
+
+    const quantity = getItemQuantity(mainItemId);
+
+    if (!quantity && selectedSubItems.length) {
+      setSelectedSubItems([]);
+
+      if (onSelectedSubItemsChange) {
+        requestAnimationFrame(() => {
+          onSelectedSubItemsChange([]);
+        });
+      }
+    }
+  }, [
+    selectedMenuItem?._id,
+    getItemQuantity,
+    selectedSubItems.length,
+    onSelectedSubItemsChange,
+  ]);
+
+  // Optimized toggle function
+  const toggleSubItemSelection = useCallback(
+    (menuItem) => {
+      const mainItemId = selectedMenuItem?._id;
+      const mainItemQuantity =
+        mainItemId && getItemQuantity ? getItemQuantity(mainItemId) : 0;
+
+      if (!mainItemQuantity) {
+        Alert.alert(
+          "Add Item First",
+          "Please add the main item before selecting combo items."
+        );
+        return;
+      }
+
+      if (!menuItem?._id) {
+        return;
+      }
+
+      setSelectedSubItems((prevItems) => {
+        const isSelected = prevItems.some((item) => item?._id === menuItem._id);
+        const newSelectedItems = isSelected
+          ? prevItems.filter((item) => item?._id !== menuItem._id)
+          : [...prevItems, menuItem];
+
+        if (onSelectedSubItemsChange) {
+          requestAnimationFrame(() => {
+            onSelectedSubItemsChange(newSelectedItems);
+          });
+        }
+
+        return newSelectedItems;
+      });
+    },
+    [onSelectedSubItemsChange, getItemQuantity, selectedMenuItem?._id]
+  );
+
   return (
     <ActionSheet
       ref={actionSheetRef}
-      gestureEnabled={true}
+      gestureEnabled={false}
       isModal={Platform.OS === "ios"}
       onClose={onClose}
     >
@@ -43,7 +160,7 @@ const DishItemDetailsModal = ({
             paddingHorizontal: 20,
           }}
         >
-          {/* Header with close button */}
+          {/* Header */}
           <View style={styles.actionSheetHeader}>
             <Text style={styles.actionSheetTitle} numberOfLines={2}>
               {selectedMenuItem.name || "Menu Item"}
@@ -68,22 +185,10 @@ const DishItemDetailsModal = ({
                 containerHeight={200}
                 containerWidth={width - 40}
                 containerStyle={styles.actionSheetImageCarousel}
-                imageContainer={{
-                  borderRadius: 0,
-                }}
+                imageContainer={{ borderRadius: 0 }}
               />
             ) : (
-              <View
-                style={{
-                  width: "100%",
-                  height: 200,
-                  borderRadius: 10,
-                  backgroundColor: "#f0f0f0",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: 16,
-                }}
-              >
+              <View style={styles.placeholderImage}>
                 <MaterialIcons
                   name="fastfood"
                   size={50}
@@ -92,17 +197,17 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {/* Price and Food Type */}
+            {/* Price Row */}
             <View style={styles.actionSheetPriceRow}>
               <View style={styles.actionSheetPriceContainer}>
                 <Text style={styles.actionSheetPrice}>
                   {`$${(selectedMenuItem?.price || 0).toFixed(2)} `}
                 </Text>
-                {selectedMenuItem?.strikePrice > 0 ? (
+                {selectedMenuItem?.strikePrice > 0 && (
                   <Text style={styles.actionSheetStrikePrice}>
                     {`$${(selectedMenuItem?.strikePrice || 0).toFixed(2)} `}
                   </Text>
-                ) : null}
+                )}
               </View>
 
               <View style={styles.actionSheetFoodTypeContainer}>
@@ -111,144 +216,77 @@ const DishItemDetailsModal = ({
                   size={14}
                   color={AppColor.textPlaceholder}
                 />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: Mulish400,
-                    color: AppColor.textPlaceholder,
-                  }}
-                >
+                <Text style={styles.prepTimeText}>
                   {`${selectedMenuItem?.preparationTime} mins`}
                 </Text>
               </View>
             </View>
 
+            {/* Badges */}
             {selectedMenuItem?.newDish ||
             selectedMenuItem?.popularDish ||
             selectedMenuItem?.discountType === "BOGO" ||
             selectedMenuItem?.discountType === "BOGOHO" ||
-            selectedMenuItem.itemType === "COMBO" ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 5,
-                  marginBottom: 8,
-                }}
-              >
-                {selectedMenuItem?.newDish ? (
-                  <Text style={styles.newBadge}>{"New"}</Text>
-                ) : null}
-                {selectedMenuItem?.popularDish ? (
-                  <Text style={styles.popularBadge}>{"Popular"}</Text>
-                ) : null}
-                {selectedMenuItem?.discountType === "BOGO" ? (
-                  <Text style={styles.popularBadge}>{"BOGO"}</Text>
-                ) : null}
-                {selectedMenuItem?.discountType === "BOGOHO" ? (
-                  <Text style={styles.popularBadge}>{"BOGOHO"}</Text>
-                ) : null}
-                {selectedMenuItem.itemType === "COMBO" ? (
-                  <Text style={styles.comboBadge}>{"Combo"}</Text>
-                ) : null}
+            selectedMenuItem.itemType === foodTypeStrings.combo ? (
+              <View style={styles.badgeContainer}>
+                {selectedMenuItem?.newDish && (
+                  <Text style={styles.newBadge}>New</Text>
+                )}
+                {selectedMenuItem?.popularDish && (
+                  <Text style={styles.popularBadge}>Popular</Text>
+                )}
+                {selectedMenuItem?.discountType === "BOGO" && (
+                  <Text style={styles.popularBadge}>BOGO</Text>
+                )}
+                {selectedMenuItem?.discountType === "BOGOHO" && (
+                  <Text style={styles.popularBadge}>BOGOHO</Text>
+                )}
+                {selectedMenuItem.itemType === foodTypeStrings.combo && (
+                  <Text style={styles.comboBadge}>Combo</Text>
+                )}
               </View>
             ) : null}
 
             {/* Description */}
-            <View style={styles.actionSheetDescriptionContainer}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: Mulish700,
-                  color: AppColor.text,
-                  marginBottom: 2,
-                }}
-              >
-                {"Description:"}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: Mulish400,
-                  color: AppColor.text,
-                  lineHeight: 22,
-                }}
-              >
+            <View style={styles.actionSheetSection}>
+              <Text style={styles.sectionTitle}>Description:</Text>
+              <Text style={styles.descriptionText}>
                 {selectedMenuItem?.description || ""}
               </Text>
             </View>
 
-            {/* Dietary Information */}
+            {/* Meat Info */}
             {selectedMenuItem?.meat?.name && (
-              <View
-                style={{
-                  marginBottom: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Text style={styles.actionSheetSectionTitle}>
-                  {"Meat Type:"}
-                </Text>
+              <View style={styles.rowInfo}>
+                <Text style={styles.sectionTitle}>Meat Type: </Text>
                 <Text style={styles.actionSheetDescription}>
                   {selectedMenuItem?.meat?.name}
                 </Text>
               </View>
             )}
 
-            {/* Dietary Information */}
+            {/* Meat Wellness Info */}
             {selectedMenuItem?.meatWellness && (
-              <View style={styles.actionSheetSection}>
-                <Text
-                  style={[
-                    styles.actionSheetSectionTitle,
-                    styles.actionSheetSectionTitleWithMargin,
-                  ]}
-                >
-                  {"Meat Information:"}
-                </Text>
+              <View style={styles.rowInfo}>
+                <Text style={styles.sectionTitle}>Meat Information: </Text>
                 <Text style={styles.actionSheetDescription}>
                   {selectedMenuItem?.meatWellness}
                 </Text>
               </View>
             )}
 
-            {/* Dietary Information */}
+            {/* Dietary Info */}
             {selectedMenuItem.diet?.length > 0 && (
               <View style={styles.actionSheetSection}>
-                <Text
-                  style={[
-                    styles.actionSheetSectionTitle,
-                    styles.actionSheetSectionTitleWithMargin,
-                  ]}
-                >
-                  {"Dietary Information:"}
+                <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>
+                  Dietary Information:
                 </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  {(selectedMenuItem.diet || []).map((diet, index) => {
-                    // Handle both cases where diet might be string or object
+                <View style={styles.dietContainer}>
+                  {selectedMenuItem.diet.map((diet, index) => {
                     const dietName =
                       diet?.name || (typeof diet === "string" ? diet : "");
                     return dietName ? (
-                      <Text
-                        key={diet?._id || index}
-                        style={{
-                          fontFamily: Mulish400,
-                          fontSize: 13,
-                          borderRadius: 20,
-                          paddingVertical: 4,
-                          paddingHorizontal: 10,
-                          color: AppColor.text,
-                          backgroundColor: AppColor.lightGreenBG,
-                        }}
-                      >
+                      <Text key={diet?._id || index} style={styles.dietBadge}>
                         {dietName}
                       </Text>
                     ) : null;
@@ -257,239 +295,119 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {/* BOGO item (if any) */}
+            {/* BOGO Items */}
             {selectedMenuItem.bogoItems?.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
+              <View style={styles.actionSheetSection}>
                 <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: Mulish700,
-                    color: AppColor.text,
-                    marginBottom: 8,
-                  }}
-                >
-                  {`${selectedMenuItem.discountType} Item:`}
-                </Text>
-                {(selectedMenuItem.bogoItems || []).map((bogoItem, index) => (
+                  style={styles.sectionTitle}
+                >{`${selectedMenuItem.discountType} Item:`}</Text>
+                {selectedMenuItem.bogoItems.map((bogoItem, index) => (
                   <View
                     key={bogoItem?._id || index}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                      gap: 8,
-                    }}
+                    style={styles.subItemRowContainer}
                   >
                     <AppImage
                       uri={bogoItem?.itemId?.imgUrls?.[0]}
-                      containerStyle={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 4,
-                      }}
+                      containerStyle={styles.subItemImage}
                     />
                     <View style={{ gap: 2, flex: 1 }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish700,
-                          color: AppColor.text,
-                        }}
-                      >
+                      <Text numberOfLines={1} style={styles.subItemName}>
                         {bogoItem?.itemId?.name || "-"}
                       </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish400,
-                          color: AppColor.textHighlighter,
-                        }}
-                      >
+                      <Text numberOfLines={1} style={styles.subItemDescription}>
                         {bogoItem?.itemId?.description || "-"}
                       </Text>
                     </View>
                     <View>
                       <Text
-                        style={{
-                          fontFamily: Mulish600,
-                          fontSize: 16,
-                          color: AppColor.primary,
-                        }}
-                      >
-                        {`x${bogoItem?.qty}`}
-                      </Text>
-                      {selectedMenuItem.discountType === "BOGOHO" ? (
+                        style={styles.qtyMultiplier}
+                      >{`x${bogoItem?.qty}`}</Text>
+                      {selectedMenuItem.discountType === "BOGOHO" && (
                         <Text
-                          style={{
-                            fontFamily: Mulish600,
-                            fontSize: 16,
-                            color: AppColor.primary,
-                          }}
-                        >
-                          {`${((bogoItem?.itemId?.price || 0) * 0.5).toFixed(2)}`}
-                        </Text>
-                      ) : null}
+                          style={styles.qtyMultiplier}
+                        >{`${((bogoItem?.itemId?.price || 0) * 0.5).toFixed(2)}`}</Text>
+                      )}
                     </View>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* Sub-items (if any) */}
+            {/* Combo Items */}
             {selectedMenuItem.subItem?.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: Mulish700,
-                    color: AppColor.text,
-                    marginBottom: 8,
-                  }}
-                >
-                  {"Combo Items:"}
-                </Text>
-                {(selectedMenuItem.subItem || []).map((subItem, index) => (
-                  <View
-                    key={subItem?._id || index}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                      gap: 8,
-                    }}
-                  >
-                    <AppImage
-                      uri={subItem?.menuItem?.imgUrls?.[0]}
-                      containerStyle={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 4,
-                      }}
-                    />
-                    <View style={{ gap: 2, flex: 1 }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish700,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {subItem?.menuItem?.name}
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish400,
-                          color: AppColor.textHighlighter,
-                        }}
-                      >
-                        {subItem?.menuItem?.description}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontFamily: Mulish600,
-                        fontSize: 16,
-                        color: AppColor.primary,
-                      }}
-                    >
-                      {`x${subItem?.qty}`}
-                    </Text>
-                  </View>
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>Combo Items:</Text>
+                {selectedMenuItem.subItem.map((subItem) => (
+                  <SubItemRow
+                    key={subItem?._id}
+                    subItem={subItem}
+                    isSelected={selectedSubItems.some(
+                      (item) => item?._id === subItem?.menuItem?._id
+                    )}
+                    onToggle={toggleSubItemSelection}
+                  />
                 ))}
               </View>
             )}
           </ScrollView>
 
-          {/* Quantity Controls */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 20,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: AppColor.primary,
-                }}
+          {/* Footer Quantity Controls */}
+          <View style={styles.footer}>
+            <View style={styles.qtySelector}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => handleRemoveItem(selectedMenuItem)}
+                disabled={getItemQuantity(selectedMenuItem._id) === 0}
               >
-                <TouchableOpacity
-                  style={{ paddingVertical: 8, paddingHorizontal: 12 }}
-                  onPress={() => handleRemoveItem(selectedMenuItem)}
-                  disabled={getItemQuantity(selectedMenuItem._id) === 0}
-                >
-                  <Text
-                    style={{
-                      fontFamily: Mulish700,
-                      fontSize: 16,
-                      color:
-                        getItemQuantity(selectedMenuItem._id) === 0
-                          ? AppColor.textHighlighter
-                          : AppColor.primary,
-                    }}
-                  >
-                    -
-                  </Text>
-                </TouchableOpacity>
-
                 <Text
-                  style={{
-                    fontFamily: Mulish700,
-                    fontSize: 16,
-                    color: AppColor.text,
-                    marginHorizontal: 10,
-                  }}
+                  style={[
+                    styles.qtyBtnText,
+                    getItemQuantity(selectedMenuItem._id) === 0 && {
+                      color: AppColor.textHighlighter,
+                    },
+                  ]}
                 >
-                  {getItemQuantity(selectedMenuItem._id)}
+                  -
                 </Text>
-
-                <TouchableOpacity
-                  style={{ paddingVertical: 8, paddingHorizontal: 12 }}
-                  onPress={() => handleAddItem(selectedMenuItem)}
-                  disabled={
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>
+                {getItemQuantity(selectedMenuItem._id)}
+              </Text>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => handleAddItem(selectedMenuItem)}
+                disabled={
+                  getItemQuantity(selectedMenuItem._id) >=
+                  (selectedMenuItem.maxQty || 10)
+                }
+              >
+                <Text
+                  style={[
+                    styles.qtyBtnText,
                     getItemQuantity(selectedMenuItem._id) >=
-                    (selectedMenuItem.maxQty || 10)
-                  }
+                      (selectedMenuItem.maxQty || 10) && {
+                      color: AppColor.textHighlighter,
+                    },
+                  ]}
                 >
-                  <Text
-                    style={{
-                      fontFamily: Mulish700,
-                      fontSize: 16,
-                      color:
-                        getItemQuantity(selectedMenuItem._id) >=
-                        (selectedMenuItem.maxQty || 10)
-                          ? AppColor.textHighlighter
-                          : AppColor.primary,
-                    }}
-                  >
-                    +
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  +
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={styles.actionSheetAddButton}
+              style={styles.addButton}
               onPress={() => {
-                if (getItemQuantity(selectedMenuItem._id) === 0) {
-                  handleAddItem(selectedMenuItem);
-                }
+                if (getItemQuantity(selectedMenuItem._id) === 0)
+                  handleAddItem({
+                    ...selectedMenuItem,
+                    selectedSubItems,
+                  });
                 actionSheetRef.current?.hide();
               }}
               disabled={!selectedMenuItem.available}
             >
-              <Text style={styles.actionSheetAddButtonText}>
+              <Text style={styles.addButtonText}>
                 {getItemQuantity(selectedMenuItem._id) === 0
                   ? "Add to Order"
                   : "Update Order"}
@@ -510,6 +428,7 @@ DishItemDetailsModal.propTypes = {
   handleRemoveItem: PropTypes.func.isRequired,
   getItemQuantity: PropTypes.func.isRequired,
   insets: PropTypes.object.isRequired,
+  onSelectedSubItemsChange: PropTypes.func,
 };
 
 const styles = StyleSheet.create({
@@ -518,7 +437,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
-    marginRight: -10, // for icon button alignment
+    marginRight: -10,
   },
   actionSheetTitle: {
     fontFamily: Mulish700,
@@ -532,6 +451,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 16,
     overflow: "hidden",
+  },
+  placeholderImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   actionSheetPriceRow: {
     flexDirection: "row",
@@ -558,6 +486,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+  },
+  prepTimeText: {
+    fontSize: 14,
+    fontFamily: Mulish400,
+    color: AppColor.textPlaceholder,
+  },
+  badgeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
   },
   newBadge: {
     fontFamily: Mulish400,
@@ -586,33 +525,121 @@ const styles = StyleSheet.create({
     color: AppColor.primary,
     backgroundColor: AppColor.lightGreenBG,
   },
-  actionSheetDescriptionContainer: {
+  actionSheetSection: {
     marginBottom: 16,
-    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: Mulish700,
+    color: AppColor.text,
+    marginBottom: 4,
+  },
+  descriptionText: {
+    fontSize: 15,
+    fontFamily: Mulish400,
+    color: AppColor.text,
+    lineHeight: 22,
+  },
+  rowInfo: {
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   actionSheetDescription: {
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
   },
-  actionSheetSectionTitle: {
-    fontSize: 16,
+  dietContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  dietBadge: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    color: AppColor.text,
+    backgroundColor: AppColor.lightGreenBG,
+  },
+  subItemRowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  subItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+  },
+  subItemName: {
+    fontSize: 14,
     fontFamily: Mulish700,
     color: AppColor.text,
   },
-  actionSheetSectionTitleWithMargin: {
-    marginBottom: 8,
+  subItemDescription: {
+    fontSize: 14,
+    fontFamily: Mulish400,
+    color: AppColor.textHighlighter,
   },
-  actionSheetSection: {
-    marginBottom: 16,
+  subItemPrice: {
+    fontFamily: Mulish600,
+    fontSize: 16,
+    color: AppColor.primary,
   },
-  actionSheetAddButton: {
+  qtyMultiplier: {
+    fontFamily: Mulish600,
+    fontSize: 16,
+    color: AppColor.primary,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: AppColor.primary,
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  qtySelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+  },
+  qtyBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  qtyBtnText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.primary,
+  },
+  qtyText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.text,
+    marginHorizontal: 10,
+  },
+  addButton: {
     backgroundColor: AppColor.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  actionSheetAddButtonText: {
+  addButtonText: {
     fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,

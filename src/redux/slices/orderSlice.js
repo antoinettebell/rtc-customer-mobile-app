@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { foodTypeStrings } from "../../utils/constants";
 
 const initialState = {
   currentOrder: {
@@ -32,6 +33,17 @@ const calculateItemTotal = (item) => {
     });
   }
   // Note: For BOGO, no additional charge (free items)
+
+  // Handle combo food type
+  if (
+    item.itemType === foodTypeStrings.combo &&
+    item.selectedSubItems &&
+    item.selectedSubItems.length > 0
+  ) {
+    item.selectedSubItems.forEach((subItem) => {
+      total += (subItem?.price || 0) * item.quantity;
+    });
+  }
 
   return total;
 };

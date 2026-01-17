@@ -15,7 +15,11 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAllOrders_API } from "../apiFolder/appAPI";
 import { useDispatch } from "react-redux";
-import { orderCurrentStatusNames, PROFILE_AVATAR } from "../utils/constants";
+import {
+  foodTypeStrings,
+  orderCurrentStatusNames,
+  PROFILE_AVATAR,
+} from "../utils/constants";
 import FastImage from "@d11/react-native-fast-image";
 import moment from "moment";
 import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
@@ -119,11 +123,20 @@ const OrdersScreen = ({ navigation }) => {
               <Text
                 style={styles.orderItemName}
               >{`${i.qty} x ${i.menuItem.name}`}</Text>
-              {["BOGO", "BOGOHO"].includes(i.menuItem?.discountType) ? (
-                <Text style={styles.orderItemDescription} numberOfLines={2}>
-                  {`${i.menuItem?.discountType}`}
-                </Text>
-              ) : null}
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+              >
+                {["BOGO", "BOGOHO"].includes(i.menuItem?.discountType) ? (
+                  <Text style={styles.orderItemDescription} numberOfLines={2}>
+                    {`${i.menuItem?.discountType}`}
+                  </Text>
+                ) : null}
+                {i.menuItem?.itemType === foodTypeStrings.combo ? (
+                  <Text style={styles.orderItemDescription} numberOfLines={2}>
+                    {`${i.menuItem?.itemType}`}
+                  </Text>
+                ) : null}
+              </View>
             </View>
             <View>
               <Text

@@ -33,3 +33,7 @@ export const PaymentMethodNames = {
   GOOGLE_PAY: "Google Pay",
 };
 
+export const foodTypeStrings = {
+  individual: "INDIVIDUAL",
+  combo: "COMBO",
+};

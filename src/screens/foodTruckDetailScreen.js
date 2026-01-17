@@ -32,6 +32,7 @@ import {
   removeItemFromOrder,
   clearCurrentOrder,
   clearOrderSlice,
+  updateItemProperty,
 } from "../redux/slices/orderSlice";
 import {
   getFoodTruckDetailById_API,
@@ -285,6 +286,31 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       })
     );
   };
+
+  const handleSelectedSubItemsChange = useCallback(
+    (selectedSubItems) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedSubItems",
+          value: selectedSubItems,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
 
   const handleRemoveItem = (menuItem) => {
     dispatch(
@@ -680,7 +706,20 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                               quantity={quantity}
                               isLastItem={isLastItem}
                               onItemPress={(item) => {
-                                setSelectedMenuItem(item);
+                                const existingOrderItem =
+                                  currentOrder.items.find(
+                                    (orderItem) => orderItem._id === item._id
+                                  );
+
+                                const mergedItem = existingOrderItem
+                                  ? {
+                                      ...item,
+                                      selectedSubItems:
+                                        existingOrderItem.selectedSubItems || [],
+                                    }
+                                  : item;
+
+                                setSelectedMenuItem(mergedItem);
                                 actionSheetRef.current?.show();
                               }}
                               onAddItem={handleAddItem}
@@ -772,6 +811,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         handleRemoveItem={handleRemoveItem}
         getItemQuantity={getItemQuantity}
         insets={insets}
+        onSelectedSubItemsChange={handleSelectedSubItemsChange}
       />
 
       {/* Business Hours and Pre-Order Availability */}

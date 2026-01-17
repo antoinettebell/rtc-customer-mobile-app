@@ -356,6 +356,27 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                         </Text>
                       </View>
                     ))}
+                    {/* Below is for Combo items */}
+                    {itm?.menuItem?.comboItems?.map((comboItem) => (
+                      <View style={styles.itemRow} key={comboItem?._id}>
+                        <View style={styles.itemInfo}>
+                          <Text
+                            style={[
+                              styles.itemText,
+                              { fontSize: 15, fontFamily: Mulish500 },
+                            ]}
+                          >{`• ${comboItem.name} (x${itm.qty})`}</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.itemText,
+                            { flex: 0.3, textAlign: "right" },
+                          ]}
+                        >
+                          {`$${((comboItem?.price || 0) * itm.qty).toFixed(2)}`}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 ))}
               </View>

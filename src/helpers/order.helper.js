@@ -62,7 +62,7 @@ export const extractAdvanceOrderLocationAndTime = (order) => {
           "HH:mm"
         ).format("hh:mm A");
 
-        advanceTime = `${moment(order.deliveryDate).format("DD-MMM")}, ${day} - ${moment(order.deliveryTime,"HH:mm").format("hh:mm A")}`;
+        advanceTime = `${moment(order.deliveryDate).format("DD-MMM")}, ${day} - ${moment(order.deliveryTime, "HH:mm").format("hh:mm A")}`;
         // advanceTime = `${day}, ${formattedStartTime}-${formattedEndTime}`;
       }
     }
@@ -74,4 +74,36 @@ export const extractAdvanceOrderLocationAndTime = (order) => {
     advanceLocationTitle: advanceLocationTitle,
     advanceTime: advanceTime,
   };
+};
+
+export const updateOrderItems = (orderItems, responseItems) => {
+  console.log("orderItems => ", orderItems);
+  console.log("responseItems => ", responseItems);
+  // Map through the items in the order
+  const updatedItems = orderItems.map((item) => {
+    // 1. Find the corresponding menu item in the response data
+    // (Assumes you can match them by an ID, here using 'menuItemId')
+    const latestMenuData = responseItems?.find(
+      (menu) => menu._id === item.menuItemId
+    );
+
+    // 2. If we found matching menu data, filter its subItems
+    if (latestMenuData?.subItem) {
+      const selectedIds = new Set(item.selectedSubItems.map((s) => s._id));
+
+      return {
+        ...item,
+        // Replace the old selectedSubItems with the fresh data from subItem
+        selectedSubItems: latestMenuData.subItem.filter((latest) =>
+          selectedIds.has(latest.menuItem._id)
+        ),
+      };
+    }
+
+    // Return original item if no match found in menuList
+    return item;
+  });
+
+  console.log("updatedItems => ", updatedItems);
+  return updatedItems;
 };

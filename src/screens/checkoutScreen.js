@@ -48,6 +48,8 @@ import {
 } from "../redux/slices/orderSlice";
 import useDebounce from "../hooks/useDebounce";
 import { showSnackbar } from "../redux/slices/snackbarSlice";
+import { updateOrderItems } from "../helpers/order.helper";
+import { foodTypeStrings } from "../utils/constants";
 
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -246,6 +248,17 @@ const CheckoutScreen = ({ navigation, route }) => {
           item?.customizationInput?.trim()?.length > 0
         ) {
           itemPayload.customization = item.customizationInput;
+        }
+
+        if (
+          item.itemType === foodTypeStrings.combo &&
+          item.selectedSubItems &&
+          item.selectedSubItems.length > 0
+        ) {
+          itemPayload.comboItems = item.selectedSubItems.map((subItem) => ({
+            comboMenuItemId: subItem._id,
+            qty: item.quantity,
+          }));
         }
 
         return itemPayload;
@@ -469,6 +482,25 @@ const CheckoutScreen = ({ navigation, route }) => {
             </View>
           </View>
         ))}
+        {item?.selectedSubItems?.map((itm) => (
+          <View style={[styles.itemRow, { marginTop: 8 }]} key={itm?._id}>
+            <AppImage uri={itm?.imgUrls[0]} containerStyle={styles.foodImg} />
+            <View style={styles.itemDetails}>
+              <Text style={styles.itemTitle}>{itm.name}</Text>
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {itm.description}
+              </Text>
+              <Text style={styles.itemPrice}>
+                {`$${parseFloat(itm.price || "0").toFixed(2)}`}
+              </Text>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              {/* quantity will be same as original item */}
+              <Text style={styles.qtyText}>{`x ${item.quantity}`}</Text>
+              {/* <Text style={styles.qtyText}>{item.discountType}</Text> */}
+            </View>
+          </View>
+        ))}
       </View>
     );
   };
@@ -634,7 +666,11 @@ const CheckoutScreen = ({ navigation, route }) => {
       });
       console.log("response_1 => ", response_1);
       if (response_1?.success && response_1?.data) {
-        dispatch(updateAllItemsOfOrder(response_1?.data?.menuList));
+        const updatedItems = updateOrderItems(
+          order.items,
+          response_1?.data?.menuList
+        );
+        dispatch(updateAllItemsOfOrder(updatedItems));
       }
 
       const response_2 = await getFoodTruckDetailById_API(foodTruckId);
