@@ -16,34 +16,38 @@ const initialState = {
   orderHistory: [],
 };
 
-// Helper function to calculate item price with BOGO/BOGOHO discounts
 const calculateItemTotal = (item) => {
   let total = item.price * item.quantity;
 
-  // Handle BOGOHO discount type
-  if (
-    item.discountType === "BOGOHO" &&
-    item.bogoItems &&
-    item.bogoItems.length > 0
-  ) {
-    // For BOGOHO, add half price of each bogo item for each quantity
-    item.bogoItems.forEach((bogoItem) => {
-      // Add half price of each bogo item for each quantity of the main item
-      total += bogoItem.itemId.price * 0.5 * item.quantity * bogoItem.qty;
-    });
+  if (item.discountType === "BOGOHO") {
+    const effectivePrice =
+      item.bogoHoPrice != null ? item.bogoHoPrice : item.price * 1.5;
+    total = effectivePrice * item.quantity;
   }
+
+  // Previous BOGOHO logic (kept for reference):
+  // if (
+  //   item.discountType === "BOGOHO" &&
+  //   item.bogoItems &&
+  //   item.bogoItems.length > 0
+  // ) {
+  //   item.bogoItems.forEach((bogoItem) => {
+  //     total += bogoItem.itemId.price * 0.5 * item.quantity * bogoItem.qty;
+  //   });
+  // }
+
   // Note: For BOGO, no additional charge (free items)
 
-  // Handle combo food type
-  if (
-    item.itemType === foodTypeStrings.combo &&
-    item.selectedSubItems &&
-    item.selectedSubItems.length > 0
-  ) {
-    item.selectedSubItems.forEach((subItem) => {
-      total += (subItem?.price || 0) * item.quantity;
-    });
-  }
+  // Previously, combo items also included the price of selectedSubItems:
+  // if (
+  //   item.itemType === foodTypeStrings.combo &&
+  //   item.selectedSubItems &&
+  //   item.selectedSubItems.length > 0
+  // ) {
+  //   item.selectedSubItems.forEach((subItem) => {
+  //     total += (subItem?.price || 0) * item.quantity;
+  //   });
+  // }
 
   return total;
 };

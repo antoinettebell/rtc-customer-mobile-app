@@ -274,7 +274,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       {order?.foodTruck?.name}
                     </Text>
                     <Text style={styles.itemsCount}>
-                      {order.items.length} Items
+                      {(order?.items?.length ?? 0) + " Items"}
                     </Text>
                   </View>
                 </Pressable>
@@ -296,16 +296,16 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               </View>
               <Divider />
               <View style={styles.itemsList}>
-                {order.items.map((itm) => (
-                  <View>
-                    <View style={styles.itemRow} key={itm?.menuItemId}>
+                {order?.items?.map((itm) => (
+                  <View key={itm?.menuItemId}>
+                    <View style={styles.itemRow}>
                       <View style={styles.itemInfo}>
                         <Text
                           style={[
                             styles.itemText,
                             { fontSize: 15, fontFamily: Mulish500 },
                           ]}
-                        >{`${itm.menuItem.name} (x${itm.qty})`}</Text>
+                        >{`${itm?.menuItem?.name || ""} (x${itm?.qty || 0})`}</Text>
                         {/* <Text style={styles.itemDesc} numberOfLines={2}>
                           {itm.menuItem.description}
                         </Text> */}
@@ -330,7 +330,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                           { flex: 0.3, textAlign: "right" },
                         ]}
                       >
-                        ${itm.total.toFixed(2)}
+                        ${Number(itm?.total || 0).toFixed(2)}
                       </Text>
                     </View>
                     {/* Below is for BOGO/BOGOHO items */}
@@ -342,7 +342,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                               styles.itemText,
                               { fontSize: 15, fontFamily: Mulish500 },
                             ]}
-                          >{`• ${bogoItem.name} (x${bogoItem.qty})`}</Text>
+                        >{`• ${bogoItem?.name || ""} (x${bogoItem?.qty || 0})`}</Text>
                         </View>
                         <Text
                           style={[
@@ -350,8 +350,12 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                             { flex: 0.3, textAlign: "right" },
                           ]}
                         >
-                          {itm?.menuItem.discountType === "BOGOHO"
-                            ? `$${(bogoItem.price * bogoItem.qty * 0.5).toFixed(2)}`
+                          {itm?.menuItem?.discountType === "BOGOHO"
+                            ? `$${(
+                                (bogoItem?.price || 0) *
+                                (bogoItem?.qty || 0) *
+                                0.5
+                              ).toFixed(2)}`
                             : "$0.00"}
                         </Text>
                       </View>
@@ -382,7 +386,9 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               </View>
               <Divider />
               <View style={styles.footerRow}>
-                <Text style={styles.total}>${order.subTotal.toFixed(2)}</Text>
+                <Text style={styles.total}>
+                  ${(order?.subTotal || 0).toFixed(2)}
+                </Text>
                 {order.status !== "COMPLETED" &&
                   order.status !== "CANCEL" &&
                   order.status !== "REJECTED" && (

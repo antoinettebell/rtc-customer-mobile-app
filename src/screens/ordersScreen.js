@@ -40,6 +40,15 @@ const OrdersScreen = ({ navigation }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  const calculateItemDisplayTotal = (item) => {
+    const baseTotal = item?.total ?? 0;
+    if (item?.menuItem?.discountType === "BOGOHO") {
+      return baseTotal * 1.5;
+    }
+    return baseTotal;
+  };
 
   // render order component
   const renderOrderComponent = ({ item, index }) => {
@@ -85,7 +94,7 @@ const OrdersScreen = ({ navigation }) => {
         <View style={styles.orderHeader}>
           <View style={styles.orderUserImageContainer}>
             <AppImage
-              uri={item.foodTruck.logo}
+              uri={item?.foodTruck?.logo}
               containerStyle={styles.orderUserImage}
             />
           </View>
@@ -93,10 +102,10 @@ const OrdersScreen = ({ navigation }) => {
             <Text
               numberOfLines={1}
               style={styles.orderUserName}
-            >{`${item.foodTruck.name}`}</Text>
+            >{`${item?.foodTruck?.name || ""}`}</Text>
             <Text
               style={styles.orderItemCount}
-            >{`${item.items.length} Items`}</Text>
+            >{`${item?.items?.length || 0} Items`}</Text>
           </View>
           <View>
             <Text style={styles.orderDate}>
@@ -117,12 +126,12 @@ const OrdersScreen = ({ navigation }) => {
         {/* Divider */}
         <Divider style={styles.orderDivider} />
         {/* Items */}
-        {item.items.slice(0, 3).map((i, index) => (
+        {(item?.items || []).slice(0, 3).map((i, index) => (
           <View style={styles.orderItemContainer} key={index}>
             <View style={styles.orderItemDetails}>
               <Text
                 style={styles.orderItemName}
-              >{`${i.qty} x ${i.menuItem.name}`}</Text>
+              >{`${i?.qty ?? 0} x ${i?.menuItem?.name || ""}`}</Text>
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
@@ -141,13 +150,13 @@ const OrdersScreen = ({ navigation }) => {
             <View>
               <Text
                 style={styles.orderItemPrice}
-              >{`$${i.total.toFixed(2)}`}</Text>
+              >{`$${calculateItemDisplayTotal(i).toFixed(2)}`}</Text>
             </View>
           </View>
         ))}
-        {item.items.length > 3 && (
+        {item?.items?.length > 3 && (
           <Text style={styles.moreItemsText}>{`+${
-            item.items.length - 3
+            item?.items?.length - 3
           } more items`}</Text>
         )}
         {/* Divider */}
@@ -228,6 +237,7 @@ const OrdersScreen = ({ navigation }) => {
 
   // Handle load more
   const handleLoadMore = () => {
+    if (!initialLoadDone) return;
     if (!isLoadingMore && hasMoreData) {
       getOrderDataFromAPI(currentPage + 1, true, activeStage === "past");
     }
@@ -285,6 +295,9 @@ const OrdersScreen = ({ navigation }) => {
     } finally {
       setDataLoading(false);
       setIsLoadingMore(false);
+      if (!isLoadMore) {
+        setInitialLoadDone(true);
+      }
     }
   };
 
@@ -293,6 +306,7 @@ const OrdersScreen = ({ navigation }) => {
       setCurrentPage(1);
       setHasMoreData(true);
       setOrderData([]);
+      setInitialLoadDone(false);
       getOrderDataFromAPI(1, false, activeStage === "past");
     }, [activeStage])
   );
@@ -353,7 +367,9 @@ const OrdersScreen = ({ navigation }) => {
         <FlatList
           data={orderData}
           extraData={orderData}
-          keyExtractor={(item) => item._id.toString()}
+          keyExtractor={(item, index) =>
+            item?._id ? item._id.toString() : index.toString()
+          }
           renderItem={renderOrderComponent}
           contentContainerStyle={styles.flatListContent}
           onEndReached={handleLoadMore}

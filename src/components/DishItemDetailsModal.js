@@ -45,7 +45,8 @@ const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
     </View>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Text style={styles.subItemPrice}>
-        {`$${(subItem?.menuItem?.price || 0).toFixed(2)}`}
+        {`x${subItem?.qty}`}
+        {/* {`$${(subItem?.menuItem?.price || 0).toFixed(2)}`} */}
       </Text>
       <View
         style={[
@@ -322,11 +323,11 @@ const DishItemDetailsModal = ({
                       <Text
                         style={styles.qtyMultiplier}
                       >{`x${bogoItem?.qty}`}</Text>
-                      {selectedMenuItem.discountType === "BOGOHO" && (
+                      {/* {selectedMenuItem.discountType === "BOGOHO" && (
                         <Text
                           style={styles.qtyMultiplier}
                         >{`${((bogoItem?.itemId?.price || 0) * 0.5).toFixed(2)}`}</Text>
-                      )}
+                      )} */}
                     </View>
                   </View>
                 ))}

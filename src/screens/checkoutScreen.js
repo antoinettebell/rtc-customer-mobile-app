@@ -374,7 +374,15 @@ const CheckoutScreen = ({ navigation, route }) => {
               {item.description}
             </Text>
             <Text style={styles.itemPrice}>
-              {`$${parseFloat(item.price || "0").toFixed(2)} `}
+              {`$${parseFloat(
+                (
+                  item.discountType === "BOGOHO"
+                    ? item.bogoHoPrice != null
+                      ? item.bogoHoPrice
+                      : item.price * 1.5
+                    : item.price
+                ) || "0"
+              ).toFixed(2)} `}
             </Text>
           </View>
           <View style={styles.qtyBox}>
@@ -470,9 +478,10 @@ const CheckoutScreen = ({ navigation, route }) => {
                 {itm.itemId.description}
               </Text>
               <Text style={styles.itemPrice}>
-                {item.discountType === "BOGO"
-                  ? "Free"
-                  : `$${(parseFloat(itm.itemId.price || "0") * 0.5).toFixed(2)}`}
+                {
+                  item.discountType === "BOGO" ? "Free" : ""
+                  // : `$${(parseFloat(itm.itemId.price || "0") * 0.5).toFixed(2)}`
+                }
               </Text>
             </View>
             <View style={{ alignItems: "center" }}>
@@ -491,7 +500,8 @@ const CheckoutScreen = ({ navigation, route }) => {
                 {itm.description}
               </Text>
               <Text style={styles.itemPrice}>
-                {`$${parseFloat(itm.price || "0").toFixed(2)}`}
+                {`$${parseFloat("0").toFixed(2)}`}
+                {/* {`$${parseFloat(itm.price || "0").toFixed(2)}`} */}
               </Text>
             </View>
             <View style={{ alignItems: "center" }}>
