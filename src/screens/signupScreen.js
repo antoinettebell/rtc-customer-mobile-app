@@ -63,6 +63,7 @@ const SignupScreen = ({ navigation }) => {
   const [mobileNumber, setMobileNumber] = useState("");
   const [agreed, setAgreed] = useState(true);
   const [offGrid, setOffGrid] = useState(true);
+  const [smsAgreed, setSmsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -77,6 +78,7 @@ const SignupScreen = ({ navigation }) => {
     email: "",
     password: "",
     mobileNumber: "",
+    smsAgreed: "",
   });
 
   const togglePasswordVisibility = () => {
@@ -93,14 +95,15 @@ const SignupScreen = ({ navigation }) => {
     setCountryCode("+1");
     setMobileNumber("");
     setAgreed(false);
+    setSmsAgreed(false);
     setErrors({
       fname: "",
       lname: "",
       email: "",
       password: "",
       mobileNumber: "",
+      smsAgreed: "",
     });
-    const [loading, setLoading] = useState(false);
   };
 
   // Validation functions
@@ -136,6 +139,7 @@ const SignupScreen = ({ navigation }) => {
       email: validateEmail(email),
       password: validatePassword(password),
       mobileNumber: validateMobileNumber(mobileNumber),
+      smsAgreed: !smsAgreed ? "You must agree to receive SMS" : "",
     };
 
     setErrors(newErrors);
@@ -146,6 +150,13 @@ const SignupScreen = ({ navigation }) => {
     if (!validateForm()) return;
     if (!agreed) {
       setErrors((prev) => ({ ...prev, agreed: "You must agree to the terms" }));
+      return;
+    }
+    if (!smsAgreed) {
+      setErrors((prev) => ({
+        ...prev,
+        smsAgreed: "You must agree to receive SMS",
+      }));
       return;
     }
 
@@ -692,12 +703,56 @@ const SignupScreen = ({ navigation }) => {
                 </Text>
               </View>
 
+              {/* SMS Consent Checkbox */}
+              <View style={[styles.termsContainer, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setSmsAgreed(!smsAgreed)}
+                  style={styles.iconBox}
+                >
+                  <Ionicons
+                    name={smsAgreed ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={AppColor.primary}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.termsText}>
+                  {"I agree to receive recurring automated text messages (eg. cart reminders, marketing) at the phone number provided. Consent is not a condition to purchase. Msg & data rates may apply. Reply HELP for help and STOP to cancel. View our "}
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("termsOfService")}
+                  >
+                    {"Terms of Service"}
+                  </Text>
+                  {" and "}
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("privacyPolicy")}
+                  >
+                    {"Privacy Policy"}
+                  </Text>
+                </Text>
+              </View>
+              {errors.smsAgreed ? (
+                <HelperText
+                  type="error"
+                  visible={!!errors.smsAgreed}
+                  style={styles.helper}
+                >
+                  {errors.smsAgreed}
+                </HelperText>
+              ) : null}
+
               {/* Signup btn */}
               <TouchableOpacity
                 onPress={handleSignUp}
                 activeOpacity={0.7}
-                disabled={!agreed || loading}
-                style={[styles.signInButton, { opacity: agreed ? 1 : 0.7 }]}
+                disabled={!agreed || !smsAgreed || loading}
+                style={[
+                  styles.signInButton,
+                  { opacity: agreed && smsAgreed ? 1 : 0.7 },
+                ]}
               >
                 {loading ? (
                   <ActivityIndicator color={AppColor.white} />
