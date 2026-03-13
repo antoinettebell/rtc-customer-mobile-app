@@ -93,6 +93,7 @@
 		<string>comgooglemaps</string>
 		<string>maps</string>
 		<string>tel</string>
+		<string>mailto</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
