@@ -49,6 +49,7 @@ import {
 import useDebounce from "../hooks/useDebounce";
 import { showSnackbar } from "../redux/slices/snackbarSlice";
 import { updateOrderItems } from "../helpers/order.helper";
+import { getRewardItemsDisplay, calculateItemTotalWithDiscount } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
 const CheckoutScreen = ({ navigation, route }) => {
@@ -364,8 +365,19 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     const isIncrementDisabled = item.quantity >= effectiveMaxQty;
 
+    const rewardItems = getRewardItemsDisplay(
+      item,
+      item.quantity ?? item.qty ?? 0
+    );
+    const hasRewardNested = rewardItems.length > 0;
+    const hasComboNested = (item?.selectedSubItems?.length ?? 0) > 0;
+    const comboNestedLabel =
+      item?.itemType === foodTypeStrings.combo
+        ? "Combo includes"
+        : "Included selections";
+
     return (
-      <View key={item?._id} style={{ paddingVertical: 8 }}>
+      <View key={item?._id} style={styles.orderLineOuter}>
         <View style={styles.itemRow}>
           <AppImage uri={item?.imgUrls[0]} containerStyle={styles.foodImg} />
           <View style={styles.itemDetails}>
@@ -374,15 +386,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               {item.description}
             </Text>
             <Text style={styles.itemPrice}>
-              {`$${parseFloat(
-                (
-                  item.discountType === "BOGOHO"
-                    ? item.bogoHoPrice != null
-                      ? item.bogoHoPrice
-                      : item.price * 1.5
-                    : item.price
-                ) || "0"
-              ).toFixed(2)} `}
+              {`$${parseFloat(calculateItemTotalWithDiscount({ ...item, quantity: 1 }) || 0).toFixed(2)} `}
             </Text>
           </View>
           <View style={styles.qtyBox}>
@@ -466,51 +470,92 @@ const CheckoutScreen = ({ navigation, route }) => {
             </Text>
           </Pressable>
         ) : null}
-        {item.bogoItems.map((itm) => (
-          <View style={[styles.itemRow, { marginTop: 8 }]} key={itm?._id}>
-            <AppImage
-              uri={itm?.itemId?.imgUrls[0]}
-              containerStyle={styles.foodImg}
-            />
-            <View style={styles.itemDetails}>
-              <Text style={styles.itemTitle}>{itm.itemId.name}</Text>
-              <Text style={styles.itemDesc} numberOfLines={2}>
-                {itm.itemId.description}
-              </Text>
-              <Text style={styles.itemPrice}>
-                {
-                  item.discountType === "BOGO" ? "Free" : ""
-                  // : `$${(parseFloat(itm.itemId.price || "0") * 0.5).toFixed(2)}`
-                }
-              </Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              {/* quantity will be same as original item */}
-              <Text style={styles.qtyText}>{`x ${item.quantity}`}</Text>
-              <Text style={styles.qtyText}>{item.discountType}</Text>
-            </View>
+        {hasRewardNested ? (
+          <View style={styles.nestedSection}>
+            <Text style={styles.nestedSectionLabel}>
+              {item.discountType
+                ? `Included with offer · ${item.discountType}`
+                : "Included with offer"}
+            </Text>
+            {rewardItems.map((itm, idx) => (
+              <View
+                style={[
+                  styles.nestedItemRow,
+                  idx === rewardItems.length - 1 && styles.nestedItemRowLast,
+                ]}
+                key={itm._id != null ? String(itm._id) : `reward-${idx}`}
+              >
+                <AppImage
+                  uri={itm.displayImg}
+                  containerStyle={styles.nestedFoodImg}
+                />
+                <View style={styles.nestedItemDetails}>
+                  <Text style={styles.nestedItemBadge}>Reward</Text>
+                  <Text style={styles.nestedItemTitle} numberOfLines={2}>
+                    {itm.displayName}
+                  </Text>
+                  {itm.displayDesc ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {itm.displayDesc}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.nestedItemPrice}>{itm.displayPrice}</Text>
+                </View>
+                {!["BOGO", "BOGOHO"].includes(item.discountType) ? (
+                  <View style={styles.nestedQtyCol}>
+                    <Text
+                      style={styles.nestedQtyText}
+                    >{`×${itm.displayQty}`}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
           </View>
-        ))}
-        {item?.selectedSubItems?.map((itm) => (
-          <View style={[styles.itemRow, { marginTop: 8 }]} key={itm?._id}>
-            <AppImage uri={itm?.imgUrls[0]} containerStyle={styles.foodImg} />
-            <View style={styles.itemDetails}>
-              <Text style={styles.itemTitle}>{itm.name}</Text>
-              <Text style={styles.itemDesc} numberOfLines={2}>
-                {itm.description}
-              </Text>
-              <Text style={styles.itemPrice}>
-                {`$${parseFloat("0").toFixed(2)}`}
-                {/* {`$${parseFloat(itm.price || "0").toFixed(2)}`} */}
-              </Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              {/* quantity will be same as original item */}
-              <Text style={styles.qtyText}>{`x ${item.quantity}`}</Text>
-              {/* <Text style={styles.qtyText}>{item.discountType}</Text> */}
-            </View>
+        ) : null}
+        {hasComboNested ? (
+          <View
+            style={[
+              styles.nestedSection,
+              hasRewardNested && styles.nestedSectionAfterSibling,
+            ]}
+          >
+            <Text style={styles.nestedSectionLabel}>{comboNestedLabel}</Text>
+            {item.selectedSubItems.map((itm, idx) => (
+              <View
+                style={[
+                  styles.nestedItemRow,
+                  idx === item.selectedSubItems.length - 1 &&
+                    styles.nestedItemRowLast,
+                ]}
+                key={itm?._id || `combo-${idx}`}
+              >
+                <AppImage
+                  uri={itm?.imgUrls[0]}
+                  containerStyle={styles.nestedFoodImg}
+                />
+                <View style={styles.nestedItemDetails}>
+                  <Text style={styles.nestedItemBadge}>Combo item</Text>
+                  <Text style={styles.nestedItemTitle} numberOfLines={2}>
+                    {itm.name}
+                  </Text>
+                  {itm.description ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {itm.description}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.nestedItemPriceMuted}>
+                    Included in combo
+                  </Text>
+                </View>
+                <View style={styles.nestedQtyCol}>
+                  <Text
+                    style={styles.nestedQtyText}
+                  >{`×${item.quantity}`}</Text>
+                </View>
+              </View>
+            ))}
           </View>
-        ))}
+        ) : null}
       </View>
     );
   };
@@ -1350,6 +1395,92 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  orderLineOuter: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.borderColor,
+  },
+  nestedSection: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#F5F6F8",
+    borderLeftWidth: 3,
+    borderLeftColor: AppColor.primary,
+  },
+  nestedSectionAfterSibling: {
+    marginTop: 10,
+  },
+  nestedSectionLabel: {
+    fontFamily: Mulish700,
+    fontSize: 12,
+    color: AppColor.gray,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 10,
+  },
+  nestedItemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  nestedItemRowLast: {
+    marginBottom: 0,
+  },
+  nestedFoodImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+  },
+  nestedItemDetails: {
+    flex: 1,
+    marginLeft: 10,
+    gap: 4,
+  },
+  nestedItemBadge: {
+    alignSelf: "flex-start",
+    fontFamily: Mulish600,
+    fontSize: 11,
+    color: AppColor.primary,
+    backgroundColor: "#FFF0E6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  nestedItemTitle: {
+    fontFamily: Mulish600,
+    fontSize: 14,
+    color: AppColor.text,
+  },
+  nestedItemDesc: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+  },
+  nestedItemPrice: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.primary,
+  },
+  nestedItemPriceMuted: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    fontStyle: "italic",
+  },
+  nestedQtyCol: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    minWidth: 36,
+    paddingTop: 2,
+  },
+  nestedQtyText: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.text,
   },
   foodImg: {
     width: 80,
