@@ -64,6 +64,8 @@ const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
   </TouchableOpacity>
 ));
 
+import { getRewardItemsDisplay } from "../helpers/discount.helper";
+
 const DishItemDetailsModal = ({
   actionSheetRef,
   selectedMenuItem,
@@ -296,43 +298,137 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {/* BOGO Items */}
-            {selectedMenuItem.bogoItems?.length > 0 && (
-              <View style={styles.actionSheetSection}>
-                <Text
-                  style={styles.sectionTitle}
-                >{`${selectedMenuItem.discountType} Item:`}</Text>
-                {selectedMenuItem.bogoItems.map((bogoItem, index) => (
-                  <View
-                    key={bogoItem?._id || index}
-                    style={styles.subItemRowContainer}
-                  >
-                    <AppImage
-                      uri={bogoItem?.itemId?.imgUrls?.[0]}
-                      containerStyle={styles.subItemImage}
-                    />
-                    <View style={{ gap: 2, flex: 1 }}>
-                      <Text numberOfLines={1} style={styles.subItemName}>
-                        {bogoItem?.itemId?.name || "-"}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.subItemDescription}>
-                        {bogoItem?.itemId?.description || "-"}
-                      </Text>
+            {/* BOGO / BOGOHO — buy & get quantities + reward items */}
+            {(() => {
+              const { discountType, bogoItems, discountRules } =
+                selectedMenuItem;
+              const currentQty = getItemQuantity(selectedMenuItem?._id);
+              const previewQty =
+                currentQty > 0
+                  ? currentQty
+                  : Math.max(1, Number(discountRules?.buyQty) || 1);
+
+              const hasRuleBasedOffer =
+                discountRules && discountRules.discount > 0;
+              const hasLegacyBogoList =
+                bogoItems && bogoItems.length > 0;
+
+              if (!hasRuleBasedOffer && !hasLegacyBogoList) {
+                return null;
+              }
+
+              const discountVal = discountRules?.discount ?? 0;
+              let promoName = "Special offer";
+              if (discountVal === 1) promoName = "BOGO";
+              else if (discountVal === 0.5) promoName = "BOGOHO";
+              else if (hasLegacyBogoList && discountType) promoName = discountType;
+
+              const buyQtyDisplay = Math.max(
+                1,
+                Number(discountRules?.buyQty) || 1
+              );
+              const getQtyShown = Math.max(
+                1,
+                Number(discountRules?.getQty) || 1
+              );
+
+              const repeatable = discountRules?.repeatable !== false;
+
+              const rewardItems = getRewardItemsDisplay(
+                {
+                  ...selectedMenuItem,
+                  quantity: previewQty,
+                },
+                previewQty
+              );
+
+              return (
+                <View style={styles.actionSheetSection}>
+                  <Text style={styles.bogoSectionHeading}>Special offer</Text>
+
+                  <View style={styles.buyGetCard}>
+                    <View style={styles.buyGetCardTop}>
+                      <Text style={styles.buyGetCardTitle}>Buy & get</Text>
+                      <View style={styles.promoNamePill}>
+                        <Text style={styles.promoNamePillText}>{promoName}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text
-                        style={styles.qtyMultiplier}
-                      >{`x${bogoItem?.qty}`}</Text>
-                      {/* {selectedMenuItem.discountType === "BOGOHO" && (
-                        <Text
-                          style={styles.qtyMultiplier}
-                        >{`${((bogoItem?.itemId?.price || 0) * 0.5).toFixed(2)}`}</Text>
-                      )} */}
+
+                    <View style={styles.buyGetNumbersRow}>
+                      <View style={styles.buyGetQtyBlock}>
+                        <Text style={styles.buyGetQtyLabel}>Buy</Text>
+                        <Text style={styles.buyGetQtyValue}>{buyQtyDisplay}</Text>
+                        <Text style={styles.buyGetQtyUnit}>paid items</Text>
+                      </View>
+
+                      <MaterialIcons
+                        name="arrow-forward"
+                        size={22}
+                        color={AppColor.primary}
+                        style={styles.buyGetArrow}
+                      />
+
+                      <View style={[styles.buyGetQtyBlock, styles.buyGetQtyBlockGet]}>
+                        <Text style={styles.buyGetQtyLabel}>Get</Text>
+                        <Text style={styles.buyGetQtyValue}>{getQtyShown}</Text>
+                        <Text style={styles.buyGetQtyUnit}>reward items</Text>
+                      </View>
                     </View>
+
+                    <Text style={styles.buyGetExplanation}>
+                      {`Add ${buyQtyDisplay} paid ${
+                        buyQtyDisplay === 1 ? "item" : "items"
+                      } to your cart to unlock ${getQtyShown} reward ${
+                        getQtyShown === 1 ? "item" : "items"
+                      } (see below).`}
+                    </Text>
+
+                    {hasRuleBasedOffer && repeatable ? (
+                      <Text style={styles.buyGetRepeatHint}>
+                        Repeats for every qualifying set when you increase
+                        quantity.
+                      </Text>
+                    ) : null}
                   </View>
-                ))}
-              </View>
-            )}
+
+                  {rewardItems.length > 0 ? (
+                    <>
+                      <Text style={styles.rewardRowsHeading}>Reward item</Text>
+                      {rewardItems.map((itm, index) => (
+                        <View
+                          key={itm._id || index}
+                          style={styles.subItemRowContainer}
+                        >
+                          <AppImage
+                            uri={itm.displayImg}
+                            containerStyle={styles.subItemImage}
+                          />
+                          <View style={{ gap: 2, flex: 1 }}>
+                            <Text numberOfLines={2} style={styles.subItemName}>
+                              {itm.displayName}
+                            </Text>
+                            {itm.displayDesc ? (
+                              <Text
+                                numberOfLines={2}
+                                style={styles.subItemDescription}
+                              >
+                                {itm.displayDesc}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <View style={styles.rewardRowMeta}>
+                            <Text style={styles.qtyMultiplier}>{`×${itm.displayQty}`}</Text>
+                            <Text style={styles.rewardRowPrice}>
+                              {itm.displayPrice}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </>
+                  ) : null}
+                </View>
+              );
+            })()}
 
             {/* Combo Items */}
             {selectedMenuItem.subItem?.length > 0 && (
@@ -534,6 +630,117 @@ const styles = StyleSheet.create({
     fontFamily: Mulish700,
     color: AppColor.text,
     marginBottom: 4,
+  },
+  bogoSectionHeading: {
+    fontSize: 17,
+    fontFamily: Mulish700,
+    color: AppColor.text,
+    marginBottom: 10,
+  },
+  buyGetCard: {
+    backgroundColor: "#FFF8F3",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F5E6DC",
+    padding: 14,
+    marginBottom: 14,
+  },
+  buyGetCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    gap: 8,
+  },
+  buyGetCardTitle: {
+    fontFamily: Mulish700,
+    fontSize: 15,
+    color: AppColor.text,
+  },
+  promoNamePill: {
+    backgroundColor: AppColor.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  promoNamePillText: {
+    fontFamily: Mulish600,
+    fontSize: 12,
+    color: AppColor.white,
+  },
+  buyGetNumbersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  buyGetQtyBlock: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: AppColor.white,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+  },
+  buyGetQtyBlockGet: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF0E6",
+  },
+  buyGetQtyLabel: {
+    fontFamily: Mulish600,
+    fontSize: 11,
+    color: AppColor.textHighlighter,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  buyGetQtyValue: {
+    fontFamily: Mulish700,
+    fontSize: 28,
+    color: AppColor.text,
+    lineHeight: 32,
+  },
+  buyGetQtyUnit: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    marginTop: 2,
+  },
+  buyGetArrow: {
+    marginHorizontal: 6,
+  },
+  buyGetExplanation: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.text,
+    lineHeight: 20,
+  },
+  buyGetRepeatHint: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  rewardRowsHeading: {
+    fontFamily: Mulish600,
+    fontSize: 14,
+    color: AppColor.text,
+    marginBottom: 8,
+  },
+  rewardRowMeta: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 4,
+    minWidth: 56,
+  },
+  rewardRowPrice: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.primary,
+    textAlign: "right",
   },
   descriptionText: {
     fontSize: 15,

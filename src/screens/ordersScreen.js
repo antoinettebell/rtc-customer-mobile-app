@@ -44,7 +44,18 @@ const OrdersScreen = ({ navigation }) => {
 
   const calculateItemDisplayTotal = (item) => {
     const baseTotal = item?.total ?? 0;
-    if (item?.menuItem?.discountType === "BOGOHO") {
+    const discountType = item?.menuItem?.discountType;
+    const discountRules = item?.menuItem?.discountRules;
+
+    if (discountRules && discountRules.discount > 0) {
+      // In the new rules engine, the 'total' from the backend already includes
+      // the discounted reward items if it was a same-item reward.
+      // So we don't need to multiply by 1.5 anymore.
+      return baseTotal;
+    }
+
+    // Fallback for old BOGOHO logic
+    if (discountType === "BOGOHO") {
       return baseTotal * 1.5;
     }
     return baseTotal;
@@ -135,11 +146,26 @@ const OrdersScreen = ({ navigation }) => {
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
-                {["BOGO", "BOGOHO"].includes(i.menuItem?.discountType) ? (
-                  <Text style={styles.orderItemDescription} numberOfLines={2}>
-                    {`${i.menuItem?.discountType}`}
-                  </Text>
-                ) : null}
+                {(() => {
+                  const discountRules = i.menuItem?.discountRules;
+                  if (discountRules && discountRules.discount > 0) {
+                    const discountVal = discountRules.discount;
+                    const promoText = discountVal === 1 ? "BOGO" : discountVal === 0.5 ? "BOGOHO" : "Offer";
+                    return (
+                      <Text style={styles.orderItemDescription} numberOfLines={2}>
+                        {promoText}
+                      </Text>
+                    );
+                  }
+                  if (["BOGO", "BOGOHO"].includes(i.menuItem?.discountType)) {
+                    return (
+                      <Text style={styles.orderItemDescription} numberOfLines={2}>
+                        {`${i.menuItem?.discountType}`}
+                      </Text>
+                    );
+                  }
+                  return null;
+                })()}
                 {i.menuItem?.itemType === foodTypeStrings.combo ? (
                   <Text style={styles.orderItemDescription} numberOfLines={2}>
                     {`${i.menuItem?.itemType}`}

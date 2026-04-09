@@ -39,6 +39,23 @@ const DishItemComponent = ({
             style={styles.newDishBadge}
           />
         ) : null}
+        {(() => {
+          let promoText = null;
+          if (menuItem?.discountRules && menuItem.discountRules.discount > 0) {
+             const discountVal = menuItem.discountRules.discount;
+             promoText = discountVal === 1 ? "BOGO" : discountVal === 0.5 ? "BOGOHO" : "Offer";
+          } else if (menuItem?.hasDiscount && ["BOGO", "BOGOHO"].includes(menuItem?.discountType)) {
+             promoText = menuItem.discountType;
+          }
+          
+          return promoText ? (
+            <View style={styles.promoBadge}>
+              <Text style={styles.promoBadgeText}>
+                {promoText}
+              </Text>
+            </View>
+          ) : null;
+        })()}
       </View>
       <Pressable
         onPress={() => onItemPress(menuItem)}
@@ -230,9 +247,26 @@ const styles = StyleSheet.create({
   newDishBadge: {
     position: "absolute",
     top: -5,
-    left: -5,
+    right: -5,
     width: 30,
     height: 30,
+    zIndex: 10,
+  },
+  promoBadge: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: AppColor.primary,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    paddingVertical: 2,
+    alignItems: "center",
+  },
+  promoBadgeText: {
+    color: AppColor.white,
+    fontFamily: Mulish700,
+    fontSize: 10,
   },
 });
 

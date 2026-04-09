@@ -16,40 +16,10 @@ const initialState = {
   orderHistory: [],
 };
 
+import { calculateItemTotalWithDiscount } from "../../helpers/discount.helper";
+
 const calculateItemTotal = (item) => {
-  let total = item.price * item.quantity;
-
-  if (item.discountType === "BOGOHO") {
-    const effectivePrice =
-      item.bogoHoPrice != null ? item.bogoHoPrice : item.price * 1.5;
-    total = effectivePrice * item.quantity;
-  }
-
-  // Previous BOGOHO logic (kept for reference):
-  // if (
-  //   item.discountType === "BOGOHO" &&
-  //   item.bogoItems &&
-  //   item.bogoItems.length > 0
-  // ) {
-  //   item.bogoItems.forEach((bogoItem) => {
-  //     total += bogoItem.itemId.price * 0.5 * item.quantity * bogoItem.qty;
-  //   });
-  // }
-
-  // Note: For BOGO, no additional charge (free items)
-
-  // Previously, combo items also included the price of selectedSubItems:
-  // if (
-  //   item.itemType === foodTypeStrings.combo &&
-  //   item.selectedSubItems &&
-  //   item.selectedSubItems.length > 0
-  // ) {
-  //   item.selectedSubItems.forEach((subItem) => {
-  //     total += (subItem?.price || 0) * item.quantity;
-  //   });
-  // }
-
-  return total;
+  return calculateItemTotalWithDiscount(item);
 };
 
 const orderSlice = createSlice({
