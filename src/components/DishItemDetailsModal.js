@@ -16,7 +16,7 @@ import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImageCarousel from "./ImageCarousel";
 import AppImage from "./AppImage";
 import ActionSheet from "react-native-actions-sheet";
-import { IconButton } from "react-native-paper";
+import { IconButton, TextInput } from "react-native-paper";
 import { foodTypeStrings } from "../utils/constants";
 
 const { width, height } = Dimensions.get("window");
@@ -75,15 +75,21 @@ const DishItemDetailsModal = ({
   getItemQuantity,
   insets,
   onSelectedSubItemsChange,
+  onCustomizationInputChange,
 }) => {
+  const customizationActionSheetRef = React.useRef(null);
   const [selectedSubItems, setSelectedSubItems] = useState(
     selectedMenuItem?.selectedSubItems || []
+  );
+  const [customizationInput, setCustomizationInput] = useState(
+    selectedMenuItem?.customizationInput || ""
   );
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
     setSelectedSubItems(selectedMenuItem?.selectedSubItems || []);
-  }, [selectedMenuItem?._id, selectedMenuItem?.selectedSubItems]);
+    setCustomizationInput(selectedMenuItem?.customizationInput || "");
+  }, [selectedMenuItem?._id, selectedMenuItem?.selectedSubItems, selectedMenuItem?.customizationInput]);
 
   // Clear subitems when main item quantity becomes 0
   useEffect(() => {
@@ -110,6 +116,14 @@ const DishItemDetailsModal = ({
     selectedSubItems.length,
     onSelectedSubItemsChange,
   ]);
+
+  // Handle customization change
+  const handleCustomizationDone = useCallback(() => {
+    customizationActionSheetRef.current?.hide();
+    if (onCustomizationInputChange) {
+      onCustomizationInputChange(customizationInput);
+    }
+  }, [customizationInput, onCustomizationInputChange]);
 
   // Optimized toggle function
   const toggleSubItemSelection = useCallback(
@@ -310,8 +324,7 @@ const DishItemDetailsModal = ({
 
               const hasRuleBasedOffer =
                 discountRules && discountRules.discount > 0;
-              const hasLegacyBogoList =
-                bogoItems && bogoItems.length > 0;
+              const hasLegacyBogoList = bogoItems && bogoItems.length > 0;
 
               if (!hasRuleBasedOffer && !hasLegacyBogoList) {
                 return null;
@@ -321,7 +334,8 @@ const DishItemDetailsModal = ({
               let promoName = "Special offer";
               if (discountVal === 1) promoName = "BOGO";
               else if (discountVal === 0.5) promoName = "BOGOHO";
-              else if (hasLegacyBogoList && discountType) promoName = discountType;
+              else if (hasLegacyBogoList && discountType)
+                promoName = discountType;
 
               const buyQtyDisplay = Math.max(
                 1,
@@ -350,14 +364,18 @@ const DishItemDetailsModal = ({
                     <View style={styles.buyGetCardTop}>
                       <Text style={styles.buyGetCardTitle}>Buy & get</Text>
                       <View style={styles.promoNamePill}>
-                        <Text style={styles.promoNamePillText}>{promoName}</Text>
+                        <Text style={styles.promoNamePillText}>
+                          {promoName}
+                        </Text>
                       </View>
                     </View>
 
                     <View style={styles.buyGetNumbersRow}>
                       <View style={styles.buyGetQtyBlock}>
                         <Text style={styles.buyGetQtyLabel}>Buy</Text>
-                        <Text style={styles.buyGetQtyValue}>{buyQtyDisplay}</Text>
+                        <Text style={styles.buyGetQtyValue}>
+                          {buyQtyDisplay}
+                        </Text>
                         <Text style={styles.buyGetQtyUnit}>paid items</Text>
                       </View>
 
@@ -368,7 +386,12 @@ const DishItemDetailsModal = ({
                         style={styles.buyGetArrow}
                       />
 
-                      <View style={[styles.buyGetQtyBlock, styles.buyGetQtyBlockGet]}>
+                      <View
+                        style={[
+                          styles.buyGetQtyBlock,
+                          styles.buyGetQtyBlockGet,
+                        ]}
+                      >
                         <Text style={styles.buyGetQtyLabel}>Get</Text>
                         <Text style={styles.buyGetQtyValue}>{getQtyShown}</Text>
                         <Text style={styles.buyGetQtyUnit}>reward items</Text>
@@ -417,7 +440,9 @@ const DishItemDetailsModal = ({
                             ) : null}
                           </View>
                           <View style={styles.rewardRowMeta}>
-                            <Text style={styles.qtyMultiplier}>{`×${itm.displayQty}`}</Text>
+                            <Text
+                              style={styles.qtyMultiplier}
+                            >{`×${itm.displayQty}`}</Text>
                             <Text style={styles.rewardRowPrice}>
                               {itm.displayPrice}
                             </Text>
@@ -444,6 +469,35 @@ const DishItemDetailsModal = ({
                     onToggle={toggleSubItemSelection}
                   />
                 ))}
+              </View>
+            )}
+
+            {/* Customization Button */}
+            {selectedMenuItem?.allowCustomize && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>Customization:</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.customizationButton}
+                  onPress={() => customizationActionSheetRef.current?.show()}
+                >
+                  <View style={styles.customizationContent}>
+                    <Text
+                      style={[
+                        styles.customizationText,
+                        !customizationInput && styles.customizationPlaceholder,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {customizationInput || "Add special instructions..."}
+                    </Text>
+                    <MaterialIcons
+                      name={customizationInput ? "edit" : "add"}
+                      size={20}
+                      color={AppColor.primary}
+                    />
+                  </View>
+                </TouchableOpacity>
               </View>
             )}
           </ScrollView>
@@ -499,6 +553,7 @@ const DishItemDetailsModal = ({
                   handleAddItem({
                     ...selectedMenuItem,
                     selectedSubItems,
+                    customizationInput,
                   });
                 actionSheetRef.current?.hide();
               }}
@@ -513,6 +568,52 @@ const DishItemDetailsModal = ({
           </View>
         </View>
       )}
+
+      {/* Customization ActionSheet */}
+      <ActionSheet
+        ref={customizationActionSheetRef}
+        headerAlwaysVisible={true}
+        gestureEnabled={false}
+      >
+        <View style={{ paddingVertical: 8, paddingHorizontal: 20 }}>
+          <View style={styles.customizationModalHeader}>
+            <Text style={styles.modalTitle}>{"Customization"}</Text>
+            <IconButton
+              icon="close"
+              iconColor={AppColor.text}
+              onPress={() => customizationActionSheetRef.current?.hide()}
+              style={{ margin: 0 }}
+            />
+          </View>
+          <TextInput
+            dense
+            value={customizationInput}
+            onChangeText={setCustomizationInput}
+            style={{ backgroundColor: AppColor.white, marginTop: 8 }}
+            contentStyle={{
+              minHeight: 120,
+              fontFamily: Mulish400,
+              fontSize: 15,
+            }}
+            placeholder="Enter special instructions (e.g. no onions, extra spicy)"
+            placeholderTextColor={AppColor.textPlaceholder}
+            mode="outlined"
+            multiline={true}
+            outlineColor={AppColor.border}
+            activeOutlineColor={AppColor.primary}
+            outlineStyle={{ borderRadius: 8 }}
+            autoCapitalize="sentences"
+            autoFocus={Platform.OS === "ios"}
+          />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.doneButton, { marginTop: 20, marginBottom: 10 }]}
+            onPress={handleCustomizationDone}
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </ActionSheet>
     </ActionSheet>
   );
 };
@@ -526,6 +627,7 @@ DishItemDetailsModal.propTypes = {
   getItemQuantity: PropTypes.func.isRequired,
   insets: PropTypes.object.isRequired,
   onSelectedSubItemsChange: PropTypes.func,
+  onCustomizationInputChange: PropTypes.func,
 };
 
 const styles = StyleSheet.create({
@@ -848,6 +950,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   addButtonText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.white,
+  },
+  customizationButton: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    backgroundColor: "#f9f9f9",
+  },
+  customizationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  customizationText: {
+    flex: 1,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+  },
+  customizationPlaceholder: {
+    color: AppColor.textPlaceholder,
+  },
+  customizationModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+    marginRight: -10,
+  },
+  modalTitle: {
+    fontFamily: Mulish700,
+    fontSize: 18,
+    color: AppColor.text,
+  },
+  doneButton: {
+    backgroundColor: AppColor.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  doneButtonText: {
     fontFamily: Mulish700,
     fontSize: 16,
     color: AppColor.white,

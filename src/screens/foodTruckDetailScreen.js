@@ -311,6 +311,31 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     },
     [dispatch, currentOrder.items, selectedMenuItem]
   );
+  
+  const handleCustomizationInputChange = useCallback(
+    (customizationInput) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "customizationInput",
+          value: customizationInput,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
 
   const handleRemoveItem = (menuItem) => {
     dispatch(
@@ -716,6 +741,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                       ...item,
                                       selectedSubItems:
                                         existingOrderItem.selectedSubItems || [],
+                                      customizationInput:
+                                        existingOrderItem.customizationInput || "",
                                     }
                                   : item;
 
@@ -812,6 +839,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         getItemQuantity={getItemQuantity}
         insets={insets}
         onSelectedSubItemsChange={handleSelectedSubItemsChange}
+        onCustomizationInputChange={handleCustomizationInputChange}
       />
 
       {/* Business Hours and Pre-Order Availability */}
