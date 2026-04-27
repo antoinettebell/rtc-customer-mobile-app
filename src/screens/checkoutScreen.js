@@ -53,6 +53,14 @@ import { foodTypeStrings } from "../utils/constants";
 
 const BUILT_IN_DELIVERY_FEE = 6.49;
 
+const calculateTaxAmountFromRate = (amount, rate) => {
+  const taxableAmount = Math.max(0, Number(amount) || 0);
+  const numericRate = Number(rate) || 0;
+  const normalizedRate = numericRate > 1 ? numericRate / 100 : numericRate;
+
+  return Number((taxableAmount * normalizedRate).toFixed(2));
+};
+
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -88,11 +96,26 @@ const CheckoutScreen = ({ navigation, route }) => {
     () => taxData?.paymentProcessingFee || 0,
     [taxData]
   );
-  const salesTaxAmount = useMemo(() => taxData?.salesTaxAmount || 0, [taxData]);
-  const deliveryFee = useMemo(() => BUILT_IN_DELIVERY_FEE, []);
+  const salesTaxAmount = useMemo(() => {
+    if (taxData?.salesTaxAmount != null) {
+      return Number(taxData.salesTaxAmount) || 0;
+    }
+
+    return calculateTaxAmountFromRate(taxableAmount, taxData?.salesTax);
+  }, [taxData, taxableAmount]);
+  const isDelivery = pickupSource === "delivery";
+  const fulfillmentType = isDelivery ? "DELIVERY" : "PICKUP";
+  const isPreOrder = pickupSource === "pre_order";
+  const orderNowUnavailable = !isPreOrder && !truckCurrentLocation;
+  const isConfirmDisabled =
+    order.items.length === 0 || loading || orderNowUnavailable;
+  const deliveryFee = useMemo(
+    () => (isDelivery ? BUILT_IN_DELIVERY_FEE : 0),
+    [isDelivery]
+  );
   const normalizedDriverTip = useMemo(
-    () => Math.max(0, Number(driverTip) || 0),
-    [driverTip]
+    () => (isDelivery ? Math.max(0, Number(driverTip) || 0) : 0),
+    [driverTip, isDelivery]
   );
   const discount = useMemo(() => {
     if (!coupon) return 0;
@@ -124,6 +147,12 @@ const CheckoutScreen = ({ navigation, route }) => {
     () => totalWithTax + prosessingFeeAmount,
     [totalWithTax, prosessingFeeAmount]
   );
+
+  useEffect(() => {
+    if (!isDelivery && driverTip !== 0) {
+      setDriverTip(0);
+    }
+  }, [driverTip, isDelivery]);
 
   const showTimePicker = () => {
     setTimePickerVisibility(true);
@@ -165,9 +194,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   const handleConfirmOrder = async () => {
-    // Determine order type
-    const isPreOrder = pickupSource === "pre_order";
-
     // Check if the order is empty
     if (order.items.length === 0) {
       Alert.alert("Empty Order", "Please add items to your order first.");
@@ -239,7 +265,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       }
     }
 
-    if (deliveryFee > 0 && !defaultLocation?.address) {
+    if (isDelivery && !defaultLocation?.address) {
       Alert.alert(
         "Delivery address required",
         "Please add or select a delivery address before placing this order."
@@ -254,8 +280,8 @@ const CheckoutScreen = ({ navigation, route }) => {
       tax: salesTaxAmount || 0,
       subtotal,
       deliveryFee,
-      fulfillmentType: deliveryFee > 0 ? "DELIVERY" : "PICKUP",
-      deliveryAddress: deliveryFee > 0 ? defaultLocation?.address : null,
+      fulfillmentType,
+      deliveryAddress: isDelivery ? defaultLocation?.address : null,
       tip: normalizedDriverTip,
       tips: normalizedDriverTip,
       totalOrderCost: totalAfterProsessingFee,
@@ -788,9 +814,9 @@ const CheckoutScreen = ({ navigation, route }) => {
     setDataLoading(true);
     try {
       const locationId =
-        pickupSource === "regular"
-          ? truckCurrentLocation?._id
-          : selectedLocation?._id;
+        pickupSource === "pre_order"
+          ? selectedLocation?._id
+          : truckCurrentLocation?._id;
 
       if (!locationId) return;
 
@@ -876,11 +902,11 @@ const CheckoutScreen = ({ navigation, route }) => {
               />
             </View>
 
-            {/* Pickup Summary */}
+            {/* Fulfillment Summary */}
             <>
               <View style={{ marginTop: 18 }}>
                 <Text style={[styles.sectionTitle, { marginVertical: 0 }]}>
-                  {"Pickup Summary"}
+                  {"Fulfillment"}
                 </Text>
               </View>
               <View
@@ -914,7 +940,35 @@ const CheckoutScreen = ({ navigation, route }) => {
                           : AppColor.text,
                     }}
                   >
-                    Regular
+                    Pickup
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 4,
+                    backgroundColor:
+                      pickupSource === "delivery"
+                        ? AppColor.primary
+                        : "#E5E5EA",
+                  }}
+                  onPress={() => setPickupSource("delivery")}
+                >
+                  <Text
+                    style={{
+                      fontFamily: Mulish600,
+                      fontSize: 14,
+                      color:
+                        pickupSource === "delivery"
+                          ? AppColor.white
+                          : AppColor.text,
+                    }}
+                  >
+                    Delivery
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -991,6 +1045,46 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                   )}
+                </View>
+              ) : null}
+              {pickupSource === "delivery" ? (
+                <View
+                  style={{
+                    padding: 16,
+                    borderWidth: 1,
+                    borderRadius: 10,
+                    borderColor: AppColor.borderColor,
+                    backgroundColor: AppColor.white,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: Mulish700,
+                      fontSize: 18,
+                      color: AppColor.text,
+                    }}
+                  >
+                    {"Delivery Location:"}
+                  </Text>
+                  <View style={{ gap: 8, marginTop: 8 }}>
+                    <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
+                      {defaultLocation?.address ||
+                        "Please select a delivery location."}
+                    </Text>
+                    {orderNowUnavailable ? (
+                      <Text
+                        style={{
+                          fontFamily: Mulish700,
+                          fontSize: 14,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {
+                          "This vendor is not available at the moment. Kindly Check for pre-order."
+                        }
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               ) : null}
               {pickupSource === "pre_order" ? (
@@ -1192,24 +1286,28 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                   )}
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>Delivery Fee</Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      ${deliveryFee.toFixed(2)}
-                    </Text>
-                  </View>
+                  {isDelivery ? (
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalRowItemTxt}>Delivery Fee</Text>
+                      <Text style={styles.totalRowItemTxt}>
+                        ${deliveryFee.toFixed(2)}
+                      </Text>
+                    </View>
+                  ) : null}
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${salesTaxAmount.toFixed(2)}
                     </Text>
                   </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>Driver Tip</Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      ${normalizedDriverTip.toFixed(2)}
-                    </Text>
-                  </View>
+                  {isDelivery ? (
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalRowItemTxt}>Driver Tip</Text>
+                      <Text style={styles.totalRowItemTxt}>
+                        ${normalizedDriverTip.toFixed(2)}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Divider />
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Total</Text>
@@ -1240,18 +1338,20 @@ const CheckoutScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            <View>
-              <Text style={styles.sectionTitle}>{"Driver Tip"}</Text>
-              <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
-                <Text style={styles.tipHelperText}>
-                  Optional tip for the delivery driver.
-                </Text>
-                <TipSelector
-                  preTipTotal={taxableAmount + deliveryFee + salesTaxAmount}
-                  onTipChange={setDriverTip}
-                />
+            {isDelivery ? (
+              <View>
+                <Text style={styles.sectionTitle}>{"Driver Tip"}</Text>
+                <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
+                  <Text style={styles.tipHelperText}>
+                    Optional tip for the delivery driver.
+                  </Text>
+                  <TipSelector
+                    preTipTotal={taxableAmount + deliveryFee + salesTaxAmount}
+                    onTipChange={setDriverTip}
+                  />
+                </View>
               </View>
-            </View>
+            ) : null}
           </ScrollView>
 
           {/* Order btn container */}
@@ -1274,16 +1374,18 @@ const CheckoutScreen = ({ navigation, route }) => {
               activeOpacity={0.7}
               style={[
                 styles.confirmBtn,
-                (order.items.length === 0 || loading) && styles.disabledBtn,
+                isConfirmDisabled && styles.disabledBtn,
               ]}
               onPress={handleConfirmOrder}
-              disabled={order.items.length === 0 || loading}
+              disabled={isConfirmDisabled}
             >
               {loading ? (
                 <ActivityIndicator color={AppColor.white} />
               ) : (
                 <Text style={styles.confirmBtnText}>
-                  {pickupSource === "regular" ? "Order Now" : "Schedule Order"}
+                  {pickupSource === "pre_order"
+                    ? "Continue to Schedule"
+                    : "Continue to Payment"}
                 </Text>
               )}
             </TouchableOpacity>

@@ -107,6 +107,10 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     return Number.isFinite(n) ? n.toFixed(2) : "0.00";
   };
 
+  const isDelivery =
+    validatedDetail?.fulfillmentType === "DELIVERY" ||
+    Number(validatedDetail?.deliveryFee || 0) > 0;
+
   const handlePayment = async ({ paymentMethod = "cashOnPickup" }) => {
     setPaymentLoading(paymentMethod);
     try {
@@ -156,20 +160,24 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 value: toAmount(validatedDetail?.taxAmount),
               },
             },
-            {
-              label: "Delivery Fee",
-              amount: {
-                currency: "USD",
-                value: toAmount(validatedDetail?.deliveryFee),
-              },
-            },
-            {
-              label: "Driver Tip",
-              amount: {
-                currency: "USD",
-                value: toAmount(validatedDetail?.tip),
-              },
-            },
+            ...(isDelivery
+              ? [
+                  {
+                    label: "Delivery Fee",
+                    amount: {
+                      currency: "USD",
+                      value: toAmount(validatedDetail?.deliveryFee),
+                    },
+                  },
+                  {
+                    label: "Driver Tip",
+                    amount: {
+                      currency: "USD",
+                      value: toAmount(validatedDetail?.tip),
+                    },
+                  },
+                ]
+              : []),
             {
               label: "Processing Fee",
               amount: {
@@ -351,14 +359,18 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       label: "Sales Tax",
       value: `$${toAmount(validatedDetail?.taxAmount)}`,
     },
-    {
-      label: "Delivery Fee",
-      value: `$${toAmount(validatedDetail?.deliveryFee)}`,
-    },
-    {
-      label: "Driver Tip",
-      value: `$${toAmount(validatedDetail?.tip)}`,
-    },
+    ...(isDelivery
+      ? [
+          {
+            label: "Delivery Fee",
+            value: `$${toAmount(validatedDetail?.deliveryFee)}`,
+          },
+          {
+            label: "Driver Tip",
+            value: `$${toAmount(validatedDetail?.tip)}`,
+          },
+        ]
+      : []),
     {
       label: "Processing Fee",
       value: `$${toAmount(validatedDetail?.paymentProcessingFee)}`,
