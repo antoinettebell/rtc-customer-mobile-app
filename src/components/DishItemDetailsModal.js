@@ -64,7 +64,39 @@ const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
   </TouchableOpacity>
 ));
 
-import { getRewardItemsDisplay } from "../helpers/discount.helper";
+const OptionRow = memo(({ option, isSelected, onToggle }) => (
+  <View style={styles.flavorRow}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={styles.optionCheckboxArea}
+      onPress={() => onToggle(option.name)}
+    >
+      <View
+        style={[
+          styles.checkbox,
+          {
+            backgroundColor: isSelected ? AppColor.primary : "transparent",
+          },
+        ]}
+      >
+        {isSelected && (
+          <MaterialIcons name="check" size={18} color={AppColor.white} />
+        )}
+      </View>
+      <Text numberOfLines={1} style={styles.flavorName}>
+        {option.name}
+      </Text>
+    </TouchableOpacity>
+    {option.hasCost ? (
+      <Text style={styles.optionCost}>{`+$${Number(option.cost).toFixed(2)}`}</Text>
+    ) : null}
+  </View>
+));
+
+import {
+  getRewardItemsDisplay,
+  normalizeMenuOptions,
+} from "../helpers/discount.helper";
 
 const DishItemDetailsModal = ({
   actionSheetRef,
@@ -76,20 +108,47 @@ const DishItemDetailsModal = ({
   insets,
   onSelectedSubItemsChange,
   onCustomizationInputChange,
+  onSelectedFlavorsChange,
+  onSelectedToppingsChange,
+  onSelectedDiscountFlavorsChange,
+  onSelectedDiscountToppingsChange,
 }) => {
-  const customizationActionSheetRef = React.useRef(null);
   const [selectedSubItems, setSelectedSubItems] = useState(
     selectedMenuItem?.selectedSubItems || []
   );
   const [customizationInput, setCustomizationInput] = useState(
     selectedMenuItem?.customizationInput || ""
   );
+  const [selectedFlavors, setSelectedFlavors] = useState(
+    selectedMenuItem?.selectedFlavors || []
+  );
+  const [selectedToppings, setSelectedToppings] = useState(
+    selectedMenuItem?.selectedToppings || []
+  );
+  const [selectedDiscountFlavors, setSelectedDiscountFlavors] = useState(
+    selectedMenuItem?.selectedDiscountFlavors || []
+  );
+  const [selectedDiscountToppings, setSelectedDiscountToppings] = useState(
+    selectedMenuItem?.selectedDiscountToppings || []
+  );
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
     setSelectedSubItems(selectedMenuItem?.selectedSubItems || []);
     setCustomizationInput(selectedMenuItem?.customizationInput || "");
-  }, [selectedMenuItem?._id, selectedMenuItem?.selectedSubItems, selectedMenuItem?.customizationInput]);
+    setSelectedFlavors(selectedMenuItem?.selectedFlavors || []);
+    setSelectedToppings(selectedMenuItem?.selectedToppings || []);
+    setSelectedDiscountFlavors(selectedMenuItem?.selectedDiscountFlavors || []);
+    setSelectedDiscountToppings(selectedMenuItem?.selectedDiscountToppings || []);
+  }, [
+    selectedMenuItem?._id,
+    selectedMenuItem?.selectedSubItems,
+    selectedMenuItem?.customizationInput,
+    selectedMenuItem?.selectedFlavors,
+    selectedMenuItem?.selectedToppings,
+    selectedMenuItem?.selectedDiscountFlavors,
+    selectedMenuItem?.selectedDiscountToppings,
+  ]);
 
   // Clear subitems when main item quantity becomes 0
   useEffect(() => {
@@ -117,13 +176,177 @@ const DishItemDetailsModal = ({
     onSelectedSubItemsChange,
   ]);
 
-  // Handle customization change
-  const handleCustomizationDone = useCallback(() => {
-    customizationActionSheetRef.current?.hide();
-    if (onCustomizationInputChange) {
-      onCustomizationInputChange(customizationInput);
+  const flavorOptions = normalizeMenuOptions(selectedMenuItem, "flavor");
+  const toppingOptions = normalizeMenuOptions(selectedMenuItem, "topping");
+  const getSelectionLimit = (configuredLimit, optionsLength) => {
+    const numericLimit = Number(configuredLimit);
+    if (!Number.isFinite(numericLimit) || numericLimit <= 0) {
+      return optionsLength;
     }
-  }, [customizationInput, onCustomizationInputChange]);
+
+    return Math.min(numericLimit, optionsLength);
+  };
+  const flavorsMaxCount = getSelectionLimit(
+    selectedMenuItem?.flavorsPerOrder,
+    flavorOptions.length
+  );
+  const toppingsMaxCount = getSelectionLimit(
+    selectedMenuItem?.toppingsPerOrder,
+    toppingOptions.length
+  );
+  const hasFlavorChoices = selectedMenuItem?.hasFlavors && flavorOptions.length > 0;
+  const hasToppingChoices =
+    selectedMenuItem?.hasToppings && toppingOptions.length > 0;
+  const hasSameItemDiscount =
+    (!!selectedMenuItem?.discountRules?.discount &&
+      selectedMenuItem?.discountRules?.discount > 0 &&
+      (!Array.isArray(selectedMenuItem?.bogoItems) ||
+        selectedMenuItem.bogoItems.length === 0 ||
+        selectedMenuItem.bogoItems.some((item) => item?.isSameItem))) ||
+    (["BOGO", "BOGOHO"].includes(selectedMenuItem?.discountType) &&
+      selectedMenuItem?.bogoItems?.some((item) => item?.isSameItem));
+  const hasDiscountFlavorChoices = hasSameItemDiscount && hasFlavorChoices;
+  const hasDiscountToppingChoices = hasSameItemDiscount && hasToppingChoices;
+
+  const toggleOptionSelection = useCallback((optionName, setter, limit, label) => {
+    setter((prevOptions) => {
+      const isSelected = prevOptions.includes(optionName);
+      const nextOptions = isSelected
+        ? prevOptions.filter((item) => item !== optionName)
+        : [...prevOptions, optionName];
+
+      if (!isSelected && nextOptions.length > limit) {
+        Alert.alert(
+          `${label} Limit`,
+          `Please select only ${limit} ${label.toLowerCase()}${
+            limit === 1 ? "" : "s"
+          }.`
+        );
+        return prevOptions;
+      }
+
+      return nextOptions;
+    });
+  }, []);
+
+  const validateOptionSelection = useCallback(
+    (hasChoices, selectedOptions, maxCount, label) => {
+      if (!hasChoices) {
+        return true;
+      }
+
+      if (selectedOptions.length > maxCount) {
+        Alert.alert(
+          `${label} Limit`,
+          `Please select up to ${maxCount} ${label.toLowerCase()}${
+            maxCount === 1 ? "" : "s"
+          }.`
+        );
+        return false;
+      }
+
+      return true;
+    },
+    []
+  );
+
+  const validateSelections = useCallback(
+    () =>
+      validateOptionSelection(
+        hasFlavorChoices,
+        selectedFlavors,
+        flavorsMaxCount,
+        "Flavor"
+      ) &&
+      validateOptionSelection(
+        hasToppingChoices,
+        selectedToppings,
+        toppingsMaxCount,
+        "Topping"
+      ) &&
+      validateOptionSelection(
+        hasDiscountFlavorChoices,
+        selectedDiscountFlavors,
+        flavorsMaxCount,
+        "Discount item flavor"
+      ) &&
+      validateOptionSelection(
+        hasDiscountToppingChoices,
+        selectedDiscountToppings,
+        toppingsMaxCount,
+        "Discount item topping"
+      ),
+    [
+      flavorsMaxCount,
+      hasDiscountFlavorChoices,
+      hasDiscountToppingChoices,
+      hasFlavorChoices,
+      hasToppingChoices,
+      selectedDiscountFlavors,
+      selectedDiscountToppings,
+      selectedFlavors,
+      selectedToppings,
+      toppingsMaxCount,
+      validateOptionSelection,
+    ]
+  );
+
+  const handleUpdateOrder = useCallback(() => {
+    if (!validateSelections()) {
+      return;
+    }
+
+    const itemWithSelections = {
+      ...selectedMenuItem,
+      selectedSubItems,
+      customizationInput,
+      selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
+      selectedToppings: hasToppingChoices ? selectedToppings : [],
+      selectedDiscountFlavors: hasDiscountFlavorChoices
+        ? selectedDiscountFlavors
+        : [],
+      selectedDiscountToppings: hasDiscountToppingChoices
+        ? selectedDiscountToppings
+        : [],
+    };
+
+    if (getItemQuantity(selectedMenuItem._id) === 0) {
+      handleAddItem(itemWithSelections);
+    } else if (onSelectedFlavorsChange) {
+      onCustomizationInputChange?.(itemWithSelections.customizationInput);
+      onSelectedFlavorsChange(itemWithSelections.selectedFlavors);
+      onSelectedToppingsChange?.(itemWithSelections.selectedToppings);
+      onSelectedDiscountFlavorsChange?.(
+        itemWithSelections.selectedDiscountFlavors
+      );
+      onSelectedDiscountToppingsChange?.(
+        itemWithSelections.selectedDiscountToppings
+      );
+    }
+
+    actionSheetRef.current?.hide();
+  }, [
+    actionSheetRef,
+    customizationInput,
+    getItemQuantity,
+    handleAddItem,
+    hasFlavorChoices,
+    hasDiscountFlavorChoices,
+    hasDiscountToppingChoices,
+    hasToppingChoices,
+    onSelectedDiscountFlavorsChange,
+    onSelectedDiscountToppingsChange,
+    onCustomizationInputChange,
+    onSelectedFlavorsChange,
+    onSelectedToppingsChange,
+    selectedDiscountFlavors,
+    selectedDiscountToppings,
+    selectedFlavors,
+    selectedMenuItem,
+    selectedSubItems,
+    selectedToppings,
+    validateSelections,
+  ]);
 
   // Optimized toggle function
   const toggleSubItemSelection = useCallback(
@@ -394,14 +617,14 @@ const DishItemDetailsModal = ({
                       >
                         <Text style={styles.buyGetQtyLabel}>Get</Text>
                         <Text style={styles.buyGetQtyValue}>{getQtyShown}</Text>
-                        <Text style={styles.buyGetQtyUnit}>reward items</Text>
+                        <Text style={styles.buyGetQtyUnit}>discount items</Text>
                       </View>
                     </View>
 
                     <Text style={styles.buyGetExplanation}>
                       {`Add ${buyQtyDisplay} paid ${
                         buyQtyDisplay === 1 ? "item" : "items"
-                      } to your cart to unlock ${getQtyShown} reward ${
+                      } to your cart to unlock ${getQtyShown} discount ${
                         getQtyShown === 1 ? "item" : "items"
                       } (see below).`}
                     </Text>
@@ -416,7 +639,7 @@ const DishItemDetailsModal = ({
 
                   {rewardItems.length > 0 ? (
                     <>
-                      <Text style={styles.rewardRowsHeading}>Reward item</Text>
+                      <Text style={styles.rewardRowsHeading}>Discount item</Text>
                       {rewardItems.map((itm, index) => (
                         <View
                           key={itm._id || index}
@@ -472,32 +695,129 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
+            {hasFlavorChoices && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  {`Choose up to ${flavorsMaxCount} Flavor${
+                    flavorsMaxCount === 1 ? "" : "s"
+                  }:`}
+                </Text>
+                {flavorOptions.map((option) => (
+                  <OptionRow
+                    key={option.name}
+                    option={option}
+                    isSelected={selectedFlavors.includes(option.name)}
+                    onToggle={(optionName) =>
+                      toggleOptionSelection(
+                        optionName,
+                        setSelectedFlavors,
+                        flavorsMaxCount,
+                        "Flavor"
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            )}
+
+            {hasToppingChoices && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  {`Choose up to ${toppingsMaxCount} Topping${
+                    toppingsMaxCount === 1 ? "" : "s"
+                  }:`}
+                </Text>
+                {toppingOptions.map((option) => (
+                  <OptionRow
+                    key={option.name}
+                    option={option}
+                    isSelected={selectedToppings.includes(option.name)}
+                    onToggle={(optionName) =>
+                      toggleOptionSelection(
+                        optionName,
+                        setSelectedToppings,
+                        toppingsMaxCount,
+                        "Topping"
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            )}
+
+            {hasDiscountFlavorChoices && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  {`Discount item: choose up to ${flavorsMaxCount} Flavor${
+                    flavorsMaxCount === 1 ? "" : "s"
+                  }:`}
+                </Text>
+                {flavorOptions.map((option) => (
+                  <OptionRow
+                    key={`discount-flavor-${option.name}`}
+                    option={option}
+                    isSelected={selectedDiscountFlavors.includes(option.name)}
+                    onToggle={(optionName) =>
+                      toggleOptionSelection(
+                        optionName,
+                        setSelectedDiscountFlavors,
+                        flavorsMaxCount,
+                        "Discount item flavor"
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            )}
+
+            {hasDiscountToppingChoices && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  {`Discount item: choose up to ${toppingsMaxCount} Topping${
+                    toppingsMaxCount === 1 ? "" : "s"
+                  }:`}
+                </Text>
+                {toppingOptions.map((option) => (
+                  <OptionRow
+                    key={`discount-topping-${option.name}`}
+                    option={option}
+                    isSelected={selectedDiscountToppings.includes(option.name)}
+                    onToggle={(optionName) =>
+                      toggleOptionSelection(
+                        optionName,
+                        setSelectedDiscountToppings,
+                        toppingsMaxCount,
+                        "Discount item topping"
+                      )
+                    }
+                  />
+                ))}
+              </View>
+            )}
+
             {/* Customization Button */}
             {selectedMenuItem?.allowCustomize && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>Customization:</Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={styles.customizationButton}
-                  onPress={() => customizationActionSheetRef.current?.show()}
-                >
-                  <View style={styles.customizationContent}>
-                    <Text
-                      style={[
-                        styles.customizationText,
-                        !customizationInput && styles.customizationPlaceholder,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {customizationInput || "Add special instructions..."}
-                    </Text>
-                    <MaterialIcons
-                      name={customizationInput ? "edit" : "add"}
-                      size={20}
-                      color={AppColor.primary}
-                    />
-                  </View>
-                </TouchableOpacity>
+                <TextInput
+                  dense
+                  value={customizationInput}
+                  onChangeText={setCustomizationInput}
+                  style={{ backgroundColor: AppColor.white, marginTop: 8 }}
+                  contentStyle={{
+                    minHeight: 100,
+                    fontFamily: Mulish400,
+                    fontSize: 15,
+                  }}
+                  placeholder="Enter special instructions"
+                  placeholderTextColor={AppColor.textPlaceholder}
+                  mode="outlined"
+                  multiline={true}
+                  outlineColor={AppColor.border}
+                  activeOutlineColor={AppColor.primary}
+                  outlineStyle={{ borderRadius: 8 }}
+                  autoCapitalize="sentences"
+                />
               </View>
             )}
           </ScrollView>
@@ -525,8 +845,25 @@ const DishItemDetailsModal = ({
                 {getItemQuantity(selectedMenuItem._id)}
               </Text>
               <TouchableOpacity
-                style={styles.qtyBtn}
-                onPress={() => handleAddItem(selectedMenuItem)}
+	                style={styles.qtyBtn}
+	                onPress={() => {
+	                  if (!validateSelections()) {
+	                    return;
+	                  }
+	                  handleAddItem({
+	                    ...selectedMenuItem,
+	                    selectedSubItems,
+		                    customizationInput,
+		                    selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
+		                    selectedToppings: hasToppingChoices ? selectedToppings : [],
+                        selectedDiscountFlavors: hasDiscountFlavorChoices
+                          ? selectedDiscountFlavors
+                          : [],
+                        selectedDiscountToppings: hasDiscountToppingChoices
+                          ? selectedDiscountToppings
+                          : [],
+		                  });
+	                }}
                 disabled={
                   getItemQuantity(selectedMenuItem._id) >=
                   (selectedMenuItem.maxQty || 10)
@@ -548,15 +885,7 @@ const DishItemDetailsModal = ({
 
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => {
-                if (getItemQuantity(selectedMenuItem._id) === 0)
-                  handleAddItem({
-                    ...selectedMenuItem,
-                    selectedSubItems,
-                    customizationInput,
-                  });
-                actionSheetRef.current?.hide();
-              }}
+              onPress={handleUpdateOrder}
               disabled={!selectedMenuItem.available}
             >
               <Text style={styles.addButtonText}>
@@ -569,51 +898,6 @@ const DishItemDetailsModal = ({
         </View>
       )}
 
-      {/* Customization ActionSheet */}
-      <ActionSheet
-        ref={customizationActionSheetRef}
-        headerAlwaysVisible={true}
-        gestureEnabled={false}
-      >
-        <View style={{ paddingVertical: 8, paddingHorizontal: 20 }}>
-          <View style={styles.customizationModalHeader}>
-            <Text style={styles.modalTitle}>{"Customization"}</Text>
-            <IconButton
-              icon="close"
-              iconColor={AppColor.text}
-              onPress={() => customizationActionSheetRef.current?.hide()}
-              style={{ margin: 0 }}
-            />
-          </View>
-          <TextInput
-            dense
-            value={customizationInput}
-            onChangeText={setCustomizationInput}
-            style={{ backgroundColor: AppColor.white, marginTop: 8 }}
-            contentStyle={{
-              minHeight: 120,
-              fontFamily: Mulish400,
-              fontSize: 15,
-            }}
-            placeholder="Enter special instructions (e.g. no onions, extra spicy)"
-            placeholderTextColor={AppColor.textPlaceholder}
-            mode="outlined"
-            multiline={true}
-            outlineColor={AppColor.border}
-            activeOutlineColor={AppColor.primary}
-            outlineStyle={{ borderRadius: 8 }}
-            autoCapitalize="sentences"
-            autoFocus={Platform.OS === "ios"}
-          />
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.doneButton, { marginTop: 20, marginBottom: 10 }]}
-            onPress={handleCustomizationDone}
-          >
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </ActionSheet>
     </ActionSheet>
   );
 };
@@ -628,6 +912,10 @@ DishItemDetailsModal.propTypes = {
   insets: PropTypes.object.isRequired,
   onSelectedSubItemsChange: PropTypes.func,
   onCustomizationInputChange: PropTypes.func,
+  onSelectedFlavorsChange: PropTypes.func,
+  onSelectedToppingsChange: PropTypes.func,
+  onSelectedDiscountFlavorsChange: PropTypes.func,
+  onSelectedDiscountToppingsChange: PropTypes.func,
 };
 
 const styles = StyleSheet.create({
@@ -914,6 +1202,57 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     justifyContent: "center",
     alignItems: "center",
+  },
+  flavorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.border,
+  },
+  flavorName: {
+    flex: 1,
+    fontFamily: Mulish600,
+    fontSize: 15,
+    color: AppColor.text,
+  },
+  optionCheckboxArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  optionCost: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.primary,
+  },
+  flavorToggleGroup: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  flavorToggleButton: {
+    minWidth: 54,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+  },
+  flavorToggleButtonActive: {
+    backgroundColor: AppColor.primary,
+  },
+  flavorToggleText: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.primary,
+  },
+  flavorToggleTextActive: {
+    color: AppColor.white,
   },
   footer: {
     flexDirection: "row",

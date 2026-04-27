@@ -157,6 +157,20 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               },
             },
             {
+              label: "Delivery Fee",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.deliveryFee),
+              },
+            },
+            {
+              label: "Driver Tip",
+              amount: {
+                currency: "USD",
+                value: toAmount(validatedDetail?.tip),
+              },
+            },
+            {
               label: "Processing Fee",
               amount: {
                 currency: "USD",
@@ -164,7 +178,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               },
             },
             {
-              label: "Tip",
+              label: "Food Truck Tip",
               amount: {
                 currency: "USD",
                 value: toAmount(tipAmount),
@@ -338,6 +352,14 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       value: `$${toAmount(validatedDetail?.taxAmount)}`,
     },
     {
+      label: "Delivery Fee",
+      value: `$${toAmount(validatedDetail?.deliveryFee)}`,
+    },
+    {
+      label: "Driver Tip",
+      value: `$${toAmount(validatedDetail?.tip)}`,
+    },
+    {
       label: "Processing Fee",
       value: `$${toAmount(validatedDetail?.paymentProcessingFee)}`,
     },
@@ -400,8 +422,8 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 value={`$${toAmount(finalAmount)}`}
               />
               <ItemContainer
-                key={"Tip"}
-                title={"Tip"}
+                key={"Food Truck Tip"}
+                title={"Food Truck Tip"}
                 value={`$${toAmount(tipAmount)}`}
               />
               <Divider style={{ marginVertical: 10 }} />
@@ -422,7 +444,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 }}
               >
                 <Text style={styles.paymentTitleTxt}>
-                  {"Add a tip "}
+                  {"Add a food truck tip "}
                   <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
                     (optional)
                   </Text>
@@ -452,7 +474,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                       }}
                     >
                       {
-                        "Tips are clearly shown and passed 100% to the food truck owner, with no deductions."
+                        "Food truck tips are clearly shown and passed 100% to the food truck owner, with no deductions."
                       }
                     </Text>
                   }

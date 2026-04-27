@@ -19,7 +19,6 @@ import moment from "moment";
 import {
   Divider,
   ActivityIndicator,
-  TextInput,
   IconButton,
 } from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
@@ -33,6 +32,7 @@ import {
 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import AppImage from "../components/AppImage";
+import TipSelector from "../components/TipSelector";
 import {
   checkFreeDessertEligibility_API,
   checkItems_API,
@@ -44,7 +44,6 @@ import {
   addItemToOrder,
   removeItemFromOrder,
   updateAllItemsOfOrder,
-  updateItemProperty,
 } from "../redux/slices/orderSlice";
 import useDebounce from "../hooks/useDebounce";
 import { showSnackbar } from "../redux/slices/snackbarSlice";
@@ -52,22 +51,22 @@ import { updateOrderItems } from "../helpers/order.helper";
 import { getRewardItemsDisplay, calculateItemTotalWithDiscount } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
+const BUILT_IN_DELIVERY_FEE = 6.49;
+
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const isFocused = useIsFocused();
   const actionSheetRef = useRef(null);
-  const actionSheetRef2 = useRef(null);
 
   const order = useSelector((state) => state.orderReducer.currentOrder);
+  const { defaultLocation } = useSelector((state) => state.locationReducer);
 
   const { foodTruckId = null } = route.params || {};
 
   const [dataLoading, setDataLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [coupon, setCoupon] = useState(null);
-  const [instructionItemId, setInstructionItemId] = useState(null);
-  const [instructionText, setInstructionText] = useState("");
 
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
   const [truckCurrentLocation, setTruckCurrentLocation] = useState(null);
@@ -81,6 +80,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [pickupTime, setPickupTime] = useState(null);
 
   const [preventAPI, setPreventAPI] = useState(false);
+  const [driverTip, setDriverTip] = useState(0);
 
   const subtotal = useMemo(() => order.subtotal, [order.subtotal]);
   const debouncedSubtotal = useDebounce(subtotal, 1000);
@@ -89,6 +89,11 @@ const CheckoutScreen = ({ navigation, route }) => {
     [taxData]
   );
   const salesTaxAmount = useMemo(() => taxData?.salesTaxAmount || 0, [taxData]);
+  const deliveryFee = useMemo(() => BUILT_IN_DELIVERY_FEE, []);
+  const normalizedDriverTip = useMemo(
+    () => Math.max(0, Number(driverTip) || 0),
+    [driverTip]
+  );
   const discount = useMemo(() => {
     if (!coupon) return 0;
     if (coupon.type === "PERCENTAGE") {
@@ -108,8 +113,8 @@ const CheckoutScreen = ({ navigation, route }) => {
   );
 
   const totalWithTax = useMemo(
-    () => taxableAmount + salesTaxAmount,
-    [taxableAmount, salesTaxAmount]
+    () => taxableAmount + deliveryFee + salesTaxAmount + normalizedDriverTip,
+    [taxableAmount, deliveryFee, salesTaxAmount, normalizedDriverTip]
   );
   const prosessingFeeAmount = useMemo(
     () => totalWithTax * (processingFeeRate / 100),
@@ -234,10 +239,26 @@ const CheckoutScreen = ({ navigation, route }) => {
       }
     }
 
+    if (deliveryFee > 0 && !defaultLocation?.address) {
+      Alert.alert(
+        "Delivery address required",
+        "Please add or select a delivery address before placing this order."
+      );
+      return;
+    }
+
     let payload = {
       foodTruckId: foodTruckId,
       locationId: truckCurrentLocation?._id, // for pre-order it'll change latter
       taxAmount: salesTaxAmount || 0,
+      tax: salesTaxAmount || 0,
+      subtotal,
+      deliveryFee,
+      fulfillmentType: deliveryFee > 0 ? "DELIVERY" : "PICKUP",
+      deliveryAddress: deliveryFee > 0 ? defaultLocation?.address : null,
+      tip: normalizedDriverTip,
+      tips: normalizedDriverTip,
+      totalOrderCost: totalAfterProsessingFee,
       items: order.items.map((item) => {
         const itemPayload = {
           menuItemId: item._id,
@@ -249,6 +270,22 @@ const CheckoutScreen = ({ navigation, route }) => {
           item?.customizationInput?.trim()?.length > 0
         ) {
           itemPayload.customization = item.customizationInput;
+        }
+
+	        if (item.hasFlavors && item.selectedFlavors?.length > 0) {
+	          itemPayload.selectedFlavors = item.selectedFlavors;
+	        }
+
+		        if (item.hasToppings && item.selectedToppings?.length > 0) {
+		          itemPayload.selectedToppings = item.selectedToppings;
+		        }
+
+        if (item.selectedDiscountFlavors?.length > 0) {
+          itemPayload.selectedDiscountFlavors = item.selectedDiscountFlavors;
+        }
+
+        if (item.selectedDiscountToppings?.length > 0) {
+          itemPayload.selectedDiscountToppings = item.selectedDiscountToppings;
         }
 
         if (
@@ -334,23 +371,15 @@ const CheckoutScreen = ({ navigation, route }) => {
     setCoupon(null);
   };
 
-  const onAddInstructionPress = (itemId, text) => {
-    actionSheetRef2?.current?.show();
-    setInstructionItemId(itemId);
-    setInstructionText(text);
-  };
+  const handleEditItem = (itemToEdit) => {
+    if (!foodTruckDetail) {
+      return;
+    }
 
-  const onCloseInstructionPress = () => {
-    actionSheetRef2?.current?.hide();
-    dispatch(
-      updateItemProperty({
-        itemId: instructionItemId,
-        keyName: "customizationInput",
-        value: instructionText,
-      })
-    );
-    setInstructionItemId(null);
-    setInstructionText("");
+    navigation.navigate("foodTruckDetailScreen", {
+      item: foodTruckDetail,
+      editItemId: itemToEdit?._id,
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -378,7 +407,11 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     return (
       <View key={item?._id} style={styles.orderLineOuter}>
-        <View style={styles.itemRow}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          style={styles.itemRow}
+          onPress={() => handleEditItem(item)}
+        >
           <AppImage uri={item?.imgUrls[0]} containerStyle={styles.foodImg} />
           <View style={styles.itemDetails}>
             <Text style={styles.itemTitle}>{item.name}</Text>
@@ -388,6 +421,26 @@ const CheckoutScreen = ({ navigation, route }) => {
             <Text style={styles.itemPrice}>
               {`$${parseFloat(calculateItemTotalWithDiscount({ ...item, quantity: 1 }) || 0).toFixed(2)} `}
             </Text>
+	            {item.selectedFlavors?.length > 0 ? (
+	              <Text style={styles.itemDesc} numberOfLines={2}>
+	                {`Flavors: ${item.selectedFlavors.join(", ")}`}
+	              </Text>
+	            ) : null}
+	            {item.selectedToppings?.length > 0 ? (
+	              <Text style={styles.itemDesc} numberOfLines={2}>
+	                {`Toppings: ${item.selectedToppings.join(", ")}`}
+		              </Text>
+		            ) : null}
+            {item.selectedDiscountFlavors?.length > 0 ? (
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {`Discount item flavors: ${item.selectedDiscountFlavors.join(", ")}`}
+              </Text>
+            ) : null}
+            {item.selectedDiscountToppings?.length > 0 ? (
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {`Discount item toppings: ${item.selectedDiscountToppings.join(", ")}`}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.qtyBox}>
             <TouchableOpacity
@@ -428,47 +481,11 @@ const CheckoutScreen = ({ navigation, route }) => {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
         {item?.customizationInput ? (
-          <Pressable
-            onPress={() =>
-              onAddInstructionPress(item?._id, item?.customizationInput)
-            }
-            style={{
-              borderRadius: 4,
-              borderWidth: 1,
-              borderColor: AppColor.border,
-              marginTop: 8,
-              padding: 8,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: Mulish600,
-                fontSize: 13,
-                color: AppColor.gray,
-              }}
-            >
-              {item?.customizationInput}
-            </Text>
-          </Pressable>
-        ) : item?.allowCustomize ? (
-          <Pressable
-            onPress={() =>
-              onAddInstructionPress(item?._id, item?.customizationInput)
-            }
-            style={{ marginTop: 4 }}
-          >
-            <Text
-              style={{
-                fontFamily: Mulish600,
-                fontSize: 13,
-                color: AppColor.gray,
-              }}
-            >
-              {"Add customisation?"}
-            </Text>
-          </Pressable>
+          <Text style={styles.itemCustomization} numberOfLines={2}>
+            {item.customizationInput}
+          </Text>
         ) : null}
         {hasRewardNested ? (
           <View style={styles.nestedSection}>
@@ -490,7 +507,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                   containerStyle={styles.nestedFoodImg}
                 />
                 <View style={styles.nestedItemDetails}>
-                  <Text style={styles.nestedItemBadge}>Reward</Text>
+                  <Text style={styles.nestedItemBadge}>Discount item</Text>
                   <Text style={styles.nestedItemTitle} numberOfLines={2}>
                     {itm.displayName}
                   </Text>
@@ -1156,7 +1173,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               <View style={[styles.screenGenericCard, { paddingBottom: 15 }]}>
                 <View style={styles.totalDetails}>
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>{"Item Total"}</Text>
+                    <Text style={styles.totalRowItemTxt}>{"Subtotal"}</Text>
                     <Text style={styles.totalRowItemTxt}>
                       {`$${subtotal.toFixed(2)}`}
                     </Text>
@@ -1176,14 +1193,26 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </View>
                   )}
                   <View style={styles.totalRow}>
+                    <Text style={styles.totalRowItemTxt}>Delivery Fee</Text>
+                    <Text style={styles.totalRowItemTxt}>
+                      ${deliveryFee.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${salesTaxAmount.toFixed(2)}
                     </Text>
                   </View>
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowItemTxt}>Driver Tip</Text>
+                    <Text style={styles.totalRowItemTxt}>
+                      ${normalizedDriverTip.toFixed(2)}
+                    </Text>
+                  </View>
                   <Divider />
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>Total With Tax</Text>
+                    <Text style={styles.totalRowItemTxt}>Total</Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${totalWithTax.toFixed(2)}
                     </Text>
@@ -1208,6 +1237,19 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </View>
                   )}
                 </View>
+              </View>
+            </View>
+
+            <View>
+              <Text style={styles.sectionTitle}>{"Driver Tip"}</Text>
+              <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
+                <Text style={styles.tipHelperText}>
+                  Optional tip for the delivery driver.
+                </Text>
+                <TipSelector
+                  preTipTotal={taxableAmount + deliveryFee + salesTaxAmount}
+                  onTipChange={setDriverTip}
+                />
               </View>
             </View>
           </ScrollView>
@@ -1294,47 +1336,6 @@ const CheckoutScreen = ({ navigation, route }) => {
             </View>
           </ActionSheet>
 
-          {/* Add Customisation */}
-          <ActionSheet
-            ref={actionSheetRef2}
-            headerAlwaysVisible={true}
-            onClose={onCloseInstructionPress}
-          >
-            <View style={{ paddingVertical: 8 }}>
-              <Text style={styles.modalTitle}>{"Customisation"}</Text>
-              <Divider style={{ marginVertical: 8 }} />
-              <View style={{ paddingHorizontal: 16 }}>
-                <TextInput
-                  dense
-                  value={instructionText}
-                  onChangeText={setInstructionText}
-                  style={{ backgroundColor: AppColor.white }}
-                  contentStyle={{
-                    minHeight: 120,
-                    fontFamily: Mulish400,
-                    fontSize: 15,
-                  }}
-                  placeholder="Enter customisation"
-                  placeholderTextColor={AppColor.border}
-                  mode="outlined"
-                  multiline={true}
-                  outlineColor={AppColor.border}
-                  activeOutlineColor={AppColor.primary}
-                  outlineStyle={{ borderRadius: 8 }}
-                  autoCapitalize="sentences"
-                  autoFocus={true}
-                  theme={{ colors: { onSurfaceVariant: "#777" } }}
-                />
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={[styles.confirmBtn, { marginTop: 16 }]}
-                  onPress={onCloseInstructionPress}
-                >
-                  <Text style={styles.confirmBtnText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ActionSheet>
         </>
       )}
 
@@ -1505,6 +1506,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.primary,
   },
+  itemCustomization: {
+    marginTop: 8,
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.gray,
+  },
   qtyBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1570,6 +1577,11 @@ const styles = StyleSheet.create({
   totalRowItemTxt: {
     fontFamily: Mulish400,
     fontSize: 16,
+  },
+  tipHelperText: {
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.textHighlighter,
   },
   totalText: {
     fontFamily: Mulish700,

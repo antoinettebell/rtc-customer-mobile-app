@@ -21,7 +21,7 @@ const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
     if (selectedPercentage !== null && !showCustomInput) {
       const tipAmount = (preTipTotal * selectedPercentage) / 100;
       onTipChange?.(tipAmount);
-    } else if (showCustomInput) {
+    } else if (showCustomInput || customTip !== "") {
       // Handle edge cases for custom tip
       if (customTip === "" || customTip === ".") {
         onTipChange?.(0);

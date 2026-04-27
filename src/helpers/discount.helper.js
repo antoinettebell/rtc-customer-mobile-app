@@ -16,23 +16,101 @@ export const calculateRewardQty = (quantity, discountRules) => {
   return eligibleSets * normalizedGetQty;
 };
 
+export const normalizeMenuOptions = (item, type) => {
+  const optionsKey = `${type}Options`;
+  const legacyKey = type === "flavor" ? "flavors" : "toppings";
+  const rawOptions = Array.isArray(item?.[optionsKey]) && item[optionsKey].length > 0
+    ? item[optionsKey]
+    : item?.[legacyKey];
+
+  if (!Array.isArray(rawOptions)) {
+    return [];
+  }
+
+  return rawOptions
+    .map((option) => {
+      if (typeof option === "string") {
+        return { name: option, cost: 0, hasCost: false };
+      }
+
+      const name = option?.name || option?.label || "";
+      const cost = Number(
+        option?.cost ??
+          option?.price ??
+          option?.additionalCost ??
+          option?.extraCost ??
+          option?.optionCost ??
+          0
+      ) || 0;
+      return {
+        name,
+        cost,
+        hasCost: cost > 0 && option?.hasCost !== false,
+      };
+    })
+    .filter((option) => option.name);
+};
+
+export const calculateSelectedOptionCost = (
+  item,
+  flavorKey = "selectedFlavors",
+  toppingKey = "selectedToppings"
+) => {
+  const selectedFlavors = Array.isArray(item?.[flavorKey])
+    ? item[flavorKey]
+    : [];
+  const selectedToppings = Array.isArray(item?.[toppingKey])
+    ? item[toppingKey]
+    : [];
+
+  const selectedCost = (type, selectedNames) => {
+    const options = normalizeMenuOptions(item, type);
+    return selectedNames.reduce((sum, selectedOption) => {
+      const selectedName =
+        typeof selectedOption === "string"
+          ? selectedOption
+          : selectedOption?.name || selectedOption?.label || "";
+      const match = options.find((option) => option.name === selectedName);
+      return sum + (match?.hasCost ? Number(match.cost) || 0 : 0);
+    }, 0);
+  };
+
+  return selectedCost("flavor", selectedFlavors) + selectedCost("topping", selectedToppings);
+};
+
 export const calculateItemTotalWithDiscount = (item) => {
   const { price, quantity, discountType, discountRules } = item;
-  let total = price * quantity;
+  const unitPrice = (Number(price) || 0) + calculateSelectedOptionCost(item);
+  let total = unitPrice * quantity;
 
   if (discountRules && discountRules.discount > 0) {
     const { discount: discountVal = 0 } = discountRules;
     const rewardQty = calculateRewardQty(quantity, discountRules);
-    
-    const rewardTotal = rewardQty * price;
+
+    const rewardUnitPrice =
+      (Number(price) || 0) +
+      calculateSelectedOptionCost(
+        item,
+        "selectedDiscountFlavors",
+        "selectedDiscountToppings"
+      );
+    const rewardTotal = rewardQty * rewardUnitPrice;
     const discountAmount = rewardTotal * discountVal;
 
-    total = price * quantity + rewardTotal - discountAmount;
+    total = unitPrice * quantity + rewardTotal - discountAmount;
   } else if (discountType === "BOGOHO") {
     // Fallback for old BOGOHO logic
-    const effectivePrice =
-      item.bogoHoPrice != null ? item.bogoHoPrice : price * 1.5;
-    total = effectivePrice * quantity;
+    const rewardUnitPrice =
+      (Number(price) || 0) +
+      calculateSelectedOptionCost(
+        item,
+        "selectedDiscountFlavors",
+        "selectedDiscountToppings"
+      );
+    total =
+      item.bogoHoPrice != null
+        ? item.bogoHoPrice * quantity
+        : unitPrice * quantity + rewardUnitPrice * quantity * 0.5;
   }
 
   return total;
@@ -52,6 +130,13 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
   if (discountRules && discountRules.discount > 0) {
     const { discount: discountVal = 0 } = discountRules;
     const rewardQty = calculateRewardQty(quantityToUse, discountRules);
+    const sameItemRewardPrice =
+      (Number(safeItem.price) || 0) +
+      calculateSelectedOptionCost(
+        safeItem,
+        "selectedDiscountFlavors",
+        "selectedDiscountToppings"
+      );
 
     if (rewardQty > 0) {
       if (bogoItems && bogoItems.length > 0) {
@@ -76,7 +161,7 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
             discountVal === 1
               ? "Free"
               : `$${(
-                  (bi.isSameItem ? safeItem.price : bi.itemId?.price || 0) *
+                  (bi.isSameItem ? sameItemRewardPrice : bi.itemId?.price || 0) *
                   (1 - discountVal)
                 ).toFixed(2)}`,
           };
@@ -93,7 +178,7 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
             displayPrice:
               discountVal === 1
                 ? "Free"
-                : `$${((safeItem.price || 0) * (1 - discountVal)).toFixed(2)}`,
+                : `$${(sameItemRewardPrice * (1 - discountVal)).toFixed(2)}`,
           },
         ];
       }

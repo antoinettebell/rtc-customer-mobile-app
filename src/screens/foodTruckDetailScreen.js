@@ -287,6 +287,73 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     );
   };
 
+  const menuItemRequiresOptions = (menuItem) => {
+    const hasFlavors =
+      menuItem?.hasFlavors &&
+      ((Array.isArray(menuItem?.flavorOptions) && menuItem.flavorOptions.length > 0) ||
+        (Array.isArray(menuItem?.flavors) && menuItem.flavors.length > 0));
+    const hasToppings =
+      menuItem?.hasToppings &&
+      ((Array.isArray(menuItem?.toppingOptions) && menuItem.toppingOptions.length > 0) ||
+        (Array.isArray(menuItem?.toppings) && menuItem.toppings.length > 0));
+
+    return hasFlavors || hasToppings;
+  };
+
+  const openMenuItemOptions = (menuItem) => {
+    const existingOrderItem = currentOrder.items.find(
+      (orderItem) => orderItem._id === menuItem._id
+    );
+
+    setSelectedMenuItem(
+      existingOrderItem
+        ? {
+            ...menuItem,
+            selectedSubItems: existingOrderItem.selectedSubItems || [],
+            customizationInput: existingOrderItem.customizationInput || "",
+            selectedFlavors: existingOrderItem.selectedFlavors || [],
+            selectedToppings: existingOrderItem.selectedToppings || [],
+            selectedDiscountFlavors:
+              existingOrderItem.selectedDiscountFlavors || [],
+            selectedDiscountToppings:
+              existingOrderItem.selectedDiscountToppings || [],
+          }
+        : menuItem
+    );
+    actionSheetRef.current?.show();
+  };
+
+  const handleQuickAddItem = (menuItem) => {
+    if (menuItemRequiresOptions(menuItem)) {
+      openMenuItemOptions(menuItem);
+      return;
+    }
+
+    handleAddItem(menuItem);
+  };
+
+  useEffect(() => {
+    const editItemId = route.params?.editItemId;
+    if (!editItemId || menuTabs.length === 0) {
+      return;
+    }
+
+    const tabIndex = menuTabs.findIndex((tab) =>
+      tab.items.some((menuItem) => menuItem._id === editItemId)
+    );
+    if (tabIndex < 0) {
+      return;
+    }
+
+    const menuItem = menuTabs[tabIndex].items.find(
+      (tabItem) => tabItem._id === editItemId
+    );
+    setSelectedTab(tabIndex);
+    tabContentRef.current?.scrollToIndex({ index: tabIndex, animated: false });
+    openMenuItemOptions(menuItem);
+    navigation.setParams({ editItemId: undefined });
+  }, [menuTabs, navigation, route.params?.editItemId]);
+
   const handleSelectedSubItemsChange = useCallback(
     (selectedSubItems) => {
       if (!selectedMenuItem?._id) {
@@ -331,6 +398,106 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
           itemId: selectedMenuItem._id,
           keyName: "customizationInput",
           value: customizationInput,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedFlavorsChange = useCallback(
+    (selectedFlavors) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedFlavors",
+          value: selectedFlavors,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedToppingsChange = useCallback(
+    (selectedToppings) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedToppings",
+          value: selectedToppings,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedDiscountFlavorsChange = useCallback(
+    (selectedDiscountFlavors) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedDiscountFlavors",
+          value: selectedDiscountFlavors,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedDiscountToppingsChange = useCallback(
+    (selectedDiscountToppings) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedDiscountToppings",
+          value: selectedDiscountToppings,
         })
       );
     },
@@ -739,17 +906,25 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                 const mergedItem = existingOrderItem
                                   ? {
                                       ...item,
-                                      selectedSubItems:
-                                        existingOrderItem.selectedSubItems || [],
-                                      customizationInput:
-                                        existingOrderItem.customizationInput || "",
-                                    }
-                                  : item;
+	                                      selectedSubItems:
+	                                        existingOrderItem.selectedSubItems || [],
+	                                      customizationInput:
+	                                        existingOrderItem.customizationInput || "",
+                                      selectedFlavors:
+                                        existingOrderItem.selectedFlavors || [],
+                                      selectedToppings:
+                                        existingOrderItem.selectedToppings || [],
+                                      selectedDiscountFlavors:
+                                        existingOrderItem.selectedDiscountFlavors || [],
+                                      selectedDiscountToppings:
+                                        existingOrderItem.selectedDiscountToppings || [],
+		                                    }
+	                                  : item;
 
                                 setSelectedMenuItem(mergedItem);
                                 actionSheetRef.current?.show();
                               }}
-                              onAddItem={handleAddItem}
+	                              onAddItem={handleQuickAddItem}
                               onRemoveItem={handleRemoveItem}
                             />
                           );
@@ -838,9 +1013,13 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         handleRemoveItem={handleRemoveItem}
         getItemQuantity={getItemQuantity}
         insets={insets}
-        onSelectedSubItemsChange={handleSelectedSubItemsChange}
-        onCustomizationInputChange={handleCustomizationInputChange}
-      />
+	        onSelectedSubItemsChange={handleSelectedSubItemsChange}
+		        onCustomizationInputChange={handleCustomizationInputChange}
+		        onSelectedFlavorsChange={handleSelectedFlavorsChange}
+		        onSelectedToppingsChange={handleSelectedToppingsChange}
+            onSelectedDiscountFlavorsChange={handleSelectedDiscountFlavorsChange}
+            onSelectedDiscountToppingsChange={handleSelectedDiscountToppingsChange}
+		      />
 
       {/* Business Hours and Pre-Order Availability */}
       <BusinessHoursModal

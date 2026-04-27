@@ -119,6 +119,10 @@ const orderSlice = createSlice({
         existingItemData[item._id] = {
           quantity: item.quantity || 1,
           customizationInput: item.customizationInput || "",
+          selectedFlavors: item.selectedFlavors || [],
+          selectedToppings: item.selectedToppings || [],
+          selectedDiscountFlavors: item.selectedDiscountFlavors || [],
+          selectedDiscountToppings: item.selectedDiscountToppings || [],
         };
       });
 
@@ -129,6 +133,10 @@ const orderSlice = createSlice({
           ...newItem,
           quantity: existingData.quantity || 1, // default to 1 if not found
           customizationInput: existingData.customizationInput || "", // default to empty string
+          selectedFlavors: existingData.selectedFlavors || [],
+          selectedToppings: existingData.selectedToppings || [],
+          selectedDiscountFlavors: existingData.selectedDiscountFlavors || [],
+          selectedDiscountToppings: existingData.selectedDiscountToppings || [],
         };
       });
 
@@ -159,7 +167,17 @@ const orderSlice = createSlice({
         };
 
         // Recalculate totals if the updated property affects pricing
-        if (["price", "discount", "quantity"].includes(keyName)) {
+        if (
+          [
+            "price",
+            "discount",
+            "quantity",
+            "selectedFlavors",
+            "selectedToppings",
+            "selectedDiscountFlavors",
+            "selectedDiscountToppings",
+          ].includes(keyName)
+        ) {
           state.currentOrder.subtotal = state.currentOrder.items.reduce(
             (sum, item) => sum + calculateItemTotal(item),
             0

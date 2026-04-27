@@ -374,7 +374,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                               />
                               <View style={styles.nestedItemDetails}>
                                 <Text style={styles.nestedItemBadge}>
-                                  Reward
+                                  Discount item
                                 </Text>
                                 <Text
                                   style={styles.nestedItemTitle}
