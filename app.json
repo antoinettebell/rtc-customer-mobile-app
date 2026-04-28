@@ -1,4 +1,16 @@
 {
-  "name": "foodtruck",
-  "displayName": "foodtruck"
+  "expo": {
+    "name": "foodtruck",
+    "slug": "foodtruck",
+    "version": "1.6",
+    "ios": {
+      "bundleIdentifier": "com.ea.rtcuser",
+      "buildNumber": "16"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6d5722e9-53d9-43ee-9585-aa918a9b596a"
+      }
+    }
+  }
 }
