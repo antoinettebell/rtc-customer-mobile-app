@@ -1,17 +1,36 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+import Config from "../../config/env";
 import {
-  getFavoriteFoodTruck_API,
-  addFavoriteFoodTruck_API,
-  removeFavoriteFoodTruck_API,
-} from "../../apiFolder/appAPI";
-import { store } from "../store";
+  ADD_FAVORITE_FOODTRUCK,
+  GET_FAVORITE_FOODTRUCK,
+  REMOVE_FAVORITE_FOODTRUCK,
+} from "../../apiFolder/apiEndPoint";
+
+const apiBaseUrl = `${Config.API_URL}${Config.API_PREFIX}`;
+
+const authHeaders = (authToken) =>
+  authToken ? { Authorization: authToken } : {};
+
+const favoriteRequest = async ({ method, url, authToken, data }) => {
+  const response = await axios({
+    method,
+    url: `${apiBaseUrl}${url}`,
+    data,
+    headers: authHeaders(authToken),
+  });
+
+  return response?.data;
+};
 
 // Async thunk to fetch favorite food trucks
 export const fetchFavorites = createAsyncThunk(
   "favorites/fetchFavorites",
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      const { defaultLocation } = store.getState().locationReducer; // Get defaultLocation from the Redux store
+      const state = getState();
+      const { defaultLocation } = state.locationReducer ?? {}; // Get defaultLocation from the Redux store
+      const { authToken } = state.userReducer ?? {};
 
       let params = {};
       if (defaultLocation && defaultLocation.lat && defaultLocation.long) {
@@ -21,10 +40,24 @@ export const fetchFavorites = createAsyncThunk(
         };
       }
 
-      const response = await getFavoriteFoodTruck_API(params); // Pass params to the API call
+      const queryParams = [];
+      if (params.lat) queryParams.push(`lat=${params.lat}`);
+      if (params.long) queryParams.push(`long=${params.long}`);
+
+      const url =
+        queryParams.length > 0
+          ? `${GET_FAVORITE_FOODTRUCK}?${queryParams.join("&")}`
+          : GET_FAVORITE_FOODTRUCK;
+
+      const response = await favoriteRequest({
+        method: "get",
+        url,
+        authToken,
+      });
       console.log("Response => ", response);
       if (response?.success) {
-        const normalizedFavorites = response.data.favoriteList.map((fav) => ({
+        const favoriteList = response?.data?.favoriteList ?? [];
+        const normalizedFavorites = favoriteList.map((fav) => ({
           _id: fav._id, // The favorite entry ID
           foodTruck: fav.foodTruck || fav, // Ensure foodTruck object is present
           reviews: fav.foodTruck?.totalReview || "0",
@@ -51,12 +84,18 @@ export const toggleFavorite = createAsyncThunk(
   "favorites/toggleFavorite",
   async (
     { foodTruckId, isCurrentlyLiked, foodTruckData = {} },
-    { dispatch, rejectWithValue }
+    { getState, rejectWithValue }
   ) => {
     try {
+      const { authToken } = getState().userReducer ?? {};
+
       if (isCurrentlyLiked) {
         // Remove from favorites
-        const response = await removeFavoriteFoodTruck_API(foodTruckId);
+        const response = await favoriteRequest({
+          method: "delete",
+          url: `${REMOVE_FAVORITE_FOODTRUCK}/${foodTruckId}`,
+          authToken,
+        });
         if (response?.success) {
           return { foodTruckId, action: "removed" };
         } else {
@@ -66,7 +105,12 @@ export const toggleFavorite = createAsyncThunk(
         }
       } else {
         // Add to favorites
-        const response = await addFavoriteFoodTruck_API(foodTruckId);
+        const response = await favoriteRequest({
+          method: "post",
+          url: `${ADD_FAVORITE_FOODTRUCK}/${foodTruckId}`,
+          data: {},
+          authToken,
+        });
         console.log("added to fav foodtruck response => ", response);
         if (response?.success) {
           const addedFoodTruck = response.data?.foodTruck || {
@@ -113,7 +157,7 @@ const favoritesSlice = createSlice({
       })
       .addCase(fetchFavorites.fulfilled, (state, action) => {
         state.isLoadingFavorites = false; // Turn off global loading
-        state.favorites = action.payload;
+        state.favorites = action.payload ?? [];
       })
       .addCase(fetchFavorites.rejected, (state, action) => {
         state.isLoadingFavorites = false; // Turn off global loading
@@ -132,7 +176,7 @@ const favoritesSlice = createSlice({
         if (action.payload.action === "added") {
           if (
             !state.favorites.some(
-              (fav) => fav.foodTruck._id === action.payload.foodTruck._id
+              (fav) => fav.foodTruck?._id === action.payload.foodTruck._id
             )
           ) {
             console.log(action.payload.action, action.payload.foodTruck);
@@ -145,7 +189,7 @@ const favoritesSlice = createSlice({
           }
         } else if (action.payload.action === "removed") {
           state.favorites = state.favorites.filter(
-            (fav) => fav.foodTruck._id !== action.payload.foodTruckId
+            (fav) => fav.foodTruck?._id !== action.payload.foodTruckId
           );
         }
       })

@@ -128,8 +128,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
   // Get favorites and loading state specific to favorite actions from Redux
-  const { favorites, loading: favoritesActionLoading } = useSelector(
-    (state) => state.favoritesReducer
+  const { favorites = [], loading: favoritesActionLoading = {} } = useSelector(
+    (state) => state.favoritesReducer ?? {}
   );
   const currentOrder = useSelector((state) => state.orderReducer.currentOrder);
 

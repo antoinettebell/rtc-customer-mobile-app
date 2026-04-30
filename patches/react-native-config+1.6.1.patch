@@ -1,0 +1,19 @@
+diff --git a/node_modules/react-native-config/codegen/NativeConfigModule.js b/node_modules/react-native-config/codegen/NativeConfigModule.js
+index c811ad7..0f985fb 100644
+--- a/node_modules/react-native-config/codegen/NativeConfigModule.js
++++ b/node_modules/react-native-config/codegen/NativeConfigModule.js
+@@ -1,6 +1,6 @@
+ // @flow
+ import type { TurboModule } from "react-native/Libraries/TurboModule/RCTExport";
+-import { TurboModuleRegistry } from "react-native";
++import { NativeModules, TurboModuleRegistry } from "react-native";
+ 
+ export interface Spec extends TurboModule {
+   +getConfig: () => {|
+@@ -8,4 +8,5 @@ export interface Spec extends TurboModule {
+   |};
+ }
+ 
+-export default (TurboModuleRegistry.get<Spec>("RNCConfigModule"): ?Spec);
++export default (TurboModuleRegistry.get<Spec>("RNCConfigModule") ||
++  NativeModules.RNCConfigModule: ?Spec);

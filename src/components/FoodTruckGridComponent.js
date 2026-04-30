@@ -30,8 +30,8 @@ const FoodTruckGridComponent = ({
 }) => {
   const dispatch = useDispatch();
   // Get favorites and the individual loading state map from Redux
-  const { favorites, loading: individualLoadingState } = useSelector(
-    (state) => state.favoritesReducer
+  const { favorites = [], loading: individualLoadingState = {} } = useSelector(
+    (state) => state.favoritesReducer ?? {}
   );
 
   // Determine if the current food truck is liked based on Redux state

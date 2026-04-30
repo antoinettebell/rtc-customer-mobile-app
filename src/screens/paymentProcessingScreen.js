@@ -27,7 +27,7 @@ import {
   PaymentRequest,
   SupportedNetworkEnum,
 } from "@rnw-community/react-native-payments";
-import Config from "react-native-config";
+import Config from "../config/env";
 import StatusBarManager from "../components/StatusBarManager";
 import TipSelector from "../components/TipSelector";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";

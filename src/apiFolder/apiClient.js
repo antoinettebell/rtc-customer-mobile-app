@@ -1,5 +1,5 @@
 import axios from "axios";
-import Config from "react-native-config";
+import Config from "../config/env";
 
 import { clearUserSlice } from "../redux/slices/userSlice";
 import { onSignOut } from "../redux/slices/authSlice";

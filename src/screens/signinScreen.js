@@ -31,7 +31,7 @@ import {
 } from "../helpers/notification.helper";
 import { setFcmToken_API } from "../apiFolder/appAPI";
 import { setAllLocations } from "../redux/slices/locationSlice";
-import Config from "react-native-config";
+import Config from "../config/env";
 import { GET_ADDRESS } from "../apiFolder/apiEndPoint";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 

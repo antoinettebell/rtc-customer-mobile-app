@@ -41,7 +41,7 @@ import {
   setAllLocations,
 } from "../redux/slices/locationSlice";
 import { GET_ADDRESS } from "../apiFolder/apiEndPoint";
-import Config from "react-native-config";
+import Config from "../config/env";
 import { clearFavorites } from "../redux/slices/favoritesSlice";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";

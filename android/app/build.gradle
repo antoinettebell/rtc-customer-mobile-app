@@ -83,7 +83,7 @@ android {
         applicationId "com.ea.rtcuser"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
+        versionCode 18
         versionName "1.6"
     }
     signingConfigs {

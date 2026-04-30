@@ -32,10 +32,12 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   // Get favoriteTrucks (renamed from 'favorites' for clarity in this screen) and loading/error states from Redux
   const {
     favorites: favoriteTrucks,
-    loading: individualLoadingState, // Renamed to clearly separate from global fetch loading
-    isLoadingFavorites, // NEW: global loading state for fetching favorites list
+    loading: individualLoadingState = {}, // Renamed to clearly separate from global fetch loading
+    isLoadingFavorites = false, // NEW: global loading state for fetching favorites list
     error,
-  } = useSelector((state) => state.favoritesReducer);
+  } = useSelector((state) => state.favoritesReducer ?? {});
+
+  const safeFavoriteTrucks = favoriteTrucks ?? [];
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -80,12 +82,12 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
   );
 
   // Filter favorites based on search query
-  const filteredFavoriteTrucks = favoriteTrucks.filter((item) =>
+  const filteredFavoriteTrucks = safeFavoriteTrucks.filter((item) =>
     item.foodTruck?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   const renderContent = () => {
-    console.log("favoriteTrucks => ", favoriteTrucks);
+    console.log("favoriteTrucks => ", safeFavoriteTrucks);
     // Use isLoadingFavorites for the main list loading state
     if (isLoadingFavorites) {
       return (

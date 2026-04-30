@@ -1,0 +1,84 @@
+diff --git a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleDatePicker.js b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleDatePicker.js
+index 86fb1bc..33f5fb7 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleDatePicker.js
++++ b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleDatePicker.js
+@@ -1,7 +1,7 @@
+ // @flow strict-local
+ 
+ import type {TurboModule} from 'react-native/Libraries/TurboModule/RCTExport';
+-import {TurboModuleRegistry} from 'react-native';
++import {NativeModules, TurboModuleRegistry} from 'react-native';
+ 
+ export type DatePickerOpenParams = $ReadOnly<{
+   dialogButtons?: $ReadOnly<{string: string}>,
+@@ -26,4 +26,5 @@ export interface Spec extends TurboModule {
+   +open: (params: DatePickerOpenParams) => Promise<DatePickerResult>;
+ }
+ 
+-export default (TurboModuleRegistry.getEnforcing<Spec>('RNCDatePicker'): ?Spec);
++export default (TurboModuleRegistry.get<Spec>('RNCDatePicker') ||
++  NativeModules.RNCDatePicker: ?Spec);
+diff --git a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialDatePicker.js b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialDatePicker.js
+index fd7a48a..1e69b49 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialDatePicker.js
++++ b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialDatePicker.js
+@@ -1,7 +1,7 @@
+ // @flow strict-local
+ 
+ import type {TurboModule} from 'react-native/Libraries/TurboModule/RCTExport';
+-import {TurboModuleRegistry} from 'react-native';
++import {NativeModules, TurboModuleRegistry} from 'react-native';
+ 
+ export type DatePickerOpenParams = $ReadOnly<{
+   dialogButtons?: $ReadOnly<{string: string}>,
+@@ -29,6 +29,5 @@ export interface Spec extends TurboModule {
+   +open: (params: DatePickerOpenParams) => Promise<DatePickerResult>;
+ }
+ 
+-export default (TurboModuleRegistry.getEnforcing<Spec>(
+-  'RNCMaterialDatePicker',
+-): ?Spec);
++export default (TurboModuleRegistry.get<Spec>('RNCMaterialDatePicker') ||
++  NativeModules.RNCMaterialDatePicker: ?Spec);
+diff --git a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialTimePicker.js b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialTimePicker.js
+index 25080bd..ad34dcc 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialTimePicker.js
++++ b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleMaterialTimePicker.js
+@@ -1,7 +1,7 @@
+ // @flow strict-local
+ 
+ import type {TurboModule} from 'react-native/Libraries/TurboModule/RCTExport';
+-import {TurboModuleRegistry} from 'react-native';
++import {NativeModules, TurboModuleRegistry} from 'react-native';
+ 
+ export type TimePickerOpenParams = $ReadOnly<{
+   dialogButtons?: $ReadOnly<{string: string}>,
+@@ -23,6 +23,5 @@ export interface Spec extends TurboModule {
+   +open: (params: TimePickerOpenParams) => Promise<TimePickerResult>;
+ }
+ 
+-export default (TurboModuleRegistry.getEnforcing<Spec>(
+-  'RNCMaterialTimePicker',
+-): ?Spec);
++export default (TurboModuleRegistry.get<Spec>('RNCMaterialTimePicker') ||
++  NativeModules.RNCMaterialTimePicker: ?Spec);
+diff --git a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleTimePicker.js b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleTimePicker.js
+index 41e7a05..c6c5a6a 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleTimePicker.js
++++ b/node_modules/@react-native-community/datetimepicker/src/specs/NativeModuleTimePicker.js
+@@ -1,7 +1,7 @@
+ // @flow strict-local
+ 
+ import type {TurboModule} from 'react-native/Libraries/TurboModule/RCTExport';
+-import {TurboModuleRegistry} from 'react-native';
++import {NativeModules, TurboModuleRegistry} from 'react-native';
+ 
+ export type TimePickerOpenParams = $ReadOnly<{
+   dialogButtons?: $ReadOnly<{string: string}>,
+@@ -23,4 +23,5 @@ export interface Spec extends TurboModule {
+   +open: (params: TimePickerOpenParams) => Promise<TimePickerResult>;
+ }
+ 
+-export default (TurboModuleRegistry.getEnforcing<Spec>('RNCTimePicker'): ?Spec);
++export default (TurboModuleRegistry.get<Spec>('RNCTimePicker') ||
++  NativeModules.RNCTimePicker: ?Spec);

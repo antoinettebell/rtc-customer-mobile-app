@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from "react-native";
+import { Platform, View, Text, TouchableOpacity, Modal, StyleSheet } from "react-native";
 import moment from "moment";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 

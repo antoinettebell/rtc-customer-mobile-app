@@ -7,6 +7,7 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import AppHeader from "../components/AppHeader";

@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import {
+  Platform,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from "react-native";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FastImage from "@d11/react-native-fast-image";
