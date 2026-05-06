@@ -80,7 +80,7 @@ android {
 
     namespace "com.ea.rtcuser"
     defaultConfig {
-        applicationId "com.ea.rtcuser"
+        applicationId "com.rounddacorner.dev.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 18

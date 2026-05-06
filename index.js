@@ -5,7 +5,6 @@
 import { AppRegistry, LogBox } from "react-native";
 import React, { useEffect } from "react";
 import App from "./App";
-import appConfig from "./app.json";
 import { Provider } from "react-redux";
 import { DefaultTheme, PaperProvider } from "react-native-paper";
 import { persistor, store } from "./src/redux/store";
@@ -18,7 +17,7 @@ import notifee, { EventType } from "@notifee/react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BootSplash from "react-native-bootsplash";
 
-const appName = appConfig.expo.name;
+const appName = "foodtruck";
 
 const processOnNotification = async (notification) => {
   // Android: when user clicked on backgroud state notification
