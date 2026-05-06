@@ -391,7 +391,7 @@ export const cancelFoodOrder_API = async (orderId, payload) => {
   }
 };
 
-// Check Free Dessert Eligibility
+// Check Free Loyalty Bucks Eligibility
 export const checkFreeDessertEligibility_API = async () => {
   try {
     const URL = CHECK_FREE_DESERT_ELIGIBILITY;
@@ -597,7 +597,7 @@ export const getGlobalSearchResult_API = async (params = {}) => {
   }
 };
 
-// Fetch Free Dessert Detail
+// Fetch Free Loyalty Bucks Detail
 export const getFreeDessertDetail_API = async () => {
   try {
     const URL = `${GET_FREE_DESERT_DETAIL}`;

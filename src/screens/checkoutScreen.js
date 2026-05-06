@@ -1326,12 +1326,16 @@ const CheckoutScreen = ({ navigation, route }) => {
                   {dessert?.isEligibleNow && (
                     <View style={styles.totalRow}>
                       <View style={styles.dessertRow}>
-                        <Text style={styles.totalRowItemTxt}>1 x Dessert</Text>
+                        <Text style={styles.totalRowItemTxt}>
+                          Free Loyalty Bucks
+                        </Text>
                         <View style={styles.freeBadge}>
-                          <Text style={styles.freeBadgeText}>Free</Text>
+                          <Text style={styles.freeBadgeText}>Applied</Text>
                         </View>
                       </View>
-                      <Text style={styles.totalRowItemTxt}>$0.00</Text>
+                      <Text style={styles.totalRowItemTxt}>
+                        -${Number(dessert?.freeDessertAmount || 0).toFixed(2)}
+                      </Text>
                     </View>
                   )}
                 </View>

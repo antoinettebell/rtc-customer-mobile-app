@@ -283,13 +283,13 @@ const ProfileMenuScreen = ({ navigation }) => {
 
         {/* Main Content Goes Here */}
         <View style={styles.mainContentContainer}>
-          {/* Dessert Progress */}
+          {/* Loyalty Bucks Progress */}
           <LinearGradient
             colors={[AppColor.primary, AppColor.primaryLight]}
             style={styles.gradientContainer}
           >
             <View style={styles.dessertCard}>
-              <Text style={styles.dessertTitle}>{"Get Free Dessert!"}</Text>
+              <Text style={styles.dessertTitle}>{"Get Free Loyalty Bucks!"}</Text>
               <View style={styles.progressInfoRow}>
                 <Text style={styles.dessertSub}>
                   {freeDessertDetail?.ordersDoneInCurrentCycle || 0}/

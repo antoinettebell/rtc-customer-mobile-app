@@ -11,7 +11,7 @@ const devApiUrl =
   platformOS === "android" ? "http://10.0.2.2:3001" : "http://localhost:3001";
 
 const fallbackConfig = {
-  API_URL: __DEV__ ? devApiUrl : "http://157.245.6.61:3000",
+  API_URL: __DEV__ ? devApiUrl : "http://157.245.6.61:8000",
   API_PREFIX: "/api/v1",
   GOOGLE_MAP_API_KEY: "AIzaSyCdjHeKOYBUcpocHw5-NsdfMy2-dHkBoFY",
   APPLE_PAY_MERCHANT_ID: "merchant.roundthecorner.vendor",
