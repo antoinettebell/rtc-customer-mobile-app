@@ -309,6 +309,8 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       raw?.imgUrls?.length > 0 ? raw.imgUrls : itm?.imgUrls,
                     discountType: raw?.discountType ?? itm?.discountType,
                     description: raw?.description ?? itm?.description,
+                    selectedDiscountFlavors: itm?.selectedDiscountFlavors || [],
+                    selectedDiscountToppings: itm?.selectedDiscountToppings || [],
                   };
                   const comboItemsList =
                     menuItem?.comboItems?.length > 0
@@ -344,6 +346,16 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                           {itm.customization ? (
                             <Text style={styles.orderLineCustomization}>
                               {itm.customization}
+                            </Text>
+                          ) : null}
+                          {itm.selectedFlavors?.length > 0 ? (
+                            <Text style={styles.orderLineCustomization}>
+                              {`Flavors: ${itm.selectedFlavors.join(", ")}`}
+                            </Text>
+                          ) : null}
+                          {itm.selectedToppings?.length > 0 ? (
+                            <Text style={styles.orderLineCustomization}>
+                              {`Toppings: ${itm.selectedToppings.join(", ")}`}
                             </Text>
                           ) : null}
                         </View>
@@ -388,6 +400,22 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                     numberOfLines={2}
                                   >
                                     {rewardItem.displayDesc}
+                                  </Text>
+                                ) : null}
+                                {rewardItem.displayFlavors?.length > 0 ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {`Flavors: ${rewardItem.displayFlavors.join(", ")}`}
+                                  </Text>
+                                ) : null}
+                                {rewardItem.displayToppings?.length > 0 ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {`Toppings: ${rewardItem.displayToppings.join(", ")}`}
                                   </Text>
                                 ) : null}
                               </View>

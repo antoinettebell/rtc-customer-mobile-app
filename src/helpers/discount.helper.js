@@ -86,31 +86,36 @@ export const calculateItemTotalWithDiscount = (item) => {
   if (discountRules && discountRules.discount > 0) {
     const { discount: discountVal = 0 } = discountRules;
     const rewardQty = calculateRewardQty(quantity, discountRules);
+    const basePrice = Number(price) || 0;
+    const rewardOptionsCost = calculateSelectedOptionCost(
+      item,
+      "selectedDiscountFlavors",
+      "selectedDiscountToppings"
+    );
 
-    const rewardUnitPrice =
-      (Number(price) || 0) +
-      calculateSelectedOptionCost(
-        item,
-        "selectedDiscountFlavors",
-        "selectedDiscountToppings"
-      );
-    const rewardTotal = rewardQty * rewardUnitPrice;
-    const discountAmount = rewardTotal * discountVal;
+    const rewardTotal = rewardQty * (basePrice + rewardOptionsCost);
+    const discountAmount = rewardQty * basePrice * discountVal;
 
     total = unitPrice * quantity + rewardTotal - discountAmount;
+  } else if (discountType === "BOGO") {
+    const rewardOptionsCost = calculateSelectedOptionCost(
+      item,
+      "selectedDiscountFlavors",
+      "selectedDiscountToppings"
+    );
+    total = unitPrice * quantity + rewardOptionsCost * quantity;
   } else if (discountType === "BOGOHO") {
     // Fallback for old BOGOHO logic
-    const rewardUnitPrice =
-      (Number(price) || 0) +
-      calculateSelectedOptionCost(
-        item,
-        "selectedDiscountFlavors",
-        "selectedDiscountToppings"
-      );
+    const basePrice = Number(price) || 0;
+    const rewardOptionsCost = calculateSelectedOptionCost(
+      item,
+      "selectedDiscountFlavors",
+      "selectedDiscountToppings"
+    );
     total =
       item.bogoHoPrice != null
-        ? item.bogoHoPrice * quantity
-        : unitPrice * quantity + rewardUnitPrice * quantity * 0.5;
+        ? item.bogoHoPrice * quantity + rewardOptionsCost * quantity
+        : unitPrice * quantity + (basePrice * 0.5 + rewardOptionsCost) * quantity;
   }
 
   return total;
@@ -125,18 +130,22 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
     0;
 
   const { discountRules, bogoItems, discountType } = safeItem;
+  const selectedDiscountFlavors = Array.isArray(safeItem.selectedDiscountFlavors)
+    ? safeItem.selectedDiscountFlavors
+    : [];
+  const selectedDiscountToppings = Array.isArray(safeItem.selectedDiscountToppings)
+    ? safeItem.selectedDiscountToppings
+    : [];
+  const selectedDiscountOptionsCost = calculateSelectedOptionCost(
+    safeItem,
+    "selectedDiscountFlavors",
+    "selectedDiscountToppings"
+  );
   let rewardItems = [];
 
   if (discountRules && discountRules.discount > 0) {
     const { discount: discountVal = 0 } = discountRules;
     const rewardQty = calculateRewardQty(quantityToUse, discountRules);
-    const sameItemRewardPrice =
-      (Number(safeItem.price) || 0) +
-      calculateSelectedOptionCost(
-        safeItem,
-        "selectedDiscountFlavors",
-        "selectedDiscountToppings"
-      );
 
     if (rewardQty > 0) {
       if (bogoItems && bogoItems.length > 0) {
@@ -150,23 +159,33 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
             biQtySafe === rewardQty && rewardQty > 0
               ? rewardQty
               : rewardQty * biQtySafe;
+          const rewardDisplayPrice =
+            (Number(bi.isSameItem ? safeItem.price : bi.itemId?.price) || 0) *
+              (1 - discountVal) +
+            (bi.isSameItem ? selectedDiscountOptionsCost : 0);
 
           return {
-          ...bi,
-          displayQty,
-          displayName: bi.isSameItem ? safeItem.name : bi.itemId?.name,
-          displayImg: bi.isSameItem ? safeItem.imgUrls?.[0] : bi.itemId?.imgUrls?.[0],
-          displayDesc: bi.isSameItem ? safeItem.description : bi.itemId?.description,
-          displayPrice:
-            discountVal === 1
-              ? "Free"
-              : `$${(
-                  (bi.isSameItem ? sameItemRewardPrice : bi.itemId?.price || 0) *
-                  (1 - discountVal)
-                ).toFixed(2)}`,
+            ...bi,
+            displayQty,
+            displayName: bi.isSameItem ? safeItem.name : bi.itemId?.name,
+            displayImg: bi.isSameItem
+              ? safeItem.imgUrls?.[0]
+              : bi.itemId?.imgUrls?.[0],
+            displayDesc: bi.isSameItem
+              ? safeItem.description
+              : bi.itemId?.description,
+            displayFlavors: bi.isSameItem ? selectedDiscountFlavors : [],
+            displayToppings: bi.isSameItem ? selectedDiscountToppings : [],
+            displayPrice:
+              rewardDisplayPrice <= 0
+                ? "Free"
+                : `$${rewardDisplayPrice.toFixed(2)}`,
           };
         });
       } else {
+        const rewardDisplayPrice =
+          (Number(safeItem.price) || 0) * (1 - discountVal) +
+          selectedDiscountOptionsCost;
         // Fallback: assume same item if no bogoItems but discountRules exist
         rewardItems = [
           {
@@ -174,11 +193,13 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
             displayName: safeItem.name,
             displayImg: safeItem.imgUrls?.[0],
             displayDesc: safeItem.description,
+            displayFlavors: selectedDiscountFlavors,
+            displayToppings: selectedDiscountToppings,
             displayQty: rewardQty,
             displayPrice:
-              discountVal === 1
+              rewardDisplayPrice <= 0
                 ? "Free"
-                : `$${(sameItemRewardPrice * (1 - discountVal)).toFixed(2)}`,
+                : `$${rewardDisplayPrice.toFixed(2)}`,
           },
         ];
       }
@@ -191,7 +212,14 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
       displayName: bi.itemId?.name || bi.name,
       displayImg: bi.itemId?.imgUrls?.[0] || bi.imgUrls?.[0],
       displayDesc: bi.itemId?.description || bi.description,
-      displayPrice: discountType === "BOGO" ? "Free" : "Discounted",
+      displayFlavors: bi.isSameItem ? selectedDiscountFlavors : [],
+      displayToppings: bi.isSameItem ? selectedDiscountToppings : [],
+      displayPrice:
+        discountType === "BOGO"
+          ? bi.isSameItem && selectedDiscountOptionsCost > 0
+            ? `$${selectedDiscountOptionsCost.toFixed(2)}`
+            : "Free"
+          : "Discounted",
     }));
   }
 

@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator as NativeIndicator,
   Pressable,
+  Platform,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useIsFocused } from "@react-navigation/native";
@@ -23,6 +24,7 @@ import {
 } from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import {
   AppColor,
   Mulish700,
@@ -48,7 +50,11 @@ import {
 import useDebounce from "../hooks/useDebounce";
 import { showSnackbar } from "../redux/slices/snackbarSlice";
 import { updateOrderItems } from "../helpers/order.helper";
-import { getRewardItemsDisplay, calculateItemTotalWithDiscount } from "../helpers/discount.helper";
+import {
+  getRewardItemsDisplay,
+  calculateItemTotalWithDiscount,
+  calculateSelectedOptionCost,
+} from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
 const BUILT_IN_DELIVERY_FEE = 6.49;
@@ -155,6 +161,28 @@ const CheckoutScreen = ({ navigation, route }) => {
   }, [driverTip, isDelivery]);
 
   const showTimePicker = () => {
+    if (!selectedLocation || !selectedAvailability) {
+      Alert.alert(
+        "Availability required",
+        "Please select a pre-order location and availability before choosing pickup time."
+      );
+      return;
+    }
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: getPickerDateForSelectedSlot(),
+        mode: "time",
+        is24Hour: false,
+        onChange: (event, date) => {
+          if (event.type === "set" && date) {
+            handleConfirmTime(date);
+          } else {
+            hideTimePicker();
+          }
+        },
+      });
+      return;
+    }
     setTimePickerVisibility(true);
   };
 
@@ -166,6 +194,21 @@ const CheckoutScreen = ({ navigation, route }) => {
     const selectedTime24Hr = moment(date).format("HH:mm");
     setPickupTime(selectedTime24Hr);
     hideTimePicker();
+  };
+
+  const getPickerDateForSelectedSlot = () => {
+    if (pickupTime) {
+      return moment(pickupTime, "HH:mm").toDate();
+    }
+
+    if (selectedAvailability?.date && selectedAvailability?.startTime) {
+      return moment(
+        `${moment(selectedAvailability.date).format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
+        "YYYY-MM-DD HH:mm"
+      ).toDate();
+    }
+
+    return new Date();
   };
 
   const handleAdd = (item) => {
@@ -225,16 +268,23 @@ const CheckoutScreen = ({ navigation, route }) => {
         return;
       }
 
-      const selectedDateTime = moment(pickupTime, "HH:mm");
-      const availabilityStartTime = moment(
-        selectedAvailability.startTime,
-        "HH:mm"
+      const selectedDate = moment(selectedAvailability.date);
+      const selectedDateTime = moment(
+        `${selectedDate.format("YYYY-MM-DD")} ${pickupTime}`,
+        "YYYY-MM-DD HH:mm"
       );
-      const availabilityEndTime = moment(selectedAvailability.endTime, "HH:mm");
+      const availabilityStartTime = moment(
+        `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
+        "YYYY-MM-DD HH:mm"
+      );
+      const availabilityEndTime = moment(
+        `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.endTime}`,
+        "YYYY-MM-DD HH:mm"
+      );
 
       // Check if the selected time is not in the past for today's availability
       if (
-        moment(selectedAvailability.date).isSame(now, "day") &&
+        selectedDate.isSame(now, "day") &&
         selectedDateTime.isBefore(now)
       ) {
         Alert.alert(
@@ -425,6 +475,9 @@ const CheckoutScreen = ({ navigation, route }) => {
       item.quantity ?? item.qty ?? 0
     );
     const hasRewardNested = rewardItems.length > 0;
+    const primaryDisplayTotal = hasRewardNested
+      ? (Number(item.price) || 0) + calculateSelectedOptionCost(item)
+      : calculateItemTotalWithDiscount({ ...item, quantity: 1 });
     const hasComboNested = (item?.selectedSubItems?.length ?? 0) > 0;
     const comboNestedLabel =
       item?.itemType === foodTypeStrings.combo
@@ -445,7 +498,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               {item.description}
             </Text>
             <Text style={styles.itemPrice}>
-              {`$${parseFloat(calculateItemTotalWithDiscount({ ...item, quantity: 1 }) || 0).toFixed(2)} `}
+              {`$${parseFloat(primaryDisplayTotal || 0).toFixed(2)} `}
             </Text>
 	            {item.selectedFlavors?.length > 0 ? (
 	              <Text style={styles.itemDesc} numberOfLines={2}>
@@ -457,16 +510,6 @@ const CheckoutScreen = ({ navigation, route }) => {
 	                {`Toppings: ${item.selectedToppings.join(", ")}`}
 		              </Text>
 		            ) : null}
-            {item.selectedDiscountFlavors?.length > 0 ? (
-              <Text style={styles.itemDesc} numberOfLines={2}>
-                {`Discount item flavors: ${item.selectedDiscountFlavors.join(", ")}`}
-              </Text>
-            ) : null}
-            {item.selectedDiscountToppings?.length > 0 ? (
-              <Text style={styles.itemDesc} numberOfLines={2}>
-                {`Discount item toppings: ${item.selectedDiscountToppings.join(", ")}`}
-              </Text>
-            ) : null}
           </View>
           <View style={styles.qtyBox}>
             <TouchableOpacity
@@ -540,6 +583,16 @@ const CheckoutScreen = ({ navigation, route }) => {
                   {itm.displayDesc ? (
                     <Text style={styles.nestedItemDesc} numberOfLines={2}>
                       {itm.displayDesc}
+                    </Text>
+                  ) : null}
+                  {itm.displayFlavors?.length > 0 ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {`Flavors: ${itm.displayFlavors.join(", ")}`}
+                    </Text>
+                  ) : null}
+                  {itm.displayToppings?.length > 0 ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {`Toppings: ${itm.displayToppings.join(", ")}`}
                     </Text>
                   ) : null}
                   <Text style={styles.nestedItemPrice}>{itm.displayPrice}</Text>
@@ -652,9 +705,10 @@ const CheckoutScreen = ({ navigation, route }) => {
                 },
                 isSelected && styles.radioOptionActive,
               ]}
-              onPress={() =>
-                setSelectedAvailability({ ...slot, date: dateOfTheDay })
-              }
+              onPress={() => {
+                setSelectedAvailability({ ...slot, date: dateOfTheDay });
+                setPickupTime(null);
+              }}
               disabled={isDisabled}
             >
               <View
@@ -1180,6 +1234,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                         containerColor="#E5E5EA"
                         style={{ margin: 0 }}
                         onPress={showTimePicker}
+                        disabled={!selectedLocation || !selectedAvailability}
                       />
                     </View>
                     {pickupTime ? (
@@ -1417,6 +1472,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                         onPress={() => {
                           setSelectedLocation(loc);
                           setSelectedAvailability(null); // Reset availability on new location
+                          setPickupTime(null);
                         }}
                       >
                         <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
@@ -1446,13 +1502,15 @@ const CheckoutScreen = ({ navigation, route }) => {
       )}
 
       {/* Time Picker Modal */}
-      <DateTimePickerModal
-        isVisible={isTimePickerVisible}
-        mode="time"
-        onConfirm={handleConfirmTime}
-        onCancel={hideTimePicker}
-        date={pickupTime ? moment(pickupTime, "HH:mm").toDate() : new Date()}
-      />
+      {Platform.OS === "ios" ? (
+        <DateTimePickerModal
+          isVisible={isTimePickerVisible}
+          mode="time"
+          onConfirm={handleConfirmTime}
+          onCancel={hideTimePicker}
+          date={getPickerDateForSelectedSlot()}
+        />
+      ) : null}
     </View>
   );
 };
