@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyACjDe7FjXPcgR_unCXdpADjKoxRFzVJ2o</string>
+	<string>AIzaSyC6-W3qvbSoKhZOKVb8CSC21EbbFSf5fJ4</string>
 	<key>GCM_SENDER_ID</key>
-	<string>712703549995</string>
+	<string>359273774611</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.ea.rtcuser</string>
+	<string>com.rounddacorner.dev.customer</string>
 	<key>PROJECT_ID</key>
-	<string>rtc-app-59500</string>
+	<string>rtccustomermobile</string>
 	<key>STORAGE_BUCKET</key>
-	<string>rtc-app-59500.firebasestorage.app</string>
+	<string>rtccustomermobile.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:712703549995:ios:84039de3ffd9225550006e</string>
+	<string>1:359273774611:ios:9136895929c262dddfc9e6</string>
 </dict>
 </plist>
