@@ -76,6 +76,12 @@ const ANDROID_PAY_METHOD_DATA = {
   },
 };
 
+const getErrorMessage = (error, fallback) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error?.message ||
+  error?.message ||
+  fallback;
+
 const PaymentProcessingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -217,14 +223,15 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           return;
         }
 
+        let paymentResponse;
         try {
-          const response = await paymentRequest.show();
-          console.log("Payment UI Response:", response);
+          paymentResponse = await paymentRequest.show();
+          console.log("Payment UI Response:", paymentResponse);
 
           const paymentRawToken =
             Platform.OS === "ios"
-              ? response.details.applePayToken.paymentData
-              : response.details.androidPayToken.rawToken;
+              ? paymentResponse.details.applePayToken.paymentData
+              : paymentResponse.details.androidPayToken.rawToken;
 
           const reqPayload = {
             // paymentData: {
@@ -304,11 +311,14 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             }
           }
 
-          response.complete("success");
+          paymentResponse.complete("success");
         } catch (error) {
+          paymentResponse?.complete?.("fail");
           showSnackbar({
-            message:
-              "Payment failed. Please try with different payment method.",
+            message: getErrorMessage(
+              error,
+              "Payment failed. Please try with different payment method."
+            ),
             type: "error",
           });
           paymentRequest.abort();
