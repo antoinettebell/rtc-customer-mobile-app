@@ -31,6 +31,8 @@ const statusTitleMap = {
   ACCEPTED: "Order Accepted",
   PREPARING: "Preparing",
   READY_FOR_PICKUP: "Ready for Pickup",
+  DRIVER_PICKED_UP: "Out for Delivery",
+  DELIVERED: "Delivered",
   COMPLETED: "Delivered",
   CANCELLED: "Cancelled",
   REJECTED: "Rejected",
@@ -66,6 +68,8 @@ const OrderTrackingScreen = ({ navigation, route }) => {
       canceledAt: "CANCELLED",
       preparingAt: "PREPARING",
       readyAt: "READY_FOR_PICKUP",
+      driverPickedUpAt: "DRIVER_PICKED_UP",
+      deliveredAt: "DELIVERED",
       completedAt: "COMPLETED",
       rejectedAt: "REJECTED",
     };
@@ -83,8 +87,12 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   };
 
   const calculateProgress = () => {
-    if (order?.statusTime?.readyAt) {
+    if (order?.statusTime?.deliveredAt || order?.statusTime?.completedAt) {
       setProgress(100);
+    } else if (order?.statusTime?.driverPickedUpAt) {
+      setProgress(85);
+    } else if (order?.statusTime?.readyAt) {
+      setProgress(order?.fulfillmentType === "DELIVERY" ? 70 : 100);
     } else if (order?.statusTime?.preparingAt) {
       const startTime = moment(order.statusTime.preparingAt);
       const finishTime = moment(order.statusTime.preparingAt).add(

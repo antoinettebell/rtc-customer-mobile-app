@@ -496,7 +496,8 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                 <Text style={styles.total}>
                   ${(order?.subTotal || 0).toFixed(2)}
                 </Text>
-                {order.status !== "COMPLETED" &&
+                {order.status !== "DELIVERED" &&
+                  order.status !== "COMPLETED" &&
                   order.status !== "CANCEL" &&
                   order.status !== "REJECTED" && (
                     <View style={styles.actionRow}>

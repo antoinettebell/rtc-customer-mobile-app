@@ -291,8 +291,8 @@ const OrdersScreen = ({ navigation }) => {
         page,
         limit: 20,
         orderStatus: isPast
-          ? "CANCEL, REJECTED, COMPLETED"
-          : "PLACED, ACCEPTED,PREPARING, READY_FOR_PICKUP",
+          ? "CANCEL, REJECTED, DELIVERED, COMPLETED"
+          : "PLACED, ACCEPTED,PREPARING, READY_FOR_PICKUP, DRIVER_PICKED_UP",
       });
       console.log("reponse => ", response);
       if (response?.success && response?.data) {

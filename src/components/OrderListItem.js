@@ -20,6 +20,8 @@ export const orderCurrentStatusNames = {
   REJECTED: "Rejected",
   PREPARING: "Preparing",
   READY_FOR_PICKUP: "Ready for pickup",
+  DRIVER_PICKED_UP: "Out for delivery",
+  DELIVERED: "Delivered",
   COMPLETED: "Completed",
 };
 
