@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   RefreshControl,
   View,
@@ -33,6 +33,7 @@ import moment from "moment";
 import AppImage from "../components/AppImage";
 import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
 import { Divider, IconButton } from "react-native-paper";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { getRewardItemsDisplay } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
@@ -52,6 +53,14 @@ const OrderDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     fetchOrderDetails({ type: "init" });
   }, [orderId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (orderId) {
+        fetchOrderDetails({ type: "refresh" });
+      }
+    }, [orderId])
+  );
 
   const fetchOrderDetails = async ({ type }) => {
     if (type === "refresh") {
@@ -568,7 +577,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                   <View style={styles.row}>
                     <View style={styles.dessertRow}>
                       <Text style={styles.totalRowItemTxt}>
-                        Free Loyalty Bucks
+                        Loyalty Bucks Reward
                       </Text>
                       <View style={styles.freeBadge}>
                         <Text style={styles.freeBadgeText}>Applied</Text>

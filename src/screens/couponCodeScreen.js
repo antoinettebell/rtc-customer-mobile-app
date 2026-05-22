@@ -95,7 +95,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
           { paddingTop: insets.top, paddingBottom: insets.bottom },
         ]}
       >
-        <AppHeader headerTitle="Coupon Code" />
+        <AppHeader headerTitle="Coupons & Rewards" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <ActivityIndicator size="large" color={AppColor.primary} />
         </View>
@@ -111,7 +111,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
           { paddingTop: insets.top, paddingBottom: insets.bottom },
         ]}
       >
-        <AppHeader headerTitle="Coupon Code" />
+        <AppHeader headerTitle="Coupons & Rewards" />
         <View style={[styles.centerContainer, { flex: 1 }]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
@@ -128,7 +128,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <AppHeader headerTitle="Coupon Code" />
+      <AppHeader headerTitle="Coupons & Rewards" />
       <View
         style={{
           flex: 1,
@@ -145,7 +145,7 @@ const CouponCodeScreen = ({ navigation, route }) => {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Have you a coupon code?"
+            placeholder="Enter a coupon code"
             placeholderTextColor={AppColor.textPlaceholder}
             value={search}
             onChangeText={setSearch}

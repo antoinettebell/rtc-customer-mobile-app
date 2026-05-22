@@ -1382,7 +1382,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                     <View style={styles.totalRow}>
                       <View style={styles.dessertRow}>
                         <Text style={styles.totalRowItemTxt}>
-                          Free Loyalty Bucks
+                          Loyalty Bucks Reward
                         </Text>
                         <View style={styles.freeBadge}>
                           <Text style={styles.freeBadgeText}>Applied</Text>

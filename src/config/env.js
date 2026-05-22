@@ -7,8 +7,7 @@ const platformOS =
   NativeModules.PlatformConstants?.OS ??
   "android";
 
-const devApiUrl =
-  platformOS === "android" ? "http://10.0.2.2:3001" : "http://localhost:3001";
+const devApiUrl = "http://157.245.6.61:8000";
 
 const fallbackConfig = {
   API_URL: __DEV__ ? devApiUrl : "http://157.245.6.61:8000",

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import OrderTrackingSteps from "../components/OrderTrackingSteps";
 import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 import { IconButton } from "react-native-paper";
+import { useFocusEffect } from "@react-navigation/native";
 
 const statusTitleMap = {
   PLACED: "Order Placed",
@@ -48,6 +49,7 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   const mapRef = useRef(null);
 
   const params = route?.params;
+  const orderId = params?.orderId || params?.order?._id;
 
   const [order, setOrder] = useState(null);
   const [iamstate, setiamstate] = useState([]);
@@ -121,7 +123,7 @@ const OrderTrackingScreen = ({ navigation, route }) => {
       setLoading(true);
     }
     try {
-      const response = await getOrderByOrderId_API(params?.order?._id);
+      const response = await getOrderByOrderId_API(orderId);
       console.log("response => ", response);
       if (response?.success && response?.data) {
         setOrder(response.data.order);
@@ -144,10 +146,18 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    if (params?.order?._id) {
+    if (orderId) {
       fetchOrderDetails({ type: "init" });
     }
-  }, [params?.order]);
+  }, [orderId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (orderId) {
+        fetchOrderDetails({ type: "refresh" });
+      }
+    }, [orderId])
+  );
 
   useEffect(() => {
     if (order) {

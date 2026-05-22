@@ -289,7 +289,7 @@ const ProfileMenuScreen = ({ navigation }) => {
             style={styles.gradientContainer}
           >
             <View style={styles.dessertCard}>
-              <Text style={styles.dessertTitle}>{"Get Free Loyalty Bucks!"}</Text>
+              <Text style={styles.dessertTitle}>{"Earn Loyalty Bucks"}</Text>
               <View style={styles.progressInfoRow}>
                 <Text style={styles.dessertSub}>
                   {freeDessertDetail?.ordersDoneInCurrentCycle || 0}/
