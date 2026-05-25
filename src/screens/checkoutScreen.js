@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator as NativeIndicator,
   Pressable,
-  Platform,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useIsFocused } from "@react-navigation/native";
@@ -19,8 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import moment from "moment";
 import { Divider, ActivityIndicator, IconButton } from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import {
   AppColor,
   Mulish700,
@@ -103,7 +100,6 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
-  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
   const [pickupTime, setPickupTime] = useState(null);
 
   const [preventAPI, setPreventAPI] = useState(false);
@@ -231,64 +227,8 @@ const CheckoutScreen = ({ navigation, route }) => {
     );
   }, [currentTaxKey]);
 
-  const showTimePicker = () => {
-    if (!selectedLocation || !selectedAvailability) {
-      Alert.alert(
-        "Availability required",
-        "Please select a pre-order location and availability before choosing pickup time.",
-      );
-      return;
-    }
-    if (Platform.OS === "android") {
-      DateTimePickerAndroid.open({
-        value: getPickerDateForSelectedSlot(),
-        mode: "time",
-        is24Hour: false,
-        onChange: (event, date) => {
-          if (event.type === "set" && date) {
-            handleConfirmTime(date);
-          } else {
-            hideTimePicker();
-          }
-        },
-      });
-      return;
-    }
-    setTimePickerVisibility(true);
-  };
-
   const handlePickupTimePress = () => {
-    if (!selectedLocation || !selectedAvailability) {
-      actionSheetRef.current?.show();
-      return;
-    }
-
-    showTimePicker();
-  };
-
-  const hideTimePicker = () => {
-    setTimePickerVisibility(false);
-  };
-
-  const handleConfirmTime = (date) => {
-    const selectedTime24Hr = moment(date).format("HH:mm");
-    setPickupTime(selectedTime24Hr);
-    hideTimePicker();
-  };
-
-  const getPickerDateForSelectedSlot = () => {
-    if (pickupTime) {
-      return moment(pickupTime, "HH:mm").toDate();
-    }
-
-    if (selectedAvailability?.date && selectedAvailability?.startTime) {
-      return moment(
-        `${moment(selectedAvailability.date).format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
-        "YYYY-MM-DD HH:mm",
-      ).toDate();
-    }
-
-    return new Date();
+    actionSheetRef.current?.show();
   };
 
   const handleAdd = (item) => {
@@ -516,6 +456,8 @@ const CheckoutScreen = ({ navigation, route }) => {
       Alert.alert("Location required", "Please select a location.");
     } else if (!selectedAvailability) {
       Alert.alert("Availability required", "Please select a availability.");
+    } else if (!pickupTime) {
+      Alert.alert("Pickup Time Required", "Please select a pickup time.");
     } else {
       getTaxInfoFromAPI();
       actionSheetRef.current?.hide();
@@ -838,6 +780,91 @@ const CheckoutScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           );
         })}
+      </View>
+    );
+  };
+
+  const getPickupTimeOptions = () => {
+    if (!selectedAvailability?.date || !selectedAvailability?.startTime) {
+      return [];
+    }
+
+    const selectedDate = moment(selectedAvailability.date).format("YYYY-MM-DD");
+    const start = moment(
+      `${selectedDate} ${selectedAvailability.startTime}`,
+      "YYYY-MM-DD HH:mm",
+    );
+    const end = moment(
+      `${selectedDate} ${selectedAvailability.endTime}`,
+      "YYYY-MM-DD HH:mm",
+    );
+    const now = moment();
+    const options = [];
+    const cursor = start.clone();
+
+    while (cursor.isSameOrBefore(end)) {
+      if (cursor.isAfter(now)) {
+        options.push(cursor.format("HH:mm"));
+      }
+      cursor.add(15, "minutes");
+    }
+
+    return options;
+  };
+
+  const renderPreorderTimePicker = () => {
+    if (!selectedAvailability) return null;
+    const pickupTimeOptions = getPickupTimeOptions();
+
+    return (
+      <View style={styles.availabilityContainer}>
+        <Text
+          style={{
+            fontFamily: Mulish600,
+            fontSize: 16,
+            marginTop: 4,
+            marginBottom: 8,
+          }}
+        >
+          {"Select Pickup Time"}
+        </Text>
+        {pickupTimeOptions.length > 0 ? (
+          <View style={styles.pickupTimeGrid}>
+            {pickupTimeOptions.map((timeOption) => {
+              const isSelected = pickupTime === timeOption;
+              return (
+                <TouchableOpacity
+                  key={timeOption}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.pickupTimeOption,
+                    isSelected && styles.pickupTimeOptionActive,
+                  ]}
+                  onPress={() => setPickupTime(timeOption)}
+                >
+                  <Text
+                    style={[
+                      styles.pickupTimeOptionText,
+                      isSelected && styles.pickupTimeOptionTextActive,
+                    ]}
+                  >
+                    {moment(timeOption, "HH:mm").format("hh:mm A")}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: Mulish500,
+              color: AppColor.text,
+            }}
+          >
+            {"No remaining pickup times for this availability."}
+          </Text>
+        )}
       </View>
     );
   };
@@ -1258,7 +1285,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                         size={18}
                         containerColor="#E5E5EA"
                         style={{ margin: 0 }}
-                        onPress={() => actionSheetRef.current?.show()}
+                        onPress={handlePickupTimePress}
                       />
                     </View>
                     {selectedLocation ? (
@@ -1315,7 +1342,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                         {"Pickup Time:"}
                       </Text>
                       <IconButton
-                        icon="plus"
+                        icon={pickupTime ? "pencil" : "plus"}
                         size={18}
                         containerColor="#E5E5EA"
                         style={{ margin: 0 }}
@@ -1332,7 +1359,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                       >
                         {moment(pickupTime, "HH:mm").format("hh:mm A")}
                       </Text>
-                    ) : !selectedLocation || !selectedAvailability ? (
+                    ) : !selectedLocation ||
+                      !selectedAvailability ||
+                      !pickupTime ? (
                       <Text
                         style={{
                           fontSize: 14,
@@ -1340,18 +1369,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                           color: AppColor.text,
                         }}
                       >
-                        {"* Select location and availability first"}
-                      </Text>
-                    ) : null}
-                    {!pickupTime && selectedLocation && selectedAvailability ? (
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish500,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {"* Please enter pickup time"}
+                        {
+                          "* Select location, availability, and pickup time together"
+                        }
                       </Text>
                     ) : null}
                   </View>
@@ -1579,6 +1599,8 @@ const CheckoutScreen = ({ navigation, route }) => {
                       </TouchableOpacity>
                       {selectedLocation?._id === loc._id &&
                         renderAvailability()}
+                      {selectedLocation?._id === loc._id &&
+                        renderPreorderTimePicker()}
                     </View>
                   ))}
                 </View>
@@ -1594,17 +1616,6 @@ const CheckoutScreen = ({ navigation, route }) => {
           </ActionSheet>
         </>
       )}
-
-      {/* Time Picker Modal */}
-      {Platform.OS === "ios" ? (
-        <DateTimePickerModal
-          isVisible={isTimePickerVisible}
-          mode="time"
-          onConfirm={handleConfirmTime}
-          onCancel={hideTimePicker}
-          date={getPickerDateForSelectedSlot()}
-        />
-      ) : null}
     </View>
   );
 };
@@ -1948,6 +1959,32 @@ const styles = StyleSheet.create({
     borderLeftColor: AppColor.primary,
     paddingLeft: 16,
     marginBottom: 10,
+  },
+  pickupTimeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pickupTimeOption: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 88,
+    alignItems: "center",
+  },
+  pickupTimeOptionActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: AppColor.primary,
+  },
+  pickupTimeOptionText: {
+    color: AppColor.text,
+    fontFamily: Mulish600,
+    fontSize: 14,
+  },
+  pickupTimeOptionTextActive: {
+    color: AppColor.white,
   },
   cancelBtn: {
     borderColor: AppColor.primary,
