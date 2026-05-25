@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.rounddacorner.dev.customer",
-      "versionCode": 20
+      "versionCode": 21
     },
     "extra": {
       "eas": {
