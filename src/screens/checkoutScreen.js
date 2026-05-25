@@ -17,11 +17,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import moment from "moment";
-import {
-  Divider,
-  ActivityIndicator,
-  IconButton,
-} from "react-native-paper";
+import { Divider, ActivityIndicator, IconButton } from "react-native-paper";
 import ActionSheet from "react-native-actions-sheet";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
@@ -58,6 +54,7 @@ import {
 import { foodTypeStrings } from "../utils/constants";
 
 const BUILT_IN_DELIVERY_FEE = 6.49;
+const CUSTOMER_PROCESSING_FEE_RATE = 3.5;
 
 const calculateTaxAmountFromRate = (amount, rate) => {
   const taxableAmount = Math.max(0, Number(amount) || 0);
@@ -98,17 +95,6 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const subtotal = useMemo(() => order.subtotal, [order.subtotal]);
   const debouncedSubtotal = useDebounce(subtotal, 1000);
-  const processingFeeRate = useMemo(
-    () => taxData?.paymentProcessingFee || 0,
-    [taxData]
-  );
-  const salesTaxAmount = useMemo(() => {
-    if (taxData?.salesTaxAmount != null) {
-      return Number(taxData.salesTaxAmount) || 0;
-    }
-
-    return calculateTaxAmountFromRate(taxableAmount, taxData?.salesTax);
-  }, [taxData, taxableAmount]);
   const isDelivery = pickupSource === "delivery";
   const fulfillmentType = isDelivery ? "DELIVERY" : "PICKUP";
   const isPreOrder = pickupSource === "pre_order";
@@ -117,11 +103,11 @@ const CheckoutScreen = ({ navigation, route }) => {
     order.items.length === 0 || loading || orderNowUnavailable;
   const deliveryFee = useMemo(
     () => (isDelivery ? BUILT_IN_DELIVERY_FEE : 0),
-    [isDelivery]
+    [isDelivery],
   );
   const normalizedDriverTip = useMemo(
     () => (isDelivery ? Math.max(0, Number(driverTip) || 0) : 0),
-    [driverTip, isDelivery]
+    [driverTip, isDelivery],
   );
   const discount = useMemo(() => {
     if (!coupon) return 0;
@@ -138,21 +124,43 @@ const CheckoutScreen = ({ navigation, route }) => {
 
   const taxableAmount = useMemo(
     () => Math.max(0, debouncedSubtotal - discount),
-    [debouncedSubtotal, discount]
+    [debouncedSubtotal, discount],
   );
 
+  const processingFeeRate = useMemo(
+    () => Number(taxData?.paymentProcessingFee ?? CUSTOMER_PROCESSING_FEE_RATE),
+    [taxData],
+  );
+  const processingFeeAmount = useMemo(
+    () => (taxableAmount + deliveryFee) * (processingFeeRate / 100),
+    [taxableAmount, deliveryFee, processingFeeRate],
+  );
+  const salesTaxAmount = useMemo(() => {
+    if (taxData?.salesTaxAmount != null) {
+      return Number(taxData.salesTaxAmount) || 0;
+    }
+
+    return calculateTaxAmountFromRate(
+      taxableAmount + deliveryFee + processingFeeAmount,
+      taxData?.salesTax,
+    );
+  }, [taxData, taxableAmount, deliveryFee, processingFeeAmount]);
   const totalWithTax = useMemo(
-    () => taxableAmount + deliveryFee + salesTaxAmount + normalizedDriverTip,
-    [taxableAmount, deliveryFee, salesTaxAmount, normalizedDriverTip]
+    () =>
+      taxableAmount +
+      deliveryFee +
+      processingFeeAmount +
+      salesTaxAmount +
+      normalizedDriverTip,
+    [
+      taxableAmount,
+      deliveryFee,
+      processingFeeAmount,
+      salesTaxAmount,
+      normalizedDriverTip,
+    ],
   );
-  const prosessingFeeAmount = useMemo(
-    () => totalWithTax * (processingFeeRate / 100),
-    [totalWithTax, processingFeeRate]
-  );
-  const totalAfterProsessingFee = useMemo(
-    () => totalWithTax + prosessingFeeAmount,
-    [totalWithTax, prosessingFeeAmount]
-  );
+  const finalTotal = useMemo(() => totalWithTax, [totalWithTax]);
 
   useEffect(() => {
     if (!isDelivery && driverTip !== 0) {
@@ -160,11 +168,23 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   }, [driverTip, isDelivery]);
 
+  const buildTaxParams = ({ locationId, amount }) => ({
+    foodTruck_id: foodTruckId,
+    location_id: locationId,
+    amount,
+    deliveryFee,
+    serviceFee: processingFeeAmount,
+    fulfillmentType,
+    deliveryAddress: isDelivery ? defaultLocation?.address : null,
+    deliveryLat: isDelivery ? defaultLocation?.lat : null,
+    deliveryLong: isDelivery ? defaultLocation?.long : null,
+  });
+
   const showTimePicker = () => {
     if (!selectedLocation || !selectedAvailability) {
       Alert.alert(
         "Availability required",
-        "Please select a pre-order location and availability before choosing pickup time."
+        "Please select a pre-order location and availability before choosing pickup time.",
       );
       return;
     }
@@ -204,7 +224,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (selectedAvailability?.date && selectedAvailability?.startTime) {
       return moment(
         `${moment(selectedAvailability.date).format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
-        "YYYY-MM-DD HH:mm"
+        "YYYY-MM-DD HH:mm",
       ).toDate();
     }
 
@@ -217,7 +237,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (item.quantity >= effectiveMaxQty) {
       Alert.alert(
         "Quantity Limit Reached",
-        `You can only add a maximum of ${effectiveMaxQty} of this item.`
+        `You can only add a maximum of ${effectiveMaxQty} of this item.`,
       );
       return;
     }
@@ -228,7 +248,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         foodTruckName: order.foodTruckName,
         foodTruckLogo: order.foodTruckLogo,
         item: { ...item },
-      })
+      }),
     );
   };
 
@@ -263,7 +283,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       if (!pickupTime) {
         Alert.alert(
           "Pickup Time Required",
-          "Please enter a pickup time for your pre-order."
+          "Please enter a pickup time for your pre-order.",
         );
         return;
       }
@@ -271,25 +291,22 @@ const CheckoutScreen = ({ navigation, route }) => {
       const selectedDate = moment(selectedAvailability.date);
       const selectedDateTime = moment(
         `${selectedDate.format("YYYY-MM-DD")} ${pickupTime}`,
-        "YYYY-MM-DD HH:mm"
+        "YYYY-MM-DD HH:mm",
       );
       const availabilityStartTime = moment(
         `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
-        "YYYY-MM-DD HH:mm"
+        "YYYY-MM-DD HH:mm",
       );
       const availabilityEndTime = moment(
         `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.endTime}`,
-        "YYYY-MM-DD HH:mm"
+        "YYYY-MM-DD HH:mm",
       );
 
       // Check if the selected time is not in the past for today's availability
-      if (
-        selectedDate.isSame(now, "day") &&
-        selectedDateTime.isBefore(now)
-      ) {
+      if (selectedDate.isSame(now, "day") && selectedDateTime.isBefore(now)) {
         Alert.alert(
           "Invalid Pickup Time",
-          `Pickup time cannot be in the past for today's availability. Please select a time between ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} and ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`
+          `Pickup time cannot be in the past for today's availability. Please select a time between ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} and ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`,
         );
         return;
       }
@@ -301,7 +318,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       ) {
         Alert.alert(
           "Invalid Pickup Time",
-          `Pickup time must be within the selected availability range: ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`
+          `Pickup time must be within the selected availability range: ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`,
         );
         return;
       }
@@ -309,7 +326,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       if (!truckCurrentLocation) {
         Alert.alert(
           "Can not place order.",
-          "Vendor is not available at the moment. Please try again later or select pre-order."
+          "Vendor is not available at the moment. Please try again later or select pre-order.",
         );
         return;
       }
@@ -318,7 +335,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (isDelivery && !defaultLocation?.address) {
       Alert.alert(
         "Delivery address required",
-        "Please add or select a delivery address before placing this order."
+        "Please add or select a delivery address before placing this order.",
       );
       return;
     }
@@ -332,9 +349,11 @@ const CheckoutScreen = ({ navigation, route }) => {
       deliveryFee,
       fulfillmentType,
       deliveryAddress: isDelivery ? defaultLocation?.address : null,
+      deliveryLat: isDelivery ? defaultLocation?.lat : null,
+      deliveryLong: isDelivery ? defaultLocation?.long : null,
       tip: normalizedDriverTip,
       tips: normalizedDriverTip,
-      totalOrderCost: totalAfterProsessingFee,
+      totalOrderCost: finalTotal,
       items: order.items.map((item) => {
         const itemPayload = {
           menuItemId: item._id,
@@ -348,13 +367,13 @@ const CheckoutScreen = ({ navigation, route }) => {
           itemPayload.customization = item.customizationInput;
         }
 
-	        if (item.hasFlavors && item.selectedFlavors?.length > 0) {
-	          itemPayload.selectedFlavors = item.selectedFlavors;
-	        }
+        if (item.hasFlavors && item.selectedFlavors?.length > 0) {
+          itemPayload.selectedFlavors = item.selectedFlavors;
+        }
 
-		        if (item.hasToppings && item.selectedToppings?.length > 0) {
-		          itemPayload.selectedToppings = item.selectedToppings;
-		        }
+        if (item.hasToppings && item.selectedToppings?.length > 0) {
+          itemPayload.selectedToppings = item.selectedToppings;
+        }
 
         if (item.selectedDiscountFlavors?.length > 0) {
           itemPayload.selectedDiscountFlavors = item.selectedDiscountFlavors;
@@ -412,8 +431,8 @@ const CheckoutScreen = ({ navigation, route }) => {
           //   discountAmount: discount,
           //   totalWithTaxAmount: totalWithTax,
           //   paymentProcessingFeePercent: processingFeeRate,
-          //   paymentProcessingFeeAmount: prosessingFeeAmount,
-          //   finalAmount: totalAfterProsessingFee,
+          //   paymentProcessingFeeAmount: processingFeeAmount,
+          //   finalAmount: finalTotal,
           //   freeDessert: dessert?.isEligibleNow || false,
           // },
         };
@@ -425,7 +444,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         showSnackbar({
           message: error.message,
           type: "error",
-        })
+        }),
       );
     } finally {
       setLoading(false);
@@ -472,7 +491,7 @@ const CheckoutScreen = ({ navigation, route }) => {
 
     const rewardItems = getRewardItemsDisplay(
       item,
-      item.quantity ?? item.qty ?? 0
+      item.quantity ?? item.qty ?? 0,
     );
     const hasRewardNested = rewardItems.length > 0;
     const primaryDisplayTotal = hasRewardNested
@@ -500,16 +519,16 @@ const CheckoutScreen = ({ navigation, route }) => {
             <Text style={styles.itemPrice}>
               {`$${parseFloat(primaryDisplayTotal || 0).toFixed(2)} `}
             </Text>
-	            {item.selectedFlavors?.length > 0 ? (
-	              <Text style={styles.itemDesc} numberOfLines={2}>
-	                {`Flavors: ${item.selectedFlavors.join(", ")}`}
-	              </Text>
-	            ) : null}
-	            {item.selectedToppings?.length > 0 ? (
-	              <Text style={styles.itemDesc} numberOfLines={2}>
-	                {`Toppings: ${item.selectedToppings.join(", ")}`}
-		              </Text>
-		            ) : null}
+            {item.selectedFlavors?.length > 0 ? (
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {`Flavors: ${item.selectedFlavors.join(", ")}`}
+              </Text>
+            ) : null}
+            {item.selectedToppings?.length > 0 ? (
+              <Text style={styles.itemDesc} numberOfLines={2}>
+                {`Toppings: ${item.selectedToppings.join(", ")}`}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.qtyBox}>
             <TouchableOpacity
@@ -660,7 +679,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (!selectedLocation || !foodTruckDetail?.availability) return null;
 
     const locationAvailability = foodTruckDetail.availability.filter(
-      (slot) => slot.locationId === selectedLocation._id && slot.available
+      (slot) => slot.locationId === selectedLocation._id && slot.available,
     );
 
     if (locationAvailability.length === 0) {
@@ -820,7 +839,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       if (response_1?.success && response_1?.data) {
         const updatedItems = updateOrderItems(
           order.items,
-          response_1?.data?.menuList
+          response_1?.data?.menuList,
         );
         dispatch(updateAllItemsOfOrder(updatedItems));
       }
@@ -835,17 +854,18 @@ const CheckoutScreen = ({ navigation, route }) => {
         const current_location = response_2?.data?.foodtruck.currentLocation
           ? response_2?.data?.foodtruck?.locations.find(
               (location) =>
-                location._id === response_2?.data?.foodtruck.currentLocation
+                location._id === response_2?.data?.foodtruck.currentLocation,
             )
           : null;
         setTruckCurrentLocation(current_location);
 
         // Fetch TAX for location
-        const response_3 = await checkTax_API({
-          foodTruck_id: foodTruckId,
-          location_id: response_2?.data?.foodtruck.currentLocation,
-          amount: taxableAmount,
-        });
+        const response_3 = await checkTax_API(
+          buildTaxParams({
+            locationId: response_2?.data?.foodtruck.currentLocation,
+            amount: taxableAmount,
+          }),
+        );
         console.log("response_3 => ", response_3);
         if (response_3?.success && response_3?.data) {
           setTaxData(response_3?.data);
@@ -874,11 +894,12 @@ const CheckoutScreen = ({ navigation, route }) => {
 
       if (!locationId) return;
 
-      const response = await checkTax_API({
-        foodTruck_id: foodTruckId,
-        location_id: locationId,
-        amount: typeof amount === "number" ? amount : subtotal,
-      });
+      const response = await checkTax_API(
+        buildTaxParams({
+          locationId,
+          amount: typeof amount === "number" ? amount : subtotal,
+        }),
+      );
       console.log("response => ", response);
       if (response?.success && response?.data) {
         setTaxData(response?.data);
@@ -894,7 +915,15 @@ const CheckoutScreen = ({ navigation, route }) => {
     if (debouncedSubtotal > 0) {
       getTaxInfoFromAPI(taxableAmount);
     }
-  }, [taxableAmount]);
+  }, [
+    taxableAmount,
+    fulfillmentType,
+    deliveryFee,
+    processingFeeAmount,
+    defaultLocation?.address,
+    defaultLocation?.lat,
+    defaultLocation?.long,
+  ]);
 
   useEffect(() => {
     if (isFocused) {
@@ -1350,6 +1379,14 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </View>
                   ) : null}
                   <View style={styles.totalRow}>
+                    <Text style={styles.totalRowItemTxt}>
+                      Payment Processing Fee ({processingFeeRate}%)
+                    </Text>
+                    <Text style={styles.totalRowItemTxt}>
+                      ${processingFeeAmount.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>Sales Tax</Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${salesTaxAmount.toFixed(2)}
@@ -1368,14 +1405,6 @@ const CheckoutScreen = ({ navigation, route }) => {
                     <Text style={styles.totalRowItemTxt}>Total</Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${totalWithTax.toFixed(2)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalRowItemTxt}>
-                      Payment Processing Fee ({processingFeeRate}%)
-                    </Text>
-                    <Text style={styles.totalRowItemTxt}>
-                      ${prosessingFeeAmount.toFixed(2)}
                     </Text>
                   </View>
                   {dessert?.isEligibleNow && (
@@ -1400,12 +1429,14 @@ const CheckoutScreen = ({ navigation, route }) => {
             {isDelivery ? (
               <View>
                 <Text style={styles.sectionTitle}>{"Driver Tip"}</Text>
-                <View style={[styles.screenGenericCard, { paddingVertical: 15 }]}>
+                <View
+                  style={[styles.screenGenericCard, { paddingVertical: 15 }]}
+                >
                   <Text style={styles.tipHelperText}>
                     Optional tip for the delivery driver.
                   </Text>
                   <TipSelector
-                    preTipTotal={taxableAmount + deliveryFee + salesTaxAmount}
+                    preTipTotal={taxableAmount}
                     onTipChange={setDriverTip}
                   />
                 </View>
@@ -1424,9 +1455,7 @@ const CheckoutScreen = ({ navigation, route }) => {
           >
             <View style={styles.totalRow}>
               <Text style={styles.totalText}>{"Total Amount"}</Text>
-              <Text style={styles.totalText}>
-                ${totalAfterProsessingFee.toFixed(2)}
-              </Text>
+              <Text style={styles.totalText}>${finalTotal.toFixed(2)}</Text>
             </View>
 
             <TouchableOpacity
@@ -1497,7 +1526,6 @@ const CheckoutScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </ActionSheet>
-
         </>
       )}
 

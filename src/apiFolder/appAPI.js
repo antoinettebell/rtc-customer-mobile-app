@@ -32,6 +32,7 @@ import {
   GET_REVIEW_BY_FOODTRUCK_ID,
   GET_RECENT_FOODTRUCK,
   GET_ALL_BANNER,
+  TRACK_BANNER_EVENT,
   CHECK_ITEMS,
   GET_TAX_OF_LOCATION,
   REMOVE_ACCOUNT,
@@ -534,6 +535,16 @@ export const getAllBanner_API = async () => {
   }
 };
 
+export const trackBannerEvent_API = async ({ banner_id, event_type }) => {
+  try {
+    const URL = TRACK_BANNER_EVENT(banner_id, event_type);
+    const response = await apiClient.post(URL, {}, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 // Check menu items
 export const checkItems_API = async (payload) => {
   try {
@@ -548,11 +559,20 @@ export const checkItems_API = async (payload) => {
 // Check location tax
 export const checkTax_API = async (params = {}) => {
   try {
-    const URL = GET_TAX_OF_LOCATION(
-      params?.foodTruck_id,
-      params?.location_id,
-      params?.amount
-    );
+    const query = {
+      foodTruckId: params?.foodTruck_id,
+      locationId: params?.location_id,
+      amount: params?.amount,
+    };
+
+    if (params?.deliveryFee != null) query.deliveryFee = params.deliveryFee;
+    if (params?.serviceFee != null) query.serviceFee = params.serviceFee;
+    if (params?.fulfillmentType) query.fulfillmentType = params.fulfillmentType;
+    if (params?.deliveryAddress) query.deliveryAddress = params.deliveryAddress;
+    if (params?.deliveryLat != null) query.deliveryLat = params.deliveryLat;
+    if (params?.deliveryLong != null) query.deliveryLong = params.deliveryLong;
+
+    const URL = GET_TAX_OF_LOCATION(query);
     const response = await apiClient.get(URL, { skipToken: false });
     return response?.data;
   } catch (error) {

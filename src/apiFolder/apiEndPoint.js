@@ -71,8 +71,19 @@ export const GET_ALL_COUPON_CODES = "/public/coupon";
 export const VALIDATE_COUPON_CODE = "/public/coupon-validate";
 
 // Tax
-export const GET_TAX_OF_LOCATION = (foodTruck_id, location_id, amount) =>
-  `/public/avalaratax-rates-check?foodTruckId=${foodTruck_id}&locationId=${location_id}&amount=${amount}`;
+export const GET_TAX_OF_LOCATION = (params = {}) => {
+  const query = Object.entries(params)
+    .filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    )
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+    )
+    .join("&");
+
+  return `/public/avalaratax-rates-check?${query}`;
+};
 
 // Notification
 export const SET_FCM_TOKEN = "/user/set-fcm-token";
@@ -93,3 +104,5 @@ export const GET_REVIEW_STATS_BY_FOODTRUCK_ID = (foodTruck_id) =>
 
 // Banner (advertisement)
 export const GET_ALL_BANNER = "/public/banner";
+export const TRACK_BANNER_EVENT = (banner_id, event_type) =>
+  `/public/banner/${banner_id}/${event_type}`;

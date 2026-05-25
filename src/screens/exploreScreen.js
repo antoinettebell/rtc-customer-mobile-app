@@ -10,6 +10,7 @@ import {
   Dimensions,
   Pressable,
   Alert,
+  Linking,
 } from "react-native";
 import { Searchbar, RadioButton, IconButton } from "react-native-paper";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -35,6 +36,7 @@ import {
   updateFcmToken_API,
   getRecentFoodTrucks_API,
   getAllBanner_API,
+  trackBannerEvent_API,
 } from "../apiFolder/appAPI";
 import { useDispatch, useSelector } from "react-redux";
 import { clearFavorites, fetchFavorites } from "../redux/slices/favoritesSlice";
@@ -76,11 +78,12 @@ const ExploreScreen = (props) => {
   const [featuredFoodTrucks, setFeaturedFoodTrucks] = useState([]);
   const [featuredTruckLoading, setFeaturedTruckLoading] = useState(false);
   const [bannerList, setBannerList] = useState([]);
+  const trackedImpressionsRef = useRef(new Set());
   const [isLocationModalVisible, setLocationModalVisible] = useState(false);
   const [initialLocationsFetched, setInitialLocationsFetched] = useState(false);
 
   const { allLocations, defaultLocation } = useSelector(
-    (state) => state.locationReducer
+    (state) => state.locationReducer,
   );
   const { isSignedIn } = useSelector((state) => state.authReducer);
   const OrderReducerStates = useSelector((state) => state.orderReducer);
@@ -146,11 +149,11 @@ const ExploreScreen = (props) => {
             ],
             {
               cancelable: false,
-            }
+            },
           );
         }
       }
-    }, [OrderReducerStates?.currentOrder?.lastUpdate])
+    }, [OrderReducerStates?.currentOrder?.lastUpdate]),
   );
 
   const HEADER_MAX_HEIGHT = insets.top + 60 + 170;
@@ -251,10 +254,52 @@ const ExploreScreen = (props) => {
     try {
       const response = await getAllBanner_API();
       if (response?.success && response?.data) {
-        setBannerList(response.data.bannerList);
+        const activeBanners = response.data.bannerList || [];
+        setBannerList(activeBanners);
+        activeBanners.forEach((banner) => {
+          if (!banner?._id || trackedImpressionsRef.current.has(banner._id)) {
+            return;
+          }
+          trackedImpressionsRef.current.add(banner._id);
+          trackBannerEvent_API({
+            banner_id: banner._id,
+            event_type: "impression",
+          }).catch(() => {});
+        });
       }
     } catch (error) {
       console.error("Error fetching banner:", error);
+    }
+  };
+
+  const sanitizeBannerUrl = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw || /[\u0000-\u001F\u007F\s]/.test(raw)) {
+      return null;
+    }
+
+    try {
+      const parsed = new URL(raw);
+      return parsed.protocol === "https:" ? parsed.toString() : null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const handleBannerPress = async (item) => {
+    const destinationUrl = sanitizeBannerUrl(item?.adDestinationUrl);
+    if (!destinationUrl) {
+      return;
+    }
+
+    trackBannerEvent_API({
+      banner_id: item._id,
+      event_type: "click",
+    }).catch(() => {});
+
+    const canOpen = await Linking.canOpenURL(destinationUrl);
+    if (canOpen) {
+      Linking.openURL(destinationUrl);
     }
   };
 
@@ -277,7 +322,7 @@ const ExploreScreen = (props) => {
       defaultLocation,
       allLocations,
       initialLocationsFetched,
-    ])
+    ]),
   );
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -291,7 +336,7 @@ const ExploreScreen = (props) => {
       scrollY.value,
       [0, SCROLL_DISTANCE],
       [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT + SEARCH_BAR_TOP],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -304,7 +349,7 @@ const ExploreScreen = (props) => {
       scrollY.value,
       [0, SCROLL_DISTANCE * 0.7],
       [1, 0],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -317,7 +362,7 @@ const ExploreScreen = (props) => {
       scrollY.value,
       [0, SCROLL_DISTANCE],
       [0, -SCROLL_DISTANCE + SEARCH_BAR_TOP],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -330,14 +375,14 @@ const ExploreScreen = (props) => {
       scrollY.value,
       [0, SCROLL_DISTANCE],
       [1, 0.5],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     const opacity = interpolate(
       scrollY.value,
       [0, SCROLL_DISTANCE * 0.7],
       [1, 0],
-      Extrapolate.CLAMP
+      Extrapolate.CLAMP,
     );
 
     return {
@@ -376,12 +421,28 @@ const ExploreScreen = (props) => {
   );
 
   const renderBanner = ({ item }) => {
-    return (
+    const destinationUrl = sanitizeBannerUrl(item?.adDestinationUrl);
+
+    const image = (
       <AppImage
         key={item._id}
         uri={item.imageUrl}
         containerStyle={{ width: "100%", height: "100%", borderRadius: 5 }}
       />
+    );
+
+    if (!destinationUrl) {
+      return <View style={{ width: "100%", height: "100%" }}>{image}</View>;
+    }
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => handleBannerPress(item)}
+        style={{ width: "100%", height: "100%" }}
+      >
+        {image}
+      </TouchableOpacity>
     );
   };
 
@@ -518,16 +579,14 @@ const ExploreScreen = (props) => {
                 marginBottom: 10,
               }}
             >
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: Mulish700,
-                  fontSize: 18,
-                  color: AppColor.black,
-                }}
-              >
-                {"Recent Trucks"}
-              </Text>
+              <View style={styles.sectionTitleBlock}>
+                <Text numberOfLines={1} style={styles.sectionTitleText}>
+                  {"Recent Trucks"}
+                </Text>
+                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
+                  {"Food trucks you've recently viewed."}
+                </Text>
+              </View>
 
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -583,16 +642,14 @@ const ExploreScreen = (props) => {
                 marginBottom: 10,
               }}
             >
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: Mulish700,
-                  fontSize: 18,
-                  color: AppColor.black,
-                }}
-              >
-                {"Popular Nearby Food Trucks"}
-              </Text>
+              <View style={styles.sectionTitleBlock}>
+                <Text numberOfLines={1} style={styles.sectionTitleText}>
+                  {"Popular Nearby Food Trucks"}
+                </Text>
+                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
+                  {"Popular trucks 5-7 miles away. Pickup only."}
+                </Text>
+              </View>
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() =>
@@ -678,16 +735,14 @@ const ExploreScreen = (props) => {
                 marginBottom: 10,
               }}
             >
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: Mulish700,
-                  fontSize: 18,
-                  color: AppColor.black,
-                }}
-              >
-                {"Nearby Food Trucks"}
-              </Text>
+              <View style={styles.sectionTitleBlock}>
+                <Text numberOfLines={1} style={styles.sectionTitleText}>
+                  {"Nearby Food Trucks"}
+                </Text>
+                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
+                  {"Delivery available within 5 miles of your location."}
+                </Text>
+              </View>
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() =>
@@ -775,16 +830,14 @@ const ExploreScreen = (props) => {
                 marginBottom: 10,
               }}
             >
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: Mulish700,
-                  fontSize: 18,
-                  color: AppColor.black,
-                }}
-              >
-                {"Featured Food Trucks"}
-              </Text>
+              <View style={styles.sectionTitleBlock}>
+                <Text numberOfLines={1} style={styles.sectionTitleText}>
+                  {"Featured Food Trucks"}
+                </Text>
+                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
+                  {"Featured picks near you. Delivery shown when available."}
+                </Text>
+              </View>
 
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -1031,7 +1084,7 @@ const ExploreScreen = (props) => {
                     },
                   },
                 ],
-                { cancelable: false }
+                { cancelable: false },
               );
             }}
           />
@@ -1216,6 +1269,22 @@ const styles = StyleSheet.create({
   },
   scrollViewContaier: {
     backgroundColor: AppColor.white,
+  },
+  sectionTitleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  sectionTitleText: {
+    fontFamily: Mulish700,
+    fontSize: 18,
+    color: AppColor.black,
+  },
+  sectionSubtitleText: {
+    marginTop: 3,
+    fontFamily: Mulish400,
+    fontSize: 12,
+    lineHeight: 16,
+    color: AppColor.text,
   },
   guestPromptContainer: {
     position: "absolute",

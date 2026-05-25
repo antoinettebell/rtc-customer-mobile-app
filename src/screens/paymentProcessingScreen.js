@@ -185,7 +185,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 ]
               : []),
             {
-              label: "Processing Fee",
+              label: "Payment Processing Fee",
               amount: {
                 currency: "USD",
                 value: toAmount(validatedDetail?.paymentProcessingFee),
@@ -211,7 +211,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               ? APPLE_PAY_METHOD_DATA
               : ANDROID_PAY_METHOD_DATA,
           ],
-          DISPLAY_DATA
+          DISPLAY_DATA,
         );
 
         const isPaymentPossible = await paymentRequest.canMakePayment();
@@ -317,7 +317,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           showSnackbar({
             message: getErrorMessage(
               error,
-              "Payment failed. Please try with different payment method."
+              "Payment failed. Please try with different payment method.",
             ),
             type: "error",
           });
@@ -353,7 +353,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
       setTimeout(() => {
         setDataLoading(false);
       }, 1000);
-    }, [])
+    }, []),
   );
 
   const summaryData = [
@@ -382,7 +382,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
         ]
       : []),
     {
-      label: "Processing Fee",
+      label: "Payment Processing Fee",
       value: `$${toAmount(validatedDetail?.paymentProcessingFee)}`,
     },
   ];
@@ -543,7 +543,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
 
               {Platform.OS === "android" &&
                 onlinePyamentApplicablePlanList.includes(
-                  foodTruckDetail?.plan?.slug
+                  foodTruckDetail?.plan?.slug,
                 ) && (
                   <TouchableOpacity
                     onPress={() =>
@@ -568,7 +568,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
 
               {Platform.OS === "ios" &&
                 onlinePyamentApplicablePlanList.includes(
-                  foodTruckDetail?.plan?.slug
+                  foodTruckDetail?.plan?.slug,
                 ) && (
                   <TouchableOpacity
                     onPress={() => handlePayment({ paymentMethod: "applePay" })}
