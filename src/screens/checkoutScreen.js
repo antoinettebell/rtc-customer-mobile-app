@@ -64,11 +64,27 @@ const calculateTaxAmountFromRate = (amount, rate) => {
   return Number((taxableAmount * normalizedRate).toFixed(2));
 };
 
+const toTaxKeyAmount = (value) => Number((Number(value) || 0).toFixed(2));
+
+const getTaxCacheKey = (params = {}) =>
+  JSON.stringify({
+    fulfillmentType: params.fulfillmentType || "PICKUP",
+    locationId: params.location_id || "",
+    amount: toTaxKeyAmount(params.amount),
+    deliveryFee: toTaxKeyAmount(params.deliveryFee),
+    serviceFee: toTaxKeyAmount(params.serviceFee),
+    deliveryAddress: params.deliveryAddress || "",
+    deliveryLat: params.deliveryLat ?? "",
+    deliveryLong: params.deliveryLong ?? "",
+  });
+
 const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const isFocused = useIsFocused();
   const actionSheetRef = useRef(null);
+  const taxDataCacheRef = useRef({});
+  const activeTaxKeyRef = useRef(null);
 
   const order = useSelector((state) => state.orderReducer.currentOrder);
   const { defaultLocation } = useSelector((state) => state.locationReducer);
@@ -179,6 +195,41 @@ const CheckoutScreen = ({ navigation, route }) => {
     deliveryLat: isDelivery ? defaultLocation?.lat : null,
     deliveryLong: isDelivery ? defaultLocation?.long : null,
   });
+  const currentTaxLocationId = useMemo(
+    () =>
+      pickupSource === "pre_order"
+        ? selectedLocation?._id
+        : truckCurrentLocation?._id,
+    [pickupSource, selectedLocation?._id, truckCurrentLocation?._id],
+  );
+  const currentTaxKey = useMemo(() => {
+    if (!currentTaxLocationId || taxableAmount <= 0) {
+      return null;
+    }
+
+    return getTaxCacheKey(
+      buildTaxParams({
+        locationId: currentTaxLocationId,
+        amount: taxableAmount,
+      }),
+    );
+  }, [
+    currentTaxLocationId,
+    taxableAmount,
+    deliveryFee,
+    processingFeeAmount,
+    fulfillmentType,
+    defaultLocation?.address,
+    defaultLocation?.lat,
+    defaultLocation?.long,
+  ]);
+
+  useEffect(() => {
+    activeTaxKeyRef.current = currentTaxKey;
+    setTaxData(
+      currentTaxKey ? taxDataCacheRef.current[currentTaxKey] || null : null,
+    );
+  }, [currentTaxKey]);
 
   const showTimePicker = () => {
     if (!selectedLocation || !selectedAvailability) {
@@ -860,15 +911,18 @@ const CheckoutScreen = ({ navigation, route }) => {
         setTruckCurrentLocation(current_location);
 
         // Fetch TAX for location
-        const response_3 = await checkTax_API(
-          buildTaxParams({
-            locationId: response_2?.data?.foodtruck.currentLocation,
-            amount: taxableAmount,
-          }),
-        );
+        const initialTaxParams = buildTaxParams({
+          locationId: response_2?.data?.foodtruck.currentLocation,
+          amount: taxableAmount,
+        });
+        const initialTaxKey = getTaxCacheKey(initialTaxParams);
+        const response_3 = await checkTax_API(initialTaxParams);
         console.log("response_3 => ", response_3);
         if (response_3?.success && response_3?.data) {
-          setTaxData(response_3?.data);
+          taxDataCacheRef.current[initialTaxKey] = response_3?.data;
+          if (activeTaxKeyRef.current === initialTaxKey) {
+            setTaxData(response_3?.data);
+          }
         }
       }
 
@@ -887,22 +941,22 @@ const CheckoutScreen = ({ navigation, route }) => {
   const getTaxInfoFromAPI = async (amount) => {
     setDataLoading(true);
     try {
-      const locationId =
-        pickupSource === "pre_order"
-          ? selectedLocation?._id
-          : truckCurrentLocation?._id;
+      const locationId = currentTaxLocationId;
 
       if (!locationId) return;
 
-      const response = await checkTax_API(
-        buildTaxParams({
-          locationId,
-          amount: typeof amount === "number" ? amount : subtotal,
-        }),
-      );
+      const taxParams = buildTaxParams({
+        locationId,
+        amount: typeof amount === "number" ? amount : taxableAmount,
+      });
+      const requestTaxKey = getTaxCacheKey(taxParams);
+      const response = await checkTax_API(taxParams);
       console.log("response => ", response);
       if (response?.success && response?.data) {
-        setTaxData(response?.data);
+        taxDataCacheRef.current[requestTaxKey] = response?.data;
+        if (activeTaxKeyRef.current === requestTaxKey) {
+          setTaxData(response?.data);
+        }
       }
     } catch (error) {
       console.log("error => ", error);
@@ -912,18 +966,10 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    if (debouncedSubtotal > 0) {
+    if (debouncedSubtotal > 0 && currentTaxKey) {
       getTaxInfoFromAPI(taxableAmount);
     }
-  }, [
-    taxableAmount,
-    fulfillmentType,
-    deliveryFee,
-    processingFeeAmount,
-    defaultLocation?.address,
-    defaultLocation?.lat,
-    defaultLocation?.long,
-  ]);
+  }, [currentTaxKey]);
 
   useEffect(() => {
     if (isFocused) {
