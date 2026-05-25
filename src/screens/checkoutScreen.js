@@ -257,6 +257,15 @@ const CheckoutScreen = ({ navigation, route }) => {
     setTimePickerVisibility(true);
   };
 
+  const handlePickupTimePress = () => {
+    if (!selectedLocation || !selectedAvailability) {
+      actionSheetRef.current?.show();
+      return;
+    }
+
+    showTimePicker();
+  };
+
   const hideTimePicker = () => {
     setTimePickerVisibility(false);
   };
@@ -1287,12 +1296,14 @@ const CheckoutScreen = ({ navigation, route }) => {
                   </View>
                   <Divider />
                   <View>
-                    <View
+                    <TouchableOpacity
+                      activeOpacity={0.7}
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
                         justifyContent: "space-between",
                       }}
+                      onPress={handlePickupTimePress}
                     >
                       <Text
                         style={{
@@ -1308,10 +1319,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                         size={18}
                         containerColor="#E5E5EA"
                         style={{ margin: 0 }}
-                        onPress={showTimePicker}
-                        disabled={!selectedLocation || !selectedAvailability}
+                        onPress={handlePickupTimePress}
                       />
-                    </View>
+                    </TouchableOpacity>
                     {pickupTime ? (
                       <Text
                         style={{
@@ -1321,6 +1331,16 @@ const CheckoutScreen = ({ navigation, route }) => {
                         }}
                       >
                         {moment(pickupTime, "HH:mm").format("hh:mm A")}
+                      </Text>
+                    ) : !selectedLocation || !selectedAvailability ? (
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontFamily: Mulish500,
+                          color: AppColor.text,
+                        }}
+                      >
+                        {"* Select location and availability first"}
                       </Text>
                     ) : null}
                     {!pickupTime && selectedLocation && selectedAvailability ? (
