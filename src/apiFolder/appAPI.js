@@ -45,6 +45,15 @@ import {
   CHECK_FREE_DESERT_ELIGIBILITY,
   VALIDATE_ORDER,
   PAYMENT_CHECKOUT,
+  MARKETPLACE_EVENTS,
+  MARKETPLACE_MY_EVENTS,
+  MARKETPLACE_EVENT_BY_ID,
+  MARKETPLACE_EVENT_IMAGES,
+  MARKETPLACE_EVENT_BIDS,
+  MARKETPLACE_AWARD_BIDS,
+  MARKETPLACE_PAYMENT_BY_ID,
+  MARKETPLACE_PAYMENT_CHECKOUT,
+  MARKETPLACE_PAYMENT_CALL,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -656,6 +665,114 @@ export const updateDietRestrictList_API = async (payload) => {
     console.log("Payload => ", payload);
     const URL = `${UPDATE_DIET_RESTRICT_LIST}`;
     const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+// Marketplace - Customer/Event Coordinator
+export const createMarketplaceEvent_API = async (payload) => {
+  try {
+    const response = await apiClient.post(MARKETPLACE_EVENTS, payload, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getMarketplaceMyEvents_API = async () => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_MY_EVENTS, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getMarketplaceEventById_API = async (eventId) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_EVENT_BY_ID(eventId), {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getMarketplaceEventBids_API = async (eventId) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_EVENT_BIDS(eventId), {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const uploadMarketplaceEventImage_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_IMAGES(eventId),
+      payload,
+      { formData: true, skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const awardMarketplaceBids_API = async ({ eventId, bidIds }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_AWARD_BIDS(eventId),
+      { bid_ids: bidIds },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getMarketplacePaymentById_API = async (paymentId) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_PAYMENT_BY_ID(paymentId), {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const checkoutMarketplacePayment_API = async ({ paymentId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_PAYMENT_CHECKOUT(paymentId),
+      payload,
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const callMarketplacePayment_API = async (paymentId) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_PAYMENT_CALL(paymentId),
+      {},
+      { skipToken: false }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

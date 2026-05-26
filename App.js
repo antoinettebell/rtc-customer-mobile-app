@@ -62,6 +62,11 @@ import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
+import MarketplaceMyEventsScreen from "./src/screens/marketplaceMyEventsScreen";
+import MarketplaceCreateEventScreen from "./src/screens/marketplaceCreateEventScreen";
+import MarketplaceEventDetailsScreen from "./src/screens/marketplaceEventDetailsScreen";
+import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
+import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
 import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
@@ -257,6 +262,26 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen
       name="paymentProcessingScreen"
       component={PaymentProcessingScreen}
+    />
+    <Stack.Screen
+      name="marketplaceMyEventsScreen"
+      component={MarketplaceMyEventsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceCreateEventScreen"
+      component={MarketplaceCreateEventScreen}
+    />
+    <Stack.Screen
+      name="marketplaceEventDetailsScreen"
+      component={MarketplaceEventDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceAwardBidsScreen"
+      component={MarketplaceAwardBidsScreen}
+    />
+    <Stack.Screen
+      name="marketplacePaymentScreen"
+      component={MarketplacePaymentScreen}
     />
   </Stack.Navigator>
 );

@@ -106,3 +106,21 @@ export const GET_REVIEW_STATS_BY_FOODTRUCK_ID = (foodTruck_id) =>
 export const GET_ALL_BANNER = "/public/banner";
 export const TRACK_BANNER_EVENT = (banner_id, event_type) =>
   `/public/banner/${banner_id}/${event_type}`;
+
+// Marketplace
+export const MARKETPLACE_EVENTS = "/marketplace/events";
+export const MARKETPLACE_MY_EVENTS = "/marketplace/events/my";
+export const MARKETPLACE_EVENT_BY_ID = (event_id) =>
+  `/marketplace/events/${event_id}`;
+export const MARKETPLACE_EVENT_IMAGES = (event_id) =>
+  `/marketplace/events/${event_id}/images`;
+export const MARKETPLACE_EVENT_BIDS = (event_id) =>
+  `/marketplace/events/${event_id}/bids`;
+export const MARKETPLACE_AWARD_BIDS = (event_id) =>
+  `/marketplace/events/${event_id}/award`;
+export const MARKETPLACE_PAYMENT_BY_ID = (payment_id) =>
+  `/marketplace/payments/${payment_id}`;
+export const MARKETPLACE_PAYMENT_CHECKOUT = (payment_id) =>
+  `/marketplace/payments/${payment_id}/checkout`;
+export const MARKETPLACE_PAYMENT_CALL = (payment_id) =>
+  `/marketplace/payments/${payment_id}/call`;
