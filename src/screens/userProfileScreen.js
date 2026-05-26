@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
+  Alert,
+  TextInput,
 } from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -67,6 +69,18 @@ const UserProfileScreen = ({ navigation }) => {
   const [firstNameError, setFirstNameError] = useState("");
   const [lastNameError, setLastNameError] = useState("");
   const [contactError, setContactError] = useState("");
+  const [isEventCoordinator, setIsEventCoordinator] = useState(
+    !!user?.isEventCoordinator
+  );
+  const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
+    useState(user?.eventCoordinatorCompanyName || "");
+  const [eventCoordinatorCompanyAddress, setEventCoordinatorCompanyAddress] =
+    useState(user?.eventCoordinatorCompanyAddress || "");
+  const [eventCoordinatorEin, setEventCoordinatorEin] = useState(
+    user?.eventCoordinatorEin || ""
+  );
+  const [coordinatorLoading, setCoordinatorLoading] = useState(false);
+  const [coordinatorError, setCoordinatorError] = useState("");
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -81,6 +95,12 @@ const UserProfileScreen = ({ navigation }) => {
       setMobileNumber(user.mobileNumber || "");
       setTempFirstName(user.firstName || "");
       setTempLastName(user.lastName || "");
+      setIsEventCoordinator(!!user.isEventCoordinator);
+      setEventCoordinatorCompanyName(user.eventCoordinatorCompanyName || "");
+      setEventCoordinatorCompanyAddress(
+        user.eventCoordinatorCompanyAddress || ""
+      );
+      setEventCoordinatorEin(user.eventCoordinatorEin || "");
     }
   }, [user]);
 
@@ -103,6 +123,64 @@ const UserProfileScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.log("error => ", error);
+    }
+  };
+
+  const promptEnableEventCoordinator = () => {
+    Alert.alert(
+      "Add Event Coordination?",
+      "Would you like to add event coordination? If Yes, please get your company name and EIN ready for input.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Yes", onPress: () => setIsEventCoordinator(true) },
+      ]
+    );
+  };
+
+  const saveCoordinatorProfile = async () => {
+    if (isEventCoordinator) {
+      if (!eventCoordinatorCompanyName.trim()) {
+        setCoordinatorError("Company name is required");
+        return;
+      }
+      if (!eventCoordinatorEin.trim()) {
+        setCoordinatorError("Company EIN is required");
+        return;
+      }
+    }
+
+    setCoordinatorError("");
+    setCoordinatorLoading(true);
+    try {
+      const response = await updateUserDetail_API({
+        user_id: user._id,
+        payload: {
+          isEventCoordinator,
+          eventCoordinatorCompanyName: eventCoordinatorCompanyName.trim(),
+          eventCoordinatorCompanyAddress:
+            eventCoordinatorCompanyAddress.trim(),
+          eventCoordinatorEin: eventCoordinatorEin.trim(),
+        },
+      });
+
+      if (response?.success) {
+        setSnackbar({
+          visible: true,
+          message: isEventCoordinator
+            ? "Event coordination profile updated"
+            : "Event coordination removed from your profile",
+          type: "success",
+        });
+        await fetchUserDataFromAPI();
+      }
+    } catch (error) {
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Failed to update event coordination",
+        type: "error",
+      });
+    } finally {
+      setCoordinatorLoading(false);
     }
   };
 
@@ -513,6 +591,83 @@ const UserProfileScreen = ({ navigation }) => {
 
           <View style={styles.divider} />
 
+          <View style={styles.infoRow}>
+            <View style={styles.infoLabelContainer}>
+              <Ionicons
+                name="briefcase-outline"
+                size={20}
+                color={AppColor.primary}
+              />
+              <Text style={styles.infoLabel}>Event Coordinator</Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.coordinatorToggle}
+              onPress={() =>
+                isEventCoordinator
+                  ? setIsEventCoordinator(false)
+                  : promptEnableEventCoordinator()
+              }
+            >
+              <Ionicons
+                name={isEventCoordinator ? "checkbox" : "square-outline"}
+                size={24}
+                color={AppColor.primary}
+              />
+              <Text style={styles.coordinatorToggleText}>
+                {isEventCoordinator ? "Enabled" : "Disabled"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isEventCoordinator ? (
+            <View style={styles.coordinatorBox}>
+              <Text style={styles.coordinatorHelpText}>
+                Company name and EIN are required for event coordination access.
+              </Text>
+              <TextInput
+                value={eventCoordinatorCompanyName}
+                onChangeText={setEventCoordinatorCompanyName}
+                placeholder="Company Name *"
+                placeholderTextColor={AppColor.placeholderTextColor}
+                style={styles.coordinatorInput}
+              />
+              <TextInput
+                value={eventCoordinatorCompanyAddress}
+                onChangeText={setEventCoordinatorCompanyAddress}
+                placeholder="Company Address"
+                placeholderTextColor={AppColor.placeholderTextColor}
+                style={styles.coordinatorInput}
+              />
+              <TextInput
+                value={eventCoordinatorEin}
+                onChangeText={setEventCoordinatorEin}
+                placeholder="Company EIN *"
+                placeholderTextColor={AppColor.placeholderTextColor}
+                style={styles.coordinatorInput}
+              />
+            </View>
+          ) : null}
+
+          {coordinatorError ? (
+            <Text style={styles.errorText}>{coordinatorError}</Text>
+          ) : null}
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.coordinatorSaveButton}
+            disabled={coordinatorLoading}
+            onPress={saveCoordinatorProfile}
+          >
+            {coordinatorLoading ? (
+              <ActivityIndicator size="small" color={AppColor.white} />
+            ) : (
+              <Text style={styles.coordinatorSaveText}>Save Event Coordination</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           {/* Member Since */}
           <View style={styles.infoRow}>
             <View style={styles.infoLabelContainer}>
@@ -745,6 +900,52 @@ const styles = StyleSheet.create({
   },
   unverifiedText: {
     color: AppColor.snackbarError,
+  },
+  coordinatorToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  coordinatorToggleText: {
+    fontSize: 14,
+    fontFamily: Mulish600,
+    color: AppColor.primary,
+  },
+  coordinatorBox: {
+    gap: 10,
+    paddingVertical: 10,
+  },
+  coordinatorHelpText: {
+    fontSize: 13,
+    fontFamily: Mulish400,
+    color: AppColor.subText,
+  },
+  coordinatorInput: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Mulish400,
+    color: AppColor.text,
+  },
+  coordinatorSaveButton: {
+    backgroundColor: AppColor.primary,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    marginVertical: 12,
+  },
+  coordinatorSaveText: {
+    color: AppColor.white,
+    fontFamily: Mulish700,
+    fontSize: 14,
+  },
+  errorText: {
+    color: AppColor.snackbarError,
+    fontFamily: Mulish400,
+    fontSize: 13,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

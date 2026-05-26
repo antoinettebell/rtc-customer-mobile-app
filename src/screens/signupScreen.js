@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import {
   TextInput,
@@ -64,6 +65,12 @@ const SignupScreen = ({ navigation }) => {
   const [agreed, setAgreed] = useState(true);
   const [offGrid, setOffGrid] = useState(true);
   const [smsAgreed, setSmsAgreed] = useState(false);
+  const [isEventCoordinator, setIsEventCoordinator] = useState(false);
+  const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
+    useState("");
+  const [eventCoordinatorCompanyAddress, setEventCoordinatorCompanyAddress] =
+    useState("");
+  const [eventCoordinatorEin, setEventCoordinatorEin] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -79,6 +86,8 @@ const SignupScreen = ({ navigation }) => {
     password: "",
     mobileNumber: "",
     smsAgreed: "",
+    eventCoordinatorCompanyName: "",
+    eventCoordinatorEin: "",
   });
 
   const togglePasswordVisibility = () => {
@@ -96,6 +105,10 @@ const SignupScreen = ({ navigation }) => {
     setMobileNumber("");
     setAgreed(false);
     setSmsAgreed(false);
+    setIsEventCoordinator(false);
+    setEventCoordinatorCompanyName("");
+    setEventCoordinatorCompanyAddress("");
+    setEventCoordinatorEin("");
     setErrors({
       fname: "",
       lname: "",
@@ -103,6 +116,8 @@ const SignupScreen = ({ navigation }) => {
       password: "",
       mobileNumber: "",
       smsAgreed: "",
+      eventCoordinatorCompanyName: "",
+      eventCoordinatorEin: "",
     });
   };
 
@@ -140,10 +155,34 @@ const SignupScreen = ({ navigation }) => {
       password: validatePassword(password),
       mobileNumber: validateMobileNumber(mobileNumber),
       smsAgreed: !smsAgreed ? "You must agree to receive SMS" : "",
+      eventCoordinatorCompanyName:
+        isEventCoordinator && !eventCoordinatorCompanyName.trim()
+          ? "Company name is required"
+          : "",
+      eventCoordinatorEin:
+        isEventCoordinator && !eventCoordinatorEin.trim()
+          ? "Company EIN is required"
+          : "",
     };
 
     setErrors(newErrors);
     return Object.values(newErrors).every((error) => error === "");
+  };
+
+  const handleEventCoordinatorToggle = () => {
+    if (isEventCoordinator) {
+      setIsEventCoordinator(false);
+      return;
+    }
+
+    Alert.alert(
+      "Add Event Coordination?",
+      "Would you like to add event coordination? If Yes, please get your company name and EIN ready for input.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Yes", onPress: () => setIsEventCoordinator(true) },
+      ]
+    );
   };
 
   const handleSignUp = async () => {
@@ -170,6 +209,18 @@ const SignupScreen = ({ navigation }) => {
       formData.append("countryCode", countryCode);
       formData.append("mobileNumber", mobileNumber);
       formData.append("subscribedForOffGrid", offGrid);
+      formData.append("isEventCoordinator", isEventCoordinator);
+      if (isEventCoordinator) {
+        formData.append(
+          "eventCoordinatorCompanyName",
+          eventCoordinatorCompanyName.trim()
+        );
+        formData.append(
+          "eventCoordinatorCompanyAddress",
+          eventCoordinatorCompanyAddress.trim()
+        );
+        formData.append("eventCoordinatorEin", eventCoordinatorEin.trim());
+      }
 
       if (selectedPhoto) {
         formData.append("file", {
@@ -703,6 +754,72 @@ const SignupScreen = ({ navigation }) => {
                 </Text>
               </View>
 
+              <View style={[styles.termsContainer, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleEventCoordinatorToggle}
+                  style={styles.iconBox}
+                >
+                  <Ionicons
+                    name={isEventCoordinator ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={AppColor.primary}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.termsText}>
+                  {"I would like to add event coordination to my profile."}
+                </Text>
+              </View>
+
+              {isEventCoordinator ? (
+                <View style={styles.eventCoordinatorBox}>
+                  <TextInput
+                    label="Company Name *"
+                    mode="outlined"
+                    value={eventCoordinatorCompanyName}
+                    onChangeText={setEventCoordinatorCompanyName}
+                    error={!!errors.eventCoordinatorCompanyName}
+                    style={styles.input}
+                  />
+                  {errors.eventCoordinatorCompanyName ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorCompanyName}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorCompanyName}
+                    </HelperText>
+                  ) : null}
+
+                  <TextInput
+                    label="Company Address"
+                    mode="outlined"
+                    value={eventCoordinatorCompanyAddress}
+                    onChangeText={setEventCoordinatorCompanyAddress}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    label="Company EIN *"
+                    mode="outlined"
+                    value={eventCoordinatorEin}
+                    onChangeText={setEventCoordinatorEin}
+                    error={!!errors.eventCoordinatorEin}
+                    style={styles.input}
+                  />
+                  {errors.eventCoordinatorEin ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorEin}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorEin}
+                    </HelperText>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* SMS Consent Checkbox */}
               <View style={[styles.termsContainer, { marginTop: 12 }]}>
                 <TouchableOpacity
@@ -943,6 +1060,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.text,
     fontFamily: Mulish400,
+  },
+  eventCoordinatorBox: {
+    gap: 10,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    backgroundColor: AppColor.white,
   },
   linkText: {
     color: AppColor.primary,

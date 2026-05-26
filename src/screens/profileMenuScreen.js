@@ -339,13 +339,17 @@ const ProfileMenuScreen = ({ navigation }) => {
               onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}
             />
             <HR />
-            <CustomProfileItem
-              imageUri={require("../assets/images/global.png")}
-              label="My Events"
-              rightIcon={true}
-              onPress={() => navigation.navigate("marketplaceMyEventsScreen")}
-            />
-            <HR />
+            {user?.isEventCoordinator ? (
+              <>
+                <CustomProfileItem
+                  imageUri={require("../assets/images/global.png")}
+                  label="My Events"
+                  rightIcon={true}
+                  onPress={() => navigation.navigate("marketplaceMyEventsScreen")}
+                />
+                <HR />
+              </>
+            ) : null}
             <CustomProfileItem
               imageUri={require("../assets/images/diet.png")}
               label="Diet Restriction"
