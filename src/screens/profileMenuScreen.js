@@ -339,6 +339,13 @@ const ProfileMenuScreen = ({ navigation }) => {
               onPress={() => navigation.navigate("favoriteFoodTrucksScreen")}
             />
             <HR />
+            <CustomProfileItem
+              imageUri={require("../assets/images/global.png")}
+              label="Marketplace / Near Me"
+              rightIcon={true}
+              onPress={() => navigation.navigate("nearMeScreen")}
+            />
+            <HR />
             {user?.isEventCoordinator ? (
               <>
                 <CustomProfileItem
@@ -346,6 +353,17 @@ const ProfileMenuScreen = ({ navigation }) => {
                   label="My Events"
                   rightIcon={true}
                   onPress={() => navigation.navigate("marketplaceMyEventsScreen")}
+                />
+                <HR />
+                <CustomProfileItem
+                  imageUri={require("../assets/images/global.png")}
+                  label="Awarded Bids"
+                  rightIcon={true}
+                  onPress={() =>
+                    navigation.navigate("marketplaceMyEventsScreen", {
+                      statusFilter: "AWARDED",
+                    })
+                  }
                 />
                 <HR />
               </>

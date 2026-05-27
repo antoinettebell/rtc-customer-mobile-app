@@ -28,7 +28,7 @@ const getVendorName = (bid) => {
   return [vendor?.firstName, vendor?.lastName].filter(Boolean).join(" ") || "Vendor";
 };
 
-const MarketplaceAwardBidsScreen = ({ route }) => {
+const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { eventId } = route.params || {};
   const [event, setEvent] = useState(null);
@@ -86,7 +86,7 @@ const MarketplaceAwardBidsScreen = ({ route }) => {
       if (prev.length >= Number(event?.number_of_vendors_needed || 0)) {
         setSnackbar({
           visible: true,
-          message: `You can only award ${event?.number_of_vendors_needed || 0} vendor(s).`,
+          message: `You can only award up to ${event?.number_of_vendors_needed || 0} vendor(s) for this event.`,
         });
         return prev;
       }
@@ -98,6 +98,13 @@ const MarketplaceAwardBidsScreen = ({ route }) => {
   const handleAward = () => {
     if (!selectedBidIds.length) {
       setSnackbar({ visible: true, message: "Select at least one bid." });
+      return;
+    }
+    if (selectedBidIds.length > Number(event?.number_of_vendors_needed || 0)) {
+      setSnackbar({
+        visible: true,
+        message: `You can only award up to ${event?.number_of_vendors_needed || 0} vendor(s) for this event.`,
+      });
       return;
     }
 

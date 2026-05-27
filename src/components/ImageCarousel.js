@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { AppColor } from "../utils/theme";
 import FastImage from "@d11/react-native-fast-image";
@@ -17,6 +23,7 @@ const ImageCarousel = ({
   imageStyle = {},
   dotStyle,
   dotActiveStyle,
+  onImagePress,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -30,23 +37,36 @@ const ImageCarousel = ({
         data={images}
         scrollAnimationDuration={500}
         onSnapToItem={setActiveIndex}
-        renderItem={({ item }) => (
-          <AppImage
-            uri={item}
-            priority={FastImage.priority.high}
-            cache={FastImage.cacheControl.immutable}
-            resizeMode={imageResizeMode}
-            containerStyle={{
-              width: "100%",
-              height: "100%",
-              ...imageContainer,
-            }}
-            imageStyle={{
-              ...styles.image,
-              ...imageStyle,
-            }}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const content = (
+            <AppImage
+              uri={item}
+              priority={FastImage.priority.high}
+              cache={FastImage.cacheControl.immutable}
+              resizeMode={imageResizeMode}
+              containerStyle={{
+                width: "100%",
+                height: "100%",
+                ...imageContainer,
+              }}
+              imageStyle={{
+                ...styles.image,
+                ...imageStyle,
+              }}
+            />
+          );
+
+          if (!onImagePress) return content;
+
+          return (
+            <Pressable
+              style={{ width: "100%", height: "100%" }}
+              onPress={() => onImagePress(item, index)}
+            >
+              {content}
+            </Pressable>
+          );
+        }}
         panGestureHandlerProps={{ activeOffsetX: [-10, 10] }}
         loop={false}
       />

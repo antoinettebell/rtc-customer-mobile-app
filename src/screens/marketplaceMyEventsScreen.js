@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   RefreshControl,
   Text,
   TouchableOpacity,
@@ -16,11 +17,15 @@ import { AppColor } from "../utils/theme";
 import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
 import { formatDate, formatMoney, styles } from "./marketplaceShared";
 
-const MarketplaceMyEventsScreen = ({ navigation }) => {
+const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const statusFilter = route?.params?.statusFilter;
+  const visibleEvents = statusFilter
+    ? events.filter((event) => event.status === statusFilter)
+    : events;
 
   const loadEvents = async () => {
     setLoading(true);
@@ -47,6 +52,100 @@ const MarketplaceMyEventsScreen = ({ navigation }) => {
     await loadEvents();
     setRefreshing(false);
   };
+
+  const getVendorName = (bid) => {
+    const foodTruck = bid?.food_truck_id;
+    const vendor = bid?.vendor_user_id;
+    if (foodTruck?.name) return foodTruck.name;
+    return [vendor?.firstName, vendor?.lastName].filter(Boolean).join(" ") || "Vendor";
+  };
+
+  const openDocument = async (url) => {
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.log("Open marketplace document error", error);
+    }
+  };
+
+  const getBidDocuments = (bid) => [
+    ...(bid?.menu_pdf_url ? [{ label: "Menu PDF", url: bid.menu_pdf_url }] : []),
+    ...(bid?.agreement_document_url
+      ? [{ label: "Agreement Document", url: bid.agreement_document_url }]
+      : []),
+    ...(bid?.signed_document_url
+      ? [{ label: "Signed Document", url: bid.signed_document_url }]
+      : []),
+    ...(bid?.attachments || [])
+      .filter((attachment) => attachment.file_url || attachment.url)
+      .map((attachment, index) => ({
+        label: attachment.original_name || attachment.attachment_type || `Document ${index + 1}`,
+        url: attachment.file_url || attachment.url,
+      })),
+  ];
+
+  const renderAwardedBid = (bid) => {
+    const documents = getBidDocuments(bid);
+    return (
+      <View key={bid.bid_id} style={{ marginTop: 12 }}>
+        <Text style={styles.label}>{getVendorName(bid)}</Text>
+        <Text style={styles.meta}>Awarded Amount: {formatMoney(bid.full_bid_amount)}</Text>
+        <Text style={styles.meta}>Vendor Payment: {bid.payment_status || "NOT_REQUIRED"}</Text>
+        <Text style={styles.meta}>
+          Agreement / Signing: {bid.agreement_status || "NOT_REQUIRED"}
+        </Text>
+        {documents.length ? (
+          <View style={{ marginTop: 6 }}>
+            {documents.map((document) => (
+              <TouchableOpacity
+                key={`${bid.bid_id}-${document.label}-${document.url}`}
+                activeOpacity={0.7}
+                onPress={() => openDocument(document.url)}
+              >
+                <Text style={styles.secondaryButtonText}>{document.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.meta}>Documents: Not available</Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderAwardedEvent = ({ item }) => (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      style={styles.card}
+      onPress={() =>
+        navigation.navigate("marketplaceEventDetailsScreen", {
+          eventId: item.event_id,
+        })
+      }
+    >
+      <Text style={styles.title}>{item.event_name}</Text>
+      <Text style={styles.meta}>
+        {formatDate(item.event_date)}{item.event_time ? ` - ${item.event_time}` : ""}
+      </Text>
+      <Text style={styles.meta}>
+        {[item.event_address, item.event_city, item.event_state]
+          .filter(Boolean)
+          .join(", ")}
+      </Text>
+      <Text style={styles.meta}>
+        Booking Payment: {item.award_payment_status || "NOT_REQUIRED"}
+      </Text>
+      <Text style={styles.meta}>
+        Event Agreement / Signing: {item.agreement_status || "NOT_REQUIRED"}
+      </Text>
+      {(item.awarded_bids || []).length ? (
+        item.awarded_bids.map(renderAwardedBid)
+      ) : (
+        <Text style={styles.meta}>Awarded vendors: Not available</Text>
+      )}
+    </TouchableOpacity>
+  );
 
   const renderEvent = ({ item }) => (
     <TouchableOpacity
@@ -81,14 +180,19 @@ const MarketplaceMyEventsScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="My Events" rightSide={true}>
-        <TouchableOpacity
-          hitSlop={10}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
-        >
-          <AntDesign name="plussquareo" size={22} color={AppColor.primary} />
-        </TouchableOpacity>
+      <AppHeader
+        headerTitle={statusFilter === "AWARDED" ? "Awarded Bids" : "My Events"}
+        rightSide={!statusFilter}
+      >
+        {!statusFilter ? (
+          <TouchableOpacity
+            hitSlop={10}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
+          >
+            <AntDesign name="plussquareo" size={22} color={AppColor.primary} />
+          </TouchableOpacity>
+        ) : null}
       </AppHeader>
       {loading && !refreshing ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -96,9 +200,9 @@ const MarketplaceMyEventsScreen = ({ navigation }) => {
         </View>
       ) : (
         <FlatList
-          data={events}
+          data={visibleEvents}
           keyExtractor={(item) => item.event_id}
-          renderItem={renderEvent}
+          renderItem={statusFilter === "AWARDED" ? renderAwardedEvent : renderEvent}
           contentContainerStyle={styles.body}
           refreshControl={
             <RefreshControl
@@ -110,18 +214,22 @@ const MarketplaceMyEventsScreen = ({ navigation }) => {
           ListEmptyComponent={
             <View style={styles.card}>
               <Text style={[styles.title, { textAlign: "center" }]}>
-                No events yet
+                {statusFilter === "AWARDED" ? "No awarded bids yet" : "No events yet"}
               </Text>
               <Text style={styles.emptyText}>
-                Create an event to begin receiving bids from food vendors.
+                {statusFilter === "AWARDED"
+                  ? "Award vendors from one of your events to see them here."
+                  : "Create an event to begin receiving bids from food vendors."}
               </Text>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.button, { marginTop: 18 }]}
-                onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
-              >
-                <Text style={styles.buttonText}>Create Event</Text>
-              </TouchableOpacity>
+              {!statusFilter ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[styles.button, { marginTop: 18 }]}
+                  onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
+                >
+                  <Text style={styles.buttonText}>Create Event</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           }
         />

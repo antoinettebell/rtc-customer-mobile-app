@@ -123,6 +123,53 @@ export const styles = StyleSheet.create({
     color: AppColor.text,
     backgroundColor: AppColor.white,
   },
+  placesWrapper: {
+    marginTop: 0,
+    zIndex: 10,
+  },
+  placesContainer: {
+    flex: 0,
+  },
+  placesTextInputContainer: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  placesTextInput: {
+    minHeight: 46,
+    height: 46,
+    margin: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+    backgroundColor: AppColor.white,
+    borderRadius: 8,
+  },
+  placesListView: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    marginTop: 4,
+    backgroundColor: AppColor.white,
+    zIndex: 20,
+    elevation: 4,
+  },
+  placesRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  placesDescription: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.text,
+  },
+  placesSeparator: {
+    height: 1,
+    backgroundColor: AppColor.borderColor,
+  },
   textarea: {
     minHeight: 92,
     textAlignVertical: "top",

@@ -28,6 +28,7 @@ export const REMOVE_FAVORITE_FOODTRUCK = "/user/favorite/food-truck";
 // HomeScreen
 export const GET_NEARBY_FOODTRUCK = "/public/food-truck-filter";
 export const GET_NEARBY_FOODTRUCK_NEW = "/public/food-truck-filter-new";
+export const GET_NEAR_ME = "/public/near-me";
 export const GET_RECENT_FOODTRUCK = "/public/food-truck";
 export const GLOBAL_SEARCH = "/public/global-search";
 
@@ -112,6 +113,10 @@ export const MARKETPLACE_EVENTS = "/marketplace/events";
 export const MARKETPLACE_MY_EVENTS = "/marketplace/events/my";
 export const MARKETPLACE_EVENT_BY_ID = (event_id) =>
   `/marketplace/events/${event_id}`;
+export const PUBLIC_MARKETPLACE_EVENT_BY_ID = (event_id) =>
+  `/public/marketplace/events/${event_id}`;
+export const PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK = (event_id) =>
+  `/public/marketplace/events/${event_id}/ticket-click`;
 export const MARKETPLACE_EVENT_IMAGES = (event_id) =>
   `/marketplace/events/${event_id}/images`;
 export const MARKETPLACE_EVENT_BIDS = (event_id) =>

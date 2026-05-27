@@ -22,8 +22,7 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
-import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
-import { useFocusEffect } from "@react-navigation/native";
+import { getNearMeResults_API } from "../apiFolder/appAPI";
 import Carousel from "react-native-reanimated-carousel";
 import { useSharedValue } from "react-native-reanimated";
 import FastImage from "@d11/react-native-fast-image";
@@ -32,8 +31,15 @@ import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
 
-const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const { width, height } = Dimensions.get("window");
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "food", label: "Food" },
+  { key: "events", label: "Events" },
+  { key: "cuisine", label: "Cuisine" },
+  { key: "eventType", label: "Event Type" },
+  { key: "distance", label: "Distance" },
+];
 
 // Set up geolocation for navigator
 navigator.geolocation = require("@react-native-community/geolocation");
@@ -43,6 +49,23 @@ const initialRegion = {
   longitude: -122.4324,
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
+};
+
+const parseCoordinate = (value) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getItemLatitude = (item) =>
+  parseCoordinate(item?.latitude || item?.location?.lat);
+
+const getItemLongitude = (item) =>
+  parseCoordinate(item?.longitude || item?.location?.long || item?.location?.lng);
+
+const getResultTypeForFilter = (filter) => {
+  if (filter === "food" || filter === "cuisine") return "FOOD";
+  if (filter === "events" || filter === "eventType") return "EVENT";
+  return "ALL";
 };
 
 const NearMeScreen = ({ navigation }) => {
@@ -61,18 +84,21 @@ const NearMeScreen = ({ navigation }) => {
 
   // State management
   const [region, setRegion] = useState(initialRegion);
-  const [foodTrucks, setFoodTrucks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [filteredTrucks, setFilteredTrucks] = useState([]);
+  const [nearMeItems, setNearMeItems] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [tempSelectedLocation, setTempSelectedLocation] =
     useState(defaultLocation);
 
-  const fetchNearByFoodTrucks = async () => {
-    if (!defaultLocation) return; // Don't fetch if no location is set
+  const fetchNearMeResults = async () => {
+    if (!defaultLocation) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
 
@@ -89,26 +115,27 @@ const NearMeScreen = ({ navigation }) => {
         distanceInMeters: 32186.9, // 20 miles in meters
         userLat: defaultLocation?.lat || 0,
         userLong: defaultLocation?.long || 0,
+        search: debouncedQuery,
+        type: getResultTypeForFilter(selectedFilter),
       };
 
-      const response = await getNearbyFoodTrucks_API(params);
-      console.log("response => ", response);
-      if (response?.success && response?.data) {
-        const trucks = response?.data?.foodtruckList;
-        setFoodTrucks(trucks);
-        setFilteredTrucks(trucks);
+      const response = await getNearMeResults_API(params);
 
-        // Set first truck as selected by default
-        if (trucks.length > 0) {
+      if (response?.success && response?.data) {
+        const items = response.data.nearMeList || [];
+        setNearMeItems(items);
+        const firstMappableItem = items.find(
+          (item) => getItemLatitude(item) != null && getItemLongitude(item) != null
+        );
+        if (items.length > 0) {
           setSelectedIndex(0);
 
-          // Center map on first truck
           setTimeout(() => {
-            if (mapRef.current) {
+            if (mapRef.current && firstMappableItem) {
               mapRef.current.animateToRegion(
                 {
-                  latitude: parseFloat(trucks[0].location.lat),
-                  longitude: parseFloat(trucks[0].location.long),
+                  latitude: getItemLatitude(firstMappableItem),
+                  longitude: getItemLongitude(firstMappableItem),
                   latitudeDelta: region.latitudeDelta,
                   longitudeDelta: region.longitudeDelta,
                 },
@@ -122,9 +149,11 @@ const NearMeScreen = ({ navigation }) => {
             }
           }, 500);
         }
+      } else {
+        setNearMeItems([]);
       }
     } catch (error) {
-      console.error("Error fetching food trucks:", error);
+      console.error("Error fetching Near Me:", error);
     } finally {
       setIsLoading(false);
     }
@@ -143,11 +172,22 @@ const NearMeScreen = ({ navigation }) => {
   const handleMarkerPress = (truck) => {
     try {
       if (!truck) return;
+      if (truck.type === "EVENT") {
+        navigation.navigate("marketplaceEventDetailsScreen", {
+          eventId: truck.event_id || truck.id,
+          customerSafe: true,
+          returnScreen: "nearMeScreen",
+        });
+        return;
+      }
 
-      const index = filteredTrucks.findIndex((t) => t._id === truck._id);
+      const itemKey = truck.id || truck.event_id || truck.food_truck_id;
+      const index = nearMeItems.findIndex(
+        (item) => (item.id || item.event_id || item.food_truck_id) === itemKey
+      );
       if (index === -1) return;
 
-      setSelectedIndex(index); // This will trigger the useEffect
+      setSelectedIndex(index);
       scrollCarouselToIndex(index);
     } catch (error) {
       console.log("Error in handleMarkerPress:", error);
@@ -156,15 +196,55 @@ const NearMeScreen = ({ navigation }) => {
 
   const renderHorizontalTruckCard = useCallback(
     ({ item }) => {
+      if (item.type === "EVENT") {
+        return (
+          <Pressable
+            key={`event-${item.id}`}
+            style={styles.horizontalCard}
+            onPress={() =>
+              navigation.navigate("marketplaceEventDetailsScreen", {
+                eventId: item.event_id || item.id,
+                customerSafe: true,
+                returnScreen: "nearMeScreen",
+              })
+            }
+          >
+            <View style={styles.eventIconContainer}>
+              <Text style={styles.eventIconText}>🎪</Text>
+            </View>
+
+            <View style={styles.horizontalCardContent}>
+              <Text
+                style={[styles.horizontalCardName, { maxWidth: "86%" }]}
+                numberOfLines={1}
+              >
+                {item.title || item.name}
+              </Text>
+              <Text style={styles.horizontalDistanceText} numberOfLines={1}>
+                {item.address || item.location || "Location pending"}
+              </Text>
+              <Text style={styles.horizontalDistanceText} numberOfLines={1}>
+                {item.event_type || "Event"}
+                {item.event_time ? ` - ${item.event_time}` : ""}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      }
+
       return (
         <Pressable
-          key={item._id}
+          key={`food-${item.id}`}
           style={styles.horizontalCard}
-          onPress={() => navigation.navigate("foodTruckDetailScreen", { item })}
+          onPress={() =>
+            navigation.navigate("foodTruckDetailScreen", {
+              item: item.raw || item,
+            })
+          }
         >
           <View style={styles.cardImageContainer}>
             <AppImage
-              uri={item.logo}
+              uri={item.image_url}
               containerStyle={styles.horizontalCardImage}
             />
           </View>
@@ -182,10 +262,10 @@ const NearMeScreen = ({ navigation }) => {
                 style={[styles.horizontalCardName, { maxWidth: "70%" }]}
                 numberOfLines={1}
               >
-                {item.name}
+                {item.title || item.name}
               </Text>
               <Text style={styles.statusBadgeText}>
-                {`(${item?.currentLocation ? " Open " : " Closed "})`}
+                {`(${item?.raw?.currentLocation ? " Open " : " Closed "})`}
               </Text>
             </View>
             <View style={styles.horizontalCardDetails}>
@@ -193,18 +273,19 @@ const NearMeScreen = ({ navigation }) => {
                 <MaterialIcons name="star" size={16} color={AppColor.text} />
                 <Text
                   style={styles.horizontalRatingText}
-                >{`${item.avgRate} (${item.totalReviews} reviews)`}</Text>
+                >{`${item.raw?.avgRate || 0} (${item.raw?.totalReviews || 0} reviews)`}</Text>
               </View>
               <Text style={styles.horizontalDistanceText}>
-                {(item?.distanceInMeters * 0.000621371).toFixed(2) +
-                  " miles away" || "0 miles away"}
+                {item?.distanceInMeters != null
+                  ? `${(item.distanceInMeters * 0.000621371).toFixed(2)} miles away`
+                  : "Distance unavailable"}
               </Text>
             </View>
           </View>
         </Pressable>
       );
     },
-    [selectedIndex]
+    [navigation]
   );
 
   // Modify the Carousel component props to update selectedIndex
@@ -232,32 +313,18 @@ const NearMeScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (debouncedQuery.trim() === "") {
-      setFilteredTrucks(foodTrucks);
-    } else {
-      const query = debouncedQuery.toLowerCase();
-      const filtered = foodTrucks.filter((truck) => {
-        const nameMatch = truck.name.toLowerCase().includes(query);
-        const cuisineMatch = truck.cuisine?.some((cuisine) =>
-          cuisine.name.toLowerCase().includes(query)
-        );
-        return nameMatch || cuisineMatch;
-      });
-      setFilteredTrucks(filtered);
-    }
-  }, [debouncedQuery, foodTrucks]);
-
   // Add this effect to sync map with carousel changes
   useEffect(() => {
     const syncMapWithCarousel = () => {
-      if (selectedIndex >= 0 && filteredTrucks.length > 0) {
-        const truck = filteredTrucks[selectedIndex];
-        if (truck && mapRef.current) {
+      if (selectedIndex >= 0 && nearMeItems.length > 0) {
+        const item = nearMeItems[selectedIndex];
+        const itemLat = getItemLatitude(item);
+        const itemLong = getItemLongitude(item);
+        if (itemLat != null && itemLong != null && mapRef.current) {
           mapRef.current.animateToRegion(
             {
-              latitude: parseFloat(truck.location.lat),
-              longitude: parseFloat(truck.location.long),
+              latitude: itemLat,
+              longitude: itemLong,
               latitudeDelta: region.latitudeDelta,
               longitudeDelta: region.longitudeDelta,
             },
@@ -268,11 +335,11 @@ const NearMeScreen = ({ navigation }) => {
     };
 
     syncMapWithCarousel();
-  }, [selectedIndex, filteredTrucks]);
+  }, [selectedIndex, nearMeItems]);
 
   useEffect(() => {
-    fetchNearByFoodTrucks();
-  }, [defaultLocation]);
+    fetchNearMeResults();
+  }, [defaultLocation, debouncedQuery, selectedFilter]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (e) => {
@@ -315,6 +382,9 @@ const NearMeScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.heroTitle}>
+          Find amazing events 🎪 and food 🍽️ near you today!
+        </Text>
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={handleLocationTextPress}
@@ -370,6 +440,35 @@ const NearMeScreen = ({ navigation }) => {
         )}
       </View>
 
+      <View style={styles.filterRail}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={FILTERS}
+          keyExtractor={(item) => item.key}
+          contentContainerStyle={styles.filterContent}
+          renderItem={({ item }) => {
+            const active = selectedFilter === item.key;
+            return (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setSelectedFilter(item.key)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    active && styles.filterChipTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+
       {/* Map View */}
       <View style={styles.mapContainer}>
         <MapView
@@ -403,31 +502,49 @@ const NearMeScreen = ({ navigation }) => {
               longitude: parseFloat(defaultLocation?.long) || 0,
             }}
           />
-          {filteredTrucks.map((truck, index) => {
+          {nearMeItems.map((item) => {
+            const itemLat = getItemLatitude(item);
+            const itemLong = getItemLongitude(item);
+            if (itemLat == null || itemLong == null) return null;
+
+            if (item.type === "EVENT") {
+              return (
+                <Marker
+                  key={`event-marker-${item.id}`}
+                  coordinate={{ latitude: itemLat, longitude: itemLong }}
+                  onPress={() => handleMarkerPress(item)}
+                >
+                  <View style={styles.eventMarker}>
+                    <Text style={styles.eventMarkerText}>🎪</Text>
+                  </View>
+                </Marker>
+              );
+            }
+
             const isSameLocationAsUser =
-              parseFloat(truck.location.lat) ===
-                parseFloat(defaultLocation?.lat) &&
-              parseFloat(truck.location.long) ===
-                parseFloat(defaultLocation?.long);
+              itemLat === parseFloat(defaultLocation?.lat) &&
+              itemLong === parseFloat(defaultLocation?.long);
 
             const truckLongitude = isSameLocationAsUser
-              ? parseFloat(truck.location.long) + 0.00001 // Add a small offset to avoid marker flicker
-              : parseFloat(truck.location.long);
+              ? itemLong + 0.00001 // Add a small offset to avoid marker flicker
+              : itemLong;
 
             return (
               <Marker
-                key={truck._id}
+                key={`food-marker-${item.id}`}
                 coordinate={{
-                  latitude: parseFloat(truck.location.lat),
+                  latitude: itemLat,
                   longitude: truckLongitude,
                 }}
-                onPress={() => handleMarkerPress(truck)}
+                onPress={() => handleMarkerPress(item)}
               >
-                <MaterialIcons
-                  name="location-pin"
-                  size={40}
-                  color={AppColor.primary}
-                />
+                <View style={styles.foodMarker}>
+                  <MaterialIcons
+                    name="local-shipping"
+                    size={22}
+                    color={AppColor.white}
+                  />
+                </View>
               </Marker>
             );
           })}
@@ -435,7 +552,7 @@ const NearMeScreen = ({ navigation }) => {
       </View>
 
       {/* Horizontal Food Trucks List */}
-      {filteredTrucks.length > 0 && (
+      {nearMeItems.length > 0 && (
         <Animated.View
           style={[
             styles.horizontalListContainer,
@@ -452,7 +569,7 @@ const NearMeScreen = ({ navigation }) => {
               parallaxAdjacentItemScale: 0.62,
             }}
             width={width}
-            data={filteredTrucks}
+            data={nearMeItems}
             onProgressChange={progress}
             renderItem={renderHorizontalTruckCard}
             loop={false}
@@ -464,7 +581,7 @@ const NearMeScreen = ({ navigation }) => {
       )}
 
       {/* No Results Message */}
-      {filteredTrucks.length === 0 && searchQuery && !isLoading && (
+      {nearMeItems.length === 0 && (searchQuery || selectedFilter !== "all") && !isLoading && (
         <Animated.View
           style={[
             styles.noResultsContainer,
@@ -479,12 +596,15 @@ const NearMeScreen = ({ navigation }) => {
             color={AppColor.textPlaceholder}
           />
           <Text style={styles.noResultsText}>
-            No food trucks found matching your search
+            No nearby food or events found matching your filters
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.clearSearchButton}
-            onPress={() => handleSearch("")}
+            onPress={() => {
+              handleSearch("");
+              setSelectedFilter("all");
+            }}
           >
             <Text style={styles.clearSearchText}>Clear Search</Text>
           </TouchableOpacity>
@@ -611,6 +731,13 @@ const styles = StyleSheet.create({
     borderBottomColor: AppColor.border,
     backgroundColor: AppColor.white,
   },
+  heroTitle: {
+    fontFamily: Mulish700,
+    fontSize: 18,
+    lineHeight: 24,
+    color: AppColor.text,
+    marginBottom: 10,
+  },
   headerTitle: {
     fontFamily: Mulish700,
     fontSize: 20,
@@ -666,6 +793,34 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
+  filterRail: {
+    backgroundColor: AppColor.white,
+    paddingBottom: 10,
+  },
+  filterContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    backgroundColor: AppColor.white,
+  },
+  filterChipActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF4EA",
+  },
+  filterChipText: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.text,
+  },
+  filterChipTextActive: {
+    color: AppColor.primary,
+  },
   mapContainer: {
     flex: 1,
     // position: "relative",
@@ -682,6 +837,39 @@ const styles = StyleSheet.create({
   },
   selectedMarker: {
     transform: [{ scale: 2 }],
+  },
+  foodMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.primary,
+    borderWidth: 3,
+    borderColor: AppColor.white,
+    shadowColor: AppColor.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  eventMarker: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#7C3AED",
+    borderWidth: 3,
+    borderColor: AppColor.white,
+    shadowColor: AppColor.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  eventMarkerText: {
+    fontSize: 22,
   },
   myLocationButton: {
     position: "absolute",
@@ -955,6 +1143,21 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 2,
     borderColor: AppColor.border,
+  },
+  eventIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 12,
+    backgroundColor: "#F5F0FF",
+    borderWidth: 2,
+    borderColor: "#DDD6FE",
+  },
+  eventIconText: {
+    fontSize: 30,
   },
   statusBadge: {
     // position: "absolute",

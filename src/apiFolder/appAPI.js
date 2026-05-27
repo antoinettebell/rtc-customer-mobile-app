@@ -25,6 +25,7 @@ import {
   SET_FCM_TOKEN,
   UPDATE_FCM_TOKEN,
   REMOVE_FCM_TOKEN,
+  GET_NEAR_ME,
   GET_NEARBY_FOODTRUCK_NEW,
   ADD_REVIEW,
   UPDATE_REVIEW_BY_ID,
@@ -48,6 +49,8 @@ import {
   MARKETPLACE_EVENTS,
   MARKETPLACE_MY_EVENTS,
   MARKETPLACE_EVENT_BY_ID,
+  PUBLIC_MARKETPLACE_EVENT_BY_ID,
+  PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK,
   MARKETPLACE_EVENT_IMAGES,
   MARKETPLACE_EVENT_BIDS,
   MARKETPLACE_AWARD_BIDS,
@@ -291,6 +294,48 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
     }
     if (featured) {
       queryParams.push(`featured=${featured}`);
+    }
+
+    URL += `?${queryParams.join("&")}`;
+
+    const response = await apiClient.get(URL, {
+      skipToken: authToken ? false : true,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+// Get combined Near Me food and event results
+export const getNearMeResults_API = async (params = {}) => {
+  try {
+    const { authToken } = store.getState().userReducer;
+    const {
+      search = "",
+      page = 1,
+      limit = 50,
+      distanceInMeters,
+      userLat,
+      userLong,
+      type,
+    } = params;
+    let URL = `${GET_NEAR_ME}`;
+    const queryParams = [
+      `userLat=${encodeURIComponent(userLat)}`,
+      `userLong=${encodeURIComponent(userLong)}`,
+      `page=${page}`,
+      `limit=${limit}`,
+    ];
+
+    if (search?.trim()?.length > 0) {
+      queryParams.push(`search=${encodeURIComponent(search.trim())}`);
+    }
+    if (distanceInMeters) {
+      queryParams.push(`distanceInMeters=${distanceInMeters}`);
+    }
+    if (type) {
+      queryParams.push(`type=${encodeURIComponent(type)}`);
     }
 
     URL += `?${queryParams.join("&")}`;
@@ -699,6 +744,32 @@ export const getMarketplaceEventById_API = async (eventId) => {
     const response = await apiClient.get(MARKETPLACE_EVENT_BY_ID(eventId), {
       skipToken: false,
     });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getPublicMarketplaceEventById_API = async (eventId) => {
+  try {
+    const { authToken } = store.getState().userReducer;
+    const response = await apiClient.get(PUBLIC_MARKETPLACE_EVENT_BY_ID(eventId), {
+      skipToken: authToken ? false : true,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const trackPublicMarketplaceTicketClick_API = async (eventId) => {
+  try {
+    const { authToken } = store.getState().userReducer;
+    const response = await apiClient.post(
+      PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK(eventId),
+      {},
+      { skipToken: authToken ? false : true }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
