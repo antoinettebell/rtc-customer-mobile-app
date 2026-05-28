@@ -340,35 +340,6 @@ const ProfileMenuScreen = ({ navigation }) => {
             />
             <HR />
             <CustomProfileItem
-              imageUri={require("../assets/images/global.png")}
-              label="Marketplace / Near Me"
-              rightIcon={true}
-              onPress={() => navigation.navigate("nearMeScreen")}
-            />
-            <HR />
-            {user?.isEventCoordinator ? (
-              <>
-                <CustomProfileItem
-                  imageUri={require("../assets/images/global.png")}
-                  label="My Events"
-                  rightIcon={true}
-                  onPress={() => navigation.navigate("marketplaceMyEventsScreen")}
-                />
-                <HR />
-                <CustomProfileItem
-                  imageUri={require("../assets/images/global.png")}
-                  label="Awarded Bids"
-                  rightIcon={true}
-                  onPress={() =>
-                    navigation.navigate("marketplaceMyEventsScreen", {
-                      statusFilter: "AWARDED",
-                    })
-                  }
-                />
-                <HR />
-              </>
-            ) : null}
-            <CustomProfileItem
               imageUri={require("../assets/images/diet.png")}
               label="Diet Restriction"
               rightIcon={true}

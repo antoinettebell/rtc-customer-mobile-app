@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -122,6 +123,17 @@ const FOOD_TRUCK_OPTIONS = [
   "Desserts Only",
   "Desserts Only - Event Pays",
 ];
+const EVENT_TYPE_ICONS = {
+  Festival: "festival",
+  Wedding: "diamond",
+  Corporate: "business-center",
+  "Private Party": "celebration",
+  Fundraiser: "redeem",
+  Conference: "groups",
+  Market: "storefront",
+  Concert: "music-note",
+  Other: "more-horiz",
+};
 
 const getAddressPart = (components = [], type, field = "long_name") =>
   components.find((component) => component.types?.includes(type))?.[field] || "";
@@ -187,6 +199,63 @@ const resetServiceSpecificFields = () => ({
 });
 
 const localStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#F6F7F9",
+  },
+  body: {
+    flexGrow: 1,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 110,
+    backgroundColor: "#F6F7F9",
+  },
+  card: {
+    backgroundColor: AppColor.white,
+    borderWidth: 1,
+    borderColor: "#E7EAF0",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  sectionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 18,
+  },
+  fieldGroup: {
+    marginTop: 12,
+  },
+  input: {
+    minHeight: 48,
+    borderRadius: 10,
+    borderColor: "#D8DDE6",
+    backgroundColor: AppColor.white,
+  },
+  textarea: {
+    minHeight: 98,
+  },
+  requiredMark: {
+    color: AppColor.primary,
+  },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -211,14 +280,40 @@ const localStyles = StyleSheet.create({
     flex: 1,
     color: AppColor.text,
   },
-  serviceGrid: {
+  cardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
-  serviceCard: {
+  eventTypeCard: {
+    width: "30.9%",
+    minHeight: 82,
     borderWidth: 1,
-    borderColor: AppColor.border,
+    borderColor: "#DDE2EA",
     borderRadius: 10,
-    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    backgroundColor: AppColor.white,
+  },
+  eventTypeCardActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF4EA",
+  },
+  eventTypeLabel: {
+    marginTop: 7,
+    textAlign: "center",
+  },
+  serviceGrid: {
+    gap: 12,
+  },
+  serviceCard: {
+    minHeight: 116,
+    borderWidth: 1.5,
+    borderColor: "#DDE2EA",
+    borderRadius: 14,
+    padding: 14,
     backgroundColor: AppColor.white,
   },
   serviceCardActive: {
@@ -230,18 +325,164 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  serviceIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F2F4F7",
+  },
+  serviceIconActive: {
+    backgroundColor: AppColor.primary,
+  },
   serviceTitle: {
     flex: 1,
     color: AppColor.text,
+    fontSize: 15,
   },
   serviceDescription: {
     color: AppColor.textHighlighter,
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   readOnlyInput: {
-    backgroundColor: AppColor.inputBackground || "#F5F5F5",
+    backgroundColor: "#F2F4F7",
     color: AppColor.textHighlighter,
+  },
+  segmented: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#DDE2EA",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: AppColor.white,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentActive: {
+    backgroundColor: "#FFF1E6",
+  },
+  segmentDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: "#DDE2EA",
+  },
+  sideBySide: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  sideField: {
+    flex: 1,
+  },
+  mapPreview: {
+    height: 118,
+    borderRadius: 12,
+    marginTop: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E0E4EB",
+    backgroundColor: "#E9EEF5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapGridLine: {
+    position: "absolute",
+    backgroundColor: "rgba(255,255,255,0.72)",
+  },
+  mapGridHorizontal: {
+    left: 0,
+    right: 0,
+    height: 1,
+  },
+  mapGridVertical: {
+    top: 0,
+    bottom: 0,
+    width: 1,
+  },
+  mapPin: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  moneyBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: "#D8DDE6",
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    paddingHorizontal: 12,
+  },
+  moneyPrefix: {
+    color: AppColor.textHighlighter,
+    marginRight: 6,
+    fontSize: 16,
+  },
+  moneyInput: {
+    flex: 1,
+    minHeight: 46,
+    paddingVertical: 10,
+    color: AppColor.text,
+  },
+  uploadCard: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#F0B074",
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: "#FFF9F4",
+    marginTop: 12,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  imageGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 12,
+  },
+  imageTile: {
+    width: "30.9%",
+  },
+  imagePreview: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 10,
+    backgroundColor: "#EEF1F5",
+  },
+  removeImageButton: {
+    marginTop: 6,
+    alignItems: "center",
+  },
+  submitFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    backgroundColor: AppColor.white,
+    borderTopWidth: 1,
+    borderTopColor: "#E7EAF0",
+  },
+  submitButton: {
+    borderRadius: 12,
   },
 });
 
@@ -426,9 +667,29 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     }
   };
 
+  const renderSectionHeader = (title, icon) => (
+    <View style={localStyles.sectionHeader}>
+      <View style={localStyles.sectionIcon}>
+        <MaterialIcons name={icon} size={21} color={AppColor.primary} />
+      </View>
+      <Text style={[styles.title, localStyles.sectionTitle]}>{title}</Text>
+    </View>
+  );
+
+  const renderLabel = (label) => {
+    const required = label.includes("*");
+    const cleanLabel = label.replace(" *", "");
+    return (
+      <Text style={styles.label}>
+        {cleanLabel}
+        {required ? <Text style={localStyles.requiredMark}> *</Text> : null}
+      </Text>
+    );
+  };
+
   const renderInput = (label, key, props = {}) => (
-    <View>
-      <Text style={styles.label}>{label}</Text>
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(label)}
       <TextInput
         value={form[key]}
         onChangeText={(value) => updateField(key, value)}
@@ -438,16 +699,36 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
         editable={props.editable}
         style={[
           styles.input,
+          localStyles.input,
           props.multiline ? styles.textarea : null,
+          props.multiline ? localStyles.textarea : null,
           props.editable === false ? localStyles.readOnlyInput : null,
         ]}
       />
     </View>
   );
 
+  const renderMoneyInput = (label, key, helper) => (
+    <View style={[localStyles.fieldGroup, localStyles.sideField]}>
+      {renderLabel(label)}
+      <View style={localStyles.moneyBox}>
+        <Text style={localStyles.moneyPrefix}>$</Text>
+        <TextInput
+          value={form[key]}
+          onChangeText={(value) => updateField(key, value)}
+          placeholder="0.00"
+          placeholderTextColor={AppColor.textPlaceholder}
+          keyboardType="decimal-pad"
+          style={localStyles.moneyInput}
+        />
+      </View>
+      {helper ? <Text style={styles.meta}>{helper}</Text> : null}
+    </View>
+  );
+
   const renderAddressInput = () => (
     <View style={styles.placesWrapper}>
-      <Text style={styles.label}>Address *</Text>
+      {renderLabel("Address *")}
       <GooglePlacesAutocomplete
         placeholder="Search address"
         query={{
@@ -486,6 +767,17 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
         }}
       />
       {form.latitude && form.longitude ? (
+        <View style={localStyles.mapPreview}>
+          <View style={[localStyles.mapGridLine, localStyles.mapGridHorizontal, { top: 30 }]} />
+          <View style={[localStyles.mapGridLine, localStyles.mapGridHorizontal, { top: 76 }]} />
+          <View style={[localStyles.mapGridLine, localStyles.mapGridVertical, { left: 72 }]} />
+          <View style={[localStyles.mapGridLine, localStyles.mapGridVertical, { right: 88 }]} />
+          <View style={localStyles.mapPin}>
+            <MaterialIcons name="place" size={28} color={AppColor.primary} />
+          </View>
+        </View>
+      ) : null}
+      {form.latitude && form.longitude ? (
         <Text style={styles.meta}>Location verified with Google Places.</Text>
       ) : (
         <Text style={styles.meta}>
@@ -496,8 +788,8 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   );
 
   const renderChips = (label, key, options) => (
-    <View>
-      <Text style={styles.label}>{label}</Text>
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(label)}
       <View style={styles.chipWrap}>
         {options.map((option) => {
           const active = Array.isArray(form[key])
@@ -526,21 +818,63 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     </View>
   );
 
+  const renderEventTypeCards = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Event Type *")}
+      <View style={localStyles.cardGrid}>
+        {EVENT_TYPES.map((option) => {
+          const active = form.event_type === option;
+          return (
+            <TouchableOpacity
+              key={option}
+              activeOpacity={0.78}
+              onPress={() => updateField("event_type", option)}
+              style={[
+                localStyles.eventTypeCard,
+                active && localStyles.eventTypeCardActive,
+              ]}
+            >
+              <MaterialIcons
+                name={EVENT_TYPE_ICONS[option] || "event"}
+                size={25}
+                color={active ? AppColor.primary : AppColor.textHighlighter}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  localStyles.eventTypeLabel,
+                  active && styles.chipTextActive,
+                ]}
+                numberOfLines={2}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   const renderBoolean = (label, key) => (
-    <View>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.row}>
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(label)}
+      <View style={localStyles.segmented}>
         {[
           ["Yes", true],
           ["No", false],
-        ].map(([labelText, value]) => {
+        ].map(([labelText, value], index) => {
           const active = form[key] === value;
           return (
             <TouchableOpacity
               key={labelText}
               activeOpacity={0.7}
               onPress={() => updateField(key, value)}
-              style={[styles.chip, active && styles.chipActive]}
+              style={[
+                localStyles.segment,
+                index > 0 && localStyles.segmentDivider,
+                active && localStyles.segmentActive,
+              ]}
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {labelText}
@@ -553,7 +887,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   );
 
   const renderTicketSalesFields = () => (
-    <View>
+    <View style={localStyles.fieldGroup}>
       <TouchableOpacity
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
@@ -589,8 +923,8 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   );
 
   const renderPrimaryServiceStyle = () => (
-    <View>
-      <Text style={styles.label}>Primary Service Style *</Text>
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Primary Service Style *")}
       <View style={localStyles.serviceGrid}>
         {PRIMARY_SERVICE_STYLES.map((option) => {
           const active = form.primary_service_style === option.label;
@@ -615,11 +949,18 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
               }
             >
               <View style={localStyles.serviceHeader}>
-                <MaterialIcons
-                  name={option.icon}
-                  size={24}
-                  color={active ? AppColor.primary : AppColor.text}
-                />
+                <View
+                  style={[
+                    localStyles.serviceIcon,
+                    active && localStyles.serviceIconActive,
+                  ]}
+                >
+                  <MaterialIcons
+                    name={option.icon}
+                    size={23}
+                    color={active ? AppColor.white : AppColor.primary}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.chipText,
@@ -674,8 +1015,8 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   const renderServiceSpecificDetails = () => {
     if (form.primary_service_style === "Plated") {
       return (
-        <View>
-          <Text style={styles.label}>Plated Options</Text>
+        <View style={localStyles.fieldGroup}>
+          {renderLabel("Plated Options")}
           {renderInput("Number of Courses", "plated_number_of_courses", {
             keyboardType: "number-pad",
           })}
@@ -700,30 +1041,32 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   };
 
   const renderVendorCountFields = () => (
-    <View style={styles.row}>
-      <View style={styles.flex}>
+    <View style={localStyles.sideBySide}>
+      <View style={localStyles.sideField}>
         {renderInput("Guests *", "number_of_guests", {
           keyboardType: "number-pad",
         })}
       </View>
-      <View style={styles.flex}>
+      <View style={localStyles.sideField}>
         {renderInput("Vendors Needed *", "number_of_vendors_needed", {
           keyboardType: "number-pad",
           editable: !foodTruckSelected,
         })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
-            Auto-calculated at one food truck per 75 guests.
+            One food truck is recommended for every 75 guests.
           </Text>
         ) : (
-          <Text style={styles.meta}>Minimum 1 vendor.</Text>
+          <Text style={styles.meta}>
+            This controls the maximum number of vendors you can award.
+          </Text>
         )}
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, localStyles.screen, { paddingTop: insets.top }]}>
       <StatusBarManager />
       <AppHeader headerTitle="Create Event" />
       <KeyboardAvoidingView
@@ -731,26 +1074,26 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.body}
+          contentContainerStyle={localStyles.body}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.card}>
-            <Text style={styles.title}>Event Basics</Text>
+          <View style={localStyles.card}>
+            {renderSectionHeader("Event Basics", "event")}
             {renderInput("Event Name *", "event_name")}
             {renderInput("Description", "event_description", { multiline: true })}
             {renderTicketSalesFields()}
-            {renderChips("Event Type *", "event_type", EVENT_TYPES)}
+            {renderEventTypeCards()}
             {renderChips("Event Style", "event_style", EVENT_STYLES)}
             {renderChips("Service Type", "service_type", SERVICE_TYPES)}
             {renderPrimaryServiceStyle()}
             {renderServiceSpecificDetails()}
-            <View style={styles.row}>
-              <View style={styles.flex}>
+            <View style={localStyles.sideBySide}>
+              <View style={localStyles.sideField}>
                 {renderInput("Event Date *", "event_date", {
                   placeholder: "YYYY-MM-DD",
                 })}
               </View>
-              <View style={styles.flex}>
+              <View style={localStyles.sideField}>
                 {renderInput("Time", "event_time", {
                   placeholder: "HH:mm",
                 })}
@@ -761,18 +1104,22 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             })}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Location</Text>
+          <View style={localStyles.card}>
+            {renderSectionHeader("Location", "place")}
             {renderAddressInput()}
-            <View style={styles.row}>
-              <View style={styles.flex}>{renderInput("City *", "event_city")}</View>
-              <View style={styles.flex}>{renderInput("State *", "event_state")}</View>
+            <View style={localStyles.sideBySide}>
+              <View style={localStyles.sideField}>
+                {renderInput("City *", "event_city")}
+              </View>
+              <View style={localStyles.sideField}>
+                {renderInput("State *", "event_state")}
+              </View>
             </View>
             {renderInput("Zip", "event_zip")}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Vendor Needs</Text>
+          <View style={localStyles.card}>
+            {renderSectionHeader("Vendor Needs", "groups")}
             {renderVendorCountFields()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
@@ -783,58 +1130,81 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             {renderChips("Equipment Needs", "equipment_needed", EQUIPMENT_OPTIONS)}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Budget</Text>
-            <View style={styles.row}>
-              <View style={styles.flex}>
-                {renderInput("Vendor Fee", "vendor_fee", {
-                  keyboardType: "decimal-pad",
-                })}
-              </View>
-              <View style={styles.flex}>
-                {renderInput("Budgeted Amount", "budgeted_amount", {
-                  keyboardType: "decimal-pad",
-                })}
-              </View>
+          <View style={localStyles.card}>
+            {renderSectionHeader("Budget", "payments")}
+            <View style={localStyles.sideBySide}>
+              {renderMoneyInput(
+                "Vendor Fee",
+                "vendor_fee",
+                "Fee vendors pay if this event requires attendance payment.",
+              )}
+              {renderMoneyInput(
+                "Budgeted Amount",
+                "budgeted_amount",
+                "Amount available when coordinator pays vendors.",
+              )}
             </View>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Event Images</Text>
-            <Text style={styles.meta}>
-              Upload JPG, PNG, or HEIC images. Maximum file size is 10 MB.
-            </Text>
-            {eventImages.map((image, index) => (
-              <View
-                key={`${image.uri}-${index}`}
-                style={[styles.row, { alignItems: "center", marginTop: 10 }]}
+          <View style={localStyles.card}>
+            {renderSectionHeader("Event Images", "image")}
+            <View style={localStyles.uploadCard}>
+              <Text style={styles.meta}>
+                Upload JPG, PNG, or HEIC images. Maximum file size is 10 MB.
+              </Text>
+              {eventImages.length ? (
+                <View style={localStyles.imageGrid}>
+                  {eventImages.map((image, index) => (
+                    <View key={`${image.uri}-${index}`} style={localStyles.imageTile}>
+                      <Image
+                        source={{ uri: image.uri }}
+                        style={localStyles.imagePreview}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={localStyles.removeImageButton}
+                        onPress={() =>
+                          setEventImages((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                      >
+                        <Text style={styles.secondaryButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.secondaryButton,
+                  localStyles.uploadButton,
+                  { marginTop: 14 },
+                ]}
+                onPress={handlePickEventImages}
+                disabled={loading}
               >
-                <Text style={[styles.meta, styles.flex]} numberOfLines={1}>
-                  {image.name}
-                </Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() =>
-                    setEventImages((prev) => prev.filter((_, i) => i !== index))
-                  }
-                >
-                  <Text style={styles.secondaryButtonText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.secondaryButton, { marginTop: 14 }]}
-              onPress={handlePickEventImages}
-              disabled={loading}
-            >
-              <Text style={styles.secondaryButtonText}>Add Event Images</Text>
-            </TouchableOpacity>
+                <MaterialIcons name="cloud-upload" size={20} color={AppColor.primary} />
+                <Text style={styles.secondaryButtonText}>Add Event Images</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
+        </ScrollView>
+        <View
+          style={[
+            localStyles.submitFooter,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
           <TouchableOpacity
             activeOpacity={0.7}
-            style={[styles.button, { opacity: loading ? 0.6 : 1 }]}
+            style={[
+              styles.button,
+              localStyles.submitButton,
+              { opacity: loading ? 0.6 : 1 },
+            ]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -844,7 +1214,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
               <Text style={styles.buttonText}>Submit Event</Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
       <Snackbar
         visible={snackbar.visible}

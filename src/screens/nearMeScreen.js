@@ -6,8 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Image,
-  Alert,
   ActivityIndicator,
   Dimensions,
   FlatList,
@@ -25,7 +23,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { getNearMeResults_API } from "../apiFolder/appAPI";
 import Carousel from "react-native-reanimated-carousel";
 import { useSharedValue } from "react-native-reanimated";
-import FastImage from "@d11/react-native-fast-image";
 import AppImage from "../components/AppImage";
 import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
@@ -40,6 +37,9 @@ const FILTERS = [
   { key: "eventType", label: "Event Type" },
   { key: "distance", label: "Distance" },
 ];
+const HERO_COPY =
+  "Find amazing events \uD83C\uDFAA and food \uD83C\uDF7D\uFE0F near you today!";
+const TENT_ICON = "\uD83C\uDFAA";
 
 // Set up geolocation for navigator
 navigator.geolocation = require("@react-native-community/geolocation");
@@ -74,10 +74,12 @@ const NearMeScreen = ({ navigation }) => {
   const mapRef = useRef(null);
   const carouselRef = useRef(null);
   const actionSheetRef = useRef(null);
+  const menuActionSheetRef = useRef(null);
   const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
   const progress = useSharedValue(0);
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { user } = useSelector((state) => state.userReducer);
   const { defaultLocation, allLocations } = useSelector(
     (state) => state.locationReducer
   );
@@ -90,9 +92,10 @@ const NearMeScreen = ({ navigation }) => {
   const [nearMeItems, setNearMeItems] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [fetchError, setFetchError] = useState("");
   const [tempSelectedLocation, setTempSelectedLocation] =
     useState(defaultLocation);
+  const isEventCoordinator = !!user?.isEventCoordinator;
 
   const fetchNearMeResults = async () => {
     if (!defaultLocation) {
@@ -101,6 +104,7 @@ const NearMeScreen = ({ navigation }) => {
     }
     try {
       setIsLoading(true);
+      setFetchError("");
 
       setRegion({
         latitude: parseFloat(defaultLocation.lat),
@@ -151,9 +155,12 @@ const NearMeScreen = ({ navigation }) => {
         }
       } else {
         setNearMeItems([]);
+        setFetchError(response?.message || "Unable to load nearby items.");
       }
     } catch (error) {
-      console.error("Error fetching Near Me:", error);
+      setNearMeItems([]);
+      setFetchError(error?.message || "Unable to load nearby items.");
+      console.log("Error fetching Near Me:", error);
     } finally {
       setIsLoading(false);
     }
@@ -210,7 +217,7 @@ const NearMeScreen = ({ navigation }) => {
             }
           >
             <View style={styles.eventIconContainer}>
-              <Text style={styles.eventIconText}>🎪</Text>
+              <Text style={styles.eventIconText}>{TENT_ICON}</Text>
             </View>
 
             <View style={styles.horizontalCardContent}>
@@ -304,6 +311,17 @@ const NearMeScreen = ({ navigation }) => {
     }
   };
 
+  const closeMenuToNearMe = () => {
+    menuActionSheetRef.current?.hide();
+    setSelectedFilter("all");
+    handleSearch("");
+  };
+
+  const navigateFromMenu = (routeName, params) => {
+    menuActionSheetRef.current?.hide();
+    navigation.navigate(routeName, params);
+  };
+
   // Debounce effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -344,7 +362,6 @@ const NearMeScreen = ({ navigation }) => {
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (e) => {
       const newKeyboardHeight = e.endCoordinates.height - (insets.bottom + 60);
-      setKeyboardHeight(newKeyboardHeight);
       Animated.timing(animatedKeyboardHeight, {
         toValue: newKeyboardHeight,
         duration: 250,
@@ -352,7 +369,6 @@ const NearMeScreen = ({ navigation }) => {
       }).start();
     });
     const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardHeight(0);
       Animated.timing(animatedKeyboardHeight, {
         toValue: 0,
         duration: 250,
@@ -382,9 +398,23 @@ const NearMeScreen = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.heroTitle}>
-          Find amazing events 🎪 and food 🍽️ near you today!
-        </Text>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.menuButton}
+            onPress={() => menuActionSheetRef.current?.show()}
+          >
+            <MaterialIcons name="menu" size={26} color={AppColor.text} />
+          </TouchableOpacity>
+          <Text style={styles.heroTitle}>{HERO_COPY}</Text>
+          <TouchableOpacity activeOpacity={0.7} style={styles.menuButton}>
+            <MaterialIcons
+              name="notifications-none"
+              size={25}
+              color={AppColor.text}
+            />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={handleLocationTextPress}
@@ -418,7 +448,7 @@ const NearMeScreen = ({ navigation }) => {
         />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search food trucks or cuisine..."
+          placeholder="Search food, events, cuisine..."
           value={searchQuery}
           onChangeText={handleSearch}
           placeholderTextColor={AppColor.textPlaceholder}
@@ -515,7 +545,7 @@ const NearMeScreen = ({ navigation }) => {
                   onPress={() => handleMarkerPress(item)}
                 >
                   <View style={styles.eventMarker}>
-                    <Text style={styles.eventMarkerText}>🎪</Text>
+                    <Text style={styles.eventMarkerText}>{TENT_ICON}</Text>
                   </View>
                 </Marker>
               );
@@ -581,7 +611,10 @@ const NearMeScreen = ({ navigation }) => {
       )}
 
       {/* No Results Message */}
-      {nearMeItems.length === 0 && (searchQuery || selectedFilter !== "all") && !isLoading && (
+      {nearMeItems.length === 0 &&
+        !fetchError &&
+        (searchQuery || selectedFilter !== "all") &&
+        !isLoading && (
         <Animated.View
           style={[
             styles.noResultsContainer,
@@ -610,6 +643,117 @@ const NearMeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      {nearMeItems.length === 0 && fetchError && !isLoading ? (
+        <Animated.View
+          style={[
+            styles.noResultsContainer,
+            {
+              bottom: Animated.add(10, animatedKeyboardHeight),
+            },
+          ]}
+        >
+          <MaterialIcons
+            name="search-off"
+            size={42}
+            color={AppColor.textPlaceholder}
+          />
+          <Text style={styles.noResultsText}>
+            Nearby food and events could not be loaded right now.
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.clearSearchButton}
+            onPress={fetchNearMeResults}
+          >
+            <Text style={styles.clearSearchText}>Try Again</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      ) : null}
+
+      <ActionSheet
+        ref={menuActionSheetRef}
+        gestureEnabled={true}
+        isModal={Platform.OS === "ios"}
+      >
+        <View
+          style={[
+            styles.menuSheet,
+            { paddingBottom: Math.max(insets.bottom, 14) },
+          ]}
+        >
+          <View style={styles.menuProfileRow}>
+            <View style={styles.menuAvatar}>
+              <Text style={styles.menuAvatarText}>
+                {isEventCoordinator ? "EC" : "RTC"}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuProfileTitle}>
+                {isEventCoordinator ? "Event Coordinator" : "Round Da' Corner"}
+              </Text>
+              <Text style={styles.menuProfileSub} numberOfLines={1}>
+                {user?.email || "Find food and events near you"}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.75}
+            style={styles.menuItem}
+            onPress={closeMenuToNearMe}
+          >
+            <MaterialIcons name="storefront" size={23} color={AppColor.primary} />
+            <View style={styles.menuItemTextWrap}>
+              <Text style={styles.menuItemTitle}>Marketplace / Near Me</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Find events and food near you
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {isEventCoordinator ? (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={styles.menuItem}
+                onPress={() => navigateFromMenu("marketplaceMyEventsScreen")}
+              >
+                <MaterialIcons
+                  name="event-note"
+                  size={23}
+                  color={AppColor.primary}
+                />
+                <View style={styles.menuItemTextWrap}>
+                  <Text style={styles.menuItemTitle}>My Events</Text>
+                  <Text style={styles.menuItemSubtitle}>Manage your events</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={styles.menuItem}
+                onPress={() =>
+                  navigateFromMenu("marketplaceMyEventsScreen", {
+                    statusFilter: "AWARDED",
+                  })
+                }
+              >
+                <MaterialIcons
+                  name="festival"
+                  size={23}
+                  color={AppColor.primary}
+                />
+                <View style={styles.menuItemTextWrap}>
+                  <Text style={styles.menuItemTitle}>Awarded Bids</Text>
+                  <Text style={styles.menuItemSubtitle}>
+                    View awarded events and details
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : null}
+        </View>
+      </ActionSheet>
 
       <ActionSheet
         ref={actionSheetRef}
@@ -731,12 +875,24 @@ const styles = StyleSheet.create({
     borderBottomColor: AppColor.border,
     backgroundColor: AppColor.white,
   },
-  heroTitle: {
-    fontFamily: Mulish700,
-    fontSize: 18,
-    lineHeight: 24,
-    color: AppColor.text,
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
     marginBottom: 10,
+  },
+  menuButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: {
+    flex: 1,
+    fontFamily: Mulish700,
+    fontSize: 16,
+    lineHeight: 22,
+    color: AppColor.text,
   },
   headerTitle: {
     fontFamily: Mulish700,
@@ -820,6 +976,64 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: AppColor.primary,
+  },
+  menuSheet: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    backgroundColor: AppColor.white,
+  },
+  menuProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColor.borderColor,
+    marginBottom: 10,
+  },
+  menuAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#6D3BBF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuAvatarText: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.white,
+  },
+  menuProfileTitle: {
+    fontFamily: Mulish700,
+    fontSize: 16,
+    color: AppColor.text,
+  },
+  menuProfileSub: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    marginTop: 3,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+  },
+  menuItemTextWrap: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontFamily: Mulish700,
+    fontSize: 14,
+    color: AppColor.text,
+  },
+  menuItemSubtitle: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    marginTop: 3,
   },
   mapContainer: {
     flex: 1,
