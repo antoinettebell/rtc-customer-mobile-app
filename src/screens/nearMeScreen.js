@@ -705,7 +705,9 @@ const NearMeScreen = ({ navigation }) => {
           >
             <MaterialIcons name="storefront" size={23} color={AppColor.primary} />
             <View style={styles.menuItemTextWrap}>
-              <Text style={styles.menuItemTitle}>Marketplace / Near Me</Text>
+              <Text style={styles.menuItemTitle}>
+                Marketplace / Near Me Food/Events
+              </Text>
               <Text style={styles.menuItemSubtitle}>
                 Find events and food near you
               </Text>
