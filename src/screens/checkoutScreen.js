@@ -53,6 +53,11 @@ import { foodTypeStrings } from "../utils/constants";
 const BUILT_IN_DELIVERY_FEE = 6.49;
 const CUSTOMER_PROCESSING_FEE_RATE = 3.5;
 
+const toCents = (value) => Math.round(Math.max(0, Number(value) || 0) * 100);
+const centsToMoney = (value) => Number((Math.max(0, value) / 100).toFixed(2));
+const calculateProcessingFeeAmount = (baseAmount, rate) =>
+  centsToMoney(Math.round((toCents(baseAmount) * (Number(rate) || 0)) / 100));
+
 const calculateTaxAmountFromRate = (amount, rate) => {
   const taxableAmount = Math.max(0, Number(amount) || 0);
   const numericRate = Number(rate) || 0;
@@ -144,8 +149,8 @@ const CheckoutScreen = ({ navigation, route }) => {
     [taxData],
   );
   const processingFeeAmount = useMemo(
-    () => (taxableAmount + deliveryFee) * (processingFeeRate / 100),
-    [taxableAmount, deliveryFee, processingFeeRate],
+    () => calculateProcessingFeeAmount(taxableAmount, processingFeeRate),
+    [taxableAmount, processingFeeRate],
   );
   const salesTaxAmount = useMemo(() => {
     if (taxData?.salesTaxAmount != null) {
