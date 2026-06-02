@@ -319,6 +319,10 @@ export const getNearMeResults_API = async (params = {}) => {
       userLat,
       userLong,
       type,
+      cuisineIds = [],
+      cuisines = [],
+      eventTypes = [],
+      eventVisibility,
     } = params;
     let URL = `${GET_NEAR_ME}`;
     const queryParams = [
@@ -336,6 +340,24 @@ export const getNearMeResults_API = async (params = {}) => {
     }
     if (type) {
       queryParams.push(`type=${encodeURIComponent(type)}`);
+    }
+    if (cuisineIds.length > 0) {
+      queryParams.push(
+        `cuisineIds=${encodeURIComponent(cuisineIds.join(","))}`
+      );
+    }
+    if (cuisines.length > 0) {
+      queryParams.push(`cuisines=${encodeURIComponent(cuisines.join(","))}`);
+    }
+    if (eventTypes.length > 0) {
+      queryParams.push(
+        `eventTypes=${encodeURIComponent(eventTypes.join(","))}`
+      );
+    }
+    if (eventVisibility) {
+      queryParams.push(
+        `eventVisibility=${encodeURIComponent(eventVisibility)}`
+      );
     }
 
     URL += `?${queryParams.join("&")}`;

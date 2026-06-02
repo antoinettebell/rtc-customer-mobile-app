@@ -47,6 +47,7 @@ const initialForm = {
   ticket_sales_enabled: false,
   ticket_url: "",
   event_type: "",
+  event_visibility: "PRIVATE",
   event_style: "",
   service_type: "",
   primary_service_style: "",
@@ -886,6 +887,45 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     </View>
   );
 
+  const renderVisibilityToggle = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Public / Private")}
+      <View style={localStyles.segmented}>
+        {[
+          ["Public", "PUBLIC"],
+          ["Private", "PRIVATE"],
+        ].map(([labelText, value], index) => {
+          const active = form.event_visibility === value;
+          return (
+            <TouchableOpacity
+              key={value}
+              activeOpacity={0.7}
+              onPress={() => updateField("event_visibility", value)}
+              style={[
+                localStyles.segment,
+                index === 0 && localStyles.segmentFirst,
+                active && localStyles.segmentActive,
+              ]}
+            >
+              <Text
+                style={[
+                  localStyles.segmentText,
+                  active && localStyles.segmentTextActive,
+                ]}
+              >
+                {labelText}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={styles.meta}>
+        Public events can appear in Near Me. Private events stay hidden from
+        customer discovery.
+      </Text>
+    </View>
+  );
+
   const renderTicketSalesFields = () => (
     <View style={localStyles.fieldGroup}>
       <TouchableOpacity
@@ -1083,6 +1123,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             {renderInput("Description", "event_description", { multiline: true })}
             {renderTicketSalesFields()}
             {renderEventTypeCards()}
+            {renderVisibilityToggle()}
             {renderChips("Event Style", "event_style", EVENT_STYLES)}
             {renderChips("Service Type", "service_type", SERVICE_TYPES)}
             {renderPrimaryServiceStyle()}

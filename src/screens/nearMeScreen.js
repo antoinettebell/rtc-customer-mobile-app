@@ -20,13 +20,14 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
-import { getNearMeResults_API } from "../apiFolder/appAPI";
+import { cuisineList_API, getNearMeResults_API } from "../apiFolder/appAPI";
 import Carousel from "react-native-reanimated-carousel";
 import { useSharedValue } from "react-native-reanimated";
 import AppImage from "../components/AppImage";
 import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
+import { EVENT_TYPES } from "./marketplaceShared";
 
 const { width, height } = Dimensions.get("window");
 const FILTERS = [
@@ -34,8 +35,6 @@ const FILTERS = [
   { key: "food", label: "Food" },
   { key: "events", label: "Events" },
   { key: "cuisine", label: "Cuisine" },
-  { key: "eventType", label: "Event Type" },
-  { key: "distance", label: "Distance" },
 ];
 const HERO_COPY =
   "Find amazing events \uD83C\uDFAA and food \uD83C\uDF7D\uFE0F near you today!";
@@ -64,8 +63,13 @@ const getItemLongitude = (item) =>
 
 const getResultTypeForFilter = (filter) => {
   if (filter === "food" || filter === "cuisine") return "FOOD";
-  if (filter === "events" || filter === "eventType") return "EVENT";
+  if (filter === "events") return "EVENT";
   return "ALL";
+};
+
+const formatCuisineNames = (cuisines = []) => {
+  const names = cuisines.map((item) => item?.name || item).filter(Boolean);
+  return names.length > 0 ? names.slice(0, 3).join(", ") : "Cuisine pending";
 };
 
 const NearMeScreen = ({ navigation }) => {
@@ -91,6 +95,9 @@ const NearMeScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [nearMeItems, setNearMeItems] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState("all");
+  const [cuisineOptions, setCuisineOptions] = useState([]);
+  const [selectedCuisineIds, setSelectedCuisineIds] = useState([]);
+  const [selectedEventTypes, setSelectedEventTypes] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fetchError, setFetchError] = useState("");
   const [tempSelectedLocation, setTempSelectedLocation] =
@@ -121,6 +128,9 @@ const NearMeScreen = ({ navigation }) => {
         userLong: defaultLocation?.long || 0,
         search: debouncedQuery,
         type: getResultTypeForFilter(selectedFilter),
+        cuisineIds: selectedFilter === "cuisine" ? selectedCuisineIds : [],
+        eventTypes: selectedFilter === "events" ? selectedEventTypes : [],
+        eventVisibility: "PUBLIC",
       };
 
       const response = await getNearMeResults_API(params);
@@ -168,6 +178,22 @@ const NearMeScreen = ({ navigation }) => {
 
   const handleSearch = (text) => {
     setSearchQuery(text);
+  };
+
+  const toggleCuisineFilter = (cuisineId) => {
+    setSelectedCuisineIds((current) =>
+      current.includes(cuisineId)
+        ? current.filter((item) => item !== cuisineId)
+        : [...current, cuisineId]
+    );
+  };
+
+  const toggleEventTypeFilter = (eventType) => {
+    setSelectedEventTypes((current) =>
+      current.includes(eventType)
+        ? current.filter((item) => item !== eventType)
+        : [...current, eventType]
+    );
   };
 
   const scrollCarouselToIndex = (index) => {
@@ -283,9 +309,7 @@ const NearMeScreen = ({ navigation }) => {
                 >{`${item.raw?.avgRate || 0} (${item.raw?.totalReviews || 0} reviews)`}</Text>
               </View>
               <Text style={styles.horizontalDistanceText}>
-                {item?.distanceInMeters != null
-                  ? `${(item.distanceInMeters * 0.000621371).toFixed(2)} miles away`
-                  : "Distance unavailable"}
+                {formatCuisineNames(item?.raw?.cuisine)}
               </Text>
             </View>
           </View>
@@ -357,7 +381,31 @@ const NearMeScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchNearMeResults();
-  }, [defaultLocation, debouncedQuery, selectedFilter]);
+  }, [
+    defaultLocation,
+    debouncedQuery,
+    selectedFilter,
+    selectedCuisineIds,
+    selectedEventTypes,
+  ]);
+
+  useEffect(() => {
+    const fetchCuisineOptions = async () => {
+      try {
+        const response = await cuisineList_API({ page: 1 });
+        const list =
+          response?.data?.cuisineList ||
+          response?.data?.cuisines ||
+          response?.data ||
+          [];
+        setCuisineOptions(Array.isArray(list) ? list : []);
+      } catch (error) {
+        console.log("Error fetching cuisines:", error);
+      }
+    };
+
+    fetchCuisineOptions();
+  }, []);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", (e) => {
@@ -498,6 +546,68 @@ const NearMeScreen = ({ navigation }) => {
           }}
         />
       </View>
+
+      {selectedFilter === "cuisine" && cuisineOptions.length > 0 ? (
+        <View style={styles.subFilterRail}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={cuisineOptions}
+            keyExtractor={(item) => item._id || item.name}
+            contentContainerStyle={styles.filterContent}
+            renderItem={({ item }) => {
+              const active = selectedCuisineIds.includes(item._id);
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.subFilterChip, active && styles.filterChipActive]}
+                  onPress={() => toggleCuisineFilter(item._id)}
+                >
+                  <Text
+                    style={[
+                      styles.subFilterChipText,
+                      active && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      ) : null}
+
+      {selectedFilter === "events" ? (
+        <View style={styles.subFilterRail}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={EVENT_TYPES}
+            keyExtractor={(item) => item}
+            contentContainerStyle={styles.filterContent}
+            renderItem={({ item }) => {
+              const active = selectedEventTypes.includes(item);
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.subFilterChip, active && styles.filterChipActive]}
+                  onPress={() => toggleEventTypeFilter(item)}
+                >
+                  <Text
+                    style={[
+                      styles.subFilterChipText,
+                      active && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      ) : null}
 
       {/* Map View */}
       <View style={styles.mapContainer}>
@@ -955,6 +1065,10 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
     paddingBottom: 10,
   },
+  subFilterRail: {
+    backgroundColor: AppColor.white,
+    paddingBottom: 10,
+  },
   filterContent: {
     paddingHorizontal: 16,
     gap: 8,
@@ -978,6 +1092,19 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: AppColor.primary,
+  },
+  subFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    backgroundColor: AppColor.white,
+  },
+  subFilterChipText: {
+    fontFamily: Mulish600,
+    fontSize: 12,
+    color: AppColor.text,
   },
   menuSheet: {
     paddingHorizontal: 18,
