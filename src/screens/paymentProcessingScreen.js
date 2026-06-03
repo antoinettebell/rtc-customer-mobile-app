@@ -226,8 +226,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
         let paymentResponse;
         try {
           paymentResponse = await paymentRequest.show();
-          console.log("Payment UI Response:", paymentResponse);
-
           const paymentRawToken =
             Platform.OS === "ios"
               ? paymentResponse.details.applePayToken.paymentData
@@ -281,7 +279,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           // };
 
           const respose_1 = await paymentCheckout_API(reqPayload);
-          console.log("Payment Checkout Response => ", respose_1);
           if (respose_1.success && respose_1.data) {
             showSnackbar({
               message: "Payment successful. Thank you!",
@@ -322,7 +319,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             type: "error",
           });
           paymentRequest.abort();
-          console.log("Payment Request Aborted:", error);
         }
       }
     } catch (error) {
@@ -330,7 +326,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
         message: "Payment failed. Please try with different payment method.",
         type: "error",
       });
-      console.log("handlePayment error", error);
     } finally {
       setPaymentLoading(false);
     }

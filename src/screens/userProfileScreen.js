@@ -17,6 +17,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { IconButton, Snackbar } from "react-native-paper";
 import { RESULTS } from "react-native-permissions";
 import ImagePicker from "react-native-image-crop-picker";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 import {
   AppColor,
@@ -39,6 +40,45 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
+import Config from "../config/env";
+import StatePickerModal from "../components/StatePickerModal";
+
+const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
+
+const getAddressPart = (components = [], type, field = "long_name") =>
+  components.find((component) => component.types?.includes(type))?.[field] || "";
+
+const parseGooglePlaceDetails = (data, details) => {
+  const components = details?.address_components || [];
+  const streetNumber = getAddressPart(components, "street_number");
+  const route = getAddressPart(components, "route");
+  const city =
+    getAddressPart(components, "locality") ||
+    getAddressPart(components, "postal_town") ||
+    getAddressPart(components, "administrative_area_level_2");
+  const state = getAddressPart(components, "administrative_area_level_1", "short_name");
+  const zip = getAddressPart(components, "postal_code", "short_name");
+  const formattedAddress = details?.formatted_address || data?.description || "";
+
+  return {
+    line1: [streetNumber, route].filter(Boolean).join(" ") || formattedAddress,
+    city,
+    state,
+    zip,
+    formattedAddress,
+    placeId: data?.place_id || details?.place_id || "",
+  };
+};
+
+const formatTaxIdInput = (value, type) => {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
+  if (type === "SSN") {
+    return digits
+      .replace(/^(\d{3})(\d)/, "$1-$2")
+      .replace(/^(\d{3})-(\d{2})(\d)/, "$1-$2-$3");
+  }
+  return digits.replace(/^(\d{2})(\d)/, "$1-$2");
+};
 
 const UserProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -74,10 +114,27 @@ const UserProfileScreen = ({ navigation }) => {
   );
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
     useState(user?.eventCoordinatorCompanyName || "");
-  const [eventCoordinatorCompanyAddress, setEventCoordinatorCompanyAddress] =
-    useState(user?.eventCoordinatorCompanyAddress || "");
-  const [eventCoordinatorEin, setEventCoordinatorEin] = useState(
-    user?.eventCoordinatorEin || ""
+  const [eventCoordinatorTaxIdType, setEventCoordinatorTaxIdType] = useState(
+    user?.eventCoordinatorTaxIdType || "EIN"
+  );
+  const [eventCoordinatorTaxId, setEventCoordinatorTaxId] = useState("");
+  const [eventCoordinatorTaxIdMasked, setEventCoordinatorTaxIdMasked] = useState(
+    user?.eventCoordinatorTaxIdMasked || ""
+  );
+  const [eventCoordinatorAddressLine1, setEventCoordinatorAddressLine1] =
+    useState(user?.eventCoordinatorAddressLine1 || user?.eventCoordinatorCompanyAddress || "");
+  const [eventCoordinatorAddressLine2, setEventCoordinatorAddressLine2] =
+    useState(user?.eventCoordinatorAddressLine2 || "");
+  const [eventCoordinatorAddressCity, setEventCoordinatorAddressCity] =
+    useState(user?.eventCoordinatorAddressCity || "");
+  const [eventCoordinatorAddressState, setEventCoordinatorAddressState] =
+    useState(user?.eventCoordinatorAddressState || "");
+  const [eventCoordinatorAddressZip, setEventCoordinatorAddressZip] =
+    useState(user?.eventCoordinatorAddressZip || "");
+  const [eventCoordinatorFormattedAddress, setEventCoordinatorFormattedAddress] =
+    useState(user?.eventCoordinatorFormattedAddress || user?.eventCoordinatorCompanyAddress || "");
+  const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState(
+    user?.eventCoordinatorPlaceId || ""
   );
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
@@ -97,10 +154,20 @@ const UserProfileScreen = ({ navigation }) => {
       setTempLastName(user.lastName || "");
       setIsEventCoordinator(!!user.isEventCoordinator);
       setEventCoordinatorCompanyName(user.eventCoordinatorCompanyName || "");
-      setEventCoordinatorCompanyAddress(
-        user.eventCoordinatorCompanyAddress || ""
+      setEventCoordinatorTaxIdType(user.eventCoordinatorTaxIdType || "EIN");
+      setEventCoordinatorTaxId("");
+      setEventCoordinatorTaxIdMasked(user.eventCoordinatorTaxIdMasked || "");
+      setEventCoordinatorAddressLine1(
+        user.eventCoordinatorAddressLine1 || user.eventCoordinatorCompanyAddress || ""
       );
-      setEventCoordinatorEin(user.eventCoordinatorEin || "");
+      setEventCoordinatorAddressLine2(user.eventCoordinatorAddressLine2 || "");
+      setEventCoordinatorAddressCity(user.eventCoordinatorAddressCity || "");
+      setEventCoordinatorAddressState(user.eventCoordinatorAddressState || "");
+      setEventCoordinatorAddressZip(user.eventCoordinatorAddressZip || "");
+      setEventCoordinatorFormattedAddress(
+        user.eventCoordinatorFormattedAddress || user.eventCoordinatorCompanyAddress || ""
+      );
+      setEventCoordinatorPlaceId(user.eventCoordinatorPlaceId || "");
     }
   }, [user]);
 
@@ -129,7 +196,7 @@ const UserProfileScreen = ({ navigation }) => {
   const promptEnableEventCoordinator = () => {
     Alert.alert(
       "Add Event Coordination?",
-      "Would you like to add event coordination? If Yes, please get your company name and EIN ready for input.",
+      "Would you like to add event coordination? If Yes, please have your company name and EIN/SSN ready for input.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Yes", onPress: () => setIsEventCoordinator(true) },
@@ -143,8 +210,31 @@ const UserProfileScreen = ({ navigation }) => {
         setCoordinatorError("Company name is required");
         return;
       }
-      if (!eventCoordinatorEin.trim()) {
-        setCoordinatorError("Company EIN is required");
+      if (!eventCoordinatorTaxId.trim() && !eventCoordinatorTaxIdMasked) {
+        setCoordinatorError(`${eventCoordinatorTaxIdType} is required`);
+        return;
+      }
+      if (
+        eventCoordinatorTaxId.trim() &&
+        eventCoordinatorTaxId.replace(/\D/g, "").length !== 9
+      ) {
+        setCoordinatorError(`${eventCoordinatorTaxIdType} must be 9 digits`);
+        return;
+      }
+      if (!eventCoordinatorAddressLine1.trim()) {
+        setCoordinatorError("Street address is required");
+        return;
+      }
+      if (!eventCoordinatorAddressCity.trim()) {
+        setCoordinatorError("City is required");
+        return;
+      }
+      if (!eventCoordinatorAddressState.trim()) {
+        setCoordinatorError("State is required");
+        return;
+      }
+      if (!eventCoordinatorAddressZip.trim()) {
+        setCoordinatorError("Zip is required");
         return;
       }
     }
@@ -158,8 +248,27 @@ const UserProfileScreen = ({ navigation }) => {
           isEventCoordinator,
           eventCoordinatorCompanyName: eventCoordinatorCompanyName.trim(),
           eventCoordinatorCompanyAddress:
-            eventCoordinatorCompanyAddress.trim(),
-          eventCoordinatorEin: eventCoordinatorEin.trim(),
+            eventCoordinatorFormattedAddress.trim() ||
+            [
+              eventCoordinatorAddressLine1,
+              eventCoordinatorAddressLine2,
+              eventCoordinatorAddressCity,
+              eventCoordinatorAddressState,
+              eventCoordinatorAddressZip,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          eventCoordinatorTaxIdType,
+          ...(eventCoordinatorTaxId.trim()
+            ? { eventCoordinatorTaxId: eventCoordinatorTaxId.replace(/\D/g, "") }
+            : {}),
+          eventCoordinatorAddressLine1: eventCoordinatorAddressLine1.trim(),
+          eventCoordinatorAddressLine2: eventCoordinatorAddressLine2.trim(),
+          eventCoordinatorAddressCity: eventCoordinatorAddressCity.trim(),
+          eventCoordinatorAddressState: eventCoordinatorAddressState.trim(),
+          eventCoordinatorAddressZip: eventCoordinatorAddressZip.trim(),
+          eventCoordinatorFormattedAddress: eventCoordinatorFormattedAddress.trim(),
+          eventCoordinatorPlaceId,
         },
       });
 
@@ -623,7 +732,7 @@ const UserProfileScreen = ({ navigation }) => {
           {isEventCoordinator ? (
             <View style={styles.coordinatorBox}>
               <Text style={styles.coordinatorHelpText}>
-                Company name and EIN are required for event coordination access.
+                Company name, protected tax ID, and address are required for event coordination access.
               </Text>
               <TextInput
                 value={eventCoordinatorCompanyName}
@@ -632,18 +741,110 @@ const UserProfileScreen = ({ navigation }) => {
                 placeholderTextColor={AppColor.placeholderTextColor}
                 style={styles.coordinatorInput}
               />
+              <View style={styles.taxTypeRow}>
+                {["EIN", "SSN"].map((type) => {
+                  const active = eventCoordinatorTaxIdType === type;
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      activeOpacity={0.7}
+                      style={[styles.taxTypeButton, active && styles.taxTypeButtonActive]}
+                      onPress={() => {
+                        setEventCoordinatorTaxIdType(type);
+                        setEventCoordinatorTaxId("");
+                      }}
+                    >
+                      <Text style={[styles.taxTypeText, active && styles.taxTypeTextActive]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {eventCoordinatorTaxIdMasked ? (
+                <Text style={styles.coordinatorHelpText}>
+                  Current {eventCoordinatorTaxIdType}: {eventCoordinatorTaxIdMasked}
+                </Text>
+              ) : null}
               <TextInput
-                value={eventCoordinatorCompanyAddress}
-                onChangeText={setEventCoordinatorCompanyAddress}
-                placeholder="Company Address"
+                value={eventCoordinatorTaxId}
+                onChangeText={(value) =>
+                  setEventCoordinatorTaxId(formatTaxIdInput(value, eventCoordinatorTaxIdType))
+                }
+                placeholder={
+                  eventCoordinatorTaxIdMasked
+                    ? `Enter new ${eventCoordinatorTaxIdType} to replace`
+                    : `${eventCoordinatorTaxIdType} *`
+                }
+                placeholderTextColor={AppColor.placeholderTextColor}
+                keyboardType="number-pad"
+                secureTextEntry
+                style={styles.coordinatorInput}
+              />
+              <View style={styles.placesWrapper}>
+                <GooglePlacesAutocomplete
+                  placeholder="Street Address *"
+                  fetchDetails
+                  debounce={250}
+                  enablePoweredByContainer={false}
+                  onPress={(data, details) => {
+                    if (!details) return;
+                    const address = parseGooglePlaceDetails(data, details);
+                    setEventCoordinatorAddressLine1(address.line1);
+                    setEventCoordinatorAddressCity(address.city);
+                    setEventCoordinatorAddressState(address.state);
+                    setEventCoordinatorAddressZip(address.zip);
+                    setEventCoordinatorFormattedAddress(address.formattedAddress);
+                    setEventCoordinatorPlaceId(address.placeId);
+                  }}
+                  query={{
+                    key: GOOGLE_MAP_API_KEY,
+                    language: "en",
+                    components: "country:us",
+                  }}
+                  textInputProps={{
+                    value: eventCoordinatorAddressLine1,
+                    onChangeText: (value) => {
+                      setEventCoordinatorAddressLine1(value);
+                      setEventCoordinatorFormattedAddress("");
+                      setEventCoordinatorPlaceId("");
+                    },
+                  }}
+                  styles={{
+                    container: styles.placesContainer,
+                    textInputContainer: styles.placesTextInputContainer,
+                    textInput: styles.placesTextInput,
+                    listView: styles.placesListView,
+                    row: styles.placesRow,
+                    description: styles.placesDescription,
+                    separator: styles.placesSeparator,
+                  }}
+                />
+              </View>
+              <TextInput
+                value={eventCoordinatorAddressLine2}
+                onChangeText={setEventCoordinatorAddressLine2}
+                placeholder="Address Line 2"
                 placeholderTextColor={AppColor.placeholderTextColor}
                 style={styles.coordinatorInput}
               />
               <TextInput
-                value={eventCoordinatorEin}
-                onChangeText={setEventCoordinatorEin}
-                placeholder="Company EIN *"
+                value={eventCoordinatorAddressCity}
+                onChangeText={setEventCoordinatorAddressCity}
+                placeholder="City *"
                 placeholderTextColor={AppColor.placeholderTextColor}
+                style={styles.coordinatorInput}
+              />
+              <StatePickerModal
+                value={eventCoordinatorAddressState}
+                onChange={setEventCoordinatorAddressState}
+              />
+              <TextInput
+                value={eventCoordinatorAddressZip}
+                onChangeText={setEventCoordinatorAddressZip}
+                placeholder="Zip *"
+                placeholderTextColor={AppColor.placeholderTextColor}
+                keyboardType="number-pad"
                 style={styles.coordinatorInput}
               />
             </View>
@@ -928,6 +1129,77 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontFamily: Mulish400,
     color: AppColor.text,
+  },
+  taxTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  taxTypeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+  },
+  taxTypeButtonActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF1E6",
+  },
+  taxTypeText: {
+    fontFamily: Mulish600,
+    color: AppColor.textHighlighter,
+  },
+  taxTypeTextActive: {
+    color: AppColor.primary,
+  },
+  placesWrapper: {
+    zIndex: 10,
+  },
+  placesContainer: {
+    flex: 0,
+  },
+  placesTextInputContainer: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  placesTextInput: {
+    minHeight: 46,
+    height: 46,
+    margin: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+    backgroundColor: AppColor.white,
+    borderRadius: 8,
+  },
+  placesListView: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    marginTop: 4,
+    backgroundColor: AppColor.white,
+    zIndex: 20,
+    elevation: 4,
+  },
+  placesRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  placesDescription: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.text,
+  },
+  placesSeparator: {
+    height: 1,
+    backgroundColor: AppColor.borderColor,
   },
   coordinatorSaveButton: {
     backgroundColor: AppColor.primary,

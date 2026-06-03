@@ -113,6 +113,8 @@ export const MARKETPLACE_EVENTS = "/marketplace/events";
 export const MARKETPLACE_MY_EVENTS = "/marketplace/events/my";
 export const MARKETPLACE_EVENT_BY_ID = (event_id) =>
   `/marketplace/events/${event_id}`;
+export const MARKETPLACE_EVENT_REOPEN = (event_id) =>
+  `/marketplace/events/${event_id}/reopen`;
 export const PUBLIC_MARKETPLACE_EVENT_BY_ID = (event_id) =>
   `/public/marketplace/events/${event_id}`;
 export const PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK = (event_id) =>

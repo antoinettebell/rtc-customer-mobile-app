@@ -49,6 +49,7 @@ import {
   MARKETPLACE_EVENTS,
   MARKETPLACE_MY_EVENTS,
   MARKETPLACE_EVENT_BY_ID,
+  MARKETPLACE_EVENT_REOPEN,
   PUBLIC_MARKETPLACE_EVENT_BY_ID,
   PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK,
   MARKETPLACE_EVENT_IMAGES,
@@ -742,6 +743,28 @@ export const updateDietRestrictList_API = async (payload) => {
 export const createMarketplaceEvent_API = async (payload) => {
   try {
     const response = await apiClient.post(MARKETPLACE_EVENTS, payload, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const updateMarketplaceEvent_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.put(MARKETPLACE_EVENT_BY_ID(eventId), payload, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const reopenMarketplaceEvent_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(MARKETPLACE_EVENT_REOPEN(eventId), payload, {
       skipToken: false,
     });
     return response?.data;

@@ -296,8 +296,44 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       menuItem?.hasToppings &&
       ((Array.isArray(menuItem?.toppingOptions) && menuItem.toppingOptions.length > 0) ||
         (Array.isArray(menuItem?.toppings) && menuItem.toppings.length > 0));
+    const hasComboSides =
+      menuItem?.itemType === "COMBO" &&
+      Array.isArray(menuItem?.comboSideOptions) &&
+      menuItem.comboSideOptions.length > 0;
+    const bogoItems = Array.isArray(menuItem?.bogoItems)
+      ? menuItem.bogoItems
+      : [];
+    const discountSourceItem =
+      bogoItems.find((item) => item?.isSameItem) ||
+      bogoItems.find((item) => !item?.isSameItem) ||
+      (menuItem?.discountRules?.discount > 0 ? menuItem : null);
+    const discountHasFlavors =
+      discountSourceItem?.hasFlavors &&
+      ((Array.isArray(discountSourceItem?.flavorOptions) &&
+        discountSourceItem.flavorOptions.length > 0) ||
+        (Array.isArray(discountSourceItem?.flavors) &&
+          discountSourceItem.flavors.length > 0));
+    const discountHasToppings =
+      discountSourceItem?.hasToppings &&
+      ((Array.isArray(discountSourceItem?.toppingOptions) &&
+        discountSourceItem.toppingOptions.length > 0) ||
+        (Array.isArray(discountSourceItem?.toppings) &&
+          discountSourceItem.toppings.length > 0));
+    const discountHasComboSides =
+      discountSourceItem?.itemType === "COMBO" &&
+      Array.isArray(discountSourceItem?.comboSideOptions) &&
+      discountSourceItem.comboSideOptions.length > 0;
+    const discountAllowsCustomize = !!discountSourceItem?.allowCustomize;
 
-    return hasFlavors || hasToppings;
+    return (
+      hasFlavors ||
+      hasToppings ||
+      hasComboSides ||
+      discountHasFlavors ||
+      discountHasToppings ||
+      discountHasComboSides ||
+      discountAllowsCustomize
+    );
   };
 
   const openMenuItemOptions = (menuItem) => {
@@ -317,6 +353,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               existingOrderItem.selectedDiscountFlavors || [],
             selectedDiscountToppings:
               existingOrderItem.selectedDiscountToppings || [],
+            selectedDiscountCustomizationInput:
+              existingOrderItem.selectedDiscountCustomizationInput || "",
+            selectedDiscountComboSides:
+              existingOrderItem.selectedDiscountComboSides || [],
+            selectedComboSides: existingOrderItem.selectedComboSides || [],
           }
         : menuItem
     );
@@ -498,6 +539,81 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
           itemId: selectedMenuItem._id,
           keyName: "selectedDiscountToppings",
           value: selectedDiscountToppings,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedDiscountCustomizationInputChange = useCallback(
+    (selectedDiscountCustomizationInput) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedDiscountCustomizationInput",
+          value: selectedDiscountCustomizationInput,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedDiscountComboSidesChange = useCallback(
+    (selectedDiscountComboSides) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedDiscountComboSides",
+          value: selectedDiscountComboSides,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedComboSidesChange = useCallback(
+    (selectedComboSides) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedComboSides",
+          value: selectedComboSides,
         })
       );
     },
@@ -918,6 +1034,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                         existingOrderItem.selectedDiscountFlavors || [],
                                       selectedDiscountToppings:
                                         existingOrderItem.selectedDiscountToppings || [],
+                                      selectedDiscountCustomizationInput:
+                                        existingOrderItem.selectedDiscountCustomizationInput || "",
+                                      selectedDiscountComboSides:
+                                        existingOrderItem.selectedDiscountComboSides || [],
 		                                    }
 	                                  : item;
 
@@ -1019,7 +1139,14 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 		        onSelectedToppingsChange={handleSelectedToppingsChange}
             onSelectedDiscountFlavorsChange={handleSelectedDiscountFlavorsChange}
             onSelectedDiscountToppingsChange={handleSelectedDiscountToppingsChange}
-		      />
+            onSelectedDiscountCustomizationInputChange={
+              handleSelectedDiscountCustomizationInputChange
+            }
+            onSelectedDiscountComboSidesChange={
+              handleSelectedDiscountComboSidesChange
+            }
+            onSelectedComboSidesChange={handleSelectedComboSidesChange}
+			      />
 
       {/* Business Hours and Pre-Order Availability */}
       <BusinessHoursModal

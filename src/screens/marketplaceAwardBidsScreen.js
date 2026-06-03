@@ -33,6 +33,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const { eventId } = route.params || {};
   const [event, setEvent] = useState(null);
   const [bids, setBids] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [selectedBidIds, setSelectedBidIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [awarding, setAwarding] = useState(false);
@@ -50,6 +51,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       }
       if (bidsRes?.success) {
         const nextBids = bidsRes.data?.marketplaceBidList || [];
+        setApplications(bidsRes.data?.marketplaceApplicationList || []);
         setBids(nextBids);
         setSelectedBidIds(
           nextBids
@@ -210,6 +212,30 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     );
   };
 
+  const renderApplication = (item) => (
+    <View key={item.application_id} style={styles.card}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>{getVendorName(item)}</Text>
+          <Text style={styles.meta}>Application round {item.submission_round || 1}</Text>
+        </View>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{item.application_status}</Text>
+        </View>
+      </View>
+      <Text style={styles.meta}>
+        Vendor fee: {formatMoney(item.vendor_fee_amount || event?.vendor_fee || 0)}
+      </Text>
+      <Text style={styles.meta}>
+        Message: {item.message || item.notes || "Not provided"}
+      </Text>
+      {item.menu_pdf_url ? <Text style={styles.meta}>Menu PDF: Uploaded</Text> : null}
+      {item.image_urls?.length ? (
+        <Text style={styles.meta}>Food/Menu Images: {item.image_urls.length} uploaded</Text>
+      ) : null}
+    </View>
+  );
+
   const awardLocked = ["AWARDED", "CLOSED", "CANCELLED"].includes(
     event?.status
   );
@@ -238,6 +264,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 <Text style={styles.meta}>
                   Awards finalize after the marketplace booking payment is confirmed.
                 </Text>
+                <Text style={styles.meta}>
+                  Final submissions: {bids.length + applications.length} total, {applications.length} application(s).
+                </Text>
                 {awardLocked ? (
                   <Text style={styles.meta}>
                     This event is {event?.status}; award selections are locked.
@@ -253,24 +282,34 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               </View>
             }
             ListFooterComponent={
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.button,
-                  {
-                    marginTop: 4,
-                    opacity: awarding || !bids.length || awardLocked ? 0.6 : 1,
-                  },
-                ]}
-                disabled={awarding || !bids.length || awardLocked}
-                onPress={handleAward}
-              >
-                {awarding ? (
-                  <ActivityIndicator color={AppColor.white} />
-                ) : (
-                  <Text style={styles.buttonText}>Complete Booking Payment</Text>
-                )}
-              </TouchableOpacity>
+              <View>
+                {applications.length ? (
+                  <View>
+                    <Text style={[styles.title, { marginBottom: 10 }]}>
+                      Vendor Applications
+                    </Text>
+                    {applications.map(renderApplication)}
+                  </View>
+                ) : null}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[
+                    styles.button,
+                    {
+                      marginTop: 4,
+                      opacity: awarding || !bids.length || awardLocked ? 0.6 : 1,
+                    },
+                  ]}
+                  disabled={awarding || !bids.length || awardLocked}
+                  onPress={handleAward}
+                >
+                  {awarding ? (
+                    <ActivityIndicator color={AppColor.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Complete Booking Payment</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             }
           />
         </>

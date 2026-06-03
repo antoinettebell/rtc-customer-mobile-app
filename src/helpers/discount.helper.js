@@ -54,7 +54,8 @@ export const normalizeMenuOptions = (item, type) => {
 export const calculateSelectedOptionCost = (
   item,
   flavorKey = "selectedFlavors",
-  toppingKey = "selectedToppings"
+  toppingKey = "selectedToppings",
+  optionSourceItem = item
 ) => {
   const selectedFlavors = Array.isArray(item?.[flavorKey])
     ? item[flavorKey]
@@ -64,7 +65,7 @@ export const calculateSelectedOptionCost = (
     : [];
 
   const selectedCost = (type, selectedNames) => {
-    const options = normalizeMenuOptions(item, type);
+    const options = normalizeMenuOptions(optionSourceItem, type);
     return selectedNames.reduce((sum, selectedOption) => {
       const selectedName =
         typeof selectedOption === "string"
@@ -78,10 +79,27 @@ export const calculateSelectedOptionCost = (
   return selectedCost("flavor", selectedFlavors) + selectedCost("topping", selectedToppings);
 };
 
+export const getDiscountSourceItem = (item) => {
+  const safeItem = item || {};
+  const bogoItems = Array.isArray(safeItem.bogoItems) ? safeItem.bogoItems : [];
+  const sameItemReward = bogoItems.find((bi) => bi?.isSameItem);
+  const differentItemReward = bogoItems.find((bi) => !bi?.isSameItem);
+
+  if (
+    sameItemReward ||
+    (!bogoItems.length && safeItem?.discountRules?.discount > 0)
+  ) {
+    return safeItem;
+  }
+
+  return differentItemReward || safeItem;
+};
+
 export const calculateItemTotalWithDiscount = (item) => {
   const { price, quantity, discountType, discountRules } = item;
   const unitPrice = (Number(price) || 0) + calculateSelectedOptionCost(item);
   let total = unitPrice * quantity;
+  const discountSourceItem = getDiscountSourceItem(item);
 
   if (discountRules && discountRules.discount > 0) {
     const { discount: discountVal = 0 } = discountRules;
@@ -90,7 +108,8 @@ export const calculateItemTotalWithDiscount = (item) => {
     const rewardOptionsCost = calculateSelectedOptionCost(
       item,
       "selectedDiscountFlavors",
-      "selectedDiscountToppings"
+      "selectedDiscountToppings",
+      discountSourceItem
     );
 
     const rewardTotal = rewardQty * (basePrice + rewardOptionsCost);
@@ -101,7 +120,8 @@ export const calculateItemTotalWithDiscount = (item) => {
     const rewardOptionsCost = calculateSelectedOptionCost(
       item,
       "selectedDiscountFlavors",
-      "selectedDiscountToppings"
+      "selectedDiscountToppings",
+      discountSourceItem
     );
     total = unitPrice * quantity + rewardOptionsCost * quantity;
   } else if (discountType === "BOGOHO") {
@@ -110,7 +130,8 @@ export const calculateItemTotalWithDiscount = (item) => {
     const rewardOptionsCost = calculateSelectedOptionCost(
       item,
       "selectedDiscountFlavors",
-      "selectedDiscountToppings"
+      "selectedDiscountToppings",
+      discountSourceItem
     );
     total =
       item.bogoHoPrice != null
@@ -136,10 +157,21 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
   const selectedDiscountToppings = Array.isArray(safeItem.selectedDiscountToppings)
     ? safeItem.selectedDiscountToppings
     : [];
+  const selectedDiscountCustomization =
+    safeItem.selectedDiscountCustomization ||
+    safeItem.selectedDiscountCustomizationInput ||
+    "";
+  const selectedDiscountComboSides = Array.isArray(
+    safeItem.selectedDiscountComboSides
+  )
+    ? safeItem.selectedDiscountComboSides
+    : [];
+  const discountSourceItem = getDiscountSourceItem(safeItem);
   const selectedDiscountOptionsCost = calculateSelectedOptionCost(
     safeItem,
     "selectedDiscountFlavors",
-    "selectedDiscountToppings"
+    "selectedDiscountToppings",
+    discountSourceItem
   );
   let rewardItems = [];
 
@@ -160,22 +192,26 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
               ? rewardQty
               : rewardQty * biQtySafe;
           const rewardDisplayPrice =
-            (Number(bi.isSameItem ? safeItem.price : bi.itemId?.price) || 0) *
+            (Number(bi.isSameItem ? safeItem.price : bi.itemId?.price ?? bi.price) || 0) *
               (1 - discountVal) +
-            (bi.isSameItem ? selectedDiscountOptionsCost : 0);
+            selectedDiscountOptionsCost;
 
           return {
             ...bi,
             displayQty,
-            displayName: bi.isSameItem ? safeItem.name : bi.itemId?.name,
+            displayName: bi.isSameItem ? safeItem.name : bi.itemId?.name || bi.name,
             displayImg: bi.isSameItem
               ? safeItem.imgUrls?.[0]
-              : bi.itemId?.imgUrls?.[0],
+              : bi.itemId?.imgUrls?.[0] || bi.imgUrls?.[0],
             displayDesc: bi.isSameItem
               ? safeItem.description
-              : bi.itemId?.description,
-            displayFlavors: bi.isSameItem ? selectedDiscountFlavors : [],
-            displayToppings: bi.isSameItem ? selectedDiscountToppings : [],
+              : bi.itemId?.description || bi.description,
+            displayFlavors: selectedDiscountFlavors,
+            displayToppings: selectedDiscountToppings,
+            displayCustomization: bi.allowCustomize
+              ? selectedDiscountCustomization
+              : null,
+            displayComboSides: selectedDiscountComboSides,
             displayPrice:
               rewardDisplayPrice <= 0
                 ? "Free"
@@ -195,6 +231,10 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
             displayDesc: safeItem.description,
             displayFlavors: selectedDiscountFlavors,
             displayToppings: selectedDiscountToppings,
+            displayCustomization: safeItem.allowCustomize
+              ? selectedDiscountCustomization
+              : null,
+            displayComboSides: selectedDiscountComboSides,
             displayQty: rewardQty,
             displayPrice:
               rewardDisplayPrice <= 0
@@ -212,8 +252,12 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
       displayName: bi.itemId?.name || bi.name,
       displayImg: bi.itemId?.imgUrls?.[0] || bi.imgUrls?.[0],
       displayDesc: bi.itemId?.description || bi.description,
-      displayFlavors: bi.isSameItem ? selectedDiscountFlavors : [],
-      displayToppings: bi.isSameItem ? selectedDiscountToppings : [],
+      displayFlavors: selectedDiscountFlavors,
+      displayToppings: selectedDiscountToppings,
+      displayCustomization: bi.allowCustomize
+        ? selectedDiscountCustomization
+        : null,
+      displayComboSides: selectedDiscountComboSides,
       displayPrice:
         discountType === "BOGO"
           ? bi.isSameItem && selectedDiscountOptionsCost > 0

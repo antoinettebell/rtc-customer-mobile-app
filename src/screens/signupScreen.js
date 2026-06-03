@@ -219,7 +219,8 @@ const SignupScreen = ({ navigation }) => {
           "eventCoordinatorCompanyAddress",
           eventCoordinatorCompanyAddress.trim()
         );
-        formData.append("eventCoordinatorEin", eventCoordinatorEin.trim());
+        formData.append("eventCoordinatorTaxIdType", "EIN");
+        formData.append("eventCoordinatorTaxId", eventCoordinatorEin.trim());
       }
 
       if (selectedPhoto) {

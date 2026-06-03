@@ -123,6 +123,10 @@ const orderSlice = createSlice({
           selectedToppings: item.selectedToppings || [],
           selectedDiscountFlavors: item.selectedDiscountFlavors || [],
           selectedDiscountToppings: item.selectedDiscountToppings || [],
+          selectedDiscountCustomizationInput:
+            item.selectedDiscountCustomizationInput || "",
+          selectedDiscountComboSides: item.selectedDiscountComboSides || [],
+          selectedComboSides: item.selectedComboSides || [],
         };
       });
 
@@ -137,6 +141,11 @@ const orderSlice = createSlice({
           selectedToppings: existingData.selectedToppings || [],
           selectedDiscountFlavors: existingData.selectedDiscountFlavors || [],
           selectedDiscountToppings: existingData.selectedDiscountToppings || [],
+          selectedDiscountCustomizationInput:
+            existingData.selectedDiscountCustomizationInput || "",
+          selectedDiscountComboSides:
+            existingData.selectedDiscountComboSides || [],
+          selectedComboSides: existingData.selectedComboSides || [],
         };
       });
 
@@ -176,6 +185,7 @@ const orderSlice = createSlice({
             "selectedToppings",
             "selectedDiscountFlavors",
             "selectedDiscountToppings",
+            "selectedDiscountComboSides",
           ].includes(keyName)
         ) {
           state.currentOrder.subtotal = state.currentOrder.items.reduce(

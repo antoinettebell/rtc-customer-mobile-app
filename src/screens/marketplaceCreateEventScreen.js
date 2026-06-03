@@ -18,10 +18,12 @@ import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import Config from "../config/env";
+import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
   uploadMarketplaceEventImage_API,
@@ -49,7 +51,10 @@ const initialForm = {
   event_type: "",
   event_visibility: "PRIVATE",
   event_style: "",
+  event_type_other: "",
   service_type: "",
+  service_types: [],
+  service_styles: [],
   primary_service_style: "",
   plated_number_of_courses: "",
   plated_single_entree: false,
@@ -81,7 +86,9 @@ const initialForm = {
   equipment_needed: [],
   vendor_fee: "",
   budgeted_amount: "",
+  payment_responsibility: "COORDINATOR",
   event_close_date: "",
+  event_close_time: "",
 };
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
@@ -171,12 +178,14 @@ const requiredFields = [
   "event_type",
   "primary_service_style",
   "event_date",
+  "event_time",
   "event_address",
   "event_city",
   "event_state",
   "number_of_guests",
   "number_of_vendors_needed",
   "event_close_date",
+  "event_close_time",
 ];
 
 const isValidUrl = (value) => {
@@ -188,6 +197,27 @@ const getAutoFoodTruckVendorCount = (guestCount) =>
   Math.max(1, Math.ceil(Number(guestCount || 0) / 75));
 
 const isFoodTruckStyle = (style) => style === "Food Truck";
+const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
+const isCoordinatorBudgetRequired = (form) =>
+  ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
+
+const formatDateForPayload = (date) => {
+  if (!date) return "";
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "";
+  return value.toISOString().slice(0, 10);
+};
+
+const formatTimeForPayload = (date) => {
+  if (!date) return "";
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "";
+  return value.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 
 const resetServiceSpecificFields = () => ({
   plated_number_of_courses: "",
@@ -438,6 +468,24 @@ const localStyles = StyleSheet.create({
     paddingVertical: 10,
     color: AppColor.text,
   },
+  disabledMoneyBox: {
+    backgroundColor: "#F2F4F7",
+  },
+  pickerButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: "#D8DDE6",
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  pickerButtonText: {
+    color: AppColor.text,
+  },
+  pickerPlaceholder: {
+    color: AppColor.textPlaceholder,
+  },
   uploadCard: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -485,6 +533,13 @@ const localStyles = StyleSheet.create({
   submitButton: {
     borderRadius: 12,
   },
+  footerRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  footerButton: {
+    flex: 1,
+  },
 });
 
 const MarketplaceCreateEventScreen = ({ navigation }) => {
@@ -492,27 +547,79 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitMode, setSubmitMode] = useState(null);
+  const [pickerState, setPickerState] = useState(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
   );
-  const foodTruckVendorCount = getAutoFoodTruckVendorCount(
-    form.number_of_guests
-  );
-  const foodTruckSelected = isFoodTruckStyle(form.primary_service_style);
+  const foodTruckSelected =
+    isFoodTruckStyle(form.primary_service_style) || isFoodTruckService(form);
 
   useEffect(() => {
-    if (!foodTruckSelected) return;
     setForm((prev) => ({
       ...prev,
       number_of_vendors_needed: String(
         getAutoFoodTruckVendorCount(prev.number_of_guests)
       ),
     }));
-  }, [foodTruckSelected, form.number_of_guests]);
+  }, [form.number_of_guests]);
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateListField = (key, option) => {
+    setForm((prev) => {
+      let nextList = toggleListValue(prev[key] || [], option);
+      const next = { ...prev, [key]: nextList };
+
+      if (key === "service_types" && option === "Food Truck") {
+        if (nextList.includes("Food Truck")) {
+          next.primary_service_style = "Food Truck";
+          next.service_styles = [
+            ...new Set([...(prev.service_styles || []), "Food Truck"]),
+          ];
+          next.number_of_vendors_needed = String(
+            getAutoFoodTruckVendorCount(prev.number_of_guests)
+          );
+        }
+      }
+
+      if (key === "service_styles" && option === "Food Truck") {
+        if (nextList.includes("Food Truck")) {
+          next.service_types = [
+            ...new Set([...(prev.service_types || []), "Food Truck"]),
+          ];
+          next.primary_service_style = "Food Truck";
+        }
+      }
+
+      if (key === "permits_required" && option === "Alcohol") {
+        next.alcohol_required = nextList.includes("Alcohol");
+      }
+
+      if (key === "equipment_needed") {
+        if (option === "None" && nextList.includes("None")) {
+          nextList = ["None"];
+        } else if (option !== "None") {
+          nextList = nextList.filter((item) => item !== "None");
+        }
+        next.equipment_needed = nextList;
+      }
+
+      return next;
+    });
+  };
+
+  const updateAlcoholRequired = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      alcohol_required: value,
+      permits_required: value
+        ? [...new Set([...(prev.permits_required || []), "Alcohol"])]
+        : (prev.permits_required || []).filter((item) => item !== "Alcohol"),
+    }));
   };
 
   const handleManualAddressChange = (value) => {
@@ -537,10 +644,32 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     }));
   };
 
-  const validate = () => {
+  const validate = (status = "OPEN") => {
+    if (status === "DRAFT") {
+      if (!form.event_name.trim() && !form.event_type.trim()) {
+        setSnackbar({
+          visible: true,
+          message: "Add at least an event name or event type before saving a draft.",
+        });
+        return false;
+      }
+      return true;
+    }
     const missing = requiredFields.find((field) => !String(form[field]).trim());
     if (missing) {
       setSnackbar({ visible: true, message: "Please complete required fields." });
+      return false;
+    }
+    if (form.event_type === "Other" && !form.event_type_other.trim()) {
+      setSnackbar({ visible: true, message: "Please describe the Other event type." });
+      return false;
+    }
+    if (!form.service_types.length) {
+      setSnackbar({ visible: true, message: "Please select at least one service type." });
+      return false;
+    }
+    if (!form.service_styles.length) {
+      setSnackbar({ visible: true, message: "Please select at least one service style." });
       return false;
     }
     if (!isValidUrl(form.ticket_url)) {
@@ -550,43 +679,84 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
       });
       return false;
     }
-    if (
-      !foodTruckSelected &&
-      Number(form.number_of_vendors_needed || 0) < 1
-    ) {
+    if (Number(form.number_of_vendors_needed || 0) < 1) {
       setSnackbar({
         visible: true,
         message: "Vendors Needed must be at least 1.",
       });
       return false;
     }
+    if (form.alcohol_required && !form.permits_required.includes("Alcohol")) {
+      setSnackbar({
+        visible: true,
+        message: "Alcohol Permit is required when Alcohol Service is selected.",
+      });
+      return false;
+    }
+    if (form.payment_responsibility === "COORDINATOR" && Number(form.budgeted_amount || 0) <= 0) {
+      setSnackbar({ visible: true, message: "Budget amount is required." });
+      return false;
+    }
+    if (form.payment_responsibility === "VENDOR" && Number(form.vendor_fee || 0) <= 0) {
+      setSnackbar({ visible: true, message: "Vendor fee is required." });
+      return false;
+    }
+    if (
+      form.payment_responsibility === "BOTH" &&
+      (Number(form.budgeted_amount || 0) <= 0 || Number(form.vendor_fee || 0) <= 0)
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Budget amount and vendor fee are required.",
+      });
+      return false;
+    }
+    if (isCoordinatorBudgetRequired(form)) {
+      const minimumBudget = Number(form.number_of_guests || 0) * 25;
+      if (Number(form.budgeted_amount || 0) < minimumBudget) {
+        setSnackbar({
+          visible: true,
+          message: `Budget must be at least $${minimumBudget.toFixed(2)} for this guest count.`,
+        });
+        return false;
+      }
+    }
     return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validate()) return;
+  const buildPayload = (status) => ({
+    ...form,
+    event_style: form.service_styles[0] || form.event_style || "",
+    service_type: form.service_types[0] || "",
+    number_of_guests: Number(form.number_of_guests || 0),
+    number_of_vendors_needed: getAutoFoodTruckVendorCount(form.number_of_guests),
+    plated_number_of_courses: form.plated_number_of_courses
+      ? Number(form.plated_number_of_courses)
+      : null,
+    vendor_fee:
+      form.payment_responsibility === "COORDINATOR"
+        ? 0
+        : Number(form.vendor_fee || 0),
+    budgeted_amount:
+      form.payment_responsibility === "VENDOR"
+        ? 0
+        : Number(form.budgeted_amount || 0),
+    ticket_sales_enabled: !!form.ticket_sales_enabled,
+    ticket_url: form.ticket_url?.trim() || "",
+    status,
+  });
+
+  const handleSubmit = async (status = "OPEN") => {
+    if (!validate(status)) return;
     setLoading(true);
+    setSubmitMode(status);
     try {
-      const payload = {
-        ...form,
-        number_of_guests: Number(form.number_of_guests),
-        number_of_vendors_needed: foodTruckSelected
-          ? foodTruckVendorCount
-          : Math.max(1, Number(form.number_of_vendors_needed || 1)),
-        plated_number_of_courses: form.plated_number_of_courses
-          ? Number(form.plated_number_of_courses)
-          : null,
-        vendor_fee: Number(form.vendor_fee || 0),
-        budgeted_amount: Number(form.budgeted_amount || 0),
-        ticket_sales_enabled: !!form.ticket_sales_enabled,
-        ticket_url: form.ticket_url?.trim() || "",
-        status: "OPEN",
-      };
+      const payload = buildPayload(status);
       const response = await createMarketplaceEvent_API(payload);
       if (response?.success) {
         const eventId = response.data?.marketplaceEvent?.event_id;
         let uploadWarning = false;
-        if (eventId && eventImages.length) {
+        if (status !== "DRAFT" && eventId && eventImages.length) {
           try {
             for (const image of eventImages) {
               const formData = new FormData();
@@ -606,10 +776,12 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
           }
         }
         Alert.alert(
-          "Event Created",
-          uploadWarning
-            ? "Your event is open for vendor bids, but one or more images did not upload."
-            : "Your event is open for vendor bids.",
+          status === "DRAFT" ? "Draft Saved" : "Event Created",
+          status === "DRAFT"
+            ? "Your draft has been saved."
+            : uploadWarning
+              ? "Your event is open for vendor bids, but one or more images did not upload."
+              : "Your event is open for vendor bids.",
           [
             {
               text: "OK",
@@ -621,10 +793,13 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     } catch (error) {
       setSnackbar({
         visible: true,
-        message: error?.message || "Failed to create event.",
+        message:
+          error?.message ||
+          (status === "DRAFT" ? "Failed to save draft." : "Failed to create event."),
       });
     } finally {
       setLoading(false);
+      setSubmitMode(null);
     }
   };
 
@@ -709,10 +884,31 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderMoneyInput = (label, key, helper) => (
+  const renderDateTimePicker = (label, key, mode) => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(label)}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={localStyles.pickerButton}
+        onPress={() => setPickerState({ key, mode })}
+      >
+        <Text
+          style={[
+            styles.chipText,
+            localStyles.pickerButtonText,
+            !form[key] && localStyles.pickerPlaceholder,
+          ]}
+        >
+          {form[key] || (mode === "date" ? "Select date" : "Select time")}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderMoneyInput = (label, key, helper, disabled = false) => (
     <View style={[localStyles.fieldGroup, localStyles.sideField]}>
       {renderLabel(label)}
-      <View style={localStyles.moneyBox}>
+      <View style={[localStyles.moneyBox, disabled && localStyles.disabledMoneyBox]}>
         <Text style={localStyles.moneyPrefix}>$</Text>
         <TextInput
           value={form[key]}
@@ -720,6 +916,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
           placeholder="0.00"
           placeholderTextColor={AppColor.textPlaceholder}
           keyboardType="decimal-pad"
+          editable={!disabled}
           style={localStyles.moneyInput}
         />
       </View>
@@ -802,7 +999,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => {
                 if (Array.isArray(form[key])) {
-                  updateField(key, toggleListValue(form[key], option));
+                  updateListField(key, option);
                 } else {
                   updateField(key, option);
                 }
@@ -829,7 +1026,13 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             <TouchableOpacity
               key={option}
               activeOpacity={0.78}
-              onPress={() => updateField("event_type", option)}
+              onPress={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  event_type: option,
+                  event_type_other: option === "Other" ? prev.event_type_other : "",
+                }))
+              }
               style={[
                 localStyles.eventTypeCard,
                 active && localStyles.eventTypeCardActive,
@@ -854,6 +1057,9 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
           );
         })}
       </View>
+      {form.event_type === "Other"
+        ? renderInput("Other Event Type *", "event_type_other")
+        : null}
     </View>
   );
 
@@ -870,7 +1076,11 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             <TouchableOpacity
               key={labelText}
               activeOpacity={0.7}
-              onPress={() => updateField(key, value)}
+              onPress={() =>
+                key === "alcohol_required"
+                  ? updateAlcoholRequired(value)
+                  : updateField(key, value)
+              }
               style={[
                 localStyles.segment,
                 index > 0 && localStyles.segmentDivider,
@@ -968,6 +1178,8 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
       <View style={localStyles.serviceGrid}>
         {PRIMARY_SERVICE_STYLES.map((option) => {
           const active = form.primary_service_style === option.label;
+          const disabled =
+            form.service_types.includes("Food Truck") && option.label !== "Food Truck";
           return (
             <TouchableOpacity
               key={option.label}
@@ -975,12 +1187,21 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
               style={[
                 localStyles.serviceCard,
                 active && localStyles.serviceCardActive,
+                disabled && localStyles.readOnlyInput,
               ]}
+              disabled={disabled}
               onPress={() =>
                 setForm((prev) => ({
                   ...prev,
                   ...resetServiceSpecificFields(),
                   primary_service_style: option.label,
+                  service_styles: [
+                    ...new Set([...(prev.service_styles || []), option.label]),
+                  ],
+                  service_types:
+                    option.label === "Food Truck"
+                      ? [...new Set([...(prev.service_types || []), "Food Truck"])]
+                      : prev.service_types,
                   number_of_vendors_needed:
                     option.label === "Food Truck"
                       ? String(getAutoFoodTruckVendorCount(prev.number_of_guests))
@@ -1092,15 +1313,9 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
           keyboardType: "number-pad",
           editable: !foodTruckSelected,
         })}
-        {foodTruckSelected ? (
-          <Text style={styles.meta}>
-            One food truck is recommended for every 75 guests.
-          </Text>
-        ) : (
-          <Text style={styles.meta}>
-            This controls the maximum number of vendors you can award.
-          </Text>
-        )}
+        <Text style={styles.meta}>
+          Vendors needed is calculated automatically at one vendor per 75 guests.
+        </Text>
       </View>
     </View>
   );
@@ -1124,25 +1339,26 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             {renderTicketSalesFields()}
             {renderEventTypeCards()}
             {renderVisibilityToggle()}
-            {renderChips("Event Style", "event_style", EVENT_STYLES)}
-            {renderChips("Service Type", "service_type", SERVICE_TYPES)}
+            {renderChips("Service Styles", "service_styles", EVENT_STYLES)}
+            {renderChips("Service Type *", "service_types", SERVICE_TYPES)}
             {renderPrimaryServiceStyle()}
             {renderServiceSpecificDetails()}
             <View style={localStyles.sideBySide}>
               <View style={localStyles.sideField}>
-                {renderInput("Event Date *", "event_date", {
-                  placeholder: "YYYY-MM-DD",
-                })}
+                {renderDateTimePicker("Event Date *", "event_date", "date")}
               </View>
               <View style={localStyles.sideField}>
-                {renderInput("Time", "event_time", {
-                  placeholder: "HH:mm",
-                })}
+                {renderDateTimePicker("Event Time *", "event_time", "time")}
               </View>
             </View>
-            {renderInput("Close Date *", "event_close_date", {
-              placeholder: "YYYY-MM-DD",
-            })}
+            <View style={localStyles.sideBySide}>
+              <View style={localStyles.sideField}>
+                {renderDateTimePicker("Close Date *", "event_close_date", "date")}
+              </View>
+              <View style={localStyles.sideField}>
+                {renderDateTimePicker("Close Time *", "event_close_time", "time")}
+              </View>
+            </View>
           </View>
 
           <View style={localStyles.card}>
@@ -1153,7 +1369,12 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
                 {renderInput("City *", "event_city")}
               </View>
               <View style={localStyles.sideField}>
-                {renderInput("State *", "event_state")}
+                <View style={localStyles.fieldGroup}>
+                  <StatePickerModal
+                    value={form.event_state}
+                    onChange={(value) => updateField("event_state", value)}
+                  />
+                </View>
               </View>
             </View>
             {renderInput("Zip", "event_zip")}
@@ -1173,18 +1394,31 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
 
           <View style={localStyles.card}>
             {renderSectionHeader("Budget", "payments")}
+            {renderChips("Who is paying? *", "payment_responsibility", [
+              "COORDINATOR",
+              "VENDOR",
+              "BOTH",
+            ])}
             <View style={localStyles.sideBySide}>
               {renderMoneyInput(
                 "Vendor Fee",
                 "vendor_fee",
                 "Fee vendors pay if this event requires attendance payment.",
+                form.payment_responsibility === "COORDINATOR",
               )}
               {renderMoneyInput(
                 "Budgeted Amount",
                 "budgeted_amount",
                 "Amount available when coordinator pays vendors.",
+                form.payment_responsibility === "VENDOR",
               )}
             </View>
+            {isCoordinatorBudgetRequired(form) ? (
+              <Text style={styles.meta}>
+                Minimum budget for this guest count is $
+                {(Number(form.number_of_guests || 0) * 25).toFixed(2)}.
+              </Text>
+            ) : null}
           </View>
 
           <View style={localStyles.card}>
@@ -1239,24 +1473,61 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
             { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[
-              styles.button,
-              localStyles.submitButton,
-              { opacity: loading ? 0.6 : 1 },
-            ]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={AppColor.white} />
-            ) : (
-              <Text style={styles.buttonText}>Submit Event</Text>
-            )}
-          </TouchableOpacity>
+          <View style={localStyles.footerRow}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.secondaryButton,
+                localStyles.submitButton,
+                localStyles.footerButton,
+                { opacity: loading ? 0.6 : 1 },
+              ]}
+              onPress={() => handleSubmit("DRAFT")}
+              disabled={loading}
+            >
+              {loading && submitMode === "DRAFT" ? (
+                <ActivityIndicator color={AppColor.primary} />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Save Draft</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.button,
+                localStyles.submitButton,
+                localStyles.footerButton,
+                { opacity: loading ? 0.6 : 1 },
+              ]}
+              onPress={() => handleSubmit("OPEN")}
+              disabled={loading}
+            >
+              {loading && submitMode === "OPEN" ? (
+                <ActivityIndicator color={AppColor.white} />
+              ) : (
+                <Text style={styles.buttonText}>Submit Event</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
+      <DateTimePickerModal
+        isVisible={!!pickerState}
+        mode={pickerState?.mode || "date"}
+        is24Hour={false}
+        onCancel={() => setPickerState(null)}
+        onConfirm={(date) => {
+          if (pickerState?.key) {
+            updateField(
+              pickerState.key,
+              pickerState.mode === "date"
+                ? formatDateForPayload(date)
+                : formatTimeForPayload(date)
+            );
+          }
+          setPickerState(null);
+        }}
+      />
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ visible: false, message: "" })}

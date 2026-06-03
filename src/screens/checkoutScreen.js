@@ -389,6 +389,22 @@ const CheckoutScreen = ({ navigation, route }) => {
         }
 
         if (
+          item.selectedDiscountCustomizationInput?.trim()?.length > 0
+        ) {
+          itemPayload.selectedDiscountCustomization =
+            item.selectedDiscountCustomizationInput.trim();
+        }
+
+        if (item.selectedDiscountComboSides?.length > 0) {
+          itemPayload.selectedDiscountComboSides =
+            item.selectedDiscountComboSides;
+        }
+
+        if (item.selectedComboSides?.length > 0) {
+          itemPayload.selectedComboSides = item.selectedComboSides;
+        }
+
+        if (
           item.itemType === foodTypeStrings.combo &&
           item.selectedSubItems &&
           item.selectedSubItems.length > 0
@@ -619,6 +635,16 @@ const CheckoutScreen = ({ navigation, route }) => {
                   {itm.displayToppings?.length > 0 ? (
                     <Text style={styles.nestedItemDesc} numberOfLines={2}>
                       {`Toppings: ${itm.displayToppings.join(", ")}`}
+                    </Text>
+                  ) : null}
+                  {itm.displayComboSides?.length > 0 ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {`Sides: ${itm.displayComboSides.join(", ")}`}
+                    </Text>
+                  ) : null}
+                  {itm.displayCustomization ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {itm.displayCustomization}
                     </Text>
                   ) : null}
                   <Text style={styles.nestedItemPrice}>{itm.displayPrice}</Text>

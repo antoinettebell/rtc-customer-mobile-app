@@ -17,6 +17,7 @@ import { AppColor } from "../utils/theme";
 import {
   getMarketplaceEventById_API,
   getPublicMarketplaceEventById_API,
+  reopenMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
 import ImageCarousel from "../components/ImageCarousel";
@@ -121,6 +122,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
   const ticketUrl = event?.ticket_url?.trim();
+  const isClosed = event?.status === "CLOSED";
   let ticketAvailabilityMessage =
     "Ticket availability details are not available in the app yet.";
   if (ticketSalesEnabled && ticketUrl) {
@@ -152,6 +154,70 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     } catch (error) {
       Alert.alert("Tickets", "Unable to open the ticket sales link.");
     }
+  };
+
+  const handleReopenEvent = () => {
+    if (!event) return;
+    Alert.alert(
+      "Reopen Bidding",
+      "This will reopen the event with a new 7-day submission window. Previous submitters remain visible but cannot submit again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reopen",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const closeDate = new Date();
+              closeDate.setDate(closeDate.getDate() + 7);
+              const payload = {
+                ...event,
+                event_date: event.event_date
+                  ? new Date(event.event_date).toISOString().slice(0, 10)
+                  : "",
+                event_close_date: closeDate.toISOString().slice(0, 10),
+                event_close_time: "11:59 PM",
+                event_time: event.event_time || "12:00 PM",
+                service_types:
+                  event.service_types?.length
+                    ? event.service_types
+                    : event.service_type
+                      ? [event.service_type]
+                      : [],
+                service_styles:
+                  event.service_styles?.length
+                    ? event.service_styles
+                    : event.event_style
+                      ? [event.event_style]
+                      : [],
+                payment_responsibility:
+                  event.payment_responsibility ||
+                  (Number(event.vendor_fee || 0) > 0 &&
+                  Number(event.budgeted_amount || 0) > 0
+                    ? "BOTH"
+                    : Number(event.vendor_fee || 0) > 0
+                      ? "VENDOR"
+                      : "COORDINATOR"),
+              };
+              const response = await reopenMarketplaceEvent_API({
+                eventId,
+                payload,
+              });
+              if (response?.success) {
+                setEvent(response.data?.marketplaceEvent);
+              }
+            } catch (error) {
+              Alert.alert(
+                "Reopen Bidding",
+                error?.message || "Failed to reopen event."
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (customerSafe) {
@@ -246,6 +312,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             <DetailRow label="Event Type" value={event?.event_type} />
             <DetailRow label="Event Style" value={event?.event_style} />
             <DetailRow label="Service Type" value={event?.service_type} />
+            <DetailRow label="Service Types" value={listValue(event?.service_types)} />
+            <DetailRow label="Service Styles" value={listValue(event?.service_styles)} />
             <DetailRow label="Primary Service Style" value={event?.primary_service_style} />
             {getServiceSpecificRows(event).map(([label, value]) => (
               <DetailRow key={label} label={label} value={String(value || "Not set")} />
@@ -282,11 +350,22 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           <View style={styles.card}>
             <Text style={styles.title}>Budget</Text>
             <DetailRow label="Vendor Fee" value={formatMoney(event?.vendor_fee)} />
+            <DetailRow label="Who Pays" value={event?.payment_responsibility || "Not set"} />
             <DetailRow
               label="Budgeted Amount"
               value={formatMoney(event?.budgeted_amount)}
             />
             <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />
+            <DetailRow label="Close Time" value={event?.event_close_time} />
+            <DetailRow
+              label="Final Submissions"
+              value={String(event?.submission_count ?? event?.final_submission_count ?? 0)}
+            />
+            <DetailRow label="Applications" value={String(event?.application_count ?? 0)} />
+            <DetailRow
+              label="Reopen Round"
+              value={String(event?.current_submission_round || 1)}
+            />
             <DetailRow
               label="Booking Payment"
               value={event?.award_payment_status || "NOT_REQUIRED"}
@@ -322,12 +401,15 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           <TouchableOpacity
             activeOpacity={0.7}
             style={[styles.secondaryButton, styles.mutedButton, { marginTop: 12 }]}
-            onPress={() =>
-              Alert.alert("Reopen Bidding", "Reopen bidding payment will be added in a later phase.")
-            }
+            onPress={handleReopenEvent}
+            disabled={!isClosed || (event?.reopen_count || 0) >= 2}
           >
             <Text style={[styles.secondaryButtonText, styles.mutedButtonText]}>
-              Reopen Bidding
+              {(event?.reopen_count || 0) >= 2
+                ? "Reopen Limit Reached"
+                : isClosed
+                  ? "Reopen Bidding"
+                  : "Reopen Available After Close"}
             </Text>
           </TouchableOpacity>
         </ScrollView>
