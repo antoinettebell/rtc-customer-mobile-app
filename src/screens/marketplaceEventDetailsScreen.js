@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -16,7 +17,9 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import {
   getMarketplaceEventById_API,
+  getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
+  answerMarketplaceEventQuestion_API,
   reopenMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
@@ -87,6 +90,27 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const { eventId, customerSafe = false } = route.params || {};
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [qaArchived, setQaArchived] = useState(false);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [answerDrafts, setAnswerDrafts] = useState({});
+  const [answeringId, setAnsweringId] = useState(null);
+
+  const loadQuestions = async () => {
+    if (!eventId || customerSafe) return;
+    setQaLoading(true);
+    try {
+      const response = await getMarketplaceEventQuestions_API(eventId);
+      if (response?.success) {
+        setQuestions(response.data?.marketplaceQuestionList || []);
+        setQaArchived(!!response.data?.qa_archived);
+      }
+    } catch (error) {
+      console.log("Marketplace messages error", error);
+    } finally {
+      setQaLoading(false);
+    }
+  };
 
   const loadEvent = async () => {
     setLoading(true);
@@ -97,6 +121,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       if (response?.success) {
         setEvent(response.data?.marketplaceEvent);
       }
+      await loadQuestions();
     } catch (error) {
       Alert.alert("Event", error?.message || "Failed to load event.");
     } finally {
@@ -219,6 +244,109 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       ]
     );
   };
+
+  const handleAnswerQuestion = async (questionId) => {
+    const answerText = String(answerDrafts[questionId] || "").trim();
+    if (!answerText) {
+      Alert.alert("Messages", "Enter a response before posting.");
+      return;
+    }
+
+    setAnsweringId(questionId);
+    try {
+      const response = await answerMarketplaceEventQuestion_API({
+        eventId,
+        questionId,
+        answerText,
+      });
+      if (response?.success) {
+        setAnswerDrafts((prev) => ({ ...prev, [questionId]: "" }));
+        await loadQuestions();
+      } else if (response?.message) {
+        Alert.alert("Messages", response.message);
+      }
+    } catch (error) {
+      Alert.alert("Messages", error?.message || "Unable to post response.");
+    } finally {
+      setAnsweringId(null);
+    }
+  };
+
+  const renderMessages = () => (
+    <View style={styles.card}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={styles.title}>Messages</Text>
+        {qaArchived ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>ARCHIVED</Text>
+          </View>
+        ) : null}
+      </View>
+      {qaLoading ? (
+        <ActivityIndicator
+          color={AppColor.primary}
+          size="small"
+          style={{ marginTop: 16 }}
+        />
+      ) : questions.length ? (
+        questions.map((question) => {
+          const canAnswer = question.status === "PENDING" && !qaArchived;
+          return (
+            <View
+              key={question.question_id}
+              style={{
+                borderTopWidth: 1,
+                borderTopColor: AppColor.borderColor,
+                marginTop: 14,
+                paddingTop: 14,
+              }}
+            >
+              <Text style={styles.label}>{question.vendor_display_id}</Text>
+              <Text style={styles.meta}>
+                {question.question_text || "Blocked by RTC moderation."}
+              </Text>
+              {question.answer_text ? (
+                <>
+                  <Text style={styles.label}>Coordinator Response</Text>
+                  <Text style={styles.meta}>{question.answer_text}</Text>
+                </>
+              ) : canAnswer ? (
+                <>
+                  <TextInput
+                    value={answerDrafts[question.question_id] || ""}
+                    onChangeText={(text) =>
+                      setAnswerDrafts((prev) => ({
+                        ...prev,
+                        [question.question_id]: text,
+                      }))
+                    }
+                    placeholder="Response"
+                    placeholderTextColor={AppColor.textHighlighter}
+                    multiline
+                    style={[styles.input, styles.textarea, { marginTop: 12 }]}
+                  />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.button, { marginTop: 10 }]}
+                    disabled={answeringId === question.question_id}
+                    onPress={() => handleAnswerQuestion(question.question_id)}
+                  >
+                    <Text style={styles.buttonText}>
+                      {answeringId === question.question_id ? "Posting..." : "Post Answer"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <Text style={styles.meta}>Awaiting response.</Text>
+              )}
+            </View>
+          );
+        })
+      ) : (
+        <Text style={styles.emptyText}>No messages yet.</Text>
+      )}
+    </View>
+  );
 
   if (customerSafe) {
     return (
@@ -412,6 +540,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   : "Reopen Available After Close"}
             </Text>
           </TouchableOpacity>
+
+          {renderMessages()}
         </ScrollView>
       )}
     </View>

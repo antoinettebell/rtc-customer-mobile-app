@@ -123,6 +123,10 @@ export const MARKETPLACE_EVENT_IMAGES = (event_id) =>
   `/marketplace/events/${event_id}/images`;
 export const MARKETPLACE_EVENT_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/bids`;
+export const MARKETPLACE_EVENT_QUESTIONS = (event_id) =>
+  `/marketplace/events/${event_id}/questions`;
+export const MARKETPLACE_EVENT_QUESTION_ANSWER = (event_id, question_id) =>
+  `/marketplace/events/${event_id}/questions/${question_id}/answer`;
 export const MARKETPLACE_AWARD_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/award`;
 export const MARKETPLACE_PAYMENT_BY_ID = (payment_id) =>

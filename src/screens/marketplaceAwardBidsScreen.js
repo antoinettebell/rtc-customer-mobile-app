@@ -22,6 +22,18 @@ import {
 import { formatMoney, styles } from "./marketplaceShared";
 
 const getVendorName = (bid) => {
+  const detailsUnlocked = bid?.marketplace_unlock?.details_unlocked === true;
+  if (!detailsUnlocked) {
+    if (bid?.vendor_display_id) return bid.vendor_display_id;
+    if (bid?.food_truck_id?.display_id) return bid.food_truck_id.display_id;
+    const rawId =
+      typeof bid?.food_truck_id === "object"
+        ? bid?.food_truck_id?._id
+        : bid?.food_truck_id;
+    const suffix = String(rawId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase();
+    return `Vendor RTC - ${suffix || "MASKED"}`;
+  }
+
   const vendor = bid?.vendor_user_id;
   const foodTruck = bid?.food_truck_id;
   if (foodTruck?.name) return foodTruck.name;
