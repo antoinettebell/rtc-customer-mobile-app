@@ -25,6 +25,7 @@ import AntDesign from "react-native-vector-icons/AntDesign";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import ImagePicker from "react-native-image-crop-picker";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
 import { register_API } from "../apiFolder/authAPI";
@@ -35,6 +36,47 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { RESULTS } from "react-native-permissions";
 import AppImage from "../components/AppImage";
+import Config from "../config/env";
+import StatePickerModal from "../components/StatePickerModal";
+
+const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
+
+const getAddressPart = (components = [], type, field = "long_name") =>
+  components.find((component) => component.types?.includes(type))?.[field] || "";
+
+const parseGooglePlaceDetails = (data, details) => {
+  const components = details?.address_components || [];
+  const streetNumber = getAddressPart(components, "street_number");
+  const route = getAddressPart(components, "route");
+  const city =
+    getAddressPart(components, "locality") ||
+    getAddressPart(components, "postal_town") ||
+    getAddressPart(components, "administrative_area_level_2");
+  const state = getAddressPart(components, "administrative_area_level_1", "short_name");
+  const zip = getAddressPart(components, "postal_code", "short_name");
+  const formattedAddress = details?.formatted_address || data?.description || "";
+
+  return {
+    line1: [streetNumber, route].filter(Boolean).join(" ") || formattedAddress,
+    city,
+    state,
+    zip,
+    formattedAddress,
+    placeId: data?.place_id || details?.place_id || "",
+  };
+};
+
+const formatTaxIdInput = (value, type) => {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
+  if (type === "SSN") {
+    return digits
+      .replace(/^(\d{3})(\d)/, "$1-$2")
+      .replace(/^(\d{3})-(\d{2})(\d)/, "$1-$2-$3");
+  }
+  return digits.replace(/^(\d{2})(\d)/, "$1-$2");
+};
+
+const trimValue = (value) => String(value || "").trim();
 
 const SignupScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -68,9 +110,22 @@ const SignupScreen = ({ navigation }) => {
   const [isEventCoordinator, setIsEventCoordinator] = useState(false);
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
     useState("");
-  const [eventCoordinatorCompanyAddress, setEventCoordinatorCompanyAddress] =
+  const [eventCoordinatorTaxIdType, setEventCoordinatorTaxIdType] =
+    useState("EIN");
+  const [eventCoordinatorTaxId, setEventCoordinatorTaxId] = useState("");
+  const [eventCoordinatorAddressLine1, setEventCoordinatorAddressLine1] =
     useState("");
-  const [eventCoordinatorEin, setEventCoordinatorEin] = useState("");
+  const [eventCoordinatorAddressLine2, setEventCoordinatorAddressLine2] =
+    useState("");
+  const [eventCoordinatorAddressCity, setEventCoordinatorAddressCity] =
+    useState("");
+  const [eventCoordinatorAddressState, setEventCoordinatorAddressState] =
+    useState("");
+  const [eventCoordinatorAddressZip, setEventCoordinatorAddressZip] =
+    useState("");
+  const [eventCoordinatorFormattedAddress, setEventCoordinatorFormattedAddress] =
+    useState("");
+  const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -87,7 +142,11 @@ const SignupScreen = ({ navigation }) => {
     mobileNumber: "",
     smsAgreed: "",
     eventCoordinatorCompanyName: "",
-    eventCoordinatorEin: "",
+    eventCoordinatorTaxId: "",
+    eventCoordinatorAddressLine1: "",
+    eventCoordinatorAddressCity: "",
+    eventCoordinatorAddressState: "",
+    eventCoordinatorAddressZip: "",
   });
 
   const togglePasswordVisibility = () => {
@@ -107,8 +166,15 @@ const SignupScreen = ({ navigation }) => {
     setSmsAgreed(false);
     setIsEventCoordinator(false);
     setEventCoordinatorCompanyName("");
-    setEventCoordinatorCompanyAddress("");
-    setEventCoordinatorEin("");
+    setEventCoordinatorTaxIdType("EIN");
+    setEventCoordinatorTaxId("");
+    setEventCoordinatorAddressLine1("");
+    setEventCoordinatorAddressLine2("");
+    setEventCoordinatorAddressCity("");
+    setEventCoordinatorAddressState("");
+    setEventCoordinatorAddressZip("");
+    setEventCoordinatorFormattedAddress("");
+    setEventCoordinatorPlaceId("");
     setErrors({
       fname: "",
       lname: "",
@@ -117,7 +183,11 @@ const SignupScreen = ({ navigation }) => {
       mobileNumber: "",
       smsAgreed: "",
       eventCoordinatorCompanyName: "",
-      eventCoordinatorEin: "",
+      eventCoordinatorTaxId: "",
+      eventCoordinatorAddressLine1: "",
+      eventCoordinatorAddressCity: "",
+      eventCoordinatorAddressState: "",
+      eventCoordinatorAddressZip: "",
     });
   };
 
@@ -159,9 +229,29 @@ const SignupScreen = ({ navigation }) => {
         isEventCoordinator && !eventCoordinatorCompanyName.trim()
           ? "Company name is required"
           : "",
-      eventCoordinatorEin:
-        isEventCoordinator && !eventCoordinatorEin.trim()
-          ? "Company EIN is required"
+      eventCoordinatorTaxId:
+        isEventCoordinator && !eventCoordinatorTaxId.trim()
+          ? `${eventCoordinatorTaxIdType} is required`
+          : isEventCoordinator &&
+              eventCoordinatorTaxId.trim() &&
+              eventCoordinatorTaxId.replace(/\D/g, "").length !== 9
+            ? `${eventCoordinatorTaxIdType} must be 9 digits`
+            : "",
+      eventCoordinatorAddressLine1:
+        isEventCoordinator && !eventCoordinatorAddressLine1.trim()
+          ? "Street address is required"
+          : "",
+      eventCoordinatorAddressCity:
+        isEventCoordinator && !eventCoordinatorAddressCity.trim()
+          ? "City is required"
+          : "",
+      eventCoordinatorAddressState:
+        isEventCoordinator && !eventCoordinatorAddressState.trim()
+          ? "State is required"
+          : "",
+      eventCoordinatorAddressZip:
+        isEventCoordinator && !eventCoordinatorAddressZip.trim()
+          ? "Zip is required"
           : "",
     };
 
@@ -177,7 +267,7 @@ const SignupScreen = ({ navigation }) => {
 
     Alert.alert(
       "Add Event Coordination?",
-      "Would you like to add event coordination? If Yes, please get your company name and EIN ready for input.",
+      "Would you like to add event coordination? If Yes, please have your company name and EIN/SSN ready for input.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Yes", onPress: () => setIsEventCoordinator(true) },
@@ -211,16 +301,50 @@ const SignupScreen = ({ navigation }) => {
       formData.append("subscribedForOffGrid", offGrid);
       formData.append("isEventCoordinator", isEventCoordinator);
       if (isEventCoordinator) {
+        const companyAddress =
+          trimValue(eventCoordinatorFormattedAddress) ||
+          [
+            eventCoordinatorAddressLine1,
+            eventCoordinatorAddressLine2,
+            eventCoordinatorAddressCity,
+            eventCoordinatorAddressState,
+            eventCoordinatorAddressZip,
+          ]
+            .map(trimValue)
+            .filter(Boolean)
+            .join(", ");
         formData.append(
           "eventCoordinatorCompanyName",
-          eventCoordinatorCompanyName.trim()
+          trimValue(eventCoordinatorCompanyName)
+        );
+        formData.append("eventCoordinatorCompanyAddress", companyAddress);
+        formData.append("eventCoordinatorTaxIdType", eventCoordinatorTaxIdType);
+        formData.append(
+          "eventCoordinatorTaxId",
+          eventCoordinatorTaxId.replace(/\D/g, "")
         );
         formData.append(
-          "eventCoordinatorCompanyAddress",
-          eventCoordinatorCompanyAddress.trim()
+          "eventCoordinatorAddressLine1",
+          trimValue(eventCoordinatorAddressLine1)
         );
-        formData.append("eventCoordinatorTaxIdType", "EIN");
-        formData.append("eventCoordinatorTaxId", eventCoordinatorEin.trim());
+        formData.append(
+          "eventCoordinatorAddressLine2",
+          trimValue(eventCoordinatorAddressLine2)
+        );
+        formData.append(
+          "eventCoordinatorAddressCity",
+          trimValue(eventCoordinatorAddressCity)
+        );
+        formData.append(
+          "eventCoordinatorAddressState",
+          trimValue(eventCoordinatorAddressState).toUpperCase()
+        );
+        formData.append(
+          "eventCoordinatorAddressZip",
+          trimValue(eventCoordinatorAddressZip)
+        );
+        formData.append("eventCoordinatorFormattedAddress", companyAddress);
+        formData.append("eventCoordinatorPlaceId", eventCoordinatorPlaceId);
       }
 
       if (selectedPhoto) {
@@ -232,7 +356,6 @@ const SignupScreen = ({ navigation }) => {
       }
 
       const response = await register_API({ payload: formData });
-      console.log("Response => ", response);
       if (response.success && response.data) {
         navigation.navigate("otpVerification", {
           verificationFor: "sign-up",
@@ -241,7 +364,6 @@ const SignupScreen = ({ navigation }) => {
         });
       }
     } catch (error) {
-      console.log("Error => ", error);
       setSnackbar({
         visible: true,
         message: error.message,
@@ -793,29 +915,173 @@ const SignupScreen = ({ navigation }) => {
                     </HelperText>
                   ) : null}
 
+                  <Text style={styles.coordinatorHelpText}>
+                    Protected federal tax ID and exact business address are required.
+                  </Text>
+
+                  <View style={styles.taxTypeRow}>
+                    {["EIN", "SSN"].map((type) => {
+                      const active = eventCoordinatorTaxIdType === type;
+                      return (
+                        <TouchableOpacity
+                          key={type}
+                          activeOpacity={0.7}
+                          style={[
+                            styles.taxTypeButton,
+                            active && styles.taxTypeButtonActive,
+                          ]}
+                          onPress={() => {
+                            setEventCoordinatorTaxIdType(type);
+                            setEventCoordinatorTaxId("");
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.taxTypeText,
+                              active && styles.taxTypeTextActive,
+                            ]}
+                          >
+                            {type}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
                   <TextInput
-                    label="Company Address"
+                    label={`${eventCoordinatorTaxIdType} number *`}
                     mode="outlined"
-                    value={eventCoordinatorCompanyAddress}
-                    onChangeText={setEventCoordinatorCompanyAddress}
+                    value={eventCoordinatorTaxId}
+                    onChangeText={(value) =>
+                      setEventCoordinatorTaxId(
+                        formatTaxIdInput(value, eventCoordinatorTaxIdType)
+                      )
+                    }
+                    error={!!errors.eventCoordinatorTaxId}
+                    keyboardType="number-pad"
+                    secureTextEntry
+                    maxLength={eventCoordinatorTaxIdType === "SSN" ? 11 : 10}
+                    style={styles.input}
+                  />
+                  {errors.eventCoordinatorTaxId ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorTaxId}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorTaxId}
+                    </HelperText>
+                  ) : null}
+
+                  <View style={styles.placesWrapper}>
+                    <GooglePlacesAutocomplete
+                      placeholder="Street Address *"
+                      fetchDetails
+                      debounce={250}
+                      enablePoweredByContainer={false}
+                      onPress={(data, details) => {
+                        if (!details) return;
+                        const address = parseGooglePlaceDetails(data, details);
+                        setEventCoordinatorAddressLine1(address.line1);
+                        setEventCoordinatorAddressCity(address.city);
+                        setEventCoordinatorAddressState(address.state);
+                        setEventCoordinatorAddressZip(address.zip);
+                        setEventCoordinatorFormattedAddress(address.formattedAddress);
+                        setEventCoordinatorPlaceId(address.placeId);
+                      }}
+                      query={{
+                        key: GOOGLE_MAP_API_KEY,
+                        language: "en",
+                        components: "country:us",
+                      }}
+                      textInputProps={{
+                        value: eventCoordinatorAddressLine1,
+                        onChangeText: (value) => {
+                          setEventCoordinatorAddressLine1(value);
+                          setEventCoordinatorFormattedAddress("");
+                          setEventCoordinatorPlaceId("");
+                        },
+                      }}
+                      styles={{
+                        container: styles.placesContainer,
+                        textInputContainer: [
+                          styles.placesTextInputContainer,
+                          errors.eventCoordinatorAddressLine1 && styles.inputErrorBorder,
+                        ],
+                        textInput: styles.placesTextInput,
+                        listView: styles.placesListView,
+                        row: styles.placesRow,
+                        description: styles.placesDescription,
+                        separator: styles.placesSeparator,
+                      }}
+                    />
+                  </View>
+                  {errors.eventCoordinatorAddressLine1 ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorAddressLine1}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorAddressLine1}
+                    </HelperText>
+                  ) : null}
+
+                  <TextInput
+                    label="Address Line 2"
+                    mode="outlined"
+                    value={eventCoordinatorAddressLine2}
+                    onChangeText={setEventCoordinatorAddressLine2}
                     style={styles.input}
                   />
 
                   <TextInput
-                    label="Company EIN *"
+                    label="City *"
                     mode="outlined"
-                    value={eventCoordinatorEin}
-                    onChangeText={setEventCoordinatorEin}
-                    error={!!errors.eventCoordinatorEin}
+                    value={eventCoordinatorAddressCity}
+                    onChangeText={setEventCoordinatorAddressCity}
+                    error={!!errors.eventCoordinatorAddressCity}
                     style={styles.input}
                   />
-                  {errors.eventCoordinatorEin ? (
+                  {errors.eventCoordinatorAddressCity ? (
                     <HelperText
                       type="error"
-                      visible={!!errors.eventCoordinatorEin}
+                      visible={!!errors.eventCoordinatorAddressCity}
                       style={styles.helper}
                     >
-                      {errors.eventCoordinatorEin}
+                      {errors.eventCoordinatorAddressCity}
+                    </HelperText>
+                  ) : null}
+
+                  <StatePickerModal
+                    value={eventCoordinatorAddressState}
+                    onChange={setEventCoordinatorAddressState}
+                  />
+                  {errors.eventCoordinatorAddressState ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorAddressState}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorAddressState}
+                    </HelperText>
+                  ) : null}
+
+                  <TextInput
+                    label="Zip *"
+                    mode="outlined"
+                    value={eventCoordinatorAddressZip}
+                    onChangeText={setEventCoordinatorAddressZip}
+                    error={!!errors.eventCoordinatorAddressZip}
+                    keyboardType="number-pad"
+                    style={styles.input}
+                  />
+                  {errors.eventCoordinatorAddressZip ? (
+                    <HelperText
+                      type="error"
+                      visible={!!errors.eventCoordinatorAddressZip}
+                      style={styles.helper}
+                    >
+                      {errors.eventCoordinatorAddressZip}
                     </HelperText>
                   ) : null}
                 </View>
@@ -1070,6 +1336,85 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 8,
     backgroundColor: AppColor.white,
+  },
+  coordinatorHelpText: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.textHighlighter,
+  },
+  taxTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  taxTypeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+  },
+  taxTypeButtonActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF1E6",
+  },
+  taxTypeText: {
+    fontFamily: Mulish700,
+    color: AppColor.textHighlighter,
+  },
+  taxTypeTextActive: {
+    color: AppColor.primary,
+  },
+  placesWrapper: {
+    zIndex: 10,
+  },
+  placesContainer: {
+    flex: 0,
+  },
+  placesTextInputContainer: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  placesTextInput: {
+    minHeight: 50,
+    height: 50,
+    margin: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    color: AppColor.text,
+    backgroundColor: AppColor.white,
+    borderRadius: 8,
+  },
+  placesListView: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    marginTop: 4,
+    backgroundColor: AppColor.white,
+    zIndex: 20,
+    elevation: 4,
+  },
+  placesRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  placesDescription: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.text,
+  },
+  placesSeparator: {
+    height: 1,
+    backgroundColor: AppColor.border,
+  },
+  inputErrorBorder: {
+    borderColor: AppColor.error,
   },
   linkText: {
     color: AppColor.primary,

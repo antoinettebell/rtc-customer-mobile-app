@@ -48,6 +48,55 @@ const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const getAddressPart = (components = [], type, field = "long_name") =>
   components.find((component) => component.types?.includes(type))?.[field] || "";
 
+const trimAddressValue = (value) => String(value || "").trim();
+
+const normalizeTaxIdType = (value) =>
+  String(value || "").toUpperCase() === "SSN" ? "SSN" : "EIN";
+
+const getTaxIdDisplayParts = (maskedValue, fallbackType = "EIN") => {
+  const raw = trimAddressValue(maskedValue);
+  const match = raw.match(/^(EIN|SSN)\s*:\s*(.+)$/i);
+  return {
+    type: normalizeTaxIdType(match?.[1] || fallbackType),
+    masked: match?.[2]?.trim() || raw,
+  };
+};
+
+const getLegacyCoordinatorAddress = (user = {}) => {
+  const formattedAddress =
+    user.eventCoordinatorFormattedAddress || user.eventCoordinatorCompanyAddress || "";
+  const parts = String(formattedAddress)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const cityStateZip = parts.length >= 3 ? parts[parts.length - 2] : "";
+  const cityStateZipMatch = cityStateZip.match(/^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+  const stateZip = parts.length >= 2 ? parts[parts.length - 1] : "";
+  const stateZipMatch = stateZip.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+
+  return {
+    line1:
+      user.eventCoordinatorAddressLine1 ||
+      (parts.length > 1 ? parts[0] : formattedAddress) ||
+      "",
+    line2: user.eventCoordinatorAddressLine2 || "",
+    city:
+      user.eventCoordinatorAddressCity ||
+      (cityStateZipMatch ? cityStateZipMatch[1] : parts.length >= 4 ? parts[1] : "") ||
+      "",
+    state:
+      user.eventCoordinatorAddressState ||
+      (cityStateZipMatch ? cityStateZipMatch[2] : stateZipMatch ? stateZipMatch[1] : "") ||
+      "",
+    zip:
+      user.eventCoordinatorAddressZip ||
+      (cityStateZipMatch ? cityStateZipMatch[3] : stateZipMatch ? stateZipMatch[2] : "") ||
+      "",
+    formattedAddress,
+    placeId: user.eventCoordinatorPlaceId || "",
+  };
+};
+
 const parseGooglePlaceDetails = (data, details) => {
   const components = details?.address_components || [];
   const streetNumber = getAddressPart(components, "street_number");
@@ -72,7 +121,7 @@ const parseGooglePlaceDetails = (data, details) => {
 
 const formatTaxIdInput = (value, type) => {
   const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
-  if (type === "SSN") {
+  if (normalizeTaxIdType(type) === "SSN") {
     return digits
       .replace(/^(\d{3})(\d)/, "$1-$2")
       .replace(/^(\d{3})-(\d{2})(\d)/, "$1-$2-$3");
@@ -114,27 +163,32 @@ const UserProfileScreen = ({ navigation }) => {
   );
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
     useState(user?.eventCoordinatorCompanyName || "");
+  const initialCoordinatorTax = getTaxIdDisplayParts(
+    user?.eventCoordinatorTaxIdMasked,
+    user?.eventCoordinatorTaxIdType
+  );
+  const initialCoordinatorAddress = getLegacyCoordinatorAddress(user);
   const [eventCoordinatorTaxIdType, setEventCoordinatorTaxIdType] = useState(
-    user?.eventCoordinatorTaxIdType || "EIN"
+    initialCoordinatorTax.type
   );
   const [eventCoordinatorTaxId, setEventCoordinatorTaxId] = useState("");
   const [eventCoordinatorTaxIdMasked, setEventCoordinatorTaxIdMasked] = useState(
-    user?.eventCoordinatorTaxIdMasked || ""
+    initialCoordinatorTax.masked
   );
   const [eventCoordinatorAddressLine1, setEventCoordinatorAddressLine1] =
-    useState(user?.eventCoordinatorAddressLine1 || user?.eventCoordinatorCompanyAddress || "");
+    useState(initialCoordinatorAddress.line1);
   const [eventCoordinatorAddressLine2, setEventCoordinatorAddressLine2] =
-    useState(user?.eventCoordinatorAddressLine2 || "");
+    useState(initialCoordinatorAddress.line2);
   const [eventCoordinatorAddressCity, setEventCoordinatorAddressCity] =
-    useState(user?.eventCoordinatorAddressCity || "");
+    useState(initialCoordinatorAddress.city);
   const [eventCoordinatorAddressState, setEventCoordinatorAddressState] =
-    useState(user?.eventCoordinatorAddressState || "");
+    useState(initialCoordinatorAddress.state);
   const [eventCoordinatorAddressZip, setEventCoordinatorAddressZip] =
-    useState(user?.eventCoordinatorAddressZip || "");
+    useState(initialCoordinatorAddress.zip);
   const [eventCoordinatorFormattedAddress, setEventCoordinatorFormattedAddress] =
-    useState(user?.eventCoordinatorFormattedAddress || user?.eventCoordinatorCompanyAddress || "");
+    useState(initialCoordinatorAddress.formattedAddress);
   const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState(
-    user?.eventCoordinatorPlaceId || ""
+    initialCoordinatorAddress.placeId
   );
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
@@ -154,20 +208,21 @@ const UserProfileScreen = ({ navigation }) => {
       setTempLastName(user.lastName || "");
       setIsEventCoordinator(!!user.isEventCoordinator);
       setEventCoordinatorCompanyName(user.eventCoordinatorCompanyName || "");
-      setEventCoordinatorTaxIdType(user.eventCoordinatorTaxIdType || "EIN");
+      const coordinatorTax = getTaxIdDisplayParts(
+        user.eventCoordinatorTaxIdMasked,
+        user.eventCoordinatorTaxIdType
+      );
+      const coordinatorAddress = getLegacyCoordinatorAddress(user);
+      setEventCoordinatorTaxIdType(coordinatorTax.type);
       setEventCoordinatorTaxId("");
-      setEventCoordinatorTaxIdMasked(user.eventCoordinatorTaxIdMasked || "");
-      setEventCoordinatorAddressLine1(
-        user.eventCoordinatorAddressLine1 || user.eventCoordinatorCompanyAddress || ""
-      );
-      setEventCoordinatorAddressLine2(user.eventCoordinatorAddressLine2 || "");
-      setEventCoordinatorAddressCity(user.eventCoordinatorAddressCity || "");
-      setEventCoordinatorAddressState(user.eventCoordinatorAddressState || "");
-      setEventCoordinatorAddressZip(user.eventCoordinatorAddressZip || "");
-      setEventCoordinatorFormattedAddress(
-        user.eventCoordinatorFormattedAddress || user.eventCoordinatorCompanyAddress || ""
-      );
-      setEventCoordinatorPlaceId(user.eventCoordinatorPlaceId || "");
+      setEventCoordinatorTaxIdMasked(coordinatorTax.masked);
+      setEventCoordinatorAddressLine1(coordinatorAddress.line1);
+      setEventCoordinatorAddressLine2(coordinatorAddress.line2);
+      setEventCoordinatorAddressCity(coordinatorAddress.city);
+      setEventCoordinatorAddressState(coordinatorAddress.state);
+      setEventCoordinatorAddressZip(coordinatorAddress.zip);
+      setEventCoordinatorFormattedAddress(coordinatorAddress.formattedAddress);
+      setEventCoordinatorPlaceId(coordinatorAddress.placeId);
     }
   }, [user]);
 
@@ -248,7 +303,7 @@ const UserProfileScreen = ({ navigation }) => {
           isEventCoordinator,
           eventCoordinatorCompanyName: eventCoordinatorCompanyName.trim(),
           eventCoordinatorCompanyAddress:
-            eventCoordinatorFormattedAddress.trim() ||
+            trimAddressValue(eventCoordinatorFormattedAddress) ||
             [
               eventCoordinatorAddressLine1,
               eventCoordinatorAddressLine2,
@@ -262,12 +317,12 @@ const UserProfileScreen = ({ navigation }) => {
           ...(eventCoordinatorTaxId.trim()
             ? { eventCoordinatorTaxId: eventCoordinatorTaxId.replace(/\D/g, "") }
             : {}),
-          eventCoordinatorAddressLine1: eventCoordinatorAddressLine1.trim(),
-          eventCoordinatorAddressLine2: eventCoordinatorAddressLine2.trim(),
-          eventCoordinatorAddressCity: eventCoordinatorAddressCity.trim(),
-          eventCoordinatorAddressState: eventCoordinatorAddressState.trim(),
-          eventCoordinatorAddressZip: eventCoordinatorAddressZip.trim(),
-          eventCoordinatorFormattedAddress: eventCoordinatorFormattedAddress.trim(),
+          eventCoordinatorAddressLine1: trimAddressValue(eventCoordinatorAddressLine1),
+          eventCoordinatorAddressLine2: trimAddressValue(eventCoordinatorAddressLine2),
+          eventCoordinatorAddressCity: trimAddressValue(eventCoordinatorAddressCity),
+          eventCoordinatorAddressState: trimAddressValue(eventCoordinatorAddressState).toUpperCase(),
+          eventCoordinatorAddressZip: trimAddressValue(eventCoordinatorAddressZip),
+          eventCoordinatorFormattedAddress: trimAddressValue(eventCoordinatorFormattedAddress),
           eventCoordinatorPlaceId,
         },
       });
@@ -732,7 +787,7 @@ const UserProfileScreen = ({ navigation }) => {
           {isEventCoordinator ? (
             <View style={styles.coordinatorBox}>
               <Text style={styles.coordinatorHelpText}>
-                Company name, protected tax ID, and address are required for event coordination access.
+                Company name, protected federal tax ID, and address are required for event coordination access.
               </Text>
               <TextInput
                 value={eventCoordinatorCompanyName}
@@ -763,7 +818,8 @@ const UserProfileScreen = ({ navigation }) => {
               </View>
               {eventCoordinatorTaxIdMasked ? (
                 <Text style={styles.coordinatorHelpText}>
-                  Current {eventCoordinatorTaxIdType}: {eventCoordinatorTaxIdMasked}
+                  Current federal tax ID: {eventCoordinatorTaxIdType} ending in{" "}
+                  {eventCoordinatorTaxIdMasked.slice(-4)}
                 </Text>
               ) : null}
               <TextInput
@@ -774,11 +830,12 @@ const UserProfileScreen = ({ navigation }) => {
                 placeholder={
                   eventCoordinatorTaxIdMasked
                     ? `Enter new ${eventCoordinatorTaxIdType} to replace`
-                    : `${eventCoordinatorTaxIdType} *`
+                    : `${eventCoordinatorTaxIdType} number *`
                 }
                 placeholderTextColor={AppColor.placeholderTextColor}
                 keyboardType="number-pad"
                 secureTextEntry
+                maxLength={eventCoordinatorTaxIdType === "SSN" ? 11 : 10}
                 style={styles.coordinatorInput}
               />
               <View style={styles.placesWrapper}>
