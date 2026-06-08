@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -133,6 +133,7 @@ const UserProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { user } = useSelector((state) => state.userReducer);
+  const coordinatorAddressRef = useRef(null);
 
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
@@ -223,6 +224,7 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorAddressZip(coordinatorAddress.zip);
       setEventCoordinatorFormattedAddress(coordinatorAddress.formattedAddress);
       setEventCoordinatorPlaceId(coordinatorAddress.placeId);
+      coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
   }, [user]);
 
@@ -840,10 +842,15 @@ const UserProfileScreen = ({ navigation }) => {
               />
               <View style={styles.placesWrapper}>
                 <GooglePlacesAutocomplete
+                  ref={coordinatorAddressRef}
                   placeholder="Street Address *"
                   fetchDetails
                   debounce={250}
                   enablePoweredByContainer={false}
+                  predefinedPlaces={[]}
+                  keyboardShouldPersistTaps="always"
+                  minLength={2}
+                  timeout={20000}
                   onPress={(data, details) => {
                     if (!details) return;
                     const address = parseGooglePlaceDetails(data, details);
@@ -853,14 +860,21 @@ const UserProfileScreen = ({ navigation }) => {
                     setEventCoordinatorAddressZip(address.zip);
                     setEventCoordinatorFormattedAddress(address.formattedAddress);
                     setEventCoordinatorPlaceId(address.placeId);
+                    coordinatorAddressRef.current?.setAddressText(address.line1);
+                  }}
+                  onFail={(error) => {
+                    console.log("Google Places coordinator profile address error", error);
                   }}
                   query={{
                     key: GOOGLE_MAP_API_KEY,
                     language: "en",
+                    types: "geocode|establishment",
                     components: "country:us",
                   }}
                   textInputProps={{
-                    value: eventCoordinatorAddressLine1,
+                    defaultValue: eventCoordinatorAddressLine1,
+                    placeholderTextColor: AppColor.placeholderTextColor,
+                    returnKeyType: "search",
                     onChangeText: (value) => {
                       setEventCoordinatorAddressLine1(value);
                       setEventCoordinatorFormattedAddress("");

@@ -99,6 +99,7 @@ const SignupScreen = ({ navigation }) => {
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const mobileNumberRef = useRef(null);
+  const coordinatorAddressRef = useRef(null);
 
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
@@ -175,6 +176,7 @@ const SignupScreen = ({ navigation }) => {
     setEventCoordinatorAddressZip("");
     setEventCoordinatorFormattedAddress("");
     setEventCoordinatorPlaceId("");
+    coordinatorAddressRef.current?.setAddressText("");
     setErrors({
       fname: "",
       lname: "",
@@ -973,35 +975,47 @@ const SignupScreen = ({ navigation }) => {
                     </HelperText>
                   ) : null}
 
-                  <View style={styles.placesWrapper}>
-                    <GooglePlacesAutocomplete
-                      placeholder="Street Address *"
-                      fetchDetails
-                      debounce={250}
-                      enablePoweredByContainer={false}
-                      onPress={(data, details) => {
-                        if (!details) return;
-                        const address = parseGooglePlaceDetails(data, details);
-                        setEventCoordinatorAddressLine1(address.line1);
-                        setEventCoordinatorAddressCity(address.city);
-                        setEventCoordinatorAddressState(address.state);
-                        setEventCoordinatorAddressZip(address.zip);
-                        setEventCoordinatorFormattedAddress(address.formattedAddress);
-                        setEventCoordinatorPlaceId(address.placeId);
-                      }}
-                      query={{
-                        key: GOOGLE_MAP_API_KEY,
-                        language: "en",
-                        components: "country:us",
-                      }}
-                      textInputProps={{
-                        value: eventCoordinatorAddressLine1,
-                        onChangeText: (value) => {
-                          setEventCoordinatorAddressLine1(value);
-                          setEventCoordinatorFormattedAddress("");
-                          setEventCoordinatorPlaceId("");
-                        },
-                      }}
+	                  <View style={styles.placesWrapper}>
+	                    <GooglePlacesAutocomplete
+	                      ref={coordinatorAddressRef}
+	                      placeholder="Street Address *"
+	                      fetchDetails
+	                      debounce={250}
+	                      enablePoweredByContainer={false}
+	                      predefinedPlaces={[]}
+	                      keyboardShouldPersistTaps="always"
+	                      minLength={2}
+	                      timeout={20000}
+	                      onPress={(data, details) => {
+	                        if (!details) return;
+	                        const address = parseGooglePlaceDetails(data, details);
+	                        setEventCoordinatorAddressLine1(address.line1);
+	                        setEventCoordinatorAddressCity(address.city);
+	                        setEventCoordinatorAddressState(address.state);
+	                        setEventCoordinatorAddressZip(address.zip);
+	                        setEventCoordinatorFormattedAddress(address.formattedAddress);
+	                        setEventCoordinatorPlaceId(address.placeId);
+	                        coordinatorAddressRef.current?.setAddressText(address.line1);
+	                      }}
+	                      onFail={(error) => {
+	                        console.log("Google Places coordinator signup address error", error);
+	                      }}
+	                      query={{
+	                        key: GOOGLE_MAP_API_KEY,
+	                        language: "en",
+	                        types: "geocode|establishment",
+	                        components: "country:us",
+	                      }}
+	                      textInputProps={{
+	                        defaultValue: eventCoordinatorAddressLine1,
+	                        placeholderTextColor: AppColor.placeholderTextColor,
+	                        returnKeyType: "search",
+	                        onChangeText: (value) => {
+	                          setEventCoordinatorAddressLine1(value);
+	                          setEventCoordinatorFormattedAddress("");
+	                          setEventCoordinatorPlaceId("");
+	                        },
+	                      }}
                       styles={{
                         container: styles.placesContainer,
                         textInputContainer: [
