@@ -326,10 +326,10 @@ const DishItemDetailsModal = ({
         return true;
       }
 
-      if (selectedOptions.length > maxCount) {
+      if (selectedOptions.length !== maxCount) {
         Alert.alert(
-          `${label} Limit`,
-          `Please select up to ${maxCount} ${label.toLowerCase()}${
+          `${label} Selection`,
+          `Please select exactly ${maxCount} ${label.toLowerCase()}${
             maxCount === 1 ? "" : "s"
           }.`
         );
@@ -415,6 +415,18 @@ const DishItemDetailsModal = ({
     toppingsMaxCount,
     validateOptionSelection,
   ]);
+
+  const selectionsComplete =
+    (!hasComboSideChoices ||
+      selectedComboSides.length === comboSidesRequiredCount) &&
+    (!hasDiscountComboSideChoices ||
+      selectedDiscountComboSides.length === discountComboSidesRequiredCount) &&
+    (!hasFlavorChoices || selectedFlavors.length === flavorsMaxCount) &&
+    (!hasToppingChoices || selectedToppings.length === toppingsMaxCount) &&
+    (!hasDiscountFlavorChoices ||
+      selectedDiscountFlavors.length === discountFlavorsMaxCount) &&
+    (!hasDiscountToppingChoices ||
+      selectedDiscountToppings.length === discountToppingsMaxCount);
 
   const handleUpdateOrder = useCallback(() => {
     if (!validateSelections()) {
@@ -503,16 +515,31 @@ const DishItemDetailsModal = ({
       const mainItemQuantity =
         mainItemId && getItemQuantity ? getItemQuantity(mainItemId) : 0;
 
-      if (!mainItemQuantity) {
-        Alert.alert(
-          "Add Item First",
-          "Please add the main item before selecting combo items."
-        );
+      if (!menuItem?._id) {
         return;
       }
 
-      if (!menuItem?._id) {
-        return;
+      if (!mainItemQuantity) {
+        handleAddItem({
+          ...selectedMenuItem,
+          selectedSubItems: [],
+          customizationInput,
+          selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
+          selectedToppings: hasToppingChoices ? selectedToppings : [],
+          selectedComboSides: hasComboSideChoices ? selectedComboSides : [],
+          selectedDiscountFlavors: hasDiscountFlavorChoices
+            ? selectedDiscountFlavors
+            : [],
+          selectedDiscountToppings: hasDiscountToppingChoices
+            ? selectedDiscountToppings
+            : [],
+          selectedDiscountCustomizationInput: hasDiscountCustomization
+            ? selectedDiscountCustomizationInput
+            : "",
+          selectedDiscountComboSides: hasDiscountComboSideChoices
+            ? selectedDiscountComboSides
+            : [],
+        });
       }
 
       setSelectedSubItems((prevItems) => {
@@ -530,7 +557,27 @@ const DishItemDetailsModal = ({
         return newSelectedItems;
       });
     },
-    [onSelectedSubItemsChange, getItemQuantity, selectedMenuItem?._id]
+    [
+      customizationInput,
+      getItemQuantity,
+      handleAddItem,
+      hasComboSideChoices,
+      hasDiscountComboSideChoices,
+      hasDiscountCustomization,
+      hasDiscountFlavorChoices,
+      hasDiscountToppingChoices,
+      hasFlavorChoices,
+      hasToppingChoices,
+      onSelectedSubItemsChange,
+      selectedComboSides,
+      selectedDiscountComboSides,
+      selectedDiscountCustomizationInput,
+      selectedDiscountFlavors,
+      selectedDiscountToppings,
+      selectedFlavors,
+      selectedMenuItem,
+      selectedToppings,
+    ]
   );
 
   return (
@@ -1118,9 +1165,13 @@ const DishItemDetailsModal = ({
             </View>
 
             <TouchableOpacity
-              style={styles.addButton}
+              style={[
+                styles.addButton,
+                (!selectedMenuItem.available || !selectionsComplete) &&
+                  styles.addButtonDisabled,
+              ]}
               onPress={handleUpdateOrder}
-              disabled={!selectedMenuItem.available}
+              disabled={!selectedMenuItem.available || !selectionsComplete}
             >
               <Text style={styles.addButtonText}>
                 {getItemQuantity(selectedMenuItem._id) === 0
@@ -1524,6 +1575,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
+  },
+  addButtonDisabled: {
+    backgroundColor: AppColor.textHighlighter,
+    opacity: 0.6,
   },
   addButtonText: {
     fontFamily: Mulish700,

@@ -68,6 +68,95 @@ const calculateTaxAmountFromRate = (amount, rate) => {
 
 const toTaxKeyAmount = (value) => Number((Number(value) || 0).toFixed(2));
 
+const getOptionCount = (item, optionKey, legacyKey) => {
+  const options = Array.isArray(item?.[optionKey]) && item[optionKey].length
+    ? item[optionKey]
+    : item?.[legacyKey];
+  return Array.isArray(options) ? options.filter(Boolean).length : 0;
+};
+
+const getRequiredCount = (configuredCount, optionsCount) => {
+  if (!optionsCount) return 0;
+  const numericCount = Number(configuredCount);
+  if (!Number.isFinite(numericCount) || numericCount <= 0) {
+    return optionsCount;
+  }
+  return Math.min(numericCount, optionsCount);
+};
+
+const hasIncompleteRequiredSelections = (item) => {
+  const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
+  const discountSourceItem =
+    bogoItems.find((bogoItem) => bogoItem?.isSameItem) ||
+    bogoItems.find((bogoItem) => !bogoItem?.isSameItem) ||
+    (item?.discountRules?.discount > 0 ? item : null);
+  const flavorCount = getOptionCount(item, "flavorOptions", "flavors");
+  const toppingCount = getOptionCount(item, "toppingOptions", "toppings");
+  const requiredFlavors = item?.hasFlavors
+    ? getRequiredCount(item?.flavorsPerOrder, flavorCount)
+    : 0;
+  const requiredToppings = item?.hasToppings
+    ? getRequiredCount(item?.toppingsPerOrder, toppingCount)
+    : 0;
+  const comboSideCount = Array.isArray(item?.comboSideOptions)
+    ? item.comboSideOptions.filter(Boolean).length
+    : 0;
+  const requiredComboSides =
+    item?.itemType === foodTypeStrings.combo
+      ? getRequiredCount(item?.comboSidesPerOrder, comboSideCount)
+      : 0;
+  const discountFlavorCount = getOptionCount(
+    discountSourceItem,
+    "flavorOptions",
+    "flavors",
+  );
+  const discountToppingCount = getOptionCount(
+    discountSourceItem,
+    "toppingOptions",
+    "toppings",
+  );
+  const requiredDiscountFlavors =
+    discountSourceItem?.hasFlavors &&
+    (item?.discountRules?.discount > 0 ||
+      ["BOGO", "BOGOHO"].includes(item?.discountType))
+      ? getRequiredCount(discountSourceItem?.flavorsPerOrder, discountFlavorCount)
+      : 0;
+  const requiredDiscountToppings =
+    discountSourceItem?.hasToppings &&
+    (item?.discountRules?.discount > 0 ||
+      ["BOGO", "BOGOHO"].includes(item?.discountType))
+      ? getRequiredCount(discountSourceItem?.toppingsPerOrder, discountToppingCount)
+      : 0;
+  const discountComboSideCount = Array.isArray(discountSourceItem?.comboSideOptions)
+    ? discountSourceItem.comboSideOptions.filter(Boolean).length
+    : 0;
+  const requiredDiscountComboSides =
+    discountSourceItem?.itemType === foodTypeStrings.combo &&
+    (item?.discountRules?.discount > 0 ||
+      ["BOGO", "BOGOHO"].includes(item?.discountType))
+      ? getRequiredCount(
+          discountSourceItem?.comboSidesPerOrder,
+          discountComboSideCount,
+        )
+      : 0;
+
+  return (
+    (requiredFlavors > 0 &&
+      (item?.selectedFlavors || []).length !== requiredFlavors) ||
+    (requiredToppings > 0 &&
+      (item?.selectedToppings || []).length !== requiredToppings) ||
+    (requiredComboSides > 0 &&
+      (item?.selectedComboSides || []).length !== requiredComboSides) ||
+    (requiredDiscountFlavors > 0 &&
+      (item?.selectedDiscountFlavors || []).length !== requiredDiscountFlavors) ||
+    (requiredDiscountToppings > 0 &&
+      (item?.selectedDiscountToppings || []).length !== requiredDiscountToppings) ||
+    (requiredDiscountComboSides > 0 &&
+      (item?.selectedDiscountComboSides || []).length !==
+        requiredDiscountComboSides)
+  );
+};
+
 const getTaxCacheKey = (params = {}) =>
   JSON.stringify({
     fulfillmentType: params.fulfillmentType || "PICKUP",
@@ -157,11 +246,8 @@ const CheckoutScreen = ({ navigation, route }) => {
       return Number(taxData.salesTaxAmount) || 0;
     }
 
-    return calculateTaxAmountFromRate(
-      taxableAmount + deliveryFee + processingFeeAmount,
-      taxData?.salesTax,
-    );
-  }, [taxData, taxableAmount, deliveryFee, processingFeeAmount]);
+    return calculateTaxAmountFromRate(taxableAmount, taxData?.salesTax);
+  }, [taxData, taxableAmount]);
   const totalWithTax = useMemo(
     () =>
       taxableAmount +
@@ -341,6 +427,15 @@ const CheckoutScreen = ({ navigation, route }) => {
       Alert.alert(
         "Delivery address required",
         "Please add or select a delivery address before placing this order.",
+      );
+      return;
+    }
+
+    const incompleteItem = order.items.find(hasIncompleteRequiredSelections);
+    if (incompleteItem) {
+      Alert.alert(
+        "Required selections missing",
+        `Please complete required selections for ${incompleteItem.name || "this item"} before checkout.`,
       );
       return;
     }

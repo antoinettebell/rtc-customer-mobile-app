@@ -16,11 +16,11 @@ export const EVENT_TYPES = [
 export const EVENT_STYLES = ["Casual", "Formal", "Themed"];
 export const SERVICE_TYPES = [
   "Food Truck",
-  "Full-Service Catering",
+  "Full Service Catering",
   "Buffet",
   "Drop-off Catering",
   "Served Stations",
-  "Beverage/Alcohol Service",
+  "Beverage and Alcohol",
 ];
 export const POWER_OPTIONS = ["110v/15A", "110V/30A", "220V", "Generator OK"];
 export const PERMIT_OPTIONS = [
