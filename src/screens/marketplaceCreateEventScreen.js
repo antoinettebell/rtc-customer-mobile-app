@@ -5,6 +5,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   ScrollView,
   Text,
@@ -13,12 +14,14 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
@@ -95,6 +98,12 @@ const initialForm = {
 };
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
+const initialEventAddressRegion = {
+  latitude: 37.78825,
+  longitude: -122.4324,
+  latitudeDelta: 0.015,
+  longitudeDelta: 0.0121,
+};
 const PRIMARY_SERVICE_STYLES = [
   {
     label: "Plated",
@@ -468,43 +477,91 @@ const localStyles = StyleSheet.create({
   sideField: {
     flex: 1,
   },
-  mapPreview: {
-    height: 118,
-    borderRadius: 12,
-    marginTop: 12,
-    overflow: "hidden",
+  eventLocationPicker: {
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: "#E0E4EB",
+    borderColor: "#D8DDE6",
+    borderRadius: 12,
+    overflow: "visible",
+    backgroundColor: AppColor.white,
+    zIndex: 30,
+  },
+  eventMapWrap: {
+    height: 210,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: "hidden",
     backgroundColor: "#E9EEF5",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  mapGridLine: {
+  eventMap: {
+    flex: 1,
+  },
+  eventMapPin: {
     position: "absolute",
-    backgroundColor: "rgba(255,255,255,0.72)",
-  },
-  mapGridHorizontal: {
     left: 0,
     right: 0,
-    height: 1,
-  },
-  mapGridVertical: {
-    top: 0,
-    bottom: 0,
-    width: 1,
-  },
-  mapPin: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    top: 83,
     alignItems: "center",
     justifyContent: "center",
+    pointerEvents: "none",
+  },
+  eventSearchWrap: {
+    padding: 12,
     backgroundColor: AppColor.white,
-    shadowColor: "#111827",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 4,
-    elevation: 3,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    zIndex: 40,
+    elevation: 5,
+  },
+  eventPlacesContainer: {
+    flex: 0,
+    zIndex: 50,
+  },
+  eventPlacesInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  eventPlacesInput: {
+    flex: 1,
+    minHeight: 44,
+    height: 44,
+    margin: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: AppColor.text,
+    backgroundColor: AppColor.white,
+  },
+  eventPlacesList: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+    zIndex: 80,
+    elevation: 8,
+  },
+  eventPlacesRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  eventAddressSummary: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#F6F7F9",
+  },
+  eventAddressText: {
+    color: AppColor.text,
+    fontSize: 13,
   },
   moneyBox: {
     flexDirection: "row",
@@ -603,11 +660,16 @@ const localStyles = StyleSheet.create({
 
 const MarketplaceCreateEventScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const eventAddressMapRef = useRef(null);
+  const eventAddressSearchRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
+  const [eventAddressRegion, setEventAddressRegion] = useState(
+    initialEventAddressRegion
+  );
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
@@ -719,24 +781,57 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   };
 
   const handleManualAddressChange = (value) => {
-    // TODO: Add a backend/manual geocoding fallback so typed addresses can get markers later.
     setForm((prev) => ({
       ...prev,
       event_address: value,
+      formatted_address: value,
+      place_id: value ? prev.place_id : "",
+      geocoding_provider: value ? prev.geocoding_provider : "",
+      geocoded_at: value ? prev.geocoded_at : "",
+      latitude: value ? prev.latitude : "",
+      longitude: value ? prev.longitude : "",
+    }));
+  };
+
+  const handleGoogleAddressSelect = (data, details) => {
+    if (!details) return;
+    const parsedPlace = parseGooglePlaceDetails(data, details);
+    const nextRegion =
+      parsedPlace.latitude && parsedPlace.longitude
+        ? {
+            latitude: Number(parsedPlace.latitude),
+            longitude: Number(parsedPlace.longitude),
+            latitudeDelta: 0.015,
+            longitudeDelta: 0.0121,
+          }
+        : null;
+
+    setForm((prev) => ({
+      ...prev,
+      ...parsedPlace,
+    }));
+    if (nextRegion) {
+      setEventAddressRegion(nextRegion);
+      eventAddressMapRef.current?.animateToRegion(nextRegion, 1000);
+    }
+    eventAddressSearchRef.current?.setAddressText(parsedPlace.event_address);
+  };
+
+  const handleClearAddress = () => {
+    eventAddressSearchRef.current?.clear();
+    eventAddressSearchRef.current?.setAddressText("");
+    setForm((prev) => ({
+      ...prev,
+      event_address: "",
+      event_city: "",
+      event_state: "",
+      event_zip: "",
       latitude: "",
       longitude: "",
       formatted_address: "",
       place_id: "",
       geocoding_provider: "",
       geocoded_at: "",
-    }));
-  };
-
-  const handleGoogleAddressSelect = (data, details) => {
-    if (!details) return;
-    setForm((prev) => ({
-      ...prev,
-      ...parseGooglePlaceDetails(data, details),
     }));
   };
 
@@ -1020,63 +1115,107 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   );
 
   const renderAddressInput = () => (
-    <View style={styles.placesWrapper}>
+    <View style={localStyles.fieldGroup}>
       {renderLabel("Address *")}
-      <GooglePlacesAutocomplete
-        placeholder="Search address"
-        query={{
-          key: GOOGLE_MAP_API_KEY,
-          language: "en",
-          types: "geocode|establishment",
-        }}
-        fetchDetails={true}
-        enablePoweredByContainer={false}
-        predefinedPlaces={[]}
-        keyboardShouldPersistTaps="always"
-        minLength={2}
-        timeout={20000}
-        onPress={handleGoogleAddressSelect}
-        onFail={(error) => {
-          console.log("Google Places event address error", error);
-          setSnackbar({
-            visible: true,
-            message: "Address search failed. You can enter the address manually.",
-          });
-        }}
-        textInputProps={{
-          placeholderTextColor: AppColor.textPlaceholder,
-          defaultValue: form.event_address,
-          onChangeText: handleManualAddressChange,
-          returnKeyType: "search",
-        }}
-        styles={{
-          container: styles.placesContainer,
-          textInputContainer: styles.placesTextInputContainer,
-          textInput: styles.placesTextInput,
-          listView: styles.placesListView,
-          row: styles.placesRow,
-          description: styles.placesDescription,
-          separator: styles.placesSeparator,
-        }}
-      />
-      {form.latitude && form.longitude ? (
-        <View style={localStyles.mapPreview}>
-          <View style={[localStyles.mapGridLine, localStyles.mapGridHorizontal, { top: 30 }]} />
-          <View style={[localStyles.mapGridLine, localStyles.mapGridHorizontal, { top: 76 }]} />
-          <View style={[localStyles.mapGridLine, localStyles.mapGridVertical, { left: 72 }]} />
-          <View style={[localStyles.mapGridLine, localStyles.mapGridVertical, { right: 88 }]} />
-          <View style={localStyles.mapPin}>
-            <MaterialIcons name="place" size={28} color={AppColor.primary} />
+      <View style={localStyles.eventLocationPicker}>
+        <View style={localStyles.eventMapWrap}>
+          <MapView
+            ref={eventAddressMapRef}
+            provider={PROVIDER_GOOGLE}
+            style={localStyles.eventMap}
+            loadingEnabled={true}
+            loadingIndicatorColor={AppColor.primary}
+            initialRegion={initialEventAddressRegion}
+            region={eventAddressRegion}
+            onRegionChangeComplete={(region, gesture) => {
+              if (!gesture?.isGesture) return;
+              setEventAddressRegion(region);
+              setForm((prev) => ({
+                ...prev,
+                latitude: String(region.latitude),
+                longitude: String(region.longitude),
+                geocoding_provider: prev.event_address
+                  ? prev.geocoding_provider || ""
+                  : "",
+                geocoded_at: prev.event_address ? new Date().toISOString() : "",
+              }));
+            }}
+          />
+          <View style={localStyles.eventMapPin}>
+            <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
           </View>
         </View>
-      ) : null}
-      {form.latitude && form.longitude ? (
-        <Text style={styles.meta}>Location verified with Google Places.</Text>
-      ) : (
-        <Text style={styles.meta}>
-          Select a suggestion to place this event on the map. Manual entries can be saved without a marker.
-        </Text>
-      )}
+
+        <View style={localStyles.eventSearchWrap}>
+          <GooglePlacesAutocomplete
+            ref={eventAddressSearchRef}
+            placeholder="Search Location"
+            query={{
+              key: GOOGLE_MAP_API_KEY,
+              language: "en",
+              types: "geocode|establishment",
+            }}
+            fetchDetails={true}
+            enablePoweredByContainer={false}
+            predefinedPlaces={[]}
+            keyboardShouldPersistTaps="always"
+            minLength={2}
+            timeout={20000}
+            suppressDefaultStyles={true}
+            textInputProps={{
+              placeholderTextColor: AppColor.textPlaceholder,
+              defaultValue: form.event_address,
+              onChangeText: handleManualAddressChange,
+              returnKeyType: "search",
+              keyboardType: "default",
+              autoCorrect: false,
+            }}
+            onPress={handleGoogleAddressSelect}
+            onFail={(error) => {
+              console.log("Google Places event address error", error);
+              setSnackbar({
+                visible: true,
+                message: "Address search failed. You can enter the address manually.",
+              });
+            }}
+            renderRightButton={() =>
+              form.event_address ? (
+                <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
+                  <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => eventAddressSearchRef.current?.focus()}
+                  style={{ paddingHorizontal: 12 }}
+                >
+                  <Ionicons name="search" size={22} color={AppColor.textHighlighter} />
+                </Pressable>
+              )
+            }
+            styles={{
+              container: localStyles.eventPlacesContainer,
+              textInputContainer: localStyles.eventPlacesInputContainer,
+              textInput: localStyles.eventPlacesInput,
+              listView: localStyles.eventPlacesList,
+              row: localStyles.eventPlacesRow,
+              description: styles.placesDescription,
+              separator: styles.placesSeparator,
+            }}
+          />
+
+          {form.event_address ? (
+            <View style={localStyles.eventAddressSummary}>
+              <Text style={localStyles.eventAddressText}>{form.event_address}</Text>
+              {form.formatted_address && form.formatted_address !== form.event_address ? (
+                <Text style={styles.meta}>{form.formatted_address}</Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </View>
+      <Text style={styles.meta}>
+        Search/select an address or type it manually. Exact event address remains protected by marketplace visibility and unlock rules.
+      </Text>
     </View>
   );
 
