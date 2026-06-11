@@ -84,6 +84,30 @@ const getRequiredCount = (configuredCount, optionsCount) => {
   return Math.min(numericCount, optionsCount);
 };
 
+const getItemId = (item) => item?._id || item?.menuItem?._id || item?.itemId?._id || "";
+
+const buildComboItemPayload = (subItem, parentQuantity) => {
+  const payload = {
+    comboMenuItemId: getItemId(subItem),
+    qty: parentQuantity,
+  };
+
+  if (subItem?.selectedFlavors?.length > 0) {
+    payload.selectedFlavors = subItem.selectedFlavors;
+  }
+  if (subItem?.selectedToppings?.length > 0) {
+    payload.selectedToppings = subItem.selectedToppings;
+  }
+  if (subItem?.selectedComboSides?.length > 0) {
+    payload.selectedComboSides = subItem.selectedComboSides;
+  }
+  if (subItem?.customizationInput?.trim()?.length > 0) {
+    payload.customization = subItem.customizationInput.trim();
+  }
+
+  return payload;
+};
+
 const hasIncompleteRequiredSelections = (item) => {
   const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
   const discountSourceItem =
@@ -153,7 +177,9 @@ const hasIncompleteRequiredSelections = (item) => {
       (item?.selectedDiscountToppings || []).length !== requiredDiscountToppings) ||
     (requiredDiscountComboSides > 0 &&
       (item?.selectedDiscountComboSides || []).length !==
-        requiredDiscountComboSides)
+        requiredDiscountComboSides) ||
+    (item?.selectedSubItems || []).some(hasIncompleteRequiredSelections) ||
+    (item?.selectedDiscountSubItems || []).some(hasIncompleteRequiredSelections)
   );
 };
 
@@ -495,6 +521,12 @@ const CheckoutScreen = ({ navigation, route }) => {
             item.selectedDiscountComboSides;
         }
 
+        if (item.selectedDiscountSubItems?.length > 0) {
+          itemPayload.selectedDiscountSubItems = item.selectedDiscountSubItems.map(
+            (subItem) => buildComboItemPayload(subItem, item.quantity),
+          );
+        }
+
         if (item.selectedComboSides?.length > 0) {
           itemPayload.selectedComboSides = item.selectedComboSides;
         }
@@ -504,10 +536,9 @@ const CheckoutScreen = ({ navigation, route }) => {
           item.selectedSubItems &&
           item.selectedSubItems.length > 0
         ) {
-          itemPayload.comboItems = item.selectedSubItems.map((subItem) => ({
-            comboMenuItemId: subItem._id,
-            qty: item.quantity,
-          }));
+          itemPayload.comboItems = item.selectedSubItems.map((subItem) =>
+            buildComboItemPayload(subItem, item.quantity),
+          );
         }
 
         return itemPayload;
@@ -742,6 +773,38 @@ const CheckoutScreen = ({ navigation, route }) => {
                       {itm.displayCustomization}
                     </Text>
                   ) : null}
+                  {itm.displaySubItems?.length > 0
+                    ? itm.displaySubItems.map((child) => (
+                        <View
+                          key={`reward-child-${child._id}`}
+                          style={styles.nestedRewardChild}
+                        >
+                          <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                            {`Combo item: ${child.name}`}
+                          </Text>
+                          {child.selectedFlavors?.length > 0 ? (
+                            <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                              {`Flavors: ${child.selectedFlavors.join(", ")}`}
+                            </Text>
+                          ) : null}
+                          {child.selectedToppings?.length > 0 ? (
+                            <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                              {`Toppings: ${child.selectedToppings.join(", ")}`}
+                            </Text>
+                          ) : null}
+                          {child.selectedComboSides?.length > 0 ? (
+                            <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                              {`Sides: ${child.selectedComboSides.join(", ")}`}
+                            </Text>
+                          ) : null}
+                          {child.customizationInput ? (
+                            <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                              {child.customizationInput}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ))
+                    : null}
                   <Text style={styles.nestedItemPrice}>{itm.displayPrice}</Text>
                 </View>
                 {!["BOGO", "BOGOHO"].includes(item.discountType) ? (
@@ -781,14 +844,34 @@ const CheckoutScreen = ({ navigation, route }) => {
                   <Text style={styles.nestedItemTitle} numberOfLines={2}>
                     {itm.name}
                   </Text>
-                  {itm.description ? (
+	                  {itm.description ? (
+	                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+	                      {itm.description}
+	                    </Text>
+	                  ) : null}
+                  {itm.selectedFlavors?.length > 0 ? (
                     <Text style={styles.nestedItemDesc} numberOfLines={2}>
-                      {itm.description}
+                      {`Flavors: ${itm.selectedFlavors.join(", ")}`}
                     </Text>
                   ) : null}
-                  <Text style={styles.nestedItemPriceMuted}>
-                    Included in combo
-                  </Text>
+                  {itm.selectedToppings?.length > 0 ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {`Toppings: ${itm.selectedToppings.join(", ")}`}
+                    </Text>
+                  ) : null}
+                  {itm.selectedComboSides?.length > 0 ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {`Sides: ${itm.selectedComboSides.join(", ")}`}
+                    </Text>
+                  ) : null}
+                  {itm.customizationInput ? (
+                    <Text style={styles.nestedItemDesc} numberOfLines={2}>
+                      {itm.customizationInput}
+                    </Text>
+                  ) : null}
+	                  <Text style={styles.nestedItemPriceMuted}>
+	                    Included in combo
+	                  </Text>
                 </View>
                 <View style={styles.nestedQtyCol}>
                   <Text
@@ -1855,6 +1938,12 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textHighlighter,
+  },
+  nestedRewardChild: {
+    marginTop: 4,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: AppColor.borderColor,
   },
   nestedItemPrice: {
     fontFamily: Mulish600,

@@ -166,6 +166,9 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
   )
     ? safeItem.selectedDiscountComboSides
     : [];
+  const selectedDiscountSubItems = Array.isArray(safeItem.selectedDiscountSubItems)
+    ? safeItem.selectedDiscountSubItems
+    : [];
   const discountSourceItem = getDiscountSourceItem(safeItem);
   const selectedDiscountOptionsCost = calculateSelectedOptionCost(
     safeItem,
@@ -212,6 +215,7 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
               ? selectedDiscountCustomization
               : null,
             displayComboSides: selectedDiscountComboSides,
+            displaySubItems: selectedDiscountSubItems,
             displayPrice:
               rewardDisplayPrice <= 0
                 ? "Free"
@@ -235,6 +239,7 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
               ? selectedDiscountCustomization
               : null,
             displayComboSides: selectedDiscountComboSides,
+            displaySubItems: selectedDiscountSubItems,
             displayQty: rewardQty,
             displayPrice:
               rewardDisplayPrice <= 0
@@ -258,6 +263,7 @@ export const getRewardItemsDisplay = (item, quantityToUseArg) => {
         ? selectedDiscountCustomization
         : null,
       displayComboSides: selectedDiscountComboSides,
+      displaySubItems: selectedDiscountSubItems,
       displayPrice:
         discountType === "BOGO"
           ? bi.isSameItem && selectedDiscountOptionsCost > 0

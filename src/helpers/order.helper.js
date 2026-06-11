@@ -89,14 +89,23 @@ export const updateOrderItems = (orderItems, responseItems) => {
 
     // 2. If we found matching menu data, filter its subItems
     if (latestMenuData?.subItem) {
-      const selectedIds = new Set(item.selectedSubItems.map((s) => s._id));
+      const selectedSubItems = Array.isArray(item.selectedSubItems)
+        ? item.selectedSubItems
+        : [];
+      const selectedById = selectedSubItems.reduce((acc, selected) => {
+        acc[selected._id] = selected;
+        return acc;
+      }, {});
 
       return {
         ...item,
         // Replace the old selectedSubItems with the fresh data from subItem
-        selectedSubItems: latestMenuData.subItem.filter((latest) =>
-          selectedIds.has(latest.menuItem._id)
-        ),
+        selectedSubItems: latestMenuData.subItem
+          .filter((latest) => selectedById[latest.menuItem._id])
+          .map((latest) => ({
+            ...latest.menuItem,
+            ...(selectedById[latest.menuItem._id] || {}),
+          })),
       };
     }
 

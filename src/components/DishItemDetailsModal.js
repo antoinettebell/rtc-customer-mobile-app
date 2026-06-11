@@ -93,6 +93,65 @@ const OptionRow = memo(({ option, isSelected, onToggle }) => (
   </View>
 ));
 
+const getMenuItemId = (item) =>
+  item?._id || item?.menuItem?._id || item?.itemId?._id || item?.itemId || "";
+
+const getComboChildItem = (item) => item?.menuItem || item?.itemId || item;
+
+const getSelectionLimit = (configuredLimit, optionsLength) => {
+  const numericLimit = Number(configuredLimit);
+  if (!Number.isFinite(numericLimit) || numericLimit <= 0) {
+    return optionsLength;
+  }
+
+  return Math.min(numericLimit, optionsLength);
+};
+
+const getChildRequirementState = (item) => {
+  const child = getComboChildItem(item);
+  const flavorOptions = normalizeMenuOptions(child, "flavor");
+  const toppingOptions = normalizeMenuOptions(child, "topping");
+  const comboSideOptions = Array.isArray(child?.comboSideOptions)
+    ? child.comboSideOptions.filter((option) => option)
+    : [];
+
+  return {
+    child,
+    flavorOptions,
+    toppingOptions,
+    comboSideOptions,
+    hasFlavorChoices: child?.hasFlavors && flavorOptions.length > 0,
+    hasToppingChoices: child?.hasToppings && toppingOptions.length > 0,
+    hasComboSideChoices:
+      child?.itemType === foodTypeStrings.combo && comboSideOptions.length > 0,
+    flavorRequiredCount: getSelectionLimit(
+      child?.flavorsPerOrder,
+      flavorOptions.length
+    ),
+    toppingRequiredCount: getSelectionLimit(
+      child?.toppingsPerOrder,
+      toppingOptions.length
+    ),
+    comboSideRequiredCount: getSelectionLimit(
+      child?.comboSidesPerOrder,
+      comboSideOptions.length
+    ),
+    hasCustomization: !!child?.allowCustomize,
+  };
+};
+
+const isChildSelectionComplete = (item) => {
+  const state = getChildRequirementState(item);
+  return (
+    (!state.hasFlavorChoices ||
+      (item?.selectedFlavors || []).length === state.flavorRequiredCount) &&
+    (!state.hasToppingChoices ||
+      (item?.selectedToppings || []).length === state.toppingRequiredCount) &&
+    (!state.hasComboSideChoices ||
+      (item?.selectedComboSides || []).length === state.comboSideRequiredCount)
+  );
+};
+
 import {
   getRewardItemsDisplay,
   normalizeMenuOptions,
@@ -114,6 +173,7 @@ const DishItemDetailsModal = ({
   onSelectedDiscountToppingsChange,
   onSelectedDiscountCustomizationInputChange,
   onSelectedDiscountComboSidesChange,
+  onSelectedDiscountSubItemsChange,
   onSelectedComboSidesChange,
 }) => {
   const [selectedSubItems, setSelectedSubItems] = useState(
@@ -144,6 +204,9 @@ const DishItemDetailsModal = ({
   const [selectedComboSides, setSelectedComboSides] = useState(
     selectedMenuItem?.selectedComboSides || []
   );
+  const [selectedDiscountSubItems, setSelectedDiscountSubItems] = useState(
+    selectedMenuItem?.selectedDiscountSubItems || []
+  );
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
@@ -160,6 +223,7 @@ const DishItemDetailsModal = ({
       selectedMenuItem?.selectedDiscountComboSides || []
     );
     setSelectedComboSides(selectedMenuItem?.selectedComboSides || []);
+    setSelectedDiscountSubItems(selectedMenuItem?.selectedDiscountSubItems || []);
   }, [
     selectedMenuItem?._id,
     selectedMenuItem?.selectedSubItems,
@@ -171,6 +235,7 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.selectedDiscountCustomizationInput,
     selectedMenuItem?.selectedDiscountComboSides,
     selectedMenuItem?.selectedComboSides,
+    selectedMenuItem?.selectedDiscountSubItems,
   ]);
 
   // Clear subitems when main item quantity becomes 0
@@ -201,14 +266,6 @@ const DishItemDetailsModal = ({
 
   const flavorOptions = normalizeMenuOptions(selectedMenuItem, "flavor");
   const toppingOptions = normalizeMenuOptions(selectedMenuItem, "topping");
-  const getSelectionLimit = (configuredLimit, optionsLength) => {
-    const numericLimit = Number(configuredLimit);
-    if (!Number.isFinite(numericLimit) || numericLimit <= 0) {
-      return optionsLength;
-    }
-
-    return Math.min(numericLimit, optionsLength);
-  };
   const flavorsMaxCount = getSelectionLimit(
     selectedMenuItem?.flavorsPerOrder,
     flavorOptions.length
@@ -342,6 +399,28 @@ const DishItemDetailsModal = ({
   );
 
   const validateSelections = useCallback(() => {
+    const invalidComboChild = selectedSubItems.find(
+      (item) => !isChildSelectionComplete(item)
+    );
+    if (invalidComboChild) {
+      Alert.alert(
+        "Combo Item Selection",
+        `Please complete required selections for ${getComboChildItem(invalidComboChild)?.name || "the combo item"}.`
+      );
+      return false;
+    }
+
+    const invalidDiscountChild = selectedDiscountSubItems.find(
+      (item) => !isChildSelectionComplete(item)
+    );
+    if (invalidDiscountChild) {
+      Alert.alert(
+        "Discount Combo Selection",
+        `Please complete required selections for ${getComboChildItem(invalidDiscountChild)?.name || "the discount combo item"}.`
+      );
+      return false;
+    }
+
     if (
       hasComboSideChoices &&
       selectedComboSides.length !== comboSidesRequiredCount
@@ -409,8 +488,10 @@ const DishItemDetailsModal = ({
     selectedComboSides,
     selectedDiscountComboSides,
     selectedDiscountFlavors,
+    selectedDiscountSubItems,
     selectedDiscountToppings,
     selectedFlavors,
+    selectedSubItems,
     selectedToppings,
     toppingsMaxCount,
     validateOptionSelection,
@@ -426,7 +507,9 @@ const DishItemDetailsModal = ({
     (!hasDiscountFlavorChoices ||
       selectedDiscountFlavors.length === discountFlavorsMaxCount) &&
     (!hasDiscountToppingChoices ||
-      selectedDiscountToppings.length === discountToppingsMaxCount);
+      selectedDiscountToppings.length === discountToppingsMaxCount) &&
+    selectedSubItems.every(isChildSelectionComplete) &&
+    selectedDiscountSubItems.every(isChildSelectionComplete);
 
   const handleUpdateOrder = useCallback(() => {
     if (!validateSelections()) {
@@ -452,12 +535,14 @@ const DishItemDetailsModal = ({
       selectedDiscountComboSides: hasDiscountComboSideChoices
         ? selectedDiscountComboSides
         : [],
+      selectedDiscountSubItems,
     };
 
     if (getItemQuantity(selectedMenuItem._id) === 0) {
       handleAddItem(itemWithSelections);
     } else if (onSelectedFlavorsChange) {
       onCustomizationInputChange?.(itemWithSelections.customizationInput);
+      onSelectedSubItemsChange?.(itemWithSelections.selectedSubItems);
       onSelectedFlavorsChange(itemWithSelections.selectedFlavors);
       onSelectedToppingsChange?.(itemWithSelections.selectedToppings);
       onSelectedComboSidesChange?.(itemWithSelections.selectedComboSides);
@@ -473,40 +558,56 @@ const DishItemDetailsModal = ({
       onSelectedDiscountComboSidesChange?.(
         itemWithSelections.selectedDiscountComboSides
       );
+      onSelectedDiscountSubItemsChange?.(
+        itemWithSelections.selectedDiscountSubItems
+      );
     }
 
     actionSheetRef.current?.hide();
-	  }, [
-	    actionSheetRef,
-	    customizationInput,
-	    getItemQuantity,
-	    handleAddItem,
-	    hasFlavorChoices,
-	    hasComboSideChoices,
-	    hasDiscountFlavorChoices,
-	    hasDiscountToppingChoices,
-      hasDiscountCustomization,
-      hasDiscountComboSideChoices,
-	    hasToppingChoices,
+  }, [
+    actionSheetRef,
+    customizationInput,
+    getItemQuantity,
+    handleAddItem,
+    hasComboSideChoices,
+    hasDiscountComboSideChoices,
+    hasDiscountCustomization,
+    hasDiscountFlavorChoices,
+    hasDiscountToppingChoices,
+    hasFlavorChoices,
+    hasToppingChoices,
+    onCustomizationInputChange,
+    onSelectedSubItemsChange,
+    onSelectedComboSidesChange,
+    onSelectedDiscountComboSidesChange,
+    onSelectedDiscountCustomizationInputChange,
     onSelectedDiscountFlavorsChange,
-	    onSelectedDiscountToppingsChange,
-      onSelectedDiscountCustomizationInputChange,
-      onSelectedDiscountComboSidesChange,
-	    onCustomizationInputChange,
-	    onSelectedFlavorsChange,
-	    onSelectedComboSidesChange,
-	    onSelectedToppingsChange,
-	    selectedDiscountFlavors,
-	    selectedDiscountToppings,
-      selectedDiscountCustomizationInput,
-      selectedDiscountComboSides,
-	    selectedComboSides,
+    onSelectedDiscountSubItemsChange,
+    onSelectedDiscountToppingsChange,
+    onSelectedFlavorsChange,
+    onSelectedToppingsChange,
+    selectedComboSides,
+    selectedDiscountComboSides,
+    selectedDiscountCustomizationInput,
+    selectedDiscountFlavors,
+    selectedDiscountSubItems,
+    selectedDiscountToppings,
     selectedFlavors,
     selectedMenuItem,
     selectedSubItems,
     selectedToppings,
     validateSelections,
   ]);
+
+  const updateSelectedChildItem = useCallback((setter, childId, updates) => {
+    setter((prevItems) =>
+      prevItems.map((item) =>
+        String(getMenuItemId(item)) === String(childId)
+          ? { ...item, ...updates }
+          : item
+      )
+    );
+  }, []);
 
   // Optimized toggle function
   const toggleSubItemSelection = useCallback(
@@ -539,14 +640,28 @@ const DishItemDetailsModal = ({
           selectedDiscountComboSides: hasDiscountComboSideChoices
             ? selectedDiscountComboSides
             : [],
+          selectedDiscountSubItems,
         });
       }
 
       setSelectedSubItems((prevItems) => {
-        const isSelected = prevItems.some((item) => item?._id === menuItem._id);
+        const isSelected = prevItems.some(
+          (item) => String(getMenuItemId(item)) === String(menuItem._id)
+        );
         const newSelectedItems = isSelected
-          ? prevItems.filter((item) => item?._id !== menuItem._id)
-          : [...prevItems, menuItem];
+          ? prevItems.filter(
+              (item) => String(getMenuItemId(item)) !== String(menuItem._id)
+            )
+          : [
+              ...prevItems,
+              {
+                ...menuItem,
+                selectedFlavors: [],
+                selectedToppings: [],
+                selectedComboSides: [],
+                customizationInput: "",
+              },
+            ];
 
         if (onSelectedSubItemsChange) {
           requestAnimationFrame(() => {
@@ -573,12 +688,204 @@ const DishItemDetailsModal = ({
       selectedDiscountComboSides,
       selectedDiscountCustomizationInput,
       selectedDiscountFlavors,
+      selectedDiscountSubItems,
       selectedDiscountToppings,
       selectedFlavors,
       selectedMenuItem,
       selectedToppings,
     ]
   );
+
+  const toggleDiscountSubItemSelection = useCallback(
+    (menuItem) => {
+      if (!menuItem?._id) {
+        return;
+      }
+
+      setSelectedDiscountSubItems((prevItems) => {
+        const isSelected = prevItems.some(
+          (item) => String(getMenuItemId(item)) === String(menuItem._id)
+        );
+        return isSelected
+          ? prevItems.filter(
+              (item) => String(getMenuItemId(item)) !== String(menuItem._id)
+            )
+          : [
+              ...prevItems,
+              {
+                ...menuItem,
+                selectedFlavors: [],
+                selectedToppings: [],
+                selectedComboSides: [],
+                customizationInput: "",
+              },
+            ];
+      });
+    },
+    []
+  );
+
+  const renderChildCustomizationFields = (
+    item,
+    setter,
+    sectionPrefix = "Combo item"
+  ) => {
+    const childId = getMenuItemId(item);
+    const state = getChildRequirementState(item);
+
+    if (
+      !state.hasFlavorChoices &&
+      !state.hasToppingChoices &&
+      !state.hasComboSideChoices &&
+      !state.hasCustomization
+    ) {
+      return null;
+    }
+
+    return (
+      <View style={styles.childCustomizationBox}>
+        {state.hasFlavorChoices ? (
+          <View style={styles.childOptionGroup}>
+            <Text style={styles.childOptionTitle}>
+              {`${sectionPrefix}: choose exactly ${state.flavorRequiredCount} flavor${
+                state.flavorRequiredCount === 1 ? "" : "s"
+              }`}
+            </Text>
+            {state.flavorOptions.map((option) => (
+              <OptionRow
+                key={`${sectionPrefix}-${childId}-flavor-${option.name}`}
+                option={option}
+                isSelected={(item.selectedFlavors || []).includes(option.name)}
+                onToggle={(optionName) =>
+                  updateSelectedChildItem(setter, childId, {
+                    selectedFlavors: (() => {
+                      const current = item.selectedFlavors || [];
+                      const isSelected = current.includes(optionName);
+                      if (isSelected) {
+                        return current.filter((value) => value !== optionName);
+                      }
+                      if (current.length >= state.flavorRequiredCount) {
+                        Alert.alert(
+                          "Flavor Limit",
+                          `Please select only ${state.flavorRequiredCount} flavor${
+                            state.flavorRequiredCount === 1 ? "" : "s"
+                          }.`
+                        );
+                        return current;
+                      }
+                      return [...current, optionName];
+                    })(),
+                  })
+                }
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {state.hasToppingChoices ? (
+          <View style={styles.childOptionGroup}>
+            <Text style={styles.childOptionTitle}>
+              {`${sectionPrefix}: choose exactly ${state.toppingRequiredCount} topping${
+                state.toppingRequiredCount === 1 ? "" : "s"
+              }`}
+            </Text>
+            {state.toppingOptions.map((option) => (
+              <OptionRow
+                key={`${sectionPrefix}-${childId}-topping-${option.name}`}
+                option={option}
+                isSelected={(item.selectedToppings || []).includes(option.name)}
+                onToggle={(optionName) =>
+                  updateSelectedChildItem(setter, childId, {
+                    selectedToppings: (() => {
+                      const current = item.selectedToppings || [];
+                      const isSelected = current.includes(optionName);
+                      if (isSelected) {
+                        return current.filter((value) => value !== optionName);
+                      }
+                      if (current.length >= state.toppingRequiredCount) {
+                        Alert.alert(
+                          "Topping Limit",
+                          `Please select only ${state.toppingRequiredCount} topping${
+                            state.toppingRequiredCount === 1 ? "" : "s"
+                          }.`
+                        );
+                        return current;
+                      }
+                      return [...current, optionName];
+                    })(),
+                  })
+                }
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {state.hasComboSideChoices ? (
+          <View style={styles.childOptionGroup}>
+            <Text style={styles.childOptionTitle}>
+              {`${sectionPrefix}: choose exactly ${state.comboSideRequiredCount} side${
+                state.comboSideRequiredCount === 1 ? "" : "s"
+              }`}
+            </Text>
+            {state.comboSideOptions.map((optionName) => (
+              <OptionRow
+                key={`${sectionPrefix}-${childId}-side-${optionName}`}
+                option={{ name: optionName, hasCost: false, cost: 0 }}
+                isSelected={(item.selectedComboSides || []).includes(optionName)}
+                onToggle={(selectedName) =>
+                  updateSelectedChildItem(setter, childId, {
+                    selectedComboSides: (() => {
+                      const current = item.selectedComboSides || [];
+                      const isSelected = current.includes(selectedName);
+                      if (isSelected) {
+                        return current.filter((value) => value !== selectedName);
+                      }
+                      if (current.length >= state.comboSideRequiredCount) {
+                        Alert.alert(
+                          "Side Limit",
+                          `Please select only ${state.comboSideRequiredCount} side${
+                            state.comboSideRequiredCount === 1 ? "" : "s"
+                          }.`
+                        );
+                        return current;
+                      }
+                      return [...current, selectedName];
+                    })(),
+                  })
+                }
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {state.hasCustomization ? (
+          <TextInput
+            dense
+            value={item.customizationInput || ""}
+            onChangeText={(value) =>
+              updateSelectedChildItem(setter, childId, {
+                customizationInput: value,
+              })
+            }
+            style={{ backgroundColor: AppColor.white, marginTop: 8 }}
+            contentStyle={{
+              minHeight: 82,
+              fontFamily: Mulish400,
+              fontSize: 14,
+            }}
+            placeholder="Enter special instructions"
+            placeholderTextColor={AppColor.textPlaceholder}
+            mode="outlined"
+            multiline={true}
+            outlineColor={AppColor.border}
+            activeOutlineColor={AppColor.primary}
+            outlineStyle={{ borderRadius: 8 }}
+            autoCapitalize="sentences"
+          />
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <ActionSheet
@@ -877,16 +1184,29 @@ const DishItemDetailsModal = ({
             {selectedMenuItem.subItem?.length > 0 && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>Combo Items:</Text>
-                {selectedMenuItem.subItem.map((subItem) => (
-                  <SubItemRow
-                    key={subItem?._id}
-                    subItem={subItem}
-                    isSelected={selectedSubItems.some(
-                      (item) => item?._id === subItem?.menuItem?._id
-                    )}
-                    onToggle={toggleSubItemSelection}
-                  />
-                ))}
+                {selectedMenuItem.subItem.map((subItem) => {
+                  const childItem = subItem?.menuItem;
+                  const selectedChild = selectedSubItems.find(
+                    (item) =>
+                      String(getMenuItemId(item)) === String(childItem?._id)
+                  );
+                  return (
+                    <View key={subItem?._id || childItem?._id}>
+                      <SubItemRow
+                        subItem={subItem}
+                        isSelected={!!selectedChild}
+                        onToggle={toggleSubItemSelection}
+                      />
+                      {selectedChild
+                        ? renderChildCustomizationFields(
+                            selectedChild,
+                            setSelectedSubItems,
+                            "Combo item"
+                          )
+                        : null}
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -1040,6 +1360,37 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
+            {hasDiscountOffer &&
+              discountSourceItem?.itemType === foodTypeStrings.combo &&
+              discountSourceItem?.subItem?.length > 0 && (
+                <View style={styles.actionSheetSection}>
+                  <Text style={styles.sectionTitle}>Discount combo items:</Text>
+                  {discountSourceItem.subItem.map((subItem) => {
+                    const childItem = subItem?.menuItem;
+                    const selectedChild = selectedDiscountSubItems.find(
+                      (item) =>
+                        String(getMenuItemId(item)) === String(childItem?._id)
+                    );
+                    return (
+                      <View key={`discount-${subItem?._id || childItem?._id}`}>
+                        <SubItemRow
+                          subItem={subItem}
+                          isSelected={!!selectedChild}
+                          onToggle={toggleDiscountSubItemSelection}
+                        />
+                        {selectedChild
+                          ? renderChildCustomizationFields(
+                              selectedChild,
+                              setSelectedDiscountSubItems,
+                              "Discount combo item"
+                            )
+                          : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
             {hasDiscountCustomization && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
@@ -1117,34 +1468,35 @@ const DishItemDetailsModal = ({
                 {getItemQuantity(selectedMenuItem._id)}
               </Text>
               <TouchableOpacity
-	                style={styles.qtyBtn}
-	                onPress={() => {
-	                  if (!validateSelections()) {
-	                    return;
-	                  }
-	                  handleAddItem({
-	                    ...selectedMenuItem,
-	                    selectedSubItems,
-			                    customizationInput,
-			                    selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
-			                    selectedToppings: hasToppingChoices ? selectedToppings : [],
-                            selectedComboSides: hasComboSideChoices
-                              ? selectedComboSides
-                              : [],
-	                        selectedDiscountFlavors: hasDiscountFlavorChoices
-                          ? selectedDiscountFlavors
-                          : [],
-                        selectedDiscountToppings: hasDiscountToppingChoices
-                          ? selectedDiscountToppings
-                          : [],
-                        selectedDiscountCustomizationInput: hasDiscountCustomization
-                          ? selectedDiscountCustomizationInput
-                          : "",
-                        selectedDiscountComboSides: hasDiscountComboSideChoices
-                          ? selectedDiscountComboSides
-                          : [],
-		                  });
-	                }}
+                style={styles.qtyBtn}
+                onPress={() => {
+                  if (!validateSelections()) {
+                    return;
+                  }
+                  handleAddItem({
+                    ...selectedMenuItem,
+                    selectedSubItems,
+                    customizationInput,
+                    selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
+                    selectedToppings: hasToppingChoices ? selectedToppings : [],
+                    selectedComboSides: hasComboSideChoices
+                      ? selectedComboSides
+                      : [],
+                    selectedDiscountFlavors: hasDiscountFlavorChoices
+                      ? selectedDiscountFlavors
+                      : [],
+                    selectedDiscountToppings: hasDiscountToppingChoices
+                      ? selectedDiscountToppings
+                      : [],
+                    selectedDiscountCustomizationInput: hasDiscountCustomization
+                      ? selectedDiscountCustomizationInput
+                      : "",
+                    selectedDiscountComboSides: hasDiscountComboSideChoices
+                      ? selectedDiscountComboSides
+                      : [],
+                    selectedDiscountSubItems,
+                  });
+                }}
                 disabled={
                   getItemQuantity(selectedMenuItem._id) >=
                   (selectedMenuItem.maxQty || 10)
@@ -1203,6 +1555,7 @@ DishItemDetailsModal.propTypes = {
   onSelectedDiscountToppingsChange: PropTypes.func,
   onSelectedDiscountCustomizationInputChange: PropTypes.func,
   onSelectedDiscountComboSidesChange: PropTypes.func,
+  onSelectedDiscountSubItemsChange: PropTypes.func,
   onSelectedComboSidesChange: PropTypes.func,
 };
 
@@ -1476,6 +1829,25 @@ const styles = StyleSheet.create({
     fontFamily: Mulish600,
     fontSize: 16,
     color: AppColor.primary,
+  },
+  childCustomizationBox: {
+    marginTop: -4,
+    marginBottom: 10,
+    marginLeft: 12,
+    padding: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: AppColor.primary,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+  },
+  childOptionGroup: {
+    marginBottom: 8,
+  },
+  childOptionTitle: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.text,
+    marginBottom: 4,
   },
   qtyMultiplier: {
     fontFamily: Mulish600,

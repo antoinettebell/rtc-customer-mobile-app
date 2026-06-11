@@ -357,6 +357,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               existingOrderItem.selectedDiscountCustomizationInput || "",
             selectedDiscountComboSides:
               existingOrderItem.selectedDiscountComboSides || [],
+            selectedDiscountSubItems:
+              existingOrderItem.selectedDiscountSubItems || [],
             selectedComboSides: existingOrderItem.selectedComboSides || [],
           }
         : menuItem
@@ -589,6 +591,31 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
           itemId: selectedMenuItem._id,
           keyName: "selectedDiscountComboSides",
           value: selectedDiscountComboSides,
+        })
+      );
+    },
+    [dispatch, currentOrder.items, selectedMenuItem]
+  );
+
+  const handleSelectedDiscountSubItemsChange = useCallback(
+    (selectedDiscountSubItems) => {
+      if (!selectedMenuItem?._id) {
+        return;
+      }
+
+      const existingItem = currentOrder.items.find(
+        (orderItem) => orderItem._id === selectedMenuItem._id
+      );
+
+      if (!existingItem) {
+        return;
+      }
+
+      dispatch(
+        updateItemProperty({
+          itemId: selectedMenuItem._id,
+          keyName: "selectedDiscountSubItems",
+          value: selectedDiscountSubItems,
         })
       );
     },
@@ -1038,8 +1065,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                                         existingOrderItem.selectedDiscountCustomizationInput || "",
                                       selectedDiscountComboSides:
                                         existingOrderItem.selectedDiscountComboSides || [],
-		                                    }
-	                                  : item;
+                                      selectedDiscountSubItems:
+                                        existingOrderItem.selectedDiscountSubItems || [],
+                                      selectedComboSides:
+                                        existingOrderItem.selectedComboSides || [],
+			                                    }
+		                                  : item;
 
                                 setSelectedMenuItem(mergedItem);
                                 actionSheetRef.current?.show();
@@ -1144,6 +1175,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             }
             onSelectedDiscountComboSidesChange={
               handleSelectedDiscountComboSidesChange
+            }
+            onSelectedDiscountSubItemsChange={
+              handleSelectedDiscountSubItemsChange
             }
             onSelectedComboSidesChange={handleSelectedComboSidesChange}
 			      />

@@ -324,6 +324,10 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       itm?.selectedDiscountCustomization || "",
                     selectedDiscountComboSides:
                       itm?.selectedDiscountComboSides || [],
+                    selectedDiscountSubItems:
+                      itm?.selectedDiscountSubItems ||
+                      raw?.selectedDiscountSubItems ||
+                      [],
                   };
                   const comboItemsList =
                     menuItem?.comboItems?.length > 0
@@ -447,6 +451,50 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                     {rewardItem.displayCustomization}
                                   </Text>
                                 ) : null}
+                                {rewardItem.displaySubItems?.length > 0
+                                  ? rewardItem.displaySubItems.map((child) => (
+                                      <View key={`reward-child-${child._id}`}>
+                                        <Text
+                                          style={styles.nestedItemDesc}
+                                          numberOfLines={2}
+                                        >
+                                          {`Combo item: ${child.name}`}
+                                        </Text>
+                                        {child.selectedFlavors?.length > 0 ? (
+                                          <Text
+                                            style={styles.nestedItemDesc}
+                                            numberOfLines={2}
+                                          >
+                                            {`Flavors: ${child.selectedFlavors.join(", ")}`}
+                                          </Text>
+                                        ) : null}
+                                        {child.selectedToppings?.length > 0 ? (
+                                          <Text
+                                            style={styles.nestedItemDesc}
+                                            numberOfLines={2}
+                                          >
+                                            {`Toppings: ${child.selectedToppings.join(", ")}`}
+                                          </Text>
+                                        ) : null}
+                                        {child.selectedComboSides?.length > 0 ? (
+                                          <Text
+                                            style={styles.nestedItemDesc}
+                                            numberOfLines={2}
+                                          >
+                                            {`Sides: ${child.selectedComboSides.join(", ")}`}
+                                          </Text>
+                                        ) : null}
+                                        {child.customization ? (
+                                          <Text
+                                            style={styles.nestedItemDesc}
+                                            numberOfLines={2}
+                                          >
+                                            {child.customization}
+                                          </Text>
+                                        ) : null}
+                                      </View>
+                                    ))
+                                  : null}
                               </View>
                               <View style={styles.nestedRowRight}>
                                 {!isBogoType ? (
@@ -500,6 +548,38 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                     numberOfLines={2}
                                   >
                                     {comboItem.description}
+                                  </Text>
+                                ) : null}
+                                {comboItem.selectedFlavors?.length > 0 ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {`Flavors: ${comboItem.selectedFlavors.join(", ")}`}
+                                  </Text>
+                                ) : null}
+                                {comboItem.selectedToppings?.length > 0 ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {`Toppings: ${comboItem.selectedToppings.join(", ")}`}
+                                  </Text>
+                                ) : null}
+                                {comboItem.selectedComboSides?.length > 0 ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {`Sides: ${comboItem.selectedComboSides.join(", ")}`}
+                                  </Text>
+                                ) : null}
+                                {comboItem.customization ? (
+                                  <Text
+                                    style={styles.nestedItemDesc}
+                                    numberOfLines={2}
+                                  >
+                                    {comboItem.customization}
                                   </Text>
                                 ) : null}
                                 <Text style={styles.nestedItemPriceMuted}>
