@@ -21,6 +21,8 @@ import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
+import Geolocation from "@react-native-community/geolocation";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
@@ -508,6 +510,22 @@ const localStyles = StyleSheet.create({
     justifyContent: "center",
     pointerEvents: "none",
   },
+  eventLocateButton: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+    elevation: 4,
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+  },
   eventSearchWrap: {
     padding: 12,
     backgroundColor: AppColor.white,
@@ -684,10 +702,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const [eventAddressRegion, setEventAddressRegion] = useState(
     initialEventAddressRegion
   );
+  const [eventAddressSearchText, setEventAddressSearchText] = useState("");
+  const [eventAddressLoading, setEventAddressLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
+  );
+  const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
+    permission.location
   );
   const foodTruckSelected = isFoodTruckService(form);
 
@@ -827,7 +850,26 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }));
   };
 
+  const getCurrentPosition = () =>
+    new Promise((resolve, reject) => {
+      Geolocation.getCurrentPosition(
+        (position) => resolve(position),
+        (error) => reject(error),
+        {
+          enableHighAccuracy: false,
+          timeout: 20000,
+          maximumAge: 20000,
+        }
+      );
+    });
+
   const applySelectedAddress = (address) => {
+    const nextAddressText =
+      address.formatted_address || address.event_address || "";
+    setEventAddressSearchText(nextAddressText);
+    if (nextAddressText) {
+      eventAddressSearchRef.current?.setAddressText(nextAddressText);
+    }
     setForm((prev) => ({
       ...prev,
       event_address: address.event_address || "",
@@ -844,7 +886,91 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }));
   };
 
+  const reverseGeocodeEventRegion = async (region) => {
+    const response = await getLocationName({
+      lat: region.latitude,
+      long: region.longitude,
+    });
+    if (response?.status !== "OK" || !response?.results?.[0]) {
+      setForm((prev) => ({
+        ...prev,
+        latitude: String(region.latitude),
+        longitude: String(region.longitude),
+        geocoding_provider: prev.event_address ? prev.geocoding_provider : "",
+        geocoded_at: prev.event_address ? new Date().toISOString() : "",
+      }));
+      return;
+    }
+
+    const result = response.results[0];
+    const parsedPlace = parseLocationDetails({
+      details: result,
+      fallbackAddress: result.formatted_address,
+    });
+    applySelectedAddress({
+      ...parsedPlace,
+      latitude: String(region.latitude),
+      longitude: String(region.longitude),
+      geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
+      geocoded_at: new Date().toISOString(),
+    });
+  };
+
+  const centerEventAddressOnCurrentLocation = async () => {
+    setEventAddressLoading(true);
+    try {
+      const locationStatus = await locationPermissionStatus();
+      if (locationStatus !== RESULTS.GRANTED) {
+        setSnackbar({
+          visible: true,
+          message: "Allow permission to locate you.",
+        });
+        return;
+      }
+
+      const position = await getCurrentPosition();
+      const region = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      };
+      setEventAddressRegion(region);
+      eventAddressMapRef.current?.animateToRegion(region, 1000);
+      await reverseGeocodeEventRegion(region);
+    } catch (error) {
+      if (error?.code === 2 && Platform.OS === "android") {
+        try {
+          const enableResult = await promptForEnableLocationIfNeeded();
+          if (enableResult === "already-enabled" || enableResult === "enabled") {
+            setTimeout(() => {
+              centerEventAddressOnCurrentLocation();
+            }, 1000);
+          }
+        } catch (enableError) {
+          console.log("Event address location enable error", enableError);
+          setSnackbar({
+            visible: true,
+            message: "Please turn on device location.",
+          });
+        }
+      } else {
+        console.log("Event address current location error", error);
+        setSnackbar({
+          visible: true,
+          message:
+            error?.code === 3
+              ? "Please select location manually."
+              : "Please turn on device location.",
+        });
+      }
+    } finally {
+      setEventAddressLoading(false);
+    }
+  };
+
   const handleAddressTextChange = (value) => {
+    setEventAddressSearchText(value);
     setForm((prev) => ({
       ...prev,
       event_address: value,
@@ -884,36 +1010,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     if (!gesture?.isGesture) return;
     setEventAddressRegion(region);
     try {
-      const response = await getLocationName({
-        lat: region.latitude,
-        long: region.longitude,
-      });
-      if (response?.status !== "OK" || !response?.results?.[0]) {
-        setForm((prev) => ({
-          ...prev,
-          latitude: String(region.latitude),
-          longitude: String(region.longitude),
-          geocoding_provider: prev.event_address ? prev.geocoding_provider : "",
-          geocoded_at: prev.event_address ? new Date().toISOString() : "",
-        }));
-        return;
-      }
-
-      const result = response.results[0];
-      const parsedPlace = parseLocationDetails({
-        details: result,
-        fallbackAddress: result.formatted_address,
-      });
-      applySelectedAddress({
-        ...parsedPlace,
-        latitude: String(region.latitude),
-        longitude: String(region.longitude),
-        geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
-        geocoded_at: new Date().toISOString(),
-      });
-      eventAddressSearchRef.current?.setAddressText(
-        parsedPlace.formatted_address || parsedPlace.event_address
-      );
+      await reverseGeocodeEventRegion(region);
     } catch (error) {
       console.log("Event address reverse geocode error", error);
       setForm((prev) => ({
@@ -940,7 +1037,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       geocoding_provider: "",
       geocoded_at: "",
     }));
+    setEventAddressSearchText("");
   };
+
+  useEffect(() => {
+    centerEventAddressOnCurrentLocation();
+  }, []);
 
   const validate = (status = "OPEN") => {
     if (status === "DRAFT") {
@@ -1237,8 +1339,20 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             onRegionChangeComplete={handleEventMapRegionChange}
           />
           <View style={localStyles.eventMapPin}>
-            <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
+            {eventAddressLoading ? (
+              <ActivityIndicator size="large" color={AppColor.primary} />
+            ) : (
+              <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
+            )}
           </View>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={centerEventAddressOnCurrentLocation}
+            style={localStyles.eventLocateButton}
+            disabled={eventAddressLoading}
+          >
+            <MaterialIcons name="gps-fixed" size={22} color={AppColor.black} />
+          </TouchableOpacity>
         </View>
 
         <View style={localStyles.eventSearchWrap}>
@@ -1258,6 +1372,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             timeout={20000}
             suppressDefaultStyles={true}
             textInputProps={{
+              value: eventAddressSearchText,
               placeholderTextColor: AppColor.textPlaceholder,
               onChangeText: handleAddressTextChange,
               returnKeyType: "search",
@@ -1273,7 +1388,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               });
             }}
             renderRightButton={() =>
-              form.event_address ? (
+              eventAddressSearchText ? (
                 <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
                   <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
                 </Pressable>
