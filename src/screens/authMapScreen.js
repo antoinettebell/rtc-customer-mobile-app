@@ -52,8 +52,34 @@ const initialRegion = {
   longitudeDelta: 0.0421,
 };
 
+const getAddressPart = (components = [], type, field = "long_name") =>
+  components.find((component) => component.types?.includes(type))?.[field] || "";
+
+const parseAddressMetadata = ({ data, details, fallbackAddress = "" }) => {
+  const components = details?.address_components || [];
+  const formattedAddress =
+    details?.formatted_address || data?.description || fallbackAddress || "";
+
+  return {
+    city:
+      getAddressPart(components, "locality") ||
+      getAddressPart(components, "postal_town") ||
+      getAddressPart(components, "administrative_area_level_2"),
+    state: getAddressPart(components, "administrative_area_level_1", "short_name"),
+    zip: getAddressPart(components, "postal_code", "short_name"),
+    formattedAddress,
+    placeId: data?.place_id || details?.place_id || "",
+  };
+};
+
 const AuthMapScreen = ({ navigation, route }) => {
-  const { mode = "add", hideBackBtn = false } = route.params || {
+  const {
+    mode = "add",
+    hideBackBtn = false,
+    returnTo,
+    returnParamKey = "selectedLocation",
+    initialLocation,
+  } = route.params || {
     mode: "add",
     hideBackBtn: false,
   };
@@ -71,6 +97,7 @@ const AuthMapScreen = ({ navigation, route }) => {
   const [searchTxt, setSearchTxt] = useState(null);
   const [title, setTitle] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [addressMetadata, setAddressMetadata] = useState({});
   const [currentRegion, setCurrentRegion] = useState(initialRegion);
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -107,9 +134,16 @@ const AuthMapScreen = ({ navigation, route }) => {
       const payload = { lat, long };
       let response = await getLocationName(payload);
       if (response.status === "OK") {
-        const adrs = response.results[0].formatted_address;
+        const result = response.results[0];
+        const adrs = result.formatted_address;
         setTitle(adrs.split(",").slice(0, 1).join(",").trim());
         setLocationName(adrs);
+        setAddressMetadata(
+          parseAddressMetadata({
+            details: result,
+            fallbackAddress: adrs,
+          })
+        );
         return;
       } else {
         switch (response.status) {
@@ -252,7 +286,24 @@ const AuthMapScreen = ({ navigation, route }) => {
       address: locationName,
       lat: currentRegion.latitude,
       long: currentRegion.longitude,
+      city: addressMetadata.city || "",
+      state: addressMetadata.state || "",
+      zip: addressMetadata.zip || "",
+      formattedAddress: addressMetadata.formattedAddress || locationName,
+      placeId: addressMetadata.placeId || "",
+      geocodingProvider: "GOOGLE_PLACES",
+      geocodedAt: new Date().toISOString(),
     };
+
+    if (mode === "select" && returnTo) {
+      setLoading(false);
+      navigation.navigate({
+        name: returnTo,
+        params: { [returnParamKey]: locationData },
+        merge: true,
+      });
+      return;
+    }
 
     if (isSignedIn) {
       // Logic for signed-in users (uses API)
@@ -324,6 +375,32 @@ const AuthMapScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
+    if (mode === "select" && initialLocation?.lat && initialLocation?.long) {
+      const region = {
+        latitude: parseFloat(initialLocation.lat),
+        longitude: parseFloat(initialLocation.long),
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      };
+      setCurrentRegion(region);
+      setTitle(initialLocation.title || "");
+      setLocationName(initialLocation.address || "");
+      setAddressMetadata({
+        city: initialLocation.city || "",
+        state: initialLocation.state || "",
+        zip: initialLocation.zip || "",
+        formattedAddress:
+          initialLocation.formattedAddress || initialLocation.address || "",
+        placeId: initialLocation.placeId || "",
+      });
+      setTimeout(() => {
+        if (mapRef?.current) {
+          mapRef.current.animateToRegion(region, 1500);
+        }
+      }, 500);
+      return;
+    }
+
     if (mode === "edit" && selectedLocations?.[0]) {
       // Set initial region to the address being edited
       const address = selectedLocations[0];
@@ -453,6 +530,13 @@ const AuthMapScreen = ({ navigation, route }) => {
               setTitle(adrs.split(",").slice(0, 1).join(",").trim());
               setSearchTxt(adrs);
               setLocationName(adrs);
+              setAddressMetadata(
+                parseAddressMetadata({
+                  data,
+                  details,
+                  fallbackAddress: adrs,
+                })
+              );
               // Animate the map to the new coordinates
               mapRef.current?.animateToRegion(region);
               // when user press on the search result then if there is anything in search box then it will be emptied.

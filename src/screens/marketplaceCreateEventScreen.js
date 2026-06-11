@@ -5,7 +5,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   ScrollView,
   Text,
@@ -14,18 +13,14 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import Ionicons from "react-native-vector-icons/Ionicons";
 import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
-import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
@@ -97,13 +92,6 @@ const initialForm = {
   event_close_time: "",
 };
 
-const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
-const initialEventAddressRegion = {
-  latitude: 37.78825,
-  longitude: -122.4324,
-  latitudeDelta: 0.015,
-  longitudeDelta: 0.0121,
-};
 const PRIMARY_SERVICE_STYLES = [
   {
     label: "Plated",
@@ -202,42 +190,6 @@ const EVENT_TYPE_ICONS = {
   Market: "storefront",
   Concert: "music-note",
   Other: "more-horiz",
-};
-
-const getAddressPart = (components = [], type, field = "long_name") =>
-  components.find((component) => component.types?.includes(type))?.[field] || "";
-
-const parseGooglePlaceDetails = (data, details) => {
-  const components = details?.address_components || [];
-  const city =
-    getAddressPart(components, "locality") ||
-    getAddressPart(components, "postal_town") ||
-    getAddressPart(components, "administrative_area_level_2");
-  const state = getAddressPart(components, "administrative_area_level_1", "short_name");
-  const zip = getAddressPart(components, "postal_code", "short_name");
-  const formattedAddress = details?.formatted_address || data?.description || "";
-  const street = [
-    getAddressPart(components, "street_number"),
-    getAddressPart(components, "route"),
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const latitude = details?.geometry?.location?.lat;
-  const longitude = details?.geometry?.location?.lng;
-
-  return {
-    event_address: street || formattedAddress,
-    event_city: city,
-    event_state: state,
-    event_zip: zip,
-    latitude: latitude != null ? String(latitude) : "",
-    longitude: longitude != null ? String(longitude) : "",
-    formatted_address: formattedAddress,
-    place_id: data?.place_id || details?.place_id || "",
-    geocoding_provider: latitude != null && longitude != null ? "GOOGLE_PLACES" : "",
-    geocoded_at:
-      latitude != null && longitude != null ? new Date().toISOString() : "",
-  };
 };
 
 const requiredFields = [
@@ -477,90 +429,45 @@ const localStyles = StyleSheet.create({
   sideField: {
     flex: 1,
   },
-  eventLocationPicker: {
-    marginTop: 8,
+  eventLocationButton: {
+    minHeight: 58,
     borderWidth: 1,
     borderColor: "#D8DDE6",
-    borderRadius: 12,
-    overflow: "visible",
+    borderRadius: 10,
     backgroundColor: AppColor.white,
-    zIndex: 30,
-  },
-  eventMapWrap: {
-    height: 210,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#E9EEF5",
-  },
-  eventMap: {
-    flex: 1,
-  },
-  eventMapPin: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 83,
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none",
-  },
-  eventSearchWrap: {
-    padding: 12,
-    backgroundColor: AppColor.white,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    zIndex: 40,
-    elevation: 5,
-  },
-  eventPlacesContainer: {
-    flex: 0,
-    zIndex: 50,
-  },
-  eventPlacesInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: AppColor.border,
-    borderRadius: 8,
-    backgroundColor: AppColor.white,
-  },
-  eventPlacesInput: {
-    flex: 1,
-    minHeight: 44,
-    height: 44,
-    margin: 0,
+    gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  eventLocationIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
+  },
+  eventLocationButtonTextWrap: {
+    flex: 1,
+  },
+  eventLocationButtonText: {
+    color: AppColor.text,
     fontSize: 14,
-    color: AppColor.text,
-    backgroundColor: AppColor.white,
   },
-  eventPlacesList: {
-    position: "absolute",
-    top: 50,
-    left: 0,
-    right: 0,
-    borderWidth: 1,
-    borderColor: AppColor.border,
-    borderRadius: 8,
-    backgroundColor: AppColor.white,
-    zIndex: 80,
-    elevation: 8,
+  eventLocationButtonPlaceholder: {
+    color: AppColor.textPlaceholder,
   },
-  eventPlacesRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+  clearLocationButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
   },
-  eventAddressSummary: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#F6F7F9",
-  },
-  eventAddressText: {
-    color: AppColor.text,
+  clearLocationText: {
+    color: AppColor.textHighlighter,
     fontSize: 13,
   },
   moneyBox: {
@@ -658,18 +565,13 @@ const localStyles = StyleSheet.create({
   },
 });
 
-const MarketplaceCreateEventScreen = ({ navigation }) => {
+const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const eventAddressMapRef = useRef(null);
-  const eventAddressSearchRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
-  const [eventAddressRegion, setEventAddressRegion] = useState(
-    initialEventAddressRegion
-  );
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
@@ -693,6 +595,32 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
       };
     });
   }, [form.number_of_guests, form.service_types]);
+
+  useEffect(() => {
+    const selectedLocation = route?.params?.selectedEventLocation;
+    if (!selectedLocation) return;
+
+    setForm((prev) => ({
+      ...prev,
+      event_address: selectedLocation.address || "",
+      event_city: selectedLocation.city || prev.event_city,
+      event_state: selectedLocation.state || prev.event_state,
+      event_zip: selectedLocation.zip || prev.event_zip,
+      latitude:
+        selectedLocation.lat != null ? String(selectedLocation.lat) : prev.latitude,
+      longitude:
+        selectedLocation.long != null ? String(selectedLocation.long) : prev.longitude,
+      formatted_address:
+        selectedLocation.formattedAddress ||
+        selectedLocation.address ||
+        prev.formatted_address,
+      place_id: selectedLocation.placeId || prev.place_id,
+      geocoding_provider:
+        selectedLocation.geocodingProvider || prev.geocoding_provider,
+      geocoded_at: selectedLocation.geocodedAt || prev.geocoded_at,
+    }));
+    navigation.setParams({ selectedEventLocation: undefined });
+  }, [navigation, route?.params?.selectedEventLocation]);
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -780,46 +708,7 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
     }));
   };
 
-  const handleManualAddressChange = (value) => {
-    setForm((prev) => ({
-      ...prev,
-      event_address: value,
-      formatted_address: value,
-      place_id: value ? prev.place_id : "",
-      geocoding_provider: value ? prev.geocoding_provider : "",
-      geocoded_at: value ? prev.geocoded_at : "",
-      latitude: value ? prev.latitude : "",
-      longitude: value ? prev.longitude : "",
-    }));
-  };
-
-  const handleGoogleAddressSelect = (data, details) => {
-    if (!details) return;
-    const parsedPlace = parseGooglePlaceDetails(data, details);
-    const nextRegion =
-      parsedPlace.latitude && parsedPlace.longitude
-        ? {
-            latitude: Number(parsedPlace.latitude),
-            longitude: Number(parsedPlace.longitude),
-            latitudeDelta: 0.015,
-            longitudeDelta: 0.0121,
-          }
-        : null;
-
-    setForm((prev) => ({
-      ...prev,
-      ...parsedPlace,
-    }));
-    if (nextRegion) {
-      setEventAddressRegion(nextRegion);
-      eventAddressMapRef.current?.animateToRegion(nextRegion, 1000);
-    }
-    eventAddressSearchRef.current?.setAddressText(parsedPlace.event_address);
-  };
-
   const handleClearAddress = () => {
-    eventAddressSearchRef.current?.clear();
-    eventAddressSearchRef.current?.setAddressText("");
     setForm((prev) => ({
       ...prev,
       event_address: "",
@@ -833,6 +722,27 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
       geocoding_provider: "",
       geocoded_at: "",
     }));
+  };
+
+  const handleSelectEventLocation = () => {
+    navigation.navigate("authMapScreen", {
+      mode: "select",
+      returnTo: "marketplaceCreateEventScreen",
+      returnParamKey: "selectedEventLocation",
+      initialLocation: form.event_address
+        ? {
+            title: form.event_address,
+            address: form.formatted_address || form.event_address,
+            lat: form.latitude,
+            long: form.longitude,
+            city: form.event_city,
+            state: form.event_state,
+            zip: form.event_zip,
+            formattedAddress: form.formatted_address,
+            placeId: form.place_id,
+          }
+        : undefined,
+    });
   };
 
   const validate = (status = "OPEN") => {
@@ -1117,104 +1027,42 @@ const MarketplaceCreateEventScreen = ({ navigation }) => {
   const renderAddressInput = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Address *")}
-      <View style={localStyles.eventLocationPicker}>
-        <View style={localStyles.eventMapWrap}>
-          <MapView
-            ref={eventAddressMapRef}
-            provider={PROVIDER_GOOGLE}
-            style={localStyles.eventMap}
-            loadingEnabled={true}
-            loadingIndicatorColor={AppColor.primary}
-            initialRegion={initialEventAddressRegion}
-            region={eventAddressRegion}
-            onRegionChangeComplete={(region, gesture) => {
-              if (!gesture?.isGesture) return;
-              setEventAddressRegion(region);
-              setForm((prev) => ({
-                ...prev,
-                latitude: String(region.latitude),
-                longitude: String(region.longitude),
-                geocoding_provider: prev.event_address
-                  ? prev.geocoding_provider || ""
-                  : "",
-                geocoded_at: prev.event_address ? new Date().toISOString() : "",
-              }));
-            }}
-          />
-          <View style={localStyles.eventMapPin}>
-            <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
-          </View>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={localStyles.eventLocationButton}
+        onPress={handleSelectEventLocation}
+      >
+        <View style={localStyles.eventLocationIcon}>
+          <MaterialIcons name="place" size={22} color={AppColor.primary} />
         </View>
-
-        <View style={localStyles.eventSearchWrap}>
-          <GooglePlacesAutocomplete
-            ref={eventAddressSearchRef}
-            placeholder="Search Location"
-            query={{
-              key: GOOGLE_MAP_API_KEY,
-              language: "en",
-              types: "geocode|establishment",
-            }}
-            fetchDetails={true}
-            enablePoweredByContainer={false}
-            predefinedPlaces={[]}
-            keyboardShouldPersistTaps="always"
-            minLength={2}
-            timeout={20000}
-            suppressDefaultStyles={true}
-            textInputProps={{
-              placeholderTextColor: AppColor.textPlaceholder,
-              defaultValue: form.event_address,
-              onChangeText: handleManualAddressChange,
-              returnKeyType: "search",
-              keyboardType: "default",
-              autoCorrect: false,
-            }}
-            onPress={handleGoogleAddressSelect}
-            onFail={(error) => {
-              console.log("Google Places event address error", error);
-              setSnackbar({
-                visible: true,
-                message: "Address search failed. You can enter the address manually.",
-              });
-            }}
-            renderRightButton={() =>
-              form.event_address ? (
-                <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
-                  <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => eventAddressSearchRef.current?.focus()}
-                  style={{ paddingHorizontal: 12 }}
-                >
-                  <Ionicons name="search" size={22} color={AppColor.textHighlighter} />
-                </Pressable>
-              )
-            }
-            styles={{
-              container: localStyles.eventPlacesContainer,
-              textInputContainer: localStyles.eventPlacesInputContainer,
-              textInput: localStyles.eventPlacesInput,
-              listView: localStyles.eventPlacesList,
-              row: localStyles.eventPlacesRow,
-              description: styles.placesDescription,
-              separator: styles.placesSeparator,
-            }}
-          />
-
-          {form.event_address ? (
-            <View style={localStyles.eventAddressSummary}>
-              <Text style={localStyles.eventAddressText}>{form.event_address}</Text>
-              {form.formatted_address && form.formatted_address !== form.event_address ? (
-                <Text style={styles.meta}>{form.formatted_address}</Text>
-              ) : null}
-            </View>
+        <View style={localStyles.eventLocationButtonTextWrap}>
+          <Text
+            style={[
+              localStyles.eventLocationButtonText,
+              !form.event_address && localStyles.eventLocationButtonPlaceholder,
+            ]}
+          >
+            {form.event_address || "Select Location"}
+          </Text>
+          {form.formatted_address && form.formatted_address !== form.event_address ? (
+            <Text style={styles.meta}>{form.formatted_address}</Text>
           ) : null}
         </View>
-      </View>
+        <MaterialIcons name="chevron-right" size={24} color={AppColor.textHighlighter} />
+      </TouchableOpacity>
+      {form.event_address ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleClearAddress}
+          style={localStyles.clearLocationButton}
+        >
+          <MaterialIcons name="close" size={18} color={AppColor.textHighlighter} />
+          <Text style={localStyles.clearLocationText}>Clear location</Text>
+        </TouchableOpacity>
+      ) : null}
       <Text style={styles.meta}>
-        Search/select an address or type it manually. Exact event address remains protected by marketplace visibility and unlock rules.
+        Uses the same Select Location map and address search as the customer app.
+        Exact event address remains protected by marketplace visibility and unlock rules.
       </Text>
     </View>
   );
