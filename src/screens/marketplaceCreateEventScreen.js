@@ -5,6 +5,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   ScrollView,
   Text,
@@ -17,13 +18,17 @@ import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
+import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
+  getLocationName,
   uploadMarketplaceEventImage_API,
 } from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
@@ -90,6 +95,14 @@ const initialForm = {
   payment_responsibility: "COORDINATOR",
   event_close_date: "",
   event_close_time: "",
+};
+
+const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
+const initialEventAddressRegion = {
+  latitude: 37.78825,
+  longitude: -122.4324,
+  latitudeDelta: 0.015,
+  longitudeDelta: 0.0121,
 };
 
 const PRIMARY_SERVICE_STYLES = [
@@ -190,6 +203,44 @@ const EVENT_TYPE_ICONS = {
   Market: "storefront",
   Concert: "music-note",
   Other: "more-horiz",
+};
+
+const getAddressPart = (components = [], type, field = "long_name") =>
+  components.find((component) => component.types?.includes(type))?.[field] || "";
+
+const parseLocationDetails = ({ data, details, fallbackAddress = "" }) => {
+  const components = details?.address_components || [];
+  const formattedAddress =
+    details?.formatted_address || data?.description || fallbackAddress || "";
+  const street = [
+    getAddressPart(components, "street_number"),
+    getAddressPart(components, "route"),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const latitude = details?.geometry?.location?.lat;
+  const longitude = details?.geometry?.location?.lng;
+
+  return {
+    event_address: street || formattedAddress,
+    event_city:
+      getAddressPart(components, "locality") ||
+      getAddressPart(components, "postal_town") ||
+      getAddressPart(components, "administrative_area_level_2"),
+    event_state: getAddressPart(
+      components,
+      "administrative_area_level_1",
+      "short_name"
+    ),
+    event_zip: getAddressPart(components, "postal_code", "short_name"),
+    latitude: latitude != null ? String(latitude) : "",
+    longitude: longitude != null ? String(longitude) : "",
+    formatted_address: formattedAddress,
+    place_id: data?.place_id || details?.place_id || "",
+    geocoding_provider: latitude != null && longitude != null ? "GOOGLE_PLACES" : "",
+    geocoded_at:
+      latitude != null && longitude != null ? new Date().toISOString() : "",
+  };
 };
 
 const requiredFields = [
@@ -429,35 +480,91 @@ const localStyles = StyleSheet.create({
   sideField: {
     flex: 1,
   },
-  eventLocationButton: {
-    minHeight: 58,
+  eventLocationPicker: {
+    marginTop: 8,
     borderWidth: 1,
     borderColor: "#D8DDE6",
-    borderRadius: 10,
+    borderRadius: 12,
+    overflow: "visible",
     backgroundColor: AppColor.white,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    zIndex: 30,
   },
-  eventLocationIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF1E6",
+  eventMapWrap: {
+    height: 210,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#E9EEF5",
   },
-  eventLocationButtonTextWrap: {
+  eventMap: {
     flex: 1,
   },
-  eventLocationButtonText: {
-    color: AppColor.text,
-    fontSize: 14,
+  eventMapPin: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 83,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
   },
-  eventLocationButtonPlaceholder: {
-    color: AppColor.textPlaceholder,
+  eventSearchWrap: {
+    padding: 12,
+    backgroundColor: AppColor.white,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    zIndex: 40,
+    elevation: 5,
+  },
+  eventPlacesContainer: {
+    flex: 0,
+    zIndex: 50,
+  },
+  eventPlacesInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  eventPlacesInput: {
+    flex: 1,
+    minHeight: 44,
+    height: 44,
+    margin: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: AppColor.text,
+    backgroundColor: AppColor.white,
+  },
+  eventPlacesList: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+    zIndex: 80,
+    elevation: 8,
+  },
+  eventPlacesRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  eventAddressSummary: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#F6F7F9",
+  },
+  eventAddressText: {
+    color: AppColor.text,
+    fontSize: 13,
   },
   clearLocationButton: {
     alignSelf: "flex-start",
@@ -567,11 +674,16 @@ const localStyles = StyleSheet.create({
 
 const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const eventAddressMapRef = useRef(null);
+  const eventAddressSearchRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
+  const [eventAddressRegion, setEventAddressRegion] = useState(
+    initialEventAddressRegion
+  );
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
@@ -600,25 +712,32 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     const selectedLocation = route?.params?.selectedEventLocation;
     if (!selectedLocation) return;
 
-    setForm((prev) => ({
-      ...prev,
+    applySelectedAddress({
       event_address: selectedLocation.address || "",
-      event_city: selectedLocation.city || prev.event_city,
-      event_state: selectedLocation.state || prev.event_state,
-      event_zip: selectedLocation.zip || prev.event_zip,
-      latitude:
-        selectedLocation.lat != null ? String(selectedLocation.lat) : prev.latitude,
-      longitude:
-        selectedLocation.long != null ? String(selectedLocation.long) : prev.longitude,
+      event_city: selectedLocation.city || "",
+      event_state: selectedLocation.state || "",
+      event_zip: selectedLocation.zip || "",
+      latitude: selectedLocation.lat != null ? String(selectedLocation.lat) : "",
+      longitude: selectedLocation.long != null ? String(selectedLocation.long) : "",
       formatted_address:
-        selectedLocation.formattedAddress ||
-        selectedLocation.address ||
-        prev.formatted_address,
-      place_id: selectedLocation.placeId || prev.place_id,
-      geocoding_provider:
-        selectedLocation.geocodingProvider || prev.geocoding_provider,
-      geocoded_at: selectedLocation.geocodedAt || prev.geocoded_at,
-    }));
+        selectedLocation.formattedAddress || selectedLocation.address || "",
+      place_id: selectedLocation.placeId || "",
+      geocoding_provider: selectedLocation.geocodingProvider || "",
+      geocoded_at: selectedLocation.geocodedAt || "",
+    });
+    if (selectedLocation.lat != null && selectedLocation.long != null) {
+      const region = {
+        latitude: Number(selectedLocation.lat),
+        longitude: Number(selectedLocation.long),
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      };
+      setEventAddressRegion(region);
+      eventAddressMapRef.current?.animateToRegion(region, 1000);
+    }
+    eventAddressSearchRef.current?.setAddressText(
+      selectedLocation.formattedAddress || selectedLocation.address || ""
+    );
     navigation.setParams({ selectedEventLocation: undefined });
   }, [navigation, route?.params?.selectedEventLocation]);
 
@@ -708,7 +827,106 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }));
   };
 
+  const applySelectedAddress = (address) => {
+    setForm((prev) => ({
+      ...prev,
+      event_address: address.event_address || "",
+      event_city: address.event_city || prev.event_city,
+      event_state: address.event_state || prev.event_state,
+      event_zip: address.event_zip || prev.event_zip,
+      latitude: address.latitude || prev.latitude,
+      longitude: address.longitude || prev.longitude,
+      formatted_address:
+        address.formatted_address || address.event_address || prev.formatted_address,
+      place_id: address.place_id || prev.place_id,
+      geocoding_provider: address.geocoding_provider || prev.geocoding_provider,
+      geocoded_at: address.geocoded_at || prev.geocoded_at,
+    }));
+  };
+
+  const handleAddressTextChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      event_address: value,
+      formatted_address: value,
+      place_id: value ? prev.place_id : "",
+      geocoding_provider: value ? prev.geocoding_provider : "",
+      geocoded_at: value ? prev.geocoded_at : "",
+      latitude: value ? prev.latitude : "",
+      longitude: value ? prev.longitude : "",
+    }));
+  };
+
+  const handleGoogleAddressSelect = (data, details) => {
+    if (!details) return;
+    const parsedPlace = parseLocationDetails({ data, details });
+    const nextRegion =
+      parsedPlace.latitude && parsedPlace.longitude
+        ? {
+            latitude: Number(parsedPlace.latitude),
+            longitude: Number(parsedPlace.longitude),
+            latitudeDelta: 0.015,
+            longitudeDelta: 0.0121,
+          }
+        : null;
+
+    applySelectedAddress(parsedPlace);
+    if (nextRegion) {
+      setEventAddressRegion(nextRegion);
+      eventAddressMapRef.current?.animateToRegion(nextRegion, 1000);
+    }
+    eventAddressSearchRef.current?.setAddressText(
+      parsedPlace.formatted_address || parsedPlace.event_address
+    );
+  };
+
+  const handleEventMapRegionChange = async (region, gesture) => {
+    if (!gesture?.isGesture) return;
+    setEventAddressRegion(region);
+    try {
+      const response = await getLocationName({
+        lat: region.latitude,
+        long: region.longitude,
+      });
+      if (response?.status !== "OK" || !response?.results?.[0]) {
+        setForm((prev) => ({
+          ...prev,
+          latitude: String(region.latitude),
+          longitude: String(region.longitude),
+          geocoding_provider: prev.event_address ? prev.geocoding_provider : "",
+          geocoded_at: prev.event_address ? new Date().toISOString() : "",
+        }));
+        return;
+      }
+
+      const result = response.results[0];
+      const parsedPlace = parseLocationDetails({
+        details: result,
+        fallbackAddress: result.formatted_address,
+      });
+      applySelectedAddress({
+        ...parsedPlace,
+        latitude: String(region.latitude),
+        longitude: String(region.longitude),
+        geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
+        geocoded_at: new Date().toISOString(),
+      });
+      eventAddressSearchRef.current?.setAddressText(
+        parsedPlace.formatted_address || parsedPlace.event_address
+      );
+    } catch (error) {
+      console.log("Event address reverse geocode error", error);
+      setForm((prev) => ({
+        ...prev,
+        latitude: String(region.latitude),
+        longitude: String(region.longitude),
+      }));
+    }
+  };
+
   const handleClearAddress = () => {
+    eventAddressSearchRef.current?.clear();
+    eventAddressSearchRef.current?.setAddressText("");
     setForm((prev) => ({
       ...prev,
       event_address: "",
@@ -722,27 +940,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       geocoding_provider: "",
       geocoded_at: "",
     }));
-  };
-
-  const handleSelectEventLocation = () => {
-    navigation.navigate("authMapScreen", {
-      mode: "select",
-      returnTo: "marketplaceCreateEventScreen",
-      returnParamKey: "selectedEventLocation",
-      initialLocation: form.event_address
-        ? {
-            title: form.event_address,
-            address: form.formatted_address || form.event_address,
-            lat: form.latitude,
-            long: form.longitude,
-            city: form.event_city,
-            state: form.event_state,
-            zip: form.event_zip,
-            formattedAddress: form.formatted_address,
-            placeId: form.place_id,
-          }
-        : undefined,
-    });
   };
 
   const validate = (status = "OPEN") => {
@@ -1027,29 +1224,89 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const renderAddressInput = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Address *")}
-      <TouchableOpacity
-        activeOpacity={0.75}
-        style={localStyles.eventLocationButton}
-        onPress={handleSelectEventLocation}
-      >
-        <View style={localStyles.eventLocationIcon}>
-          <MaterialIcons name="place" size={22} color={AppColor.primary} />
+      <View style={localStyles.eventLocationPicker}>
+        <View style={localStyles.eventMapWrap}>
+          <MapView
+            ref={eventAddressMapRef}
+            provider={PROVIDER_GOOGLE}
+            style={localStyles.eventMap}
+            loadingEnabled={true}
+            loadingIndicatorColor={AppColor.primary}
+            initialRegion={initialEventAddressRegion}
+            region={eventAddressRegion}
+            onRegionChangeComplete={handleEventMapRegionChange}
+          />
+          <View style={localStyles.eventMapPin}>
+            <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
+          </View>
         </View>
-        <View style={localStyles.eventLocationButtonTextWrap}>
-          <Text
-            style={[
-              localStyles.eventLocationButtonText,
-              !form.event_address && localStyles.eventLocationButtonPlaceholder,
-            ]}
-          >
-            {form.event_address || "Select Location"}
-          </Text>
-          {form.formatted_address && form.formatted_address !== form.event_address ? (
-            <Text style={styles.meta}>{form.formatted_address}</Text>
+
+        <View style={localStyles.eventSearchWrap}>
+          <GooglePlacesAutocomplete
+            ref={eventAddressSearchRef}
+            placeholder="Search Location"
+            query={{
+              key: GOOGLE_MAP_API_KEY,
+              language: "en",
+              types: "geocode|establishment",
+            }}
+            fetchDetails={true}
+            enablePoweredByContainer={false}
+            predefinedPlaces={[]}
+            keyboardShouldPersistTaps="always"
+            minLength={2}
+            timeout={20000}
+            suppressDefaultStyles={true}
+            textInputProps={{
+              placeholderTextColor: AppColor.textPlaceholder,
+              onChangeText: handleAddressTextChange,
+              returnKeyType: "search",
+              keyboardType: "default",
+              autoCorrect: false,
+            }}
+            onPress={handleGoogleAddressSelect}
+            onFail={(error) => {
+              console.log("Google Places event address error", error);
+              setSnackbar({
+                visible: true,
+                message: "Address search failed. Please try again.",
+              });
+            }}
+            renderRightButton={() =>
+              form.event_address ? (
+                <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
+                  <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => eventAddressSearchRef.current?.focus()}
+                  style={{ paddingHorizontal: 12 }}
+                >
+                  <MaterialIcons name="search" size={22} color={AppColor.textHighlighter} />
+                </Pressable>
+              )
+            }
+            styles={{
+              container: localStyles.eventPlacesContainer,
+              textInputContainer: localStyles.eventPlacesInputContainer,
+              textInput: localStyles.eventPlacesInput,
+              listView: localStyles.eventPlacesList,
+              row: localStyles.eventPlacesRow,
+              description: styles.placesDescription,
+              separator: styles.placesSeparator,
+            }}
+          />
+
+          {form.event_address ? (
+            <View style={localStyles.eventAddressSummary}>
+              <Text style={localStyles.eventAddressText}>{form.event_address}</Text>
+              {form.formatted_address && form.formatted_address !== form.event_address ? (
+                <Text style={styles.meta}>{form.formatted_address}</Text>
+              ) : null}
+            </View>
           ) : null}
         </View>
-        <MaterialIcons name="chevron-right" size={24} color={AppColor.textHighlighter} />
-      </TouchableOpacity>
+      </View>
       {form.event_address ? (
         <TouchableOpacity
           activeOpacity={0.7}
@@ -1061,7 +1318,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       ) : null}
       <Text style={styles.meta}>
-        Uses the same Select Location map and address search as the customer app.
+        Type an address, select an autocomplete result, or move the pin.
         Exact event address remains protected by marketplace visibility and unlock rules.
       </Text>
     </View>
