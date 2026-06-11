@@ -182,7 +182,7 @@ const ExploreScreen = (props) => {
         dispatch(setAllLocations(response.data.addressList || []));
       }
     } catch (error) {
-      console.error("Error fetching all addresses:", error);
+      console.log("Error fetching all addresses:", error);
     }
   };
 
@@ -197,7 +197,7 @@ const ExploreScreen = (props) => {
         setRecentTrucks(response.data.foodtruckList);
       }
     } catch (error) {
-      console.error("Error fetching recent food trucks:", error);
+      console.log("Error fetching recent food trucks:", error);
     } finally {
       setRecentTruckLoading(false);
     }
@@ -221,7 +221,7 @@ const ExploreScreen = (props) => {
         setPopularFoodTrucks([...foodtruckList].reverse());
       }
     } catch (error) {
-      console.error("Error fetching nearby food trucks:", error);
+      console.log("Error fetching nearby food trucks:", error);
     } finally {
       setNearbyTruckLoading(false);
     }
@@ -243,7 +243,7 @@ const ExploreScreen = (props) => {
         setFeaturedFoodTrucks(response?.data?.foodtruckList || []);
       }
     } catch (error) {
-      console.error("Error fetching featured food trucks:", error);
+      console.log("Error fetching featured food trucks:", error);
     } finally {
       setFeaturedTruckLoading(false);
     }
@@ -268,7 +268,7 @@ const ExploreScreen = (props) => {
         });
       }
     } catch (error) {
-      console.error("Error fetching banner:", error);
+      console.log("Error fetching banner:", error);
     }
   };
 

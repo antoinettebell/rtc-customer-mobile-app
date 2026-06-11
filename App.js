@@ -15,6 +15,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import { AppColor, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
@@ -134,6 +135,8 @@ const AuthNavigator = () => (
 
 const BottomNavigator = ({ insets }) => {
   const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { user } = useSelector((state) => state.userReducer);
+  const showEventMarketplace = isSignedIn && !!user?.isEventCoordinator;
 
   return (
     <BottomTab.Navigator
@@ -181,6 +184,19 @@ const BottomNavigator = ({ insets }) => {
           unmountOnBlur: true,
         }}
       />
+      {showEventMarketplace ? (
+        <BottomTab.Screen
+          name="marketplaceMyEventsTab"
+          component={MarketplaceMyEventsScreen}
+          options={{
+            tabBarLabel: "Events",
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="event-note" size={24} color={color} />
+            ),
+            unmountOnBlur: true,
+          }}
+        />
+      ) : null}
       <BottomTab.Screen
         name="ordersScreen"
         component={

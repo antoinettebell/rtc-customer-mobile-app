@@ -486,15 +486,15 @@ const localStyles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: "#D8DDE6",
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: "visible",
     backgroundColor: AppColor.white,
     zIndex: 30,
   },
   eventMapWrap: {
-    height: 210,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: 158,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
     overflow: "hidden",
     backgroundColor: "#E9EEF5",
   },
@@ -505,18 +505,18 @@ const localStyles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    top: 83,
+    top: 57,
     alignItems: "center",
     justifyContent: "center",
     pointerEvents: "none",
   },
   eventLocateButton: {
     position: "absolute",
-    right: 12,
-    bottom: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    right: 10,
+    bottom: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: AppColor.white,
@@ -527,10 +527,10 @@ const localStyles = StyleSheet.create({
     shadowRadius: 5,
   },
   eventSearchWrap: {
-    padding: 12,
+    padding: 10,
     backgroundColor: AppColor.white,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
     zIndex: 40,
     elevation: 5,
   },
@@ -541,7 +541,7 @@ const localStyles = StyleSheet.create({
   eventPlacesInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 46,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: AppColor.border,
     borderRadius: 8,
@@ -549,11 +549,11 @@ const localStyles = StyleSheet.create({
   },
   eventPlacesInput: {
     flex: 1,
-    minHeight: 44,
-    height: 44,
+    minHeight: 42,
+    height: 42,
     margin: 0,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 14,
     color: AppColor.text,
     backgroundColor: AppColor.white,
@@ -575,24 +575,10 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   eventAddressSummary: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#F6F7F9",
+    marginTop: 8,
   },
   eventAddressText: {
     color: AppColor.text,
-    fontSize: 13,
-  },
-  clearLocationButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 8,
-  },
-  clearLocationText: {
-    color: AppColor.textHighlighter,
     fontSize: 13,
   },
   moneyBox: {
@@ -1414,27 +1400,18 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
           {form.event_address ? (
             <View style={localStyles.eventAddressSummary}>
-              <Text style={localStyles.eventAddressText}>{form.event_address}</Text>
               {form.formatted_address && form.formatted_address !== form.event_address ? (
-                <Text style={styles.meta}>{form.formatted_address}</Text>
+                <Text style={localStyles.eventAddressText} numberOfLines={2}>
+                  {form.formatted_address}
+                </Text>
               ) : null}
             </View>
           ) : null}
         </View>
       </View>
-      {form.event_address ? (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleClearAddress}
-          style={localStyles.clearLocationButton}
-        >
-          <MaterialIcons name="close" size={18} color={AppColor.textHighlighter} />
-          <Text style={localStyles.clearLocationText}>Clear location</Text>
-        </TouchableOpacity>
-      ) : null}
       <Text style={styles.meta}>
-        Type an address, select an autocomplete result, or move the pin.
-        Exact event address remains protected by marketplace visibility and unlock rules.
+        Type an address, choose a result, or move the pin. Vendors see city/state
+        until address unlock.
       </Text>
     </View>
   );
