@@ -270,6 +270,10 @@ const getAutoFoodTruckVendorCount = (guestCount) =>
 const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
 const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
+const normalizeOptionList = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+};
 
 const formatDateForPayload = (date) => {
   if (!date) return "";
@@ -498,6 +502,9 @@ const localStyles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#E9EEF5",
   },
+  eventMapWrapSelected: {
+    height: 112,
+  },
   eventMap: {
     flex: 1,
   },
@@ -575,11 +582,28 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   eventAddressSummary: {
-    marginTop: 8,
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: "#D8DDE6",
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 12,
   },
   eventAddressText: {
+    flex: 1,
     color: AppColor.text,
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 18,
+    paddingVertical: 9,
+    paddingRight: 8,
+  },
+  eventAddressClear: {
+    width: 42,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   moneyBox: {
     flexDirection: "row",
@@ -1104,7 +1128,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     plated_number_of_courses: form.plated_number_of_courses
       ? form.plated_number_of_courses
       : null,
-    food_truck_options: form.food_truck_options ? [form.food_truck_options] : [],
+    food_truck_options: isFoodTruckService(form)
+      ? normalizeOptionList(form.food_truck_options)
+      : [],
     vendor_fee:
       form.payment_responsibility === "COORDINATOR"
         ? 0
@@ -1147,20 +1173,18 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             console.log("Marketplace event image upload error", error);
           }
         }
-        Alert.alert(
-          status === "DRAFT" ? "Draft Saved" : "Event Created",
-          status === "DRAFT"
-            ? "Your draft has been saved."
-            : uploadWarning
-              ? "Your event is open for vendor bids, but one or more images did not upload."
-              : "Your event is open for vendor bids.",
-          [
-            {
-              text: "OK",
-              onPress: () => navigation.navigate("marketplaceMyEventsScreen"),
-            },
-          ]
-        );
+        setSnackbar({
+          visible: true,
+          message:
+            status === "DRAFT"
+              ? "Your draft has been saved."
+              : uploadWarning
+                ? "Event created, but one or more images did not upload."
+                : "Your event is open for vendor bids.",
+        });
+        setTimeout(() => {
+          navigation.navigate("marketplaceMyEventsScreen");
+        }, 600);
       }
     } catch (error) {
       setSnackbar({
@@ -1300,7 +1324,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     <View style={localStyles.fieldGroup}>
       {renderLabel("Address *")}
       <View style={localStyles.eventLocationPicker}>
-        <View style={localStyles.eventMapWrap}>
+        <View
+          style={[
+            localStyles.eventMapWrap,
+            form.event_address && localStyles.eventMapWrapSelected,
+          ]}
+        >
           <MapView
             ref={eventAddressMapRef}
             provider={PROVIDER_GOOGLE}
@@ -1329,72 +1358,67 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </View>
 
         <View style={localStyles.eventSearchWrap}>
-          <GooglePlacesAutocomplete
-            ref={eventAddressSearchRef}
-            placeholder="Search Location"
-            query={{
-              key: GOOGLE_MAP_API_KEY,
-              language: "en",
-              types: "geocode|establishment",
-            }}
-            fetchDetails={true}
-            enablePoweredByContainer={false}
-            numberOfLines={2}
-            predefinedPlaces={[]}
-            keyboardShouldPersistTaps="always"
-            minLength={2}
-            timeout={20000}
-            suppressDefaultStyles={true}
-            textInputProps={{
-              placeholderTextColor: AppColor.textPlaceholder,
-              multiline: false,
-              numberOfLines: 1,
-              returnKeyType: "search",
-              keyboardType: "default",
-              autoCorrect: false,
-            }}
-            onPress={handleGoogleAddressSelect}
-            onFail={(error) => {
-              console.log("Google Places event address error", error);
-              setSnackbar({
-                visible: true,
-                message: "Address search failed. Please try again.",
-              });
-            }}
-            renderRightButton={() =>
-              form.event_address ? (
-                <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
-                  <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
-                </Pressable>
-              ) : (
+          {form.event_address ? (
+            <View style={localStyles.eventAddressSummary}>
+              <Text style={localStyles.eventAddressText} numberOfLines={2}>
+                {form.formatted_address || form.event_address}
+              </Text>
+              <Pressable onPress={handleClearAddress} style={localStyles.eventAddressClear}>
+                <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
+              </Pressable>
+            </View>
+          ) : (
+            <GooglePlacesAutocomplete
+              ref={eventAddressSearchRef}
+              placeholder="Search Location"
+              query={{
+                key: GOOGLE_MAP_API_KEY,
+                language: "en",
+                types: "geocode|establishment",
+              }}
+              fetchDetails={true}
+              enablePoweredByContainer={false}
+              numberOfLines={2}
+              predefinedPlaces={[]}
+              keyboardShouldPersistTaps="always"
+              minLength={2}
+              timeout={20000}
+              suppressDefaultStyles={true}
+              textInputProps={{
+                placeholderTextColor: AppColor.textPlaceholder,
+                multiline: false,
+                numberOfLines: 1,
+                returnKeyType: "search",
+                keyboardType: "default",
+                autoCorrect: false,
+              }}
+              onPress={handleGoogleAddressSelect}
+              onFail={(error) => {
+                console.log("Google Places event address error", error);
+                setSnackbar({
+                  visible: true,
+                  message: "Address search failed. Please try again.",
+                });
+              }}
+              renderRightButton={() => (
                 <Pressable
                   onPress={() => eventAddressSearchRef.current?.focus()}
                   style={{ paddingHorizontal: 12 }}
                 >
                   <MaterialIcons name="search" size={22} color={AppColor.textHighlighter} />
                 </Pressable>
-              )
-            }
-            styles={{
-              container: localStyles.eventPlacesContainer,
-              textInputContainer: localStyles.eventPlacesInputContainer,
-              textInput: localStyles.eventPlacesInput,
-              listView: localStyles.eventPlacesList,
-              row: localStyles.eventPlacesRow,
-              description: styles.placesDescription,
-              separator: styles.placesSeparator,
-            }}
-          />
-
-          {form.event_address ? (
-            <View style={localStyles.eventAddressSummary}>
-              {form.formatted_address && form.formatted_address !== form.event_address ? (
-                <Text style={localStyles.eventAddressText} numberOfLines={2}>
-                  {form.formatted_address}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
+              )}
+              styles={{
+                container: localStyles.eventPlacesContainer,
+                textInputContainer: localStyles.eventPlacesInputContainer,
+                textInput: localStyles.eventPlacesInput,
+                listView: localStyles.eventPlacesList,
+                row: localStyles.eventPlacesRow,
+                description: styles.placesDescription,
+                separator: styles.placesSeparator,
+              }}
+            />
+          )}
         </View>
       </View>
       <Text style={styles.meta}>
