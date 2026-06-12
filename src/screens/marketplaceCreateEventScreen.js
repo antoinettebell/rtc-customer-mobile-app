@@ -31,6 +31,7 @@ import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
   getLocationName,
+  updateMarketplaceEvent_API,
   uploadMarketplaceEventImage_API,
 } from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
@@ -284,6 +285,35 @@ const formatDateForPayload = (date) => {
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+const normalizeEventForForm = (event = {}) => ({
+  ...initialForm,
+  ...event,
+  service_types: normalizeOptionList(event.service_types || event.service_type),
+  service_styles: normalizeOptionList(event.service_styles || event.event_style),
+  power_required: normalizeOptionList(event.power_required),
+  permits_required: normalizeOptionList(event.permits_required),
+  cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
+  dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
+  equipment_needed: normalizeOptionList(event.equipment_needed),
+  plated_options: normalizeOptionList(event.plated_options),
+  plated_included_items: normalizeOptionList(event.plated_included_items),
+  buffet_included_items: normalizeOptionList(event.buffet_included_items),
+  station_included_items: normalizeOptionList(event.station_included_items),
+  food_truck_options: normalizeOptionList(event.food_truck_options)[0] || "",
+  event_date: event.event_date ? formatDateForPayload(event.event_date) : "",
+  event_close_date: event.event_close_date
+    ? formatDateForPayload(event.event_close_date)
+    : "",
+  number_of_guests: event.number_of_guests
+    ? String(event.number_of_guests)
+    : "",
+  number_of_vendors_needed: event.number_of_vendors_needed
+    ? String(event.number_of_vendors_needed)
+    : "",
+  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
+  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
+});
 
 const formatTimeForPayload = (date) => {
   if (!date) return "";
@@ -731,6 +761,8 @@ const localStyles = StyleSheet.create({
 
 const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
+  const draftEvent = route?.params?.draftEvent;
   const eventAddressMapRef = useRef(null);
   const eventAddressSearchRef = useRef(null);
   const [form, setForm] = useState(initialForm);
@@ -751,6 +783,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     permission.location
   );
   const foodTruckSelected = isFoodTruckService(form);
+
+  useEffect(() => {
+    if (!draftEvent) return;
+    const nextForm = normalizeEventForForm(draftEvent);
+    setForm(nextForm);
+    if (nextForm.latitude && nextForm.longitude) {
+      const region = {
+        latitude: Number(nextForm.latitude),
+        longitude: Number(nextForm.longitude),
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.0121,
+      };
+      setEventAddressRegion(region);
+      setTimeout(() => {
+        eventAddressMapRef.current?.animateToRegion(region, 600);
+      }, 300);
+    }
+  }, [draftEvent]);
 
   useEffect(() => {
     setForm((prev) => {
@@ -1067,8 +1117,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
+    if (draftEvent?.event_address || draftEvent?.formatted_address) return;
     centerEventAddressOnCurrentLocation();
-  }, []);
+  }, [draftEvent]);
 
   const validate = (status = "OPEN") => {
     if (status === "DRAFT") {
@@ -1179,7 +1230,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     setSubmitMode(status);
     try {
       const payload = buildPayload(status);
-      const response = await createMarketplaceEvent_API(payload);
+      const response = editingEventId
+        ? await updateMarketplaceEvent_API({ eventId: editingEventId, payload })
+        : await createMarketplaceEvent_API(payload);
       if (response?.success) {
         const eventId = response.data?.marketplaceEvent?.event_id;
         let uploadWarning = false;
@@ -1850,7 +1903,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.container, localStyles.screen, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="Create Event" />
+      <AppHeader headerTitle={editingEventId ? "Edit Draft" : "Create Event"} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}

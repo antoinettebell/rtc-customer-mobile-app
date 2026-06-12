@@ -21,6 +21,7 @@ import {
   getPublicMarketplaceEventById_API,
   answerMarketplaceEventQuestion_API,
   reopenMarketplaceEvent_API,
+  updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
 import ImageCarousel from "../components/ImageCarousel";
@@ -35,6 +36,39 @@ const DetailRow = ({ label, value }) => (
 
 const listValue = (value) =>
   Array.isArray(value) && value.length ? value.join(", ") : "Not set";
+
+const getVendorName = (record) => {
+  const foodTruck = record?.food_truck_id;
+  const vendor = record?.vendor_user_id;
+  if (foodTruck?.name) return foodTruck.name;
+  return [vendor?.firstName, vendor?.lastName].filter(Boolean).join(" ") || "Vendor";
+};
+
+const getRecordDocuments = (record) => [
+  ...(record?.menu_pdf_url ? [{ label: "Menu PDF", url: record.menu_pdf_url }] : []),
+  ...(record?.agreement_document_url
+    ? [{ label: "Agreement Document", url: record.agreement_document_url }]
+    : []),
+  ...(record?.signed_document_url
+    ? [{ label: "Signed Document", url: record.signed_document_url }]
+    : []),
+  ...(record?.permit_license_urls || []).map((url, index) => ({
+    label: `Permit / License ${index + 1}`,
+    url,
+  })),
+  ...(record?.attachments || [])
+    .filter((attachment) => attachment.file_url || attachment.url)
+    .map((attachment, index) => ({
+      label:
+        attachment.original_name ||
+        attachment.attachment_type ||
+        `Document ${index + 1}`,
+      url: attachment.file_url || attachment.url,
+    })),
+];
+
+const isRecordPaymentFulfilled = (record) =>
+  ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED");
 
 const getServiceSpecificRows = (event) => {
   if (!event) return [];
@@ -147,7 +181,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
   const ticketUrl = event?.ticket_url?.trim();
+  const eventStatus = event?.status || "DRAFT";
+  const isDraft = eventStatus === "DRAFT";
+  const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
   const isClosed = event?.status === "CLOSED";
+  const isAwarded = eventStatus === "AWARDED";
+  const canViewAwardedDocs =
+    isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
     "Ticket availability details are not available in the app yet.";
   if (ticketSalesEnabled && ticketUrl) {
@@ -243,6 +283,62 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         },
       ]
     );
+  };
+
+  const handleSubmitDraft = async () => {
+    if (!event) return;
+    setLoading(true);
+    try {
+      const payload = {
+        ...event,
+        status: "OPEN",
+        event_date: event.event_date
+          ? new Date(event.event_date).toISOString().slice(0, 10)
+          : "",
+        service_types:
+          event.service_types?.length
+            ? event.service_types
+            : event.service_type
+              ? [event.service_type]
+              : [],
+        service_styles:
+          event.service_styles?.length
+            ? event.service_styles
+            : event.event_style
+              ? [event.event_style]
+              : [],
+        food_truck_options: Array.isArray(event.food_truck_options)
+          ? event.food_truck_options
+          : event.food_truck_options
+            ? [event.food_truck_options]
+            : [],
+      };
+      const response = await updateMarketplaceEvent_API({ eventId, payload });
+      if (response?.success) {
+        setEvent(response.data?.marketplaceEvent);
+      }
+    } catch (error) {
+      Alert.alert("Submit Event", error?.message || "Failed to submit event.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditDraft = () => {
+    if (!event) return;
+    navigation.navigate("marketplaceCreateEventScreen", {
+      eventId,
+      draftEvent: event,
+    });
+  };
+
+  const openDocument = async (url) => {
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Document", "Unable to open this document.");
+    }
   };
 
   const handleAnswerQuestion = async (questionId) => {
@@ -347,6 +443,112 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       )}
     </View>
   );
+
+  const renderAwardedDocuments = () => {
+    if (!canViewAwardedDocs) return null;
+
+    const awardedRecords = [
+      ...(event?.awarded_bids || []),
+      ...(event?.awarded_applications || []),
+    ].filter(isRecordPaymentFulfilled);
+
+    if (!awardedRecords.length) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.title}>Awarded Vendor Documents</Text>
+          <Text style={styles.emptyText}>No vendor documents are available yet.</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>Awarded Vendor Documents</Text>
+        <Text style={styles.meta}>
+          Download signed agreements, permits, licenses, menus, and vendor files.
+        </Text>
+        {awardedRecords.map((record, index) => {
+          const documents = getRecordDocuments(record);
+          const key =
+            record.bid_id || record.application_id || `${record.event_id}-${index}`;
+          return (
+            <View key={key} style={{ marginTop: 14 }}>
+              <Text style={styles.label}>{getVendorName(record)}</Text>
+              {documents.length ? (
+                documents.map((document) => (
+                  <TouchableOpacity
+                    key={`${key}-${document.label}-${document.url}`}
+                    activeOpacity={0.7}
+                    onPress={() => openDocument(document.url)}
+                    style={{ marginTop: 6 }}
+                  >
+                    <Text style={styles.secondaryButtonText}>{document.label}</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.meta}>Documents: Not available</Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderCoordinatorActions = () => {
+    if (isDraft) {
+      return (
+        <View style={{ gap: 12 }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.secondaryButton}
+            onPress={handleEditDraft}
+          >
+            <Text style={styles.secondaryButtonText}>Edit Draft</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.button}
+            onPress={handleSubmitDraft}
+          >
+            <Text style={styles.buttonText}>Submit Event</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (isPublished || isClosed) {
+      return (
+        <View style={{ gap: 12 }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.button}
+            onPress={() =>
+              navigation.navigate("marketplaceAwardBidsScreen", { eventId })
+            }
+          >
+            <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
+          </TouchableOpacity>
+          {isClosed ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.secondaryButton, styles.mutedButton]}
+              onPress={handleReopenEvent}
+              disabled={(event?.reopen_count || 0) >= 2}
+            >
+              <Text style={[styles.secondaryButtonText, styles.mutedButtonText]}>
+                {(event?.reopen_count || 0) >= 2
+                  ? "Reopen Limit Reached"
+                  : "Reopen Bidding"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   if (customerSafe) {
     return (
@@ -516,30 +718,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             />
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.button}
-            onPress={() =>
-              navigation.navigate("marketplaceAwardBidsScreen", { eventId })
-            }
-          >
-            <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.secondaryButton, styles.mutedButton, { marginTop: 12 }]}
-            onPress={handleReopenEvent}
-            disabled={!isClosed || (event?.reopen_count || 0) >= 2}
-          >
-            <Text style={[styles.secondaryButtonText, styles.mutedButtonText]}>
-              {(event?.reopen_count || 0) >= 2
-                ? "Reopen Limit Reached"
-                : isClosed
-                  ? "Reopen Bidding"
-                  : "Reopen Available After Close"}
-            </Text>
-          </TouchableOpacity>
+          {renderAwardedDocuments()}
+          {renderCoordinatorActions()}
 
           {renderMessages()}
         </ScrollView>
