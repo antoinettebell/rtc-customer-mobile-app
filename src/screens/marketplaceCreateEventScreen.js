@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import ActionSheet from "react-native-actions-sheet";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 import Geolocation from "@react-native-community/geolocation";
@@ -197,6 +198,15 @@ const PAYMENT_RESPONSIBILITY_OPTIONS = [
   ["Vendor pays to attend", "VENDOR"],
   ["Both", "BOTH"],
 ];
+
+const EVENT_TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hours24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+});
 const EVENT_TYPE_ICONS = {
   Festival: "festival",
   Wedding: "diamond",
@@ -727,6 +737,56 @@ const localStyles = StyleSheet.create({
   iosDatePicker: {
     alignSelf: "center",
   },
+  timeSheet: {
+    paddingVertical: 8,
+  },
+  timeSheetTitle: {
+    color: AppColor.text,
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingVertical: 10,
+  },
+  timeSheetScroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  timePickerGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  timePickerOption: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 88,
+    alignItems: "center",
+  },
+  timePickerOptionActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: AppColor.primary,
+  },
+  timePickerOptionText: {
+    color: AppColor.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  timePickerOptionTextActive: {
+    color: AppColor.white,
+  },
+  timeSheetDoneButton: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 10,
+    minHeight: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.primary,
+  },
   uploadCard: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -789,11 +849,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const draftEvent = route?.params?.draftEvent;
   const eventAddressMapRef = useRef(null);
   const eventAddressSearchRef = useRef(null);
+  const eventTimeSheetRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
+  const [timePickerKey, setTimePickerKey] = useState(null);
   const [eventAddressRegion, setEventAddressRegion] = useState(
     initialEventAddressRegion
   );
@@ -1392,7 +1454,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <TouchableOpacity
         activeOpacity={0.7}
         style={localStyles.pickerButton}
-        onPress={() => openDateTimePicker(key, mode)}
+        onPress={() =>
+          mode === "time" ? openTimePicker(key) : openDateTimePicker(key, mode)
+        }
       >
         <Text
           style={[
@@ -1437,6 +1501,17 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       mode,
       value: getFieldDateTimeValue(key, mode),
     });
+  };
+
+  const openTimePicker = (key) => {
+    setTimePickerKey(key);
+    eventTimeSheetRef.current?.show();
+  };
+
+  const selectEventTime = (timeOption) => {
+    if (timePickerKey) {
+      updateField(timePickerKey, timeOption);
+    }
   };
 
   const commitPickerValue = (activePicker, date) => {
@@ -1516,6 +1591,59 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       />
     );
   };
+
+  const renderEventTimeSheet = () => (
+    <ActionSheet
+      ref={eventTimeSheetRef}
+      headerAlwaysVisible
+      onClose={() => setTimePickerKey(null)}
+    >
+      <View style={localStyles.timeSheet}>
+        <Text style={localStyles.timeSheetTitle}>
+          {timePickerKey === "event_close_time"
+            ? "Select Close Time"
+            : "Select Event Time"}
+        </Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={localStyles.timeSheetScroll}
+        >
+          <View style={localStyles.timePickerGrid}>
+            {EVENT_TIME_OPTIONS.map((timeOption) => {
+              const isSelected = form[timePickerKey] === timeOption;
+              return (
+                <TouchableOpacity
+                  key={timeOption}
+                  activeOpacity={0.7}
+                  style={[
+                    localStyles.timePickerOption,
+                    isSelected && localStyles.timePickerOptionActive,
+                  ]}
+                  onPress={() => selectEventTime(timeOption)}
+                >
+                  <Text
+                    style={[
+                      localStyles.timePickerOptionText,
+                      isSelected && localStyles.timePickerOptionTextActive,
+                    ]}
+                  >
+                    {timeOption}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={localStyles.timeSheetDoneButton}
+          onPress={() => eventTimeSheetRef.current?.hide()}
+        >
+          <Text style={styles.buttonText}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    </ActionSheet>
+  );
 
   const renderAddressInput = () => (
     <View style={localStyles.fieldGroup}>
@@ -2201,6 +2329,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </View>
       </KeyboardAvoidingView>
       {renderNativeDateTimePicker()}
+      {renderEventTimeSheet()}
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ visible: false, message: "" })}
