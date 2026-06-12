@@ -279,7 +279,10 @@ const formatDateForPayload = (date) => {
   if (!date) return "";
   const value = new Date(date);
   if (Number.isNaN(value.getTime())) return "";
-  return value.toISOString().slice(0, 10);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const formatTimeForPayload = (date) => {
@@ -291,6 +294,32 @@ const formatTimeForPayload = (date) => {
     minute: "2-digit",
     hour12: true,
   });
+};
+
+const parseDateFieldValue = (value) => {
+  if (!value) return new Date();
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(year, month - 1, day);
+};
+
+const parseTimeFieldValue = (value) => {
+  if (!value) return new Date();
+  const match = String(value)
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return new Date();
+
+  const date = new Date();
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+
+  if (period === "PM" && hours < 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+
+  date.setHours(hours, minutes, 0, 0);
+  return date;
 };
 
 const resetServiceSpecificFields = () => ({
@@ -1320,6 +1349,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const getPickerDateValue = () => {
+    if (!pickerState?.key) return new Date();
+    const value = form[pickerState.key];
+    return pickerState.mode === "date"
+      ? parseDateFieldValue(value)
+      : parseTimeFieldValue(value);
+  };
+
   const renderAddressInput = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Address *")}
@@ -2006,7 +2043,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <DateTimePickerModal
         isVisible={!!pickerState}
         mode={pickerState?.mode || "date"}
+        date={getPickerDateValue()}
         is24Hour={false}
+        display={Platform.OS === "ios" ? "spinner" : "default"}
         onCancel={() => setPickerState(null)}
         onConfirm={(date) => {
           const activePicker = pickerState;
