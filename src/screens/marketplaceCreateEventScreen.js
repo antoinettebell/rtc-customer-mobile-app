@@ -4,6 +4,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -19,7 +20,7 @@ import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import DateTimePickerModal from "react-native-modal-datetime-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 import Geolocation from "@react-native-community/geolocation";
@@ -703,6 +704,29 @@ const localStyles = StyleSheet.create({
   pickerPlaceholder: {
     color: AppColor.textPlaceholder,
   },
+  datePickerOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(17, 24, 39, 0.35)",
+  },
+  datePickerSheet: {
+    backgroundColor: AppColor.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 24,
+  },
+  datePickerActions: {
+    minHeight: 48,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  iosDatePicker: {
+    alignSelf: "center",
+  },
   uploadCard: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -1368,7 +1392,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <TouchableOpacity
         activeOpacity={0.7}
         style={localStyles.pickerButton}
-        onPress={() => setPickerState({ key, mode })}
+        onPress={() => openDateTimePicker(key, mode)}
       >
         <Text
           style={[
@@ -1402,12 +1426,95 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const getPickerDateValue = () => {
-    if (!pickerState?.key) return new Date();
-    const value = form[pickerState.key];
-    return pickerState.mode === "date"
-      ? parseDateFieldValue(value)
-      : parseTimeFieldValue(value);
+  const getFieldDateTimeValue = (key, mode) => {
+    const value = form[key];
+    return mode === "date" ? parseDateFieldValue(value) : parseTimeFieldValue(value);
+  };
+
+  const openDateTimePicker = (key, mode) => {
+    setPickerState({
+      key,
+      mode,
+      value: getFieldDateTimeValue(key, mode),
+    });
+  };
+
+  const commitPickerValue = (activePicker, date) => {
+    if (!activePicker?.key || !date) return;
+    updateField(
+      activePicker.key,
+      activePicker.mode === "date"
+        ? formatDateForPayload(date)
+        : formatTimeForPayload(date)
+    );
+  };
+
+  const handleNativePickerChange = (event, selectedDate) => {
+    if (!pickerState) return;
+    if (Platform.OS === "android") {
+      const activePicker = pickerState;
+      setPickerState(null);
+      if (event?.type === "set" && selectedDate) {
+        commitPickerValue(activePicker, selectedDate);
+      }
+      return;
+    }
+
+    if (selectedDate) {
+      setPickerState((prev) => (prev ? { ...prev, value: selectedDate } : prev));
+    }
+  };
+
+  const renderNativeDateTimePicker = () => {
+    if (!pickerState) return null;
+
+    if (Platform.OS === "ios") {
+      return (
+        <Modal
+          transparent
+          animationType="fade"
+          visible
+          onRequestClose={() => setPickerState(null)}
+        >
+          <View style={localStyles.datePickerOverlay}>
+            <View style={localStyles.datePickerSheet}>
+              <View style={localStyles.datePickerActions}>
+                <TouchableOpacity onPress={() => setPickerState(null)}>
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const activePicker = pickerState;
+                    setPickerState(null);
+                    commitPickerValue(activePicker, activePicker.value);
+                  }}
+                >
+                  <Text style={styles.secondaryButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={pickerState.value}
+                mode={pickerState.mode}
+                display="spinner"
+                is24Hour={false}
+                onChange={handleNativePickerChange}
+                style={localStyles.iosDatePicker}
+              />
+            </View>
+          </View>
+        </Modal>
+      );
+    }
+
+    return (
+      <DateTimePicker
+        value={pickerState.value}
+        mode={pickerState.mode}
+        display="default"
+        is24Hour={false}
+        onChange={handleNativePickerChange}
+      />
+    );
   };
 
   const renderAddressInput = () => (
@@ -2093,26 +2200,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
-      <DateTimePickerModal
-        isVisible={!!pickerState}
-        mode={pickerState?.mode || "date"}
-        date={getPickerDateValue()}
-        is24Hour={false}
-        display={Platform.OS === "ios" ? "spinner" : "default"}
-        onCancel={() => setPickerState(null)}
-        onConfirm={(date) => {
-          const activePicker = pickerState;
-          setPickerState(null);
-          if (activePicker?.key) {
-            updateField(
-              activePicker.key,
-              activePicker.mode === "date"
-                ? formatDateForPayload(date)
-                : formatTimeForPayload(date)
-            );
-          }
-        }}
-      />
+      {renderNativeDateTimePicker()}
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ visible: false, message: "" })}
