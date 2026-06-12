@@ -688,7 +688,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const [eventAddressRegion, setEventAddressRegion] = useState(
     initialEventAddressRegion
   );
-  const [eventAddressSearchText, setEventAddressSearchText] = useState("");
   const [eventAddressLoading, setEventAddressLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const autoFoodTruckStyleRef = useRef(false);
@@ -849,11 +848,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       );
     });
 
-  const applySelectedAddress = (address) => {
+  const applySelectedAddress = (address, options = {}) => {
+    const { syncSearchText = true } = options;
     const nextAddressText =
       address.formatted_address || address.event_address || "";
-    setEventAddressSearchText(nextAddressText);
-    if (nextAddressText) {
+    if (syncSearchText && nextAddressText) {
       eventAddressSearchRef.current?.setAddressText(nextAddressText);
     }
     setForm((prev) => ({
@@ -893,13 +892,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       details: result,
       fallbackAddress: result.formatted_address,
     });
-    applySelectedAddress({
-      ...parsedPlace,
-      latitude: String(region.latitude),
-      longitude: String(region.longitude),
-      geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
-      geocoded_at: new Date().toISOString(),
-    });
+    applySelectedAddress(
+      {
+        ...parsedPlace,
+        latitude: String(region.latitude),
+        longitude: String(region.longitude),
+        geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
+        geocoded_at: new Date().toISOString(),
+      },
+      { syncSearchText: false }
+    );
   };
 
   const centerEventAddressOnCurrentLocation = async () => {
@@ -953,20 +955,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     } finally {
       setEventAddressLoading(false);
     }
-  };
-
-  const handleAddressTextChange = (value) => {
-    setEventAddressSearchText(value);
-    setForm((prev) => ({
-      ...prev,
-      event_address: value,
-      formatted_address: value,
-      place_id: value ? prev.place_id : "",
-      geocoding_provider: value ? prev.geocoding_provider : "",
-      geocoded_at: value ? prev.geocoded_at : "",
-      latitude: value ? prev.latitude : "",
-      longitude: value ? prev.longitude : "",
-    }));
   };
 
   const handleGoogleAddressSelect = (data, details) => {
@@ -1023,7 +1011,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       geocoding_provider: "",
       geocoded_at: "",
     }));
-    setEventAddressSearchText("");
   };
 
   useEffect(() => {
@@ -1352,15 +1339,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             }}
             fetchDetails={true}
             enablePoweredByContainer={false}
+            numberOfLines={2}
             predefinedPlaces={[]}
             keyboardShouldPersistTaps="always"
             minLength={2}
             timeout={20000}
             suppressDefaultStyles={true}
             textInputProps={{
-              value: eventAddressSearchText,
               placeholderTextColor: AppColor.textPlaceholder,
-              onChangeText: handleAddressTextChange,
+              multiline: false,
+              numberOfLines: 1,
               returnKeyType: "search",
               keyboardType: "default",
               autoCorrect: false,
@@ -1374,7 +1362,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               });
             }}
             renderRightButton={() =>
-              eventAddressSearchText ? (
+              form.event_address ? (
                 <Pressable onPress={handleClearAddress} style={{ paddingHorizontal: 12 }}>
                   <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
                 </Pressable>
