@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   StyleSheet,
   ScrollView,
   Text,
@@ -21,6 +22,7 @@ import {
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
   answerMarketplaceEventQuestion_API,
+  closeMarketplaceEvent_API,
   reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
@@ -126,6 +128,45 @@ const safeStyles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFF1E6",
   },
+  dangerButton: {
+    borderColor: AppColor.snackbarError,
+  },
+  dangerButtonText: {
+    color: AppColor.snackbarError,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: AppColor.white,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 18,
+  },
+  closeCommentInput: {
+    minHeight: 140,
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    color: AppColor.text,
+    textAlignVertical: "top",
+  },
+  characterCount: {
+    marginTop: 6,
+    textAlign: "right",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  modalActionButton: {
+    flex: 1,
+  },
 });
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
@@ -138,6 +179,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [qaLoading, setQaLoading] = useState(false);
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [answeringId, setAnsweringId] = useState(null);
+  const [closeModalVisible, setCloseModalVisible] = useState(false);
+  const [closeComment, setCloseComment] = useState("");
+  const [closingEvent, setClosingEvent] = useState(false);
 
   const loadQuestions = async () => {
     if (!eventId || customerSafe) return;
@@ -194,7 +238,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isDraft = eventStatus === "DRAFT";
   const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
   const isClosed = event?.status === "CLOSED";
+  const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
+  const submissionCount = Number(
+    event?.submission_count ?? event?.final_submission_count ?? 0
+  );
+  const hasAwardedRecords =
+    (event?.awarded_bids || []).length > 0 ||
+    (event?.awarded_applications || []).length > 0 ||
+    isAwarded;
+  const hasSubmissionsWithoutAwards = submissionCount > 0 && !hasAwardedRecords;
   const canViewAwardedDocs =
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
@@ -289,6 +342,49 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               setLoading(false);
             }
           },
+        },
+      ]
+    );
+  };
+
+  const handleCloseEventContinue = () => {
+    const trimmedComment = closeComment.trim();
+    if (!trimmedComment) {
+      Alert.alert("Close Event", "Please enter a comment before closing this event.");
+      return;
+    }
+
+    Alert.alert(
+      "Close Event",
+      hasSubmissionsWithoutAwards
+        ? "This event has vendor submissions, but no award has been made. Closing will archive the event and it cannot be reopened. Do you want to continue?"
+        : "Are you sure you want to close and archive this event? This cannot be reopened.",
+      [
+        {
+          text: "Yes",
+          onPress: async () => {
+            setClosingEvent(true);
+            try {
+              const response = await closeMarketplaceEvent_API({
+                eventId,
+                closeComment: trimmedComment,
+              });
+              if (response?.success) {
+                setEvent(response.data?.marketplaceEvent);
+                setCloseModalVisible(false);
+                setCloseComment("");
+              }
+            } catch (error) {
+              Alert.alert("Close Event", error?.message || "Failed to close event.");
+            } finally {
+              setClosingEvent(false);
+            }
+          },
+        },
+        {
+          text: "No",
+          style: "cancel",
+          onPress: () => setCloseModalVisible(false),
         },
       ]
     );
@@ -538,7 +634,18 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           >
             <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
           </TouchableOpacity>
-          {isClosed ? (
+          {isPublished ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.secondaryButton, safeStyles.dangerButton]}
+              onPress={() => setCloseModalVisible(true)}
+            >
+              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
+                Close Event
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {isClosed && !isArchivedClosed ? (
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.secondaryButton, styles.mutedButton]}
@@ -706,6 +813,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             />
             <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />
             <DetailRow label="Close Time" value={event?.event_close_time} />
+            {event?.close_comment ? (
+              <DetailRow label="Close Comment" value={event.close_comment} />
+            ) : null}
             <DetailRow
               label="Final Submissions"
               value={String(event?.submission_count ?? event?.final_submission_count ?? 0)}
@@ -743,6 +853,64 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           {renderMessages()}
         </ScrollView>
       )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={closeModalVisible}
+        onRequestClose={() => setCloseModalVisible(false)}
+      >
+        <View style={safeStyles.modalOverlay}>
+          <View style={[safeStyles.modalSheet, { paddingBottom: Math.max(insets.bottom, 18) }]}>
+            <Text style={styles.title}>Close Event</Text>
+            <Text style={styles.meta}>
+              Add a closing comment before archiving this event.
+            </Text>
+            <TextInput
+              value={closeComment}
+              onChangeText={(value) => setCloseComment(value.slice(0, 1000))}
+              placeholder="Enter closing comment"
+              placeholderTextColor={AppColor.textPlaceholder}
+              multiline
+              maxLength={1000}
+              editable={!closingEvent}
+              style={safeStyles.closeCommentInput}
+            />
+            <Text style={[styles.meta, safeStyles.characterCount]}>
+              {closeComment.length}/1000
+            </Text>
+            <View style={safeStyles.modalActions}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.secondaryButton,
+                  safeStyles.modalActionButton,
+                  { opacity: closingEvent ? 0.6 : 1 },
+                ]}
+                onPress={() => setCloseModalVisible(false)}
+                disabled={closingEvent}
+              >
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.button,
+                  safeStyles.modalActionButton,
+                  { opacity: closingEvent ? 0.6 : 1 },
+                ]}
+                onPress={handleCloseEventContinue}
+                disabled={closingEvent}
+              >
+                {closingEvent ? (
+                  <ActivityIndicator color={AppColor.white} />
+                ) : (
+                  <Text style={styles.buttonText}>Continue</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

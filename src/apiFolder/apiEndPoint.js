@@ -115,6 +115,8 @@ export const MARKETPLACE_EVENT_BY_ID = (event_id) =>
   `/marketplace/events/${event_id}`;
 export const MARKETPLACE_EVENT_REOPEN = (event_id) =>
   `/marketplace/events/${event_id}/reopen`;
+export const MARKETPLACE_EVENT_CLOSE = (event_id) =>
+  `/marketplace/events/${event_id}/close`;
 export const PUBLIC_MARKETPLACE_EVENT_BY_ID = (event_id) =>
   `/public/marketplace/events/${event_id}`;
 export const PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK = (event_id) =>

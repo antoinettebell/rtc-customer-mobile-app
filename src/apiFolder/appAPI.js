@@ -50,6 +50,7 @@ import {
   MARKETPLACE_MY_EVENTS,
   MARKETPLACE_EVENT_BY_ID,
   MARKETPLACE_EVENT_REOPEN,
+  MARKETPLACE_EVENT_CLOSE,
   PUBLIC_MARKETPLACE_EVENT_BY_ID,
   PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK,
   MARKETPLACE_EVENT_IMAGES,
@@ -881,6 +882,19 @@ export const reopenMarketplaceEvent_API = async ({ eventId, payload }) => {
     const response = await apiClient.post(MARKETPLACE_EVENT_REOPEN(eventId), payload, {
       skipToken: false,
     });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const closeMarketplaceEvent_API = async ({ eventId, closeComment }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_CLOSE(eventId),
+      { close_comment: closeComment },
+      { skipToken: false }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
