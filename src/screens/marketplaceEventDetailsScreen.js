@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
@@ -116,6 +117,14 @@ const safeStyles = StyleSheet.create({
     marginTop: 10,
     color: AppColor.textHighlighter,
     lineHeight: 20,
+  },
+  headerAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
   },
 });
 
@@ -612,7 +621,17 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="Event Details" />
+      <AppHeader headerTitle="Event Details" rightSide={isDraft}>
+        {isDraft ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={safeStyles.headerAction}
+            onPress={handleEditDraft}
+          >
+            <MaterialIcons name="edit" size={20} color={AppColor.primary} />
+          </TouchableOpacity>
+        ) : null}
+      </AppHeader>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={AppColor.primary} size="large" />

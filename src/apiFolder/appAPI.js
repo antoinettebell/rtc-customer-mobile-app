@@ -742,11 +742,108 @@ export const updateDietRestrictList_API = async (payload) => {
 };
 
 // Marketplace - Customer/Event Coordinator
+const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
+  "event_name",
+  "event_description",
+  "ticket_sales_enabled",
+  "ticket_url",
+  "event_type",
+  "event_type_other",
+  "event_visibility",
+  "event_style",
+  "service_type",
+  "service_types",
+  "service_styles",
+  "primary_service_style",
+  "plated_number_of_courses",
+  "plated_options",
+  "plated_entree_selection",
+  "plated_included_items",
+  "plated_single_entree",
+  "plated_choice_entrees",
+  "plated_tableside_choice",
+  "plated_bread_salad_dessert",
+  "buffet_options",
+  "buffet_setup",
+  "buffet_included_items",
+  "food_truck_options",
+  "station_setup_type",
+  "station_included_items",
+  "service_notes",
+  "event_date",
+  "event_time",
+  "event_duration_hours",
+  "event_duration_minutes",
+  "event_address",
+  "event_city",
+  "event_state",
+  "event_zip",
+  "latitude",
+  "longitude",
+  "formatted_address",
+  "geocoded_address",
+  "place_id",
+  "geocoding_provider",
+  "geocoded_at",
+  "number_of_guests",
+  "number_of_vendors_needed",
+  "power_required",
+  "permits_required",
+  "insurance_required",
+  "alcohol_required",
+  "cuisine_preferences",
+  "dietary_restrictions",
+  "equipment_needed",
+  "vendor_fee",
+  "budgeted_amount",
+  "payment_responsibility",
+  "event_close_date",
+  "event_close_time",
+  "status",
+];
+
+const normalizeMarketplaceEventPayload = (payload = {}) => {
+  const nextPayload = { ...payload };
+  const totalDurationMinutes = Number(
+    nextPayload.event_duration_total_minutes ??
+      (Number(nextPayload.event_duration_minutes) > 59
+        ? nextPayload.event_duration_minutes
+        : NaN)
+  );
+
+  delete nextPayload.event_duration_total_minutes;
+
+  if (Number.isFinite(totalDurationMinutes)) {
+    nextPayload.event_duration_hours = Math.floor(
+      Math.max(0, totalDurationMinutes) / 60
+    );
+    nextPayload.event_duration_minutes = Math.max(0, totalDurationMinutes) % 60;
+  }
+
+  if (__DEV__) {
+    console.log("Marketplace event duration payload", {
+      event_duration_hours: nextPayload.event_duration_hours,
+      event_duration_minutes: nextPayload.event_duration_minutes,
+    });
+  }
+
+  return MARKETPLACE_EVENT_PAYLOAD_FIELDS.reduce((eventPayload, field) => {
+    if (nextPayload[field] !== undefined) {
+      eventPayload[field] = nextPayload[field];
+    }
+    return eventPayload;
+  }, {});
+};
+
 export const createMarketplaceEvent_API = async (payload) => {
   try {
-    const response = await apiClient.post(MARKETPLACE_EVENTS, payload, {
-      skipToken: false,
-    });
+    const response = await apiClient.post(
+      MARKETPLACE_EVENTS,
+      normalizeMarketplaceEventPayload(payload),
+      {
+        skipToken: false,
+      }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
@@ -755,7 +852,22 @@ export const createMarketplaceEvent_API = async (payload) => {
 
 export const updateMarketplaceEvent_API = async ({ eventId, payload }) => {
   try {
-    const response = await apiClient.put(MARKETPLACE_EVENT_BY_ID(eventId), payload, {
+    const response = await apiClient.put(
+      MARKETPLACE_EVENT_BY_ID(eventId),
+      normalizeMarketplaceEventPayload(payload),
+      {
+        skipToken: false,
+      }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const deleteMarketplaceEvent_API = async (eventId) => {
+  try {
+    const response = await apiClient.delete(MARKETPLACE_EVENT_BY_ID(eventId), {
       skipToken: false,
     });
     return response?.data;

@@ -20,9 +20,7 @@ import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 import Geolocation from "@react-native-community/geolocation";
@@ -33,6 +31,7 @@ import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
+  deleteMarketplaceEvent_API,
   getLocationName,
   updateMarketplaceEvent_API,
   uploadMarketplaceEventImage_API,
@@ -77,6 +76,7 @@ const initialForm = {
   service_notes: "",
   event_date: "",
   event_time: "",
+  event_duration_total_minutes: "",
   event_address: "",
   event_city: "",
   event_state: "",
@@ -199,6 +199,11 @@ const PAYMENT_RESPONSIBILITY_OPTIONS = [
   ["Vendor pays to attend", "VENDOR"],
   ["Both", "BOTH"],
 ];
+const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const TIME_HOUR_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
+const TIME_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => index * 5);
+const DURATION_HOUR_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
+const DURATION_MINUTE_OPTIONS = [0, 15, 30, 45];
 
 const EVENT_TYPE_ICONS = {
   Festival: "festival",
@@ -290,6 +295,15 @@ const formatDateForPayload = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatDateForDisplay = (value) => {
+  if (!value) return "";
+  const date = parseDateFieldValue(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}/${day}/${date.getFullYear()}`;
+};
+
 const normalizeEventForForm = (event = {}) => ({
   ...initialForm,
   ...event,
@@ -306,6 +320,12 @@ const normalizeEventForForm = (event = {}) => ({
   station_included_items: normalizeOptionList(event.station_included_items),
   food_truck_options: normalizeOptionList(event.food_truck_options)[0] || "",
   event_date: event.event_date ? formatDateForPayload(event.event_date) : "",
+  event_duration_hours: "",
+  event_duration_minutes: "",
+  event_duration_total_minutes:
+    event.event_duration_minutes != null || event.event_duration_hours != null
+      ? String(getDurationTotalMinutes(event))
+      : "",
   event_close_date: event.event_close_date
     ? formatDateForPayload(event.event_close_date)
     : "",
@@ -354,6 +374,34 @@ const parseTimeFieldValue = (value) => {
 
   date.setHours(hours, minutes, 0, 0);
   return date;
+};
+
+const formatDurationLabel = (minutesValue) => {
+  const totalMinutes = Math.max(0, Number(minutesValue || 0));
+  if (!totalMinutes) return "Select duration";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+
+  if (hours > 0) parts.push(`${hours} hr${hours === 1 ? "" : "s"}`);
+  if (minutes > 0) parts.push(`${minutes} min`);
+
+  return parts.join(" ");
+};
+
+const getDurationTotalMinutes = (event = {}) => {
+  const hours = Number(event.event_duration_hours || 0);
+  const minutes = Number(event.event_duration_minutes || 0);
+  if (minutes > 59) return minutes;
+  return hours > 0 ? hours * 60 + minutes : minutes;
+};
+
+const splitDurationForPayload = (totalMinutesValue) => {
+  const totalMinutes = Math.max(0, Number(totalMinutesValue || 0));
+  return {
+    event_duration_hours: Math.floor(totalMinutes / 60),
+    event_duration_minutes: totalMinutes % 60,
+  };
 };
 
 const resetServiceSpecificFields = () => ({
@@ -730,6 +778,266 @@ const localStyles = StyleSheet.create({
   iosDatePicker: {
     alignSelf: "center",
   },
+  androidPickerContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  calendarNavButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
+  },
+  calendarTitle: {
+    color: AppColor.text,
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  calendarWeekRow: {
+    flexDirection: "row",
+    marginBottom: 6,
+  },
+  calendarWeekday: {
+    width: "14.2857%",
+    textAlign: "center",
+    color: AppColor.textHighlighter,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  calendarDayCell: {
+    width: "14.2857%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendarDayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendarDaySelected: {
+    backgroundColor: AppColor.primary,
+  },
+  calendarDayText: {
+    color: AppColor.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  calendarDayTextSelected: {
+    color: AppColor.white,
+  },
+  timeToggleRow: {
+    flexDirection: "row",
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+  timeToggleButton: {
+    minWidth: 82,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+  },
+  timeToggleButtonActive: {
+    backgroundColor: AppColor.primary,
+  },
+  timeToggleText: {
+    color: AppColor.text,
+    fontWeight: "700",
+  },
+  timeToggleTextActive: {
+    color: AppColor.white,
+  },
+  timeStepperValue: {
+    alignSelf: "center",
+    color: AppColor.text,
+    fontSize: 30,
+    fontWeight: "700",
+    marginBottom: 18,
+  },
+  timeStepperRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 14,
+  },
+  timeStepperColumn: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    paddingVertical: 10,
+    backgroundColor: AppColor.white,
+  },
+  timeStepperLabel: {
+    color: AppColor.textHighlighter,
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  timeStepperNumber: {
+    color: AppColor.text,
+    fontSize: 24,
+    fontWeight: "700",
+    marginVertical: 8,
+  },
+  wheelPickerRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "stretch",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  wheelColumn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    overflow: "hidden",
+  },
+  wheelColumnShort: {
+    flex: 0.85,
+  },
+  wheelLabel: {
+    color: AppColor.textHighlighter,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  wheelScroll: {
+    height: 150,
+  },
+  wheelScrollContent: {
+    paddingVertical: 6,
+  },
+  wheelOption: {
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wheelOptionActive: {
+    backgroundColor: "#FFF1E6",
+  },
+  wheelOptionText: {
+    color: AppColor.text,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  wheelOptionTextActive: {
+    color: AppColor.primary,
+    fontWeight: "800",
+  },
+  clockFace: {
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    alignSelf: "center",
+    backgroundColor: "#F3F4F6",
+    marginBottom: 12,
+  },
+  clockCenter: {
+    position: "absolute",
+    left: 92,
+    top: 92,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: AppColor.white,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+  },
+  clockCenterText: {
+    color: AppColor.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  clockOption: {
+    position: "absolute",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clockOptionActive: {
+    backgroundColor: AppColor.primary,
+  },
+  clockOptionText: {
+    color: AppColor.text,
+    fontWeight: "700",
+  },
+  clockOptionTextActive: {
+    color: AppColor.white,
+  },
+  periodRow: {
+    flexDirection: "row",
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+  durationBox: {
+    marginTop: 12,
+  },
+  durationControl: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: "#D8DDE6",
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+  },
+  durationAdjustButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
+  },
+  durationAdjustButtonDisabled: {
+    opacity: 0.45,
+  },
+  durationValue: {
+    color: AppColor.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  durationOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
   uploadCard: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -783,6 +1091,12 @@ const localStyles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  deleteFooterButton: {
+    borderColor: AppColor.snackbarError,
+  },
+  deleteFooterText: {
+    color: AppColor.snackbarError,
   },
 });
 
@@ -926,6 +1240,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
       if (key === "permits_required" && option === "Alcohol") {
         next.alcohol_required = nextList.includes("Alcohol");
+        next.service_types = next.alcohol_required
+          ? [...new Set([...(prev.service_types || []), "Beverage and Alcohol"])]
+          : (prev.service_types || []).filter(
+              (item) => item !== "Beverage and Alcohol"
+            );
       }
 
       if (key === "service_types" && option === "Beverage and Alcohol") {
@@ -940,6 +1259,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             (item) => item !== "Alcohol"
           );
         }
+        next.service_types = nextList;
       }
 
       if (key === "equipment_needed") {
@@ -949,6 +1269,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           nextList = nextList.filter((item) => item !== "None");
         }
         next.equipment_needed = nextList;
+      }
+
+      if (
+        [
+          "plated_included_items",
+          "buffet_included_items",
+          "station_included_items",
+        ].includes(key)
+      ) {
+        if (option === "None" && nextList.includes("None")) {
+          nextList = ["None"];
+        } else if (option !== "None") {
+          nextList = nextList.filter((item) => item !== "None");
+        }
+        next[key] = nextList;
       }
 
       return next;
@@ -962,6 +1297,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       permits_required: value
         ? [...new Set([...(prev.permits_required || []), "Alcohol"])]
         : (prev.permits_required || []).filter((item) => item !== "Alcohol"),
+      service_types: value
+        ? [...new Set([...(prev.service_types || []), "Beverage and Alcohol"])]
+        : (prev.service_types || []).filter(
+            (item) => item !== "Beverage and Alcohol"
+          ),
     }));
   };
 
@@ -1186,10 +1526,28 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
+    const durationMinutes = Number(form.event_duration_total_minutes || 0);
+    if (
+      !Number.isFinite(durationMinutes) ||
+      durationMinutes < 0
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Please choose a valid event duration.",
+      });
+      return false;
+    }
+    if (status !== "DRAFT" && durationMinutes <= 0) {
+      setSnackbar({
+        visible: true,
+        message: "Event duration is required.",
+      });
+      return false;
+    }
     if (form.alcohol_required && !form.permits_required.includes("Alcohol")) {
       setSnackbar({
         visible: true,
-        message: "Alcohol Permit is required when Alcohol Service is selected.",
+        message: "Alcohol Permit is required when Alcohol Required is selected.",
       });
       return false;
     }
@@ -1224,32 +1582,43 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     return true;
   };
 
-  const buildPayload = (status) => ({
-    ...form,
-    event_style: form.service_styles[0] || form.event_style || "",
-    service_type: form.service_types[0] || "",
-    number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
-    number_of_vendors_needed: isFoodTruckService(form) && form.number_of_guests
-      ? getAutoFoodTruckVendorCount(form.number_of_guests)
-      : null,
-    plated_number_of_courses: form.plated_number_of_courses
-      ? form.plated_number_of_courses
-      : null,
-    food_truck_options: isFoodTruckService(form)
-      ? normalizeOptionList(form.food_truck_options)
-      : [],
-    vendor_fee:
-      form.payment_responsibility === "COORDINATOR"
-        ? 0
-        : Number(form.vendor_fee || 0),
-    budgeted_amount:
-      form.payment_responsibility === "VENDOR"
-        ? 0
-        : Number(form.budgeted_amount || 0),
-    ticket_sales_enabled: !!form.ticket_sales_enabled,
-    ticket_url: form.ticket_url?.trim() || "",
-    status,
-  });
+  const buildPayload = (status) => {
+    const {
+      event_duration_total_minutes: _eventDurationTotalMinutes,
+      event_duration_hours: _eventDurationHours,
+      event_duration_minutes: _eventDurationMinutes,
+      ...formPayload
+    } = form;
+    const durationPayload = splitDurationForPayload(_eventDurationTotalMinutes);
+
+    return {
+      ...formPayload,
+      ...durationPayload,
+      event_style: form.service_styles[0] || form.event_style || "",
+      service_type: form.service_types[0] || "",
+      number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
+      number_of_vendors_needed: isFoodTruckService(form) && form.number_of_guests
+        ? getAutoFoodTruckVendorCount(form.number_of_guests)
+        : null,
+      plated_number_of_courses: form.plated_number_of_courses
+        ? form.plated_number_of_courses
+        : null,
+      food_truck_options: isFoodTruckService(form)
+        ? normalizeOptionList(form.food_truck_options)
+        : [],
+      vendor_fee:
+        form.payment_responsibility === "COORDINATOR"
+          ? 0
+          : Number(form.vendor_fee || 0),
+      budgeted_amount:
+        form.payment_responsibility === "VENDOR"
+          ? 0
+          : Number(form.budgeted_amount || 0),
+      ticket_sales_enabled: !!form.ticket_sales_enabled,
+      ticket_url: form.ticket_url?.trim() || "",
+      status,
+    };
+  };
 
   const handleSubmit = async (status = "OPEN") => {
     if (!validate(status)) return;
@@ -1306,6 +1675,46 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       setLoading(false);
       setSubmitMode(null);
     }
+  };
+
+  const handleDeleteDraft = () => {
+    if (!editingEventId || loading) return;
+
+    Alert.alert(
+      "Delete Draft",
+      "This draft will be permanently deleted.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            setSubmitMode("DELETE");
+            try {
+              const response = await deleteMarketplaceEvent_API(editingEventId);
+              if (response?.success) {
+                setSnackbar({
+                  visible: true,
+                  message: "Draft deleted.",
+                });
+                setTimeout(() => {
+                  navigation.navigate("marketplaceMyEventsScreen");
+                }, 500);
+              }
+            } catch (error) {
+              setSnackbar({
+                visible: true,
+                message: error?.message || "Failed to delete draft.",
+              });
+            } finally {
+              setLoading(false);
+              setSubmitMode(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePickEventImages = async () => {
@@ -1392,8 +1801,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const renderDateTimePicker = (label, key, mode) => (
     <View style={localStyles.fieldGroup}>
       {renderLabel(label)}
-      <TouchableOpacity
-        activeOpacity={0.7}
+      <Pressable
+        accessibilityRole="button"
+        hitSlop={8}
         style={localStyles.pickerButton}
         onPress={() => openDateTimePicker(key, mode)}
       >
@@ -1404,11 +1814,49 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             !form[key] && localStyles.pickerPlaceholder,
           ]}
         >
-          {form[key] || (mode === "date" ? "Select date" : "Select time")}
+          {form[key]
+            ? mode === "date"
+              ? formatDateForDisplay(form[key])
+              : form[key]
+            : mode === "date"
+              ? "Select date"
+              : "Select time"}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
+
+  const renderDurationPicker = () => {
+    const durationMinutes = Math.max(0, Number(form.event_duration_total_minutes || 0));
+
+    return (
+      <View style={localStyles.fieldGroup}>
+        {renderLabel("Event Duration *")}
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={8}
+          style={localStyles.pickerButton}
+          onPress={() =>
+            setPickerState({
+              key: "event_duration_total_minutes",
+              mode: "duration",
+              value: durationMinutes,
+            })
+          }
+        >
+          <Text
+            style={[
+              styles.chipText,
+              localStyles.pickerButtonText,
+              !durationMinutes && localStyles.pickerPlaceholder,
+            ]}
+          >
+            {formatDurationLabel(durationMinutes)}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
 
   const renderMoneyInput = (label, key, helper, disabled = false) => (
     <View style={[localStyles.fieldGroup, localStyles.sideField]}>
@@ -1436,86 +1884,396 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
   const openDateTimePicker = (key, mode) => {
     const pickerValue = getFieldDateTimeValue(key, mode);
-    if (Platform.OS === "android") {
-      DateTimePickerAndroid.open({
-        value: pickerValue,
-        mode,
-        is24Hour: false,
-        display: mode === "date" ? "calendar" : "clock",
-        onChange: (event, selectedDate) => {
-          if (event?.type === "set" && selectedDate) {
-            commitPickerValue({ key, mode }, selectedDate);
-          }
-        },
-      });
-      return;
-    }
-
     setPickerState({
       key,
       mode,
       value: pickerValue,
+      timeStep: "hour",
     });
   };
 
+  const updatePickerDateValue = (updater) => {
+    setPickerState((prev) => {
+      if (!prev) return prev;
+      const nextValue =
+        typeof updater === "function" ? updater(prev.value) : updater;
+      return { ...prev, value: nextValue };
+    });
+  };
+
+  const updatePickerTimePart = (part, nextPartValue) => {
+    setPickerState((prev) => {
+      if (!prev) return prev;
+      const nextDate = new Date(prev.value);
+      const currentHours = nextDate.getHours();
+      const currentPeriod = currentHours >= 12 ? "PM" : "AM";
+      const currentHour12 = currentHours % 12 || 12;
+
+      if (part === "hour") {
+        let nextHours = Number(nextPartValue) % 12;
+        if (currentPeriod === "PM") nextHours += 12;
+        nextDate.setHours(nextHours, nextDate.getMinutes(), 0, 0);
+        return { ...prev, value: nextDate, timeStep: "minute" };
+      }
+
+      if (part === "minute") {
+        nextDate.setMinutes(Number(nextPartValue), 0, 0);
+        return { ...prev, value: nextDate };
+      }
+
+      let nextHours = currentHour12 % 12;
+      if (nextPartValue === "PM") nextHours += 12;
+      nextDate.setHours(nextHours, nextDate.getMinutes(), 0, 0);
+      return { ...prev, value: nextDate };
+    });
+  };
+
+  const updatePickerDurationPart = (part, nextPartValue) => {
+    setPickerState((prev) => {
+      if (!prev) return prev;
+      const currentTotalMinutes = Math.max(0, Number(prev.value || 0));
+      const currentHours = Math.floor(currentTotalMinutes / 60);
+      const currentMinutes = currentTotalMinutes % 60;
+      const nextHours = part === "hour" ? Number(nextPartValue) : currentHours;
+      const nextMinutes =
+        part === "minute" ? Number(nextPartValue) : currentMinutes;
+
+      return {
+        ...prev,
+        value: Math.max(0, nextHours * 60 + nextMinutes),
+      };
+    });
+  };
+
+  const renderWheelColumn = ({
+    label,
+    options,
+    selectedValue,
+    onSelect,
+    formatOption = (value) => value,
+    short = false,
+  }) => {
+    const selectedIndex = Math.max(
+      0,
+      options.findIndex((option) => option === selectedValue)
+    );
+
+    return (
+      <View style={[localStyles.wheelColumn, short && localStyles.wheelColumnShort]}>
+        <Text style={localStyles.wheelLabel}>{label}</Text>
+        <ScrollView
+          style={localStyles.wheelScroll}
+          contentContainerStyle={localStyles.wheelScrollContent}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={42}
+          decelerationRate="fast"
+          contentOffset={{ x: 0, y: selectedIndex * 42 }}
+          onMomentumScrollEnd={(event) => {
+            const index = Math.max(
+              0,
+              Math.min(
+                options.length - 1,
+                Math.round(event.nativeEvent.contentOffset.y / 42)
+              )
+            );
+            onSelect(options[index]);
+          }}
+          onScrollEndDrag={(event) => {
+            const index = Math.max(
+              0,
+              Math.min(
+                options.length - 1,
+                Math.round(event.nativeEvent.contentOffset.y / 42)
+              )
+            );
+            onSelect(options[index]);
+          }}
+        >
+          {options.map((option) => {
+            const isActive = option === selectedValue;
+            return (
+              <View
+                key={option}
+                style={[
+                  localStyles.wheelOption,
+                  isActive && localStyles.wheelOptionActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    localStyles.wheelOptionText,
+                    isActive && localStyles.wheelOptionTextActive,
+                  ]}
+                >
+                  {formatOption(option)}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   const commitPickerValue = (activePicker, date) => {
-    if (!activePicker?.key || !date) return;
+    if (!activePicker?.key || (activePicker.mode !== "duration" && !date)) {
+      return;
+    }
+    const nextValue = activePicker.mode === "duration"
+      ? String(Math.max(0, Number(activePicker.value || 0)))
+      : activePicker.mode === "date"
+        ? formatDateForPayload(date)
+        : formatTimeForPayload(date);
     updateField(
       activePicker.key,
-      activePicker.mode === "date"
-        ? formatDateForPayload(date)
-        : formatTimeForPayload(date)
+      nextValue
     );
   };
 
   const handleNativePickerChange = (event, selectedDate) => {
     if (!pickerState) return;
+    if (event?.type === "dismissed") {
+      setPickerState(null);
+      return;
+    }
     if (selectedDate) {
+      if (Platform.OS === "android") {
+        const activePicker = pickerState;
+        setPickerState(null);
+        commitPickerValue(activePicker, selectedDate);
+        return;
+      }
       setPickerState((prev) => (prev ? { ...prev, value: selectedDate } : prev));
     }
+  };
+
+  const renderAndroidCalendarPicker = () => {
+    const selectedDate = pickerState?.value || new Date();
+    const monthStart = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      1
+    );
+    const daysInMonth = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      0
+    ).getDate();
+    const leadingEmptyDays = monthStart.getDay();
+    const cells = [
+      ...Array.from({ length: leadingEmptyDays }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+    ];
+
+    return (
+      <View style={localStyles.androidPickerContent}>
+        <View style={localStyles.calendarHeader}>
+          <Pressable
+            style={localStyles.calendarNavButton}
+            onPress={() =>
+              updatePickerDateValue(
+                (date) => new Date(date.getFullYear(), date.getMonth() - 1, 1)
+              )
+            }
+          >
+            <MaterialIcons name="chevron-left" size={24} color={AppColor.primary} />
+          </Pressable>
+          <Text style={localStyles.calendarTitle}>
+            {selectedDate.toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </Text>
+          <Pressable
+            style={localStyles.calendarNavButton}
+            onPress={() =>
+              updatePickerDateValue(
+                (date) => new Date(date.getFullYear(), date.getMonth() + 1, 1)
+              )
+            }
+          >
+            <MaterialIcons name="chevron-right" size={24} color={AppColor.primary} />
+          </Pressable>
+        </View>
+        <View style={localStyles.calendarWeekRow}>
+          {CALENDAR_WEEKDAYS.map((day) => (
+            <Text key={day} style={localStyles.calendarWeekday}>
+              {day}
+            </Text>
+          ))}
+        </View>
+        <View style={localStyles.calendarGrid}>
+          {cells.map((day, index) => {
+            if (!day) {
+              return <View key={`empty-${index}`} style={localStyles.calendarDayCell} />;
+            }
+            const isSelected =
+              selectedDate.getFullYear() === monthStart.getFullYear() &&
+              selectedDate.getMonth() === monthStart.getMonth() &&
+              selectedDate.getDate() === day;
+            return (
+              <View key={day} style={localStyles.calendarDayCell}>
+                <Pressable
+                  style={[
+                    localStyles.calendarDayButton,
+                    isSelected && localStyles.calendarDaySelected,
+                  ]}
+                  onPress={() =>
+                    updatePickerDateValue(
+                      new Date(monthStart.getFullYear(), monthStart.getMonth(), day)
+                    )
+                  }
+                >
+                  <Text
+                    style={[
+                      localStyles.calendarDayText,
+                      isSelected && localStyles.calendarDayTextSelected,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const renderAndroidClockPicker = () => {
+    const selectedDate = pickerState?.value || new Date();
+    const selectedHour = selectedDate.getHours() % 12 || 12;
+    const selectedMinute = (Math.round(selectedDate.getMinutes() / 5) * 5) % 60;
+    const selectedPeriod = selectedDate.getHours() >= 12 ? "PM" : "AM";
+
+    return (
+      <View style={localStyles.androidPickerContent}>
+        <Text style={localStyles.timeStepperValue}>
+          {formatTimeForPayload(selectedDate)}
+        </Text>
+        <View style={localStyles.wheelPickerRow}>
+          {renderWheelColumn({
+            label: "Hour",
+            options: TIME_HOUR_OPTIONS,
+            selectedValue: selectedHour,
+            onSelect: (value) => updatePickerTimePart("hour", value),
+          })}
+          {renderWheelColumn({
+            label: "Minute",
+            options: TIME_MINUTE_OPTIONS,
+            selectedValue: selectedMinute,
+            onSelect: (value) => updatePickerTimePart("minute", value),
+            formatOption: (value) => String(value).padStart(2, "0"),
+          })}
+        </View>
+        <View style={localStyles.periodRow}>
+          {["AM", "PM"].map((period) => {
+            const isActive = selectedPeriod === period;
+            return (
+              <Pressable
+                key={period}
+                style={[
+                  localStyles.timeToggleButton,
+                  isActive && localStyles.timeToggleButtonActive,
+                ]}
+                onPress={() => updatePickerTimePart("period", period)}
+              >
+                <Text
+                  style={[
+                    localStyles.timeToggleText,
+                    isActive && localStyles.timeToggleTextActive,
+                  ]}
+                >
+                  {period}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const renderDurationWheelPicker = () => {
+    const totalMinutes = Math.max(0, Number(pickerState?.value || 0));
+    const selectedHours = Math.floor(totalMinutes / 60);
+    const selectedMinutes = totalMinutes % 60;
+
+    return (
+      <View style={localStyles.androidPickerContent}>
+        <Text style={localStyles.timeStepperValue}>
+          {formatDurationLabel(totalMinutes)}
+        </Text>
+        <View style={localStyles.wheelPickerRow}>
+          {renderWheelColumn({
+            label: "Hours",
+            options: DURATION_HOUR_OPTIONS,
+            selectedValue: selectedHours,
+            onSelect: (value) => updatePickerDurationPart("hour", value),
+          })}
+          {renderWheelColumn({
+            label: "Minutes",
+            options: DURATION_MINUTE_OPTIONS,
+            selectedValue: selectedMinutes,
+            onSelect: (value) => updatePickerDurationPart("minute", value),
+            formatOption: (value) => String(value).padStart(2, "0"),
+          })}
+        </View>
+      </View>
+    );
   };
 
   const renderNativeDateTimePicker = () => {
     if (!pickerState) return null;
 
-    if (Platform.OS === "ios") {
-      return (
-        <Modal
-          transparent
-          animationType="fade"
-          visible
-          onRequestClose={() => setPickerState(null)}
-        >
-          <View style={localStyles.datePickerOverlay}>
-            <View style={localStyles.datePickerSheet}>
-              <View style={localStyles.datePickerActions}>
-                <TouchableOpacity onPress={() => setPickerState(null)}>
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    const activePicker = pickerState;
-                    setPickerState(null);
-                    commitPickerValue(activePicker, activePicker.value);
-                  }}
-                >
-                  <Text style={styles.secondaryButtonText}>Done</Text>
-                </TouchableOpacity>
-              </View>
+    const pickerDisplay =
+      pickerState.mode === "date" ? "inline" : "spinner";
+    const useAndroidCustomPicker = Platform.OS === "android";
+
+    return (
+      <Modal
+        transparent
+        animationType="fade"
+        visible
+        onRequestClose={() => setPickerState(null)}
+      >
+        <View style={localStyles.datePickerOverlay}>
+          <View style={localStyles.datePickerSheet}>
+            <View style={localStyles.datePickerActions}>
+              <TouchableOpacity onPress={() => setPickerState(null)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  const activePicker = pickerState;
+                  setPickerState(null);
+                  commitPickerValue(activePicker, activePicker.value);
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            {pickerState.mode === "duration" ? (
+              renderDurationWheelPicker()
+            ) : useAndroidCustomPicker ? (
+              pickerState.mode === "date"
+                ? renderAndroidCalendarPicker()
+                : renderAndroidClockPicker()
+            ) : (
               <DateTimePicker
                 value={pickerState.value}
                 mode={pickerState.mode}
-                display={pickerState.mode === "date" ? "inline" : "spinner"}
+                display={pickerDisplay}
                 is24Hour={false}
                 onChange={handleNativePickerChange}
                 style={localStyles.iosDatePicker}
               />
-            </View>
+            )}
           </View>
-        </Modal>
-      );
-    }
-    return null;
+        </View>
+      </Modal>
+    );
   };
 
   const renderAddressInput = () => (
@@ -2042,6 +2800,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 {renderDateTimePicker("Event Time *", "event_time", "time")}
               </View>
             </View>
+            {renderDurationPicker()}
             <View style={localStyles.sideBySide}>
               <View style={localStyles.sideField}>
                 {renderDateTimePicker("Close Date *", "event_close_date", "date")}
@@ -2076,8 +2835,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {renderVendorCountFields()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
+            {renderBoolean("Alcohol Required", "alcohol_required")}
             {renderBoolean("Insurance Required", "insurance_required")}
-            {renderBoolean("Alcohol Service", "alcohol_required")}
             {renderChips("Cuisine Preferences", "cuisine_preferences", CUISINE_OPTIONS)}
             {renderChips("Dietary Restrictions", "dietary_restrictions", DIETARY_OPTIONS)}
             {renderChips("Equipment Needs", "equipment_needed", EQUIPMENT_OPTIONS)}
@@ -2167,23 +2926,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             <TouchableOpacity
               activeOpacity={0.7}
               style={[
-                styles.secondaryButton,
-                localStyles.submitButton,
-                localStyles.footerButton,
-                { opacity: loading ? 0.6 : 1 },
-              ]}
-              onPress={() => handleSubmit("DRAFT")}
-              disabled={loading}
-            >
-              {loading && submitMode === "DRAFT" ? (
-                <ActivityIndicator color={AppColor.primary} />
-              ) : (
-                <Text style={styles.secondaryButtonText}>Save Draft</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[
                 styles.button,
                 localStyles.submitButton,
                 localStyles.footerButton,
@@ -2195,9 +2937,53 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {loading && submitMode === "OPEN" ? (
                 <ActivityIndicator color={AppColor.white} />
               ) : (
-                <Text style={styles.buttonText}>Submit Event</Text>
+                <Text style={styles.buttonText}>Submit</Text>
               )}
             </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.secondaryButton,
+                localStyles.submitButton,
+                localStyles.footerButton,
+                { opacity: loading ? 0.6 : 1 },
+              ]}
+              onPress={() => handleSubmit("DRAFT")}
+              disabled={loading}
+            >
+              {loading && submitMode === "DRAFT" ? (
+                <ActivityIndicator color={AppColor.primary} />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+            {editingEventId ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.secondaryButton,
+                  localStyles.submitButton,
+                  localStyles.footerButton,
+                  localStyles.deleteFooterButton,
+                  { opacity: loading ? 0.6 : 1 },
+                ]}
+                onPress={handleDeleteDraft}
+                disabled={loading}
+              >
+                {loading && submitMode === "DELETE" ? (
+                  <ActivityIndicator color={AppColor.snackbarError} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.secondaryButtonText,
+                      localStyles.deleteFooterText,
+                    ]}
+                  >
+                    Delete
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>
