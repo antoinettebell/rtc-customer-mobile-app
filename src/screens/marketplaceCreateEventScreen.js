@@ -464,6 +464,20 @@ const localStyles = StyleSheet.create({
   fieldGroup: {
     marginTop: 12,
   },
+  labelWithAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  infoIconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1E6",
+  },
   input: {
     minHeight: 48,
     borderRadius: 10,
@@ -740,6 +754,32 @@ const localStyles = StyleSheet.create({
   },
   disabledMoneyBox: {
     backgroundColor: "#F2F4F7",
+  },
+  budgetInfoBox: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#FFD7B8",
+    borderRadius: 10,
+    backgroundColor: "#FFF8F2",
+    padding: 12,
+  },
+  budgetInfoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 4,
+  },
+  budgetInfoTitle: {
+    color: AppColor.text,
+    fontWeight: "700",
+  },
+  budgetInfoClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pickerButton: {
     minHeight: 48,
@@ -1133,6 +1173,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
+  const [budgetInfoVisible, setBudgetInfoVisible] = useState(false);
   const [eventAddressRegion, setEventAddressRegion] = useState(
     initialEventAddressRegion
   );
@@ -1618,6 +1659,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       ...durationPayload,
       event_style: form.service_styles[0] || form.event_style || "",
       service_type: form.service_types[0] || "",
+      primary_service_style:
+        form.primary_service_style || form.service_styles[0] || form.event_style || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
       number_of_vendors_needed: isFoodTruckService(form) && form.number_of_guests
         ? getAutoFoodTruckVendorCount(form.number_of_guests)
@@ -1648,44 +1691,66 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     setSubmitMode(status);
     try {
       const payload = buildPayload(status);
+      if (__DEV__) {
+        console.log("Marketplace event submit payload", {
+          requestedStatus: status,
+          payloadStatus: payload.status,
+          eventId: editingEventId || null,
+        });
+      }
       const response = editingEventId
         ? await updateMarketplaceEvent_API({ eventId: editingEventId, payload })
         : await createMarketplaceEvent_API(payload);
-      if (response?.success) {
-        const eventId = response.data?.marketplaceEvent?.event_id;
-        let uploadWarning = false;
-        if (status !== "DRAFT" && eventId && eventImages.length) {
-          try {
-            for (const image of eventImages) {
-              const formData = new FormData();
-              formData.append("file", {
-                uri: image.uri,
-                name: image.name,
-                type: image.type,
-              });
-              await uploadMarketplaceEventImage_API({
-                eventId,
-                payload: formData,
-              });
-            }
-          } catch (error) {
-            uploadWarning = true;
-            console.log("Marketplace event image upload error", error);
-          }
-        }
+      if (!response?.success) {
+        throw new Error(response?.message || "Event update failed.");
+      }
+
+      const eventId = response.data?.marketplaceEvent?.event_id;
+      const returnedStatus = response.data?.marketplaceEvent?.status;
+      if (
+        status !== "DRAFT" &&
+        !["OPEN", "REOPENED"].includes(returnedStatus)
+      ) {
         setSnackbar({
           visible: true,
           message:
-            status === "DRAFT"
-              ? "Your draft has been saved."
-              : uploadWarning
-                ? "Event created, but one or more images did not upload."
-                : "Your event is open for vendor bids.",
+            "Event was not submitted. Please review required fields and try again.",
         });
-        setTimeout(() => {
-          navigation.navigate("marketplaceMyEventsScreen");
-        }, 600);
+        return;
       }
+
+      let uploadWarning = false;
+      if (status !== "DRAFT" && eventId && eventImages.length) {
+        try {
+          for (const image of eventImages) {
+            const formData = new FormData();
+            formData.append("file", {
+              uri: image.uri,
+              name: image.name,
+              type: image.type,
+            });
+            await uploadMarketplaceEventImage_API({
+              eventId,
+              payload: formData,
+            });
+          }
+        } catch (error) {
+          uploadWarning = true;
+          console.log("Marketplace event image upload error", error);
+        }
+      }
+      setSnackbar({
+        visible: true,
+        message:
+          status === "DRAFT"
+            ? "Your draft has been saved."
+            : uploadWarning
+              ? "Event submitted, but one or more images did not upload."
+              : "Your event is open for vendor bids.",
+      });
+      setTimeout(() => {
+        navigation.navigate("marketplaceMyEventsScreen");
+      }, 600);
     } catch (error) {
       setSnackbar({
         visible: true,
@@ -1880,24 +1945,67 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderMoneyInput = (label, key, helper, disabled = false) => (
-    <View style={[localStyles.fieldGroup, localStyles.sideField]}>
-      {renderLabel(label)}
-      <View style={[localStyles.moneyBox, disabled && localStyles.disabledMoneyBox]}>
-        <Text style={localStyles.moneyPrefix}>$</Text>
-        <TextInput
-          value={form[key]}
-          onChangeText={(value) => updateField(key, value)}
-          placeholder="0.00"
-          placeholderTextColor={AppColor.textPlaceholder}
-          keyboardType="decimal-pad"
-          editable={!disabled}
-          style={localStyles.moneyInput}
-        />
+  const renderMoneyInput = (label, key, helper, disabled = false) => {
+    const isBudgetAmount = key === "budgeted_amount";
+
+    return (
+      <View style={[localStyles.fieldGroup, localStyles.sideField]}>
+        {isBudgetAmount ? (
+          <View style={localStyles.labelWithAction}>
+            {renderLabel(label)}
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.7}
+              style={localStyles.infoIconButton}
+              onPress={() => setBudgetInfoVisible(true)}
+            >
+              <MaterialIcons
+                name="info-outline"
+                size={19}
+                color={AppColor.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          renderLabel(label)
+        )}
+        <View style={[localStyles.moneyBox, disabled && localStyles.disabledMoneyBox]}>
+          <Text style={localStyles.moneyPrefix}>$</Text>
+          <TextInput
+            value={form[key]}
+            onChangeText={(value) => updateField(key, value)}
+            placeholder="0.00"
+            placeholderTextColor={AppColor.textPlaceholder}
+            keyboardType="decimal-pad"
+            editable={!disabled}
+            style={localStyles.moneyInput}
+          />
+        </View>
+        {helper ? <Text style={styles.meta}>{helper}</Text> : null}
+        {isBudgetAmount && budgetInfoVisible ? (
+          <View style={localStyles.budgetInfoBox}>
+            <View style={localStyles.budgetInfoHeader}>
+              <Text style={localStyles.budgetInfoTitle}>Budgeted Amount</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.7}
+                style={localStyles.budgetInfoClose}
+                onPress={() => setBudgetInfoVisible(false)}
+              >
+                <MaterialIcons name="close" size={20} color={AppColor.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.meta}>
+              Budgeted amount is based on average price per plate per adult guest.
+              The final negotiated amount is finalized upon final consult with
+              vendor. Prices may be larger or smaller than the budgeted amount
+              but that does not negate the fee.
+            </Text>
+          </View>
+        ) : null}
       </View>
-      {helper ? <Text style={styles.meta}>{helper}</Text> : null}
-    </View>
-  );
+    );
+  };
 
   const getFieldDateTimeValue = (key, mode) => {
     const value = form[key];
