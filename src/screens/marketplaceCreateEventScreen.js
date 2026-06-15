@@ -1178,7 +1178,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     initialEventAddressRegion
   );
   const [eventAddressLoading, setEventAddressLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [snackbar, setSnackbar] = useState({
+    visible: false,
+    message: "",
+    type: "error",
+  });
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
@@ -1685,7 +1689,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     };
   };
 
-  const handleSubmit = async (status = "OPEN") => {
+  const handleSubmit = async (status = "OPEN", options = {}) => {
     if (!validate(status)) return;
     setLoading(true);
     setSubmitMode(status);
@@ -1715,6 +1719,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           visible: true,
           message:
             "Event was not submitted. Please review required fields and try again.",
+          type: "error",
         });
         return;
       }
@@ -1742,13 +1747,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       setSnackbar({
         visible: true,
         message:
-          status === "DRAFT"
+          options.successMessage
+            ? options.successMessage
+            : status === "DRAFT"
             ? "Your draft has been saved."
             : uploadWarning
               ? "Event submitted, but one or more images did not upload."
               : "Your event is open for vendor bids.",
+        type: "success",
       });
       setTimeout(() => {
+        if (options.navigateToDetails && eventId) {
+          if (options.replaceDetails) {
+            navigation.replace("marketplaceEventDetailsScreen", { eventId });
+            return;
+          }
+          navigation.navigate("marketplaceEventDetailsScreen", { eventId });
+          return;
+        }
         navigation.navigate("marketplaceMyEventsScreen");
       }, 600);
     } catch (error) {
@@ -1757,11 +1773,37 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         message:
           error?.message ||
           (status === "DRAFT" ? "Failed to save draft." : "Failed to create event."),
+        type: "error",
       });
     } finally {
       setLoading(false);
       setSubmitMode(null);
     }
+  };
+
+  const handleSubmitConfirmation = () => {
+    if (loading) return;
+
+    Alert.alert(
+      "Submit Event",
+      "By submitting this event you agree to the following terms and conditions. Do you wish to proceed?",
+      [
+        {
+          text: "Yes",
+          onPress: () => handleSubmit("OPEN"),
+        },
+        {
+          text: "No",
+          style: "cancel",
+          onPress: () =>
+            handleSubmit("DRAFT", {
+              navigateToDetails: true,
+              replaceDetails: !!editingEventId,
+              successMessage: "Your changes have been saved as a draft.",
+            }),
+        },
+      ]
+    );
   };
 
   const handleDeleteDraft = () => {
@@ -1784,6 +1826,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 setSnackbar({
                   visible: true,
                   message: "Draft deleted.",
+                  type: "success",
                 });
                 setTimeout(() => {
                   navigation.navigate("marketplaceMyEventsScreen");
@@ -1793,6 +1836,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               setSnackbar({
                 visible: true,
                 message: error?.message || "Failed to delete draft.",
+                type: "error",
               });
             } finally {
               setLoading(false);
@@ -3086,7 +3130,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 localStyles.footerButton,
                 { opacity: loading ? 0.6 : 1 },
               ]}
-              onPress={() => handleSubmit("OPEN")}
+              onPress={handleSubmitConfirmation}
               disabled={loading}
             >
               {loading && submitMode === "OPEN" ? (
@@ -3103,7 +3147,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 localStyles.footerButton,
                 { opacity: loading ? 0.6 : 1 },
               ]}
-              onPress={() => handleSubmit("DRAFT")}
+              onPress={() =>
+                handleSubmit("DRAFT", {
+                  navigateToDetails: !!editingEventId,
+                  replaceDetails: !!editingEventId,
+                  successMessage: editingEventId
+                    ? "Your changes have been saved as a draft."
+                    : undefined,
+                })
+              }
               disabled={loading}
             >
               {loading && submitMode === "DRAFT" ? (
@@ -3145,9 +3197,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       {renderNativeDateTimePicker()}
       <Snackbar
         visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ visible: false, message: "" })}
+        onDismiss={() =>
+          setSnackbar({ visible: false, message: "", type: "error" })
+        }
         duration={3000}
-        style={{ backgroundColor: AppColor.snackbarError }}
+        style={{
+          backgroundColor:
+            snackbar.type === "success"
+              ? AppColor.snackbarSuccess
+              : AppColor.snackbarError,
+        }}
       >
         {snackbar.message}
       </Snackbar>
