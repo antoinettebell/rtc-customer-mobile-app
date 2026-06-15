@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 import Geolocation from "@react-native-community/geolocation";
@@ -203,7 +204,7 @@ const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const TIME_HOUR_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 const TIME_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => index * 5);
 const DURATION_HOUR_OPTIONS = Array.from({ length: 13 }, (_, index) => index);
-const DURATION_MINUTE_OPTIONS = [0, 15, 30, 45];
+const DURATION_MINUTE_OPTIONS = Array.from({ length: 60 }, (_, index) => index);
 
 const EVENT_TYPE_ICONS = {
   Festival: "festival",
@@ -1001,6 +1002,27 @@ const localStyles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     marginBottom: 6,
+  },
+  nativePickerRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  nativePickerBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    overflow: "hidden",
+  },
+  nativePicker: {
+    height: 156,
+    color: AppColor.text,
+  },
+  nativePickerItem: {
+    color: AppColor.text,
+    fontSize: 18,
   },
   durationBox: {
     marginTop: 12,
@@ -2205,20 +2227,45 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         <Text style={localStyles.timeStepperValue}>
           {formatDurationLabel(totalMinutes)}
         </Text>
-        <View style={localStyles.wheelPickerRow}>
-          {renderWheelColumn({
-            label: "Hours",
-            options: DURATION_HOUR_OPTIONS,
-            selectedValue: selectedHours,
-            onSelect: (value) => updatePickerDurationPart("hour", value),
-          })}
-          {renderWheelColumn({
-            label: "Minutes",
-            options: DURATION_MINUTE_OPTIONS,
-            selectedValue: selectedMinutes,
-            onSelect: (value) => updatePickerDurationPart("minute", value),
-            formatOption: (value) => String(value).padStart(2, "0"),
-          })}
+        <View style={localStyles.nativePickerRow}>
+          <View style={localStyles.nativePickerBox}>
+            <Text style={localStyles.wheelLabel}>Hours</Text>
+            <Picker
+              selectedValue={selectedHours}
+              onValueChange={(value) => updatePickerDurationPart("hour", value)}
+              style={localStyles.nativePicker}
+              itemStyle={localStyles.nativePickerItem}
+              dropdownIconColor={AppColor.primary}
+              mode="dropdown"
+            >
+              {DURATION_HOUR_OPTIONS.map((hour) => (
+                <Picker.Item
+                  key={hour}
+                  label={`${hour}`}
+                  value={hour}
+                />
+              ))}
+            </Picker>
+          </View>
+          <View style={localStyles.nativePickerBox}>
+            <Text style={localStyles.wheelLabel}>Minutes</Text>
+            <Picker
+              selectedValue={selectedMinutes}
+              onValueChange={(value) => updatePickerDurationPart("minute", value)}
+              style={localStyles.nativePicker}
+              itemStyle={localStyles.nativePickerItem}
+              dropdownIconColor={AppColor.primary}
+              mode="dropdown"
+            >
+              {DURATION_MINUTE_OPTIONS.map((minute) => (
+                <Picker.Item
+                  key={minute}
+                  label={String(minute).padStart(2, "0")}
+                  value={minute}
+                />
+              ))}
+            </Picker>
+          </View>
         </View>
       </View>
     );
