@@ -31,6 +31,7 @@ import {
   UPDATE_REVIEW_BY_ID,
   GET_REVIEW_STATS_BY_FOODTRUCK_ID,
   GET_REVIEW_BY_FOODTRUCK_ID,
+  PUBLIC_REVIEW_TOKEN,
   GET_RECENT_FOODTRUCK,
   GET_ALL_BANNER,
   TRACK_BANNER_EVENT,
@@ -554,6 +555,26 @@ export const addReviewRating_API = async (payload) => {
   try {
     const URL = `${ADD_REVIEW}`;
     const response = await apiClient.post(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getPublicReviewToken_API = async (token) => {
+  try {
+    const URL = PUBLIC_REVIEW_TOKEN(token);
+    const response = await apiClient.get(URL, { skipToken: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const addPublicReviewToken_API = async ({ token, payload }) => {
+  try {
+    const URL = PUBLIC_REVIEW_TOKEN(token);
+    const response = await apiClient.post(URL, payload, { skipToken: true });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

@@ -73,6 +73,15 @@ import GlobalSnackbar from "./src/components/GlobalSnackbar";
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
 
+const linking = {
+  prefixes: ["rtc-customer://"],
+  config: {
+    screens: {
+      rateTruckScreen: "review",
+    },
+  },
+};
+
 const exploreActive = require("./src/assets/images/homeMenuActive.png");
 const exploreInactive = require("./src/assets/images/homeMenuInactive.png");
 const nearmeActive = require("./src/assets/images/nearmeMenuActive.png");
@@ -318,7 +327,7 @@ const App = () => {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={DefaultTheme} linking={linking}>
       <GlobalSnackbar />
       {isSignedIn ? (
         <AppNavigator insets={insets} />

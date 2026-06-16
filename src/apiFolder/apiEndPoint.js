@@ -102,6 +102,7 @@ export const REMOVE_A_REVIEW_BY_ID = (review_id) => `/review/${review_id}`;
 export const GET_REVIEW_BY_FOODTRUCK_ID = "/public/review";
 export const GET_REVIEW_STATS_BY_FOODTRUCK_ID = (foodTruck_id) =>
   `/public/review/stats?foodTruckId=${foodTruck_id}`;
+export const PUBLIC_REVIEW_TOKEN = (token) => `/public/review-token/${token}`;
 
 // Banner (advertisement)
 export const GET_ALL_BANNER = "/public/banner";

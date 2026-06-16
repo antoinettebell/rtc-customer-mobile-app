@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -22,11 +22,17 @@ import { RESULTS } from "react-native-permissions";
 import FastImage from "@d11/react-native-fast-image";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import { ActivityIndicator } from "react-native-paper";
-import { addReviewRating_API, uploadImage_API } from "../apiFolder/appAPI";
+import {
+  addPublicReviewToken_API,
+  addReviewRating_API,
+  getPublicReviewToken_API,
+  uploadImage_API,
+} from "../apiFolder/appAPI";
 
 const RateTruckScreen = ({ navigation, route }) => {
-  const { foodTruckId, orderId } = route?.params;
+  const { foodTruckId, orderId, reviewToken } = route?.params || {};
   const insets = useSafeAreaInsets();
+  const isTokenReview = !!reviewToken;
 
   const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
     permission.camera
@@ -43,7 +49,41 @@ const RateTruckScreen = ({ navigation, route }) => {
   const [review, setReview] = useState("");
   const [capturedImages, setCapturedImages] = useState([]);
   const [loading, setLaoding] = useState(false);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenDetails, setTokenDetails] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const leaveReviewScreen = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("bottomRoot");
+    }
+  };
+
+  useEffect(() => {
+    const loadReviewToken = async () => {
+      if (!reviewToken) return;
+
+      setTokenLoading(true);
+      try {
+        const response = await getPublicReviewToken_API(reviewToken);
+        if (response?.success && response?.data?.reviewToken) {
+          setTokenDetails(response.data.reviewToken);
+        }
+      } catch (error) {
+        Alert.alert(
+          "Review Link",
+          error?.message || "This review link is invalid or expired.",
+          [{ text: "OK", onPress: leaveReviewScreen }]
+        );
+      } finally {
+        setTokenLoading(false);
+      }
+    };
+
+    loadReviewToken();
+  }, [reviewToken]);
 
   // Camera handling functions
   const handleCameraPress = async () => {
@@ -179,6 +219,27 @@ const RateTruckScreen = ({ navigation, route }) => {
 
     setLaoding(true);
     try {
+      if (isTokenReview) {
+        const reqPayload = { rate: rating };
+        if (review?.trim()?.length > 0) {
+          reqPayload.review = review.trim();
+        }
+
+        const response = await addPublicReviewToken_API({
+          token: reviewToken,
+          payload: reqPayload,
+        });
+
+        if (response.success && response.data) {
+          Alert.alert(
+            "Thank You!",
+            "Your review has been submitted successfully.",
+            [{ text: "OK", onPress: leaveReviewScreen }]
+          );
+        }
+        return;
+      }
+
       // manage image upload
       const imageResult = [];
       for (const image of capturedImages) {
@@ -219,10 +280,7 @@ const RateTruckScreen = ({ navigation, route }) => {
           [
             {
               text: "OK",
-              onPress: () => {
-                // Navigate back to previous screen
-                navigation.goBack();
-              },
+              onPress: leaveReviewScreen,
             },
           ]
         );
@@ -283,6 +341,11 @@ const RateTruckScreen = ({ navigation, route }) => {
       <StatusBarManager />
       <AppHeader headerTitle="Rate Truck" />
 
+      {tokenLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={AppColor.primary} />
+        </View>
+      ) : (
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -296,7 +359,11 @@ const RateTruckScreen = ({ navigation, route }) => {
             />
           </View>
 
-          <Text style={styles.title}>{"Rate Food Truck"}</Text>
+          <Text style={styles.title}>
+            {tokenDetails?.foodTruckName
+              ? `Rate ${tokenDetails.foodTruckName}`
+              : "Rate Food Truck"}
+          </Text>
 
           <View style={styles.starsRow}>{renderStars()}</View>
 
@@ -320,37 +387,40 @@ const RateTruckScreen = ({ navigation, route }) => {
             textAlignVertical="top"
           />
 
-          {renderCapturedImages()}
+          {!isTokenReview ? renderCapturedImages() : null}
 
-          <TouchableOpacity
-            style={[
-              styles.addPhotoBtn,
-              capturedImages.length >= MAX_PHOTOS && styles.addPhotoBtnDisabled,
-            ]}
-            onPress={() => setModalVisible(true)}
-            disabled={capturedImages.length >= MAX_PHOTOS}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name="add-a-photo"
-              size={24}
-              color={
-                capturedImages.length >= MAX_PHOTOS
-                  ? AppColor.textPlaceholder
-                  : AppColor.primary
-              }
-              style={styles.addPhotoIcon}
-            />
-            <Text
+          {!isTokenReview ? (
+            <TouchableOpacity
               style={[
-                styles.addPhotoText,
+                styles.addPhotoBtn,
                 capturedImages.length >= MAX_PHOTOS &&
-                  styles.addPhotoTextDisabled,
+                  styles.addPhotoBtnDisabled,
               ]}
+              onPress={() => setModalVisible(true)}
+              disabled={capturedImages.length >= MAX_PHOTOS}
+              activeOpacity={0.7}
             >
-              Add Photos ({capturedImages.length}/{MAX_PHOTOS})
-            </Text>
-          </TouchableOpacity>
+              <MaterialIcons
+                name="add-a-photo"
+                size={24}
+                color={
+                  capturedImages.length >= MAX_PHOTOS
+                    ? AppColor.textPlaceholder
+                    : AppColor.primary
+                }
+                style={styles.addPhotoIcon}
+              />
+              <Text
+                style={[
+                  styles.addPhotoText,
+                  capturedImages.length >= MAX_PHOTOS &&
+                    styles.addPhotoTextDisabled,
+                ]}
+              >
+                Add Photos ({capturedImages.length}/{MAX_PHOTOS})
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={styles.submitBtn}
@@ -366,14 +436,17 @@ const RateTruckScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      )}
 
       {/* Media Picker Modal */}
-      <MediaPickerDialog
-        isVisible={modalVisible}
-        onCameraPress={() => handleCameraPress()}
-        onGalleryPress={() => handleGalleryPress()}
-        onClosePress={() => setModalVisible(false)}
-      />
+      {!isTokenReview ? (
+        <MediaPickerDialog
+          isVisible={modalVisible}
+          onCameraPress={() => handleCameraPress()}
+          onGalleryPress={() => handleGalleryPress()}
+          onClosePress={() => setModalVisible(false)}
+        />
+      ) : null}
     </View>
   );
 };
@@ -385,6 +458,11 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     paddingBottom: 20,

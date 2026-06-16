@@ -2,6 +2,7 @@
   "expo": {
     "name": "RTC_DEV_CUSTOMER",
     "slug": "foodtruck",
+    "scheme": "rtc-customer",
     "version": "1.6.1",
     "ios": {
       "bundleIdentifier": "com.rounddacorner.dev.customer",
