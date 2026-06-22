@@ -43,6 +43,7 @@ const { width, height } = Dimensions.get("window");
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
+const getPhoneDigits = (value = "") => value.replace(/\D/g, "");
 
 const OrderTrackingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -62,6 +63,9 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const vendorPhoneNumber =
+    order?.truck_unit_phone ||
+    `${order?.vendor?.countryCode || ""}${order?.vendor?.mobileNumber || ""}`;
 
   const getStatusHistory = (statusTime) => {
     const statusMap = {
@@ -185,8 +189,13 @@ const OrderTrackingScreen = ({ navigation, route }) => {
 
   // Function to handle the button press and open the phone app
   const handleCallPress = (phoneNumber) => {
+    const dialNumber = getPhoneDigits(phoneNumber);
+    if (!dialNumber) {
+      Alert.alert("Phone unavailable", "No phone number is available for this order.");
+      return;
+    }
     // Construct the URL with the 'tel:' scheme
-    const url = `tel:${phoneNumber}`;
+    const url = `tel:${dialNumber}`;
 
     // Check if the device can open the URL
     Linking.canOpenURL(url)
@@ -398,11 +407,7 @@ const OrderTrackingScreen = ({ navigation, route }) => {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={styles.phoneBtn}
-                  onPress={() =>
-                    handleCallPress(
-                      `${order?.vendor?.countryCode}${order?.vendor?.mobileNumber}`
-                    )
-                  }
+                  onPress={() => handleCallPress(vendorPhoneNumber)}
                 >
                   <Image
                     source={require("../assets/images/phone.png")}
