@@ -50,8 +50,27 @@ import {
 } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
-const BUILT_IN_DELIVERY_FEE = 6.49;
-const CUSTOMER_PROCESSING_FEE_RATE = 3.5;
+const CUSTOMER_FEE_TIERS = [
+  { min: 80, processingFeeRate: 4.25, deliveryFee: 3.99 },
+  { min: 60, processingFeeRate: 5, deliveryFee: 4.49 },
+  { min: 40, processingFeeRate: 6, deliveryFee: 5 },
+  { min: 0, processingFeeRate: 5.5, deliveryFee: 6 },
+];
+
+const getCustomerFeeTier = (foodSubtotal) => {
+  const amount = Math.max(0, Number(foodSubtotal) || 0);
+  return (
+    CUSTOMER_FEE_TIERS.find((tier) => amount >= tier.min) ||
+    CUSTOMER_FEE_TIERS[CUSTOMER_FEE_TIERS.length - 1]
+  );
+};
+
+const getNextDeliverySavingsTier = (foodSubtotal) => {
+  const amount = Math.max(0, Number(foodSubtotal) || 0);
+  return [...CUSTOMER_FEE_TIERS]
+    .sort((a, b) => a.min - b.min)
+    .find((tier) => amount < tier.min);
+};
 
 const toCents = (value) => Math.round(Math.max(0, Number(value) || 0) * 100);
 const centsToMoney = (value) => Number((Math.max(0, value) / 100).toFixed(2));
@@ -233,14 +252,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   const orderNowUnavailable = !isPreOrder && !truckCurrentLocation;
   const isConfirmDisabled =
     order.items.length === 0 || loading || orderNowUnavailable;
-  const deliveryFee = useMemo(
-    () => (isDelivery ? BUILT_IN_DELIVERY_FEE : 0),
-    [isDelivery],
-  );
-  const normalizedDriverTip = useMemo(
-    () => (isDelivery ? Math.max(0, Number(driverTip) || 0) : 0),
-    [driverTip, isDelivery],
-  );
   const discount = useMemo(() => {
     if (!coupon) return 0;
     if (coupon.type === "PERCENTAGE") {
@@ -259,9 +270,30 @@ const CheckoutScreen = ({ navigation, route }) => {
     [debouncedSubtotal, discount],
   );
 
+  const customerFeeTier = useMemo(
+    () => getCustomerFeeTier(taxableAmount),
+    [taxableAmount],
+  );
+  const nextDeliverySavingsTier = useMemo(
+    () => (isDelivery ? getNextDeliverySavingsTier(taxableAmount) : null),
+    [isDelivery, taxableAmount],
+  );
+  const deliverySavingsMessage = useMemo(() => {
+    if (!nextDeliverySavingsTier) return "";
+    const amountNeeded = Math.max(0, nextDeliverySavingsTier.min - taxableAmount);
+    return `Add $${amountNeeded.toFixed(2)} to save on delivery.`;
+  }, [nextDeliverySavingsTier, taxableAmount]);
+  const deliveryFee = useMemo(
+    () => (isDelivery ? customerFeeTier.deliveryFee : 0),
+    [customerFeeTier, isDelivery],
+  );
+  const normalizedDriverTip = useMemo(
+    () => (isDelivery ? Math.max(0, Number(driverTip) || 0) : 0),
+    [driverTip, isDelivery],
+  );
   const processingFeeRate = useMemo(
-    () => Number(taxData?.paymentProcessingFee ?? CUSTOMER_PROCESSING_FEE_RATE),
-    [taxData],
+    () => customerFeeTier.processingFeeRate,
+    [customerFeeTier],
   );
   const processingFeeAmount = useMemo(
     () => calculateProcessingFeeAmount(taxableAmount, processingFeeRate),
@@ -1666,16 +1698,23 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </View>
                   )}
                   {isDelivery ? (
-                    <View style={styles.totalRow}>
-                      <Text style={styles.totalRowItemTxt}>Delivery Fee</Text>
-                      <Text style={styles.totalRowItemTxt}>
-                        ${deliveryFee.toFixed(2)}
-                      </Text>
-                    </View>
+                    <>
+                      <View style={styles.totalRow}>
+                        <Text style={styles.totalRowItemTxt}>Delivery Fee</Text>
+                        <Text style={styles.totalRowItemTxt}>
+                          ${deliveryFee.toFixed(2)}
+                        </Text>
+                      </View>
+                      {!!deliverySavingsMessage && (
+                        <Text style={styles.deliverySavingsText}>
+                          {deliverySavingsMessage}
+                        </Text>
+                      )}
+                    </>
                   ) : null}
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>
-                      Payment Processing Fee ({processingFeeRate}%)
+                      Payment Processing Fee
                     </Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${processingFeeAmount.toFixed(2)}
@@ -2061,6 +2100,13 @@ const styles = StyleSheet.create({
   totalRowItemTxt: {
     fontFamily: Mulish400,
     fontSize: 16,
+  },
+  deliverySavingsText: {
+    color: AppColor.primary,
+    fontFamily: Mulish400,
+    fontSize: 13,
+    marginBottom: 4,
+    textAlign: "right",
   },
   tipHelperText: {
     fontFamily: Mulish400,
