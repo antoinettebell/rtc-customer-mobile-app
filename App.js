@@ -63,15 +63,11 @@ import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
-import MarketplaceMyEventsScreen from "./src/screens/marketplaceMyEventsScreen";
-import MarketplaceCreateEventScreen from "./src/screens/marketplaceCreateEventScreen";
-import MarketplaceEventDetailsScreen from "./src/screens/marketplaceEventDetailsScreen";
-import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
-import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
 import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
+const EVENT_MARKETPLACE_ENABLED = false;
 
 const linking = {
   prefixes: ["rtc-customer://"],
@@ -124,6 +120,18 @@ const AuthRequiredScreen = ({ title }) => {
   );
 };
 
+const FeatureComingSoonScreen = () => (
+  <SafeAreaView style={styles.authRequiredContainer}>
+    <View style={styles.authRequiredContent}>
+      <MaterialIcons name="event-note" size={44} color={AppColor.primary} />
+      <Text style={styles.authRequiredTitle}>Feature Coming Soon</Text>
+      <Text style={styles.authRequiredMessage}>
+        Event Marketplace is being finalized and will be available in a future update.
+      </Text>
+    </View>
+  </SafeAreaView>
+);
+
 const AuthNavigator = () => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
@@ -145,7 +153,8 @@ const AuthNavigator = () => (
 const BottomNavigator = ({ insets }) => {
   const { isSignedIn } = useSelector((state) => state.authReducer);
   const { user } = useSelector((state) => state.userReducer);
-  const showEventMarketplace = isSignedIn && !!user?.isEventCoordinator;
+  const showEventMarketplace =
+    EVENT_MARKETPLACE_ENABLED && isSignedIn && !!user?.isEventCoordinator;
 
   return (
     <BottomTab.Navigator
@@ -290,23 +299,23 @@ const AppNavigator = ({ insets }) => (
     />
     <Stack.Screen
       name="marketplaceMyEventsScreen"
-      component={MarketplaceMyEventsScreen}
+      component={FeatureComingSoonScreen}
     />
     <Stack.Screen
       name="marketplaceCreateEventScreen"
-      component={MarketplaceCreateEventScreen}
+      component={FeatureComingSoonScreen}
     />
     <Stack.Screen
       name="marketplaceEventDetailsScreen"
-      component={MarketplaceEventDetailsScreen}
+      component={FeatureComingSoonScreen}
     />
     <Stack.Screen
       name="marketplaceAwardBidsScreen"
-      component={MarketplaceAwardBidsScreen}
+      component={FeatureComingSoonScreen}
     />
     <Stack.Screen
       name="marketplacePaymentScreen"
-      component={MarketplacePaymentScreen}
+      component={FeatureComingSoonScreen}
     />
   </Stack.Navigator>
 );

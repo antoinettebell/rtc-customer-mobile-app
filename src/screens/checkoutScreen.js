@@ -37,6 +37,7 @@ import {
 } from "../apiFolder/appAPI";
 import {
   addItemToOrder,
+  clearCurrentOrder,
   removeItemFromOrder,
   updateAllItemsOfOrder,
 } from "../redux/slices/orderSlice";
@@ -51,10 +52,36 @@ import {
 import { foodTypeStrings } from "../utils/constants";
 
 const CUSTOMER_FEE_TIERS = [
-  { min: 80, processingFeeRate: 4.25, deliveryFee: 3.99 },
-  { min: 60, processingFeeRate: 5, deliveryFee: 4.49 },
-  { min: 40, processingFeeRate: 6, deliveryFee: 5 },
-  { min: 0, processingFeeRate: 5.5, deliveryFee: 6 },
+  {
+    min: 200,
+    processingFeeRate: 3.5,
+    deliveryFee: 0.99,
+    message: "Best value unlocked",
+  },
+  {
+    min: 80,
+    processingFeeRate: 3.5,
+    deliveryFee: 3.99,
+    message: "Best value unlocked",
+  },
+  {
+    min: 60,
+    processingFeeRate: 4.5,
+    deliveryFee: 4.49,
+    message: "Lower delivery unlocked",
+  },
+  {
+    min: 40,
+    processingFeeRate: 4.5,
+    deliveryFee: 5,
+    message: "Lower service fee + lower delivery unlocked",
+  },
+  {
+    min: 0,
+    processingFeeRate: 5.5,
+    deliveryFee: 6.49,
+    message: "Add more to unlock lower fees",
+  },
 ];
 
 const getCustomerFeeTier = (foodSubtotal) => {
@@ -279,10 +306,9 @@ const CheckoutScreen = ({ navigation, route }) => {
     [isDelivery, taxableAmount],
   );
   const deliverySavingsMessage = useMemo(() => {
-    if (!nextDeliverySavingsTier) return "";
-    const amountNeeded = Math.max(0, nextDeliverySavingsTier.min - taxableAmount);
-    return `Add $${amountNeeded.toFixed(2)} to save on delivery.`;
-  }, [nextDeliverySavingsTier, taxableAmount]);
+    if (!isDelivery) return "";
+    return "Delivery fees are not governed by RTC. For this reason, 98% of all tips go directly to the driver, while the remaining 2% helps cover delivery service costs.";
+  }, [isDelivery]);
   const deliveryFee = useMemo(
     () => (isDelivery ? customerFeeTier.deliveryFee : 0),
     [customerFeeTier, isDelivery],
@@ -1264,6 +1290,21 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   }, [order.items.length]);
 
+  const handleClearOrder = () => {
+    Alert.alert(
+      "Clear Order",
+      "Remove all items and start over?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: () => dispatch(clearCurrentOrder()),
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager barStyle="dark-content" />
@@ -1275,7 +1316,14 @@ const CheckoutScreen = ({ navigation, route }) => {
             <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           </View>
           <Text style={styles.headerTitle}>{"Checkout"}</Text>
-          <View style={{ width: "20%" }} />
+          <View style={styles.headerAction}>
+            <IconButton
+              icon="trash-can-outline"
+              iconColor={AppColor.primary}
+              accessibilityLabel="Clear order"
+              onPress={handleClearOrder}
+            />
+          </View>
         </View>
       </View>
 
@@ -1883,6 +1931,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  headerAction: {
+    width: "20%",
+    alignItems: "flex-end",
+  },
   headerTitle: {
     flex: 1,
     fontSize: 20,
@@ -2106,7 +2158,8 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 13,
     marginBottom: 4,
-    textAlign: "right",
+    marginTop: 2,
+    textAlign: "left",
   },
   tipHelperText: {
     fontFamily: Mulish400,

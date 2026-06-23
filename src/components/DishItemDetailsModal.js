@@ -20,6 +20,41 @@ import { IconButton, TextInput } from "react-native-paper";
 import { foodTypeStrings } from "../utils/constants";
 
 const { width, height } = Dimensions.get("window");
+const PLAIN_OPTION_NAME = "Plain";
+
+const isPlainOption = (optionName) =>
+  String(optionName || "").trim().toLowerCase() === "plain";
+
+const ensurePlainOption = (options) => {
+  const safeOptions = Array.isArray(options) ? options : [];
+  const hasPlain = safeOptions.some((option) => isPlainOption(option?.name));
+  const normalizedOptions = safeOptions.map((option) =>
+    isPlainOption(option?.name)
+      ? { ...option, name: PLAIN_OPTION_NAME, hasCost: false, cost: 0 }
+      : option
+  );
+
+  if (hasPlain) {
+    return normalizedOptions;
+  }
+
+  return [
+    { name: PLAIN_OPTION_NAME, hasCost: false, cost: 0 },
+    ...normalizedOptions,
+  ];
+};
+
+const getSelectedCount = (selectedOptions) =>
+  Array.isArray(selectedOptions) ? selectedOptions.length : 0;
+
+const isOptionSelectionComplete = (hasChoices, selectedOptions, maxCount) => {
+  if (!hasChoices) {
+    return true;
+  }
+
+  const selectedCount = getSelectedCount(selectedOptions);
+  return selectedCount > 0 && selectedCount <= maxCount;
+};
 
 /**
  * Optimized Sub-Item Row
@@ -93,6 +128,26 @@ const OptionRow = memo(({ option, isSelected, onToggle }) => (
   </View>
 ));
 
+const PlainSplitToggle = memo(({ enabled, onToggle }) => (
+  <TouchableOpacity
+    activeOpacity={0.7}
+    style={styles.plainSplitRow}
+    onPress={onToggle}
+  >
+    <View
+      style={[
+        styles.checkbox,
+        {
+          backgroundColor: enabled ? AppColor.primary : "transparent",
+        },
+      ]}
+    >
+      {enabled && <MaterialIcons name="check" size={18} color={AppColor.white} />}
+    </View>
+    <Text style={styles.plainSplitText}>Part of this item is plain</Text>
+  </TouchableOpacity>
+));
+
 const getMenuItemId = (item) =>
   item?._id || item?.menuItem?._id || item?.itemId?._id || item?.itemId || "";
 
@@ -109,8 +164,8 @@ const getSelectionLimit = (configuredLimit, optionsLength) => {
 
 const getChildRequirementState = (item) => {
   const child = getComboChildItem(item);
-  const flavorOptions = normalizeMenuOptions(child, "flavor");
-  const toppingOptions = normalizeMenuOptions(child, "topping");
+  const flavorOptions = ensurePlainOption(normalizeMenuOptions(child, "flavor"));
+  const toppingOptions = ensurePlainOption(normalizeMenuOptions(child, "topping"));
   const comboSideOptions = Array.isArray(child?.comboSideOptions)
     ? child.comboSideOptions.filter((option) => option)
     : [];
@@ -143,10 +198,16 @@ const getChildRequirementState = (item) => {
 const isChildSelectionComplete = (item) => {
   const state = getChildRequirementState(item);
   return (
-    (!state.hasFlavorChoices ||
-      (item?.selectedFlavors || []).length === state.flavorRequiredCount) &&
-    (!state.hasToppingChoices ||
-      (item?.selectedToppings || []).length === state.toppingRequiredCount) &&
+    isOptionSelectionComplete(
+      state.hasFlavorChoices,
+      item?.selectedFlavors || [],
+      state.flavorRequiredCount
+    ) &&
+    isOptionSelectionComplete(
+      state.hasToppingChoices,
+      item?.selectedToppings || [],
+      state.toppingRequiredCount
+    ) &&
     (!state.hasComboSideChoices ||
       (item?.selectedComboSides || []).length === state.comboSideRequiredCount)
   );
@@ -207,6 +268,10 @@ const DishItemDetailsModal = ({
   const [selectedDiscountSubItems, setSelectedDiscountSubItems] = useState(
     selectedMenuItem?.selectedDiscountSubItems || []
   );
+  const [splitPlainFlavor, setSplitPlainFlavor] = useState(false);
+  const [splitPlainTopping, setSplitPlainTopping] = useState(false);
+  const [splitPlainDiscountFlavor, setSplitPlainDiscountFlavor] = useState(false);
+  const [splitPlainDiscountTopping, setSplitPlainDiscountTopping] = useState(false);
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
@@ -224,6 +289,22 @@ const DishItemDetailsModal = ({
     );
     setSelectedComboSides(selectedMenuItem?.selectedComboSides || []);
     setSelectedDiscountSubItems(selectedMenuItem?.selectedDiscountSubItems || []);
+    setSplitPlainFlavor(
+      (selectedMenuItem?.selectedFlavors || []).some(isPlainOption) &&
+        (selectedMenuItem?.selectedFlavors || []).length > 1
+    );
+    setSplitPlainTopping(
+      (selectedMenuItem?.selectedToppings || []).some(isPlainOption) &&
+        (selectedMenuItem?.selectedToppings || []).length > 1
+    );
+    setSplitPlainDiscountFlavor(
+      (selectedMenuItem?.selectedDiscountFlavors || []).some(isPlainOption) &&
+        (selectedMenuItem?.selectedDiscountFlavors || []).length > 1
+    );
+    setSplitPlainDiscountTopping(
+      (selectedMenuItem?.selectedDiscountToppings || []).some(isPlainOption) &&
+        (selectedMenuItem?.selectedDiscountToppings || []).length > 1
+    );
   }, [
     selectedMenuItem?._id,
     selectedMenuItem?.selectedSubItems,
@@ -264,8 +345,12 @@ const DishItemDetailsModal = ({
     onSelectedSubItemsChange,
   ]);
 
-  const flavorOptions = normalizeMenuOptions(selectedMenuItem, "flavor");
-  const toppingOptions = normalizeMenuOptions(selectedMenuItem, "topping");
+  const flavorOptions = ensurePlainOption(
+    normalizeMenuOptions(selectedMenuItem, "flavor")
+  );
+  const toppingOptions = ensurePlainOption(
+    normalizeMenuOptions(selectedMenuItem, "topping")
+  );
   const flavorsMaxCount = getSelectionLimit(
     selectedMenuItem?.flavorsPerOrder,
     flavorOptions.length
@@ -293,13 +378,11 @@ const DishItemDetailsModal = ({
 
     return differentItemReward || null;
   })();
-  const discountFlavorOptions = normalizeMenuOptions(
-    discountSourceItem,
-    "flavor"
+  const discountFlavorOptions = ensurePlainOption(
+    normalizeMenuOptions(discountSourceItem, "flavor")
   );
-  const discountToppingOptions = normalizeMenuOptions(
-    discountSourceItem,
-    "topping"
+  const discountToppingOptions = ensurePlainOption(
+    normalizeMenuOptions(discountSourceItem, "topping")
   );
   const discountFlavorsMaxCount = getSelectionLimit(
     discountSourceItem?.flavorsPerOrder,
@@ -356,26 +439,100 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.itemType === foodTypeStrings.combo &&
     comboSideOptions.length > 0;
 
-  const toggleOptionSelection = useCallback((optionName, setter, limit, label) => {
-    setter((prevOptions) => {
-      const isSelected = prevOptions.includes(optionName);
-      const nextOptions = isSelected
-        ? prevOptions.filter((item) => item !== optionName)
-        : [...prevOptions, optionName];
+  const toggleOptionSelection = useCallback(
+    (optionName, setter, currentOptions, limit, label, splitPlain = false) => {
+      const current = Array.isArray(currentOptions) ? currentOptions : [];
+      const isSelected = current.includes(optionName);
+      const plainSelected = current.some(isPlainOption);
 
-      if (!isSelected && nextOptions.length > limit) {
+      if (isPlainOption(optionName)) {
+        if (isSelected) {
+          setter(current.filter((item) => !isPlainOption(item)));
+          return;
+        }
+
+        if (!splitPlain && current.length > 0) {
+          Alert.alert(
+            "Plain selection",
+            "Selecting Plain will remove your selections. Continue?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Continue",
+                onPress: () => setter([PLAIN_OPTION_NAME]),
+              },
+            ]
+          );
+          return;
+        }
+
+        if (current.length >= limit) {
+          Alert.alert(
+            `${label} Limit`,
+            `Please select only ${limit} ${label.toLowerCase()}${
+              limit === 1 ? "" : "s"
+            }.`
+          );
+          return;
+        }
+
+        setter([...current, PLAIN_OPTION_NAME]);
+        return;
+      }
+
+      if (isSelected) {
+        setter(current.filter((item) => item !== optionName));
+        return;
+      }
+
+      const nextBase = splitPlain ? current : current.filter((item) => !isPlainOption(item));
+      if (!splitPlain && plainSelected) {
+        setter([...nextBase, optionName]);
+        return;
+      }
+
+      if (nextBase.length >= limit) {
         Alert.alert(
           `${label} Limit`,
           `Please select only ${limit} ${label.toLowerCase()}${
             limit === 1 ? "" : "s"
           }.`
         );
-        return prevOptions;
+        return;
       }
 
-      return nextOptions;
-    });
-  }, []);
+      setter([...nextBase, optionName]);
+    },
+    []
+  );
+
+  const toggleSplitPlain = useCallback(
+    (enabled, setEnabled, selectedOptions, setter, limit, label) => {
+      const current = Array.isArray(selectedOptions) ? selectedOptions : [];
+
+      if (enabled) {
+        setEnabled(false);
+        setter(current.filter((item) => !isPlainOption(item)));
+        return;
+      }
+
+      if (!current.some(isPlainOption) && current.length >= limit) {
+        Alert.alert(
+          `${label} Limit`,
+          `Plain counts as one selection. Remove one ${label.toLowerCase()} before splitting with Plain.`
+        );
+        return;
+      }
+
+      setEnabled(true);
+      setter(
+        current.some(isPlainOption)
+          ? current.map((item) => (isPlainOption(item) ? PLAIN_OPTION_NAME : item))
+          : [PLAIN_OPTION_NAME, ...current]
+      );
+    },
+    []
+  );
 
   const validateOptionSelection = useCallback(
     (hasChoices, selectedOptions, maxCount, label) => {
@@ -383,10 +540,10 @@ const DishItemDetailsModal = ({
         return true;
       }
 
-      if (selectedOptions.length !== maxCount) {
+      if (!isOptionSelectionComplete(hasChoices, selectedOptions, maxCount)) {
         Alert.alert(
           `${label} Selection`,
-          `Please select exactly ${maxCount} ${label.toLowerCase()}${
+          `Please select at least 1 and no more than ${maxCount} ${label.toLowerCase()}${
             maxCount === 1 ? "" : "s"
           }.`
         );
@@ -502,12 +659,20 @@ const DishItemDetailsModal = ({
       selectedComboSides.length === comboSidesRequiredCount) &&
     (!hasDiscountComboSideChoices ||
       selectedDiscountComboSides.length === discountComboSidesRequiredCount) &&
-    (!hasFlavorChoices || selectedFlavors.length === flavorsMaxCount) &&
-    (!hasToppingChoices || selectedToppings.length === toppingsMaxCount) &&
+    isOptionSelectionComplete(hasFlavorChoices, selectedFlavors, flavorsMaxCount) &&
+    isOptionSelectionComplete(hasToppingChoices, selectedToppings, toppingsMaxCount) &&
     (!hasDiscountFlavorChoices ||
-      selectedDiscountFlavors.length === discountFlavorsMaxCount) &&
+      isOptionSelectionComplete(
+        hasDiscountFlavorChoices,
+        selectedDiscountFlavors,
+        discountFlavorsMaxCount
+      )) &&
     (!hasDiscountToppingChoices ||
-      selectedDiscountToppings.length === discountToppingsMaxCount) &&
+      isOptionSelectionComplete(
+        hasDiscountToppingChoices,
+        selectedDiscountToppings,
+        discountToppingsMaxCount
+      )) &&
     selectedSubItems.every(isChildSelectionComplete) &&
     selectedDiscountSubItems.every(isChildSelectionComplete);
 
@@ -747,7 +912,7 @@ const DishItemDetailsModal = ({
         {state.hasFlavorChoices ? (
           <View style={styles.childOptionGroup}>
             <Text style={styles.childOptionTitle}>
-              {`${sectionPrefix}: choose exactly ${state.flavorRequiredCount} flavor${
+              {`${sectionPrefix}: choose up to ${state.flavorRequiredCount} flavor${
                 state.flavorRequiredCount === 1 ? "" : "s"
               }`}
             </Text>
@@ -785,7 +950,7 @@ const DishItemDetailsModal = ({
         {state.hasToppingChoices ? (
           <View style={styles.childOptionGroup}>
             <Text style={styles.childOptionTitle}>
-              {`${sectionPrefix}: choose exactly ${state.toppingRequiredCount} topping${
+              {`${sectionPrefix}: choose up to ${state.toppingRequiredCount} topping${
                 state.toppingRequiredCount === 1 ? "" : "s"
               }`}
             </Text>
@@ -1213,10 +1378,25 @@ const DishItemDetailsModal = ({
             {hasFlavorChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose up to ${flavorsMaxCount} Flavor${
+                  {`Choose Plain or up to ${flavorsMaxCount} Flavor${
                     flavorsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
+                {flavorsMaxCount > 1 ? (
+                  <PlainSplitToggle
+                    enabled={splitPlainFlavor}
+                    onToggle={() =>
+                      toggleSplitPlain(
+                        splitPlainFlavor,
+                        setSplitPlainFlavor,
+                        selectedFlavors,
+                        setSelectedFlavors,
+                        flavorsMaxCount,
+                        "Flavor"
+                      )
+                    }
+                  />
+                ) : null}
                 {flavorOptions.map((option) => (
                   <OptionRow
                     key={option.name}
@@ -1226,8 +1406,10 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         optionName,
                         setSelectedFlavors,
+                        selectedFlavors,
                         flavorsMaxCount,
-                        "Flavor"
+                        "Flavor",
+                        splitPlainFlavor
                       )
                     }
                   />
@@ -1238,10 +1420,25 @@ const DishItemDetailsModal = ({
             {hasToppingChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose up to ${toppingsMaxCount} Topping${
+                  {`Choose Plain or up to ${toppingsMaxCount} Topping${
                     toppingsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
+                {toppingsMaxCount > 1 ? (
+                  <PlainSplitToggle
+                    enabled={splitPlainTopping}
+                    onToggle={() =>
+                      toggleSplitPlain(
+                        splitPlainTopping,
+                        setSplitPlainTopping,
+                        selectedToppings,
+                        setSelectedToppings,
+                        toppingsMaxCount,
+                        "Topping"
+                      )
+                    }
+                  />
+                ) : null}
                 {toppingOptions.map((option) => (
                   <OptionRow
                     key={option.name}
@@ -1251,8 +1448,10 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         optionName,
                         setSelectedToppings,
+                        selectedToppings,
                         toppingsMaxCount,
-                        "Topping"
+                        "Topping",
+                        splitPlainTopping
                       )
                     }
                   />
@@ -1276,6 +1475,7 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         option,
                         setSelectedComboSides,
+                        selectedComboSides,
                         comboSidesRequiredCount,
                         "Side"
                       )
@@ -1288,10 +1488,25 @@ const DishItemDetailsModal = ({
             {hasDiscountFlavorChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Discount item: choose up to ${discountFlavorsMaxCount} Flavor${
+                  {`Discount item: choose Plain or up to ${discountFlavorsMaxCount} Flavor${
                     discountFlavorsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
+                {discountFlavorsMaxCount > 1 ? (
+                  <PlainSplitToggle
+                    enabled={splitPlainDiscountFlavor}
+                    onToggle={() =>
+                      toggleSplitPlain(
+                        splitPlainDiscountFlavor,
+                        setSplitPlainDiscountFlavor,
+                        selectedDiscountFlavors,
+                        setSelectedDiscountFlavors,
+                        discountFlavorsMaxCount,
+                        "Discount item flavor"
+                      )
+                    }
+                  />
+                ) : null}
                 {discountFlavorOptions.map((option) => (
                   <OptionRow
                     key={`discount-flavor-${option.name}`}
@@ -1301,8 +1516,10 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         optionName,
                         setSelectedDiscountFlavors,
+                        selectedDiscountFlavors,
                         discountFlavorsMaxCount,
-                        "Discount item flavor"
+                        "Discount item flavor",
+                        splitPlainDiscountFlavor
                       )
                     }
                   />
@@ -1313,10 +1530,25 @@ const DishItemDetailsModal = ({
             {hasDiscountToppingChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Discount item: choose up to ${discountToppingsMaxCount} Topping${
+                  {`Discount item: choose Plain or up to ${discountToppingsMaxCount} Topping${
                     discountToppingsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
+                {discountToppingsMaxCount > 1 ? (
+                  <PlainSplitToggle
+                    enabled={splitPlainDiscountTopping}
+                    onToggle={() =>
+                      toggleSplitPlain(
+                        splitPlainDiscountTopping,
+                        setSplitPlainDiscountTopping,
+                        selectedDiscountToppings,
+                        setSelectedDiscountToppings,
+                        discountToppingsMaxCount,
+                        "Discount item topping"
+                      )
+                    }
+                  />
+                ) : null}
                 {discountToppingOptions.map((option) => (
                   <OptionRow
                     key={`discount-topping-${option.name}`}
@@ -1326,8 +1558,10 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         optionName,
                         setSelectedDiscountToppings,
+                        selectedDiscountToppings,
                         discountToppingsMaxCount,
-                        "Discount item topping"
+                        "Discount item topping",
+                        splitPlainDiscountTopping
                       )
                     }
                   />
@@ -1351,6 +1585,7 @@ const DishItemDetailsModal = ({
                       toggleOptionSelection(
                         option,
                         setSelectedDiscountComboSides,
+                        selectedDiscountComboSides,
                         discountComboSidesRequiredCount,
                         "Discount item side"
                       )
@@ -1871,6 +2106,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: AppColor.border,
+  },
+  plainSplitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  plainSplitText: {
+    flex: 1,
+    fontFamily: Mulish600,
+    fontSize: 14,
+    color: AppColor.text,
   },
   flavorName: {
     flex: 1,
