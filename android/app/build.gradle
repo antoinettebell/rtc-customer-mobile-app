@@ -80,10 +80,10 @@ android {
 
     namespace "com.ea.rtcuser"
     defaultConfig {
-        applicationId "com.rounddacorner.dev.customer"
+        applicationId "com.ea.rtcuser"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 49
+        versionCode 50
         versionName "1.6.1"
     }
     signingConfigs {

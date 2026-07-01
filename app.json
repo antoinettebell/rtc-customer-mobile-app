@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "RTC_DEV_CUSTOMER",
+    "name": "Round Da' Corner - Customer",
     "slug": "foodtruck",
     "scheme": "rtc-customer",
     "version": "1.6.1",
     "ios": {
-      "bundleIdentifier": "com.rounddacorner.dev.customer",
-      "buildNumber": "49",
+      "bundleIdentifier": "com.ea.rtcuser",
+      "buildNumber": "50",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -14,8 +14,8 @@
       }
     },
     "android": {
-      "package": "com.rounddacorner.dev.customer",
-      "versionCode": 49
+      "package": "com.ea.rtcuser",
+      "versionCode": 50
     },
     "extra": {
       "eas": {
