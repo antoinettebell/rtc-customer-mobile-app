@@ -397,7 +397,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ea.rtcuser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rounddacorner.dev.customer;
 				PRODUCT_NAME = foodtruck;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -431,7 +431,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ea.rtcuser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rounddacorner.dev.customer;
 				PRODUCT_NAME = foodtruck;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

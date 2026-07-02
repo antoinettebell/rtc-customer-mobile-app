@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.ea.rtcuser"
+    namespace "com.rounddacorner.dev.customer"
     defaultConfig {
-        applicationId "com.ea.rtcuser"
+        applicationId "com.rounddacorner.dev.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 55
@@ -103,12 +103,12 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            resValue "string", "build_config_package", "com.ea.rtcuser"
+            resValue "string", "build_config_package", "com.rounddacorner.dev.customer"
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            resValue "string", "build_config_package", "com.ea.rtcuser"
+            resValue "string", "build_config_package", "com.rounddacorner.dev.customer"
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
