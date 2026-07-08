@@ -75,6 +75,43 @@ export const formatMoney = (value) => {
 export const toggleListValue = (list, value) =>
   list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
+export const getMarketplaceMessageError = (value) => {
+  const text = String(value || "");
+  if (!text.trim()) return "";
+
+  const hasEmail = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text);
+  const hasUrl =
+    /\b(?:https?:\/\/|www\.)\S+/i.test(text) ||
+    /\b[A-Z0-9-]+\.(?:com|net|org|io|co|us|biz|info|me|app|food|catering)\b/i.test(
+      text,
+    );
+  const hasPhone = /(?:\+?1[\s-.]*)?(?:\(?\d{3}\)?[\s-.]*)\d{3}[\s-.]*\d{4}\b/.test(
+    text,
+  );
+  const hasSocialOrPayment =
+    /\b(?:insta|instagram|ig|fb|facebook|meta|twitter|x|whatsapp|whats\s*app|cash\s*app|cashapp|paypal|pay\s*pal|venmo|zelle)\b/i.test(
+      text,
+    );
+  const hasContactRequest =
+    /\b(?:call|text|dm|message|email|reach|contact)\s+(?:me|us|my|our)\b/i.test(
+      text,
+    ) ||
+    /\b(?:find|follow|add|look\s+up)\s+(?:me|us)\s+on\b/i.test(text) ||
+    /\b(?:my|our)\s+(?:number|phone|email|cell|mobile|handle|username|user\s*name|cash\s*app|paypal|zelle)\b/i.test(
+      text,
+    );
+  const hasSocialHandle = /(^|\s)@[A-Z0-9_.-]{2,}/i.test(text);
+
+  return hasEmail ||
+    hasUrl ||
+    hasPhone ||
+    hasSocialOrPayment ||
+    hasContactRequest ||
+    hasSocialHandle
+    ? "Messages cannot include contact info, social handles, payment handles, or requests to connect outside RTC."
+    : "";
+};
+
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -174,6 +211,13 @@ export const styles = StyleSheet.create({
     minHeight: 92,
     textAlignVertical: "top",
   },
+  errorText: {
+    fontFamily: Mulish400,
+    color: AppColor.red,
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 17,
+  },
   row: {
     flexDirection: "row",
     gap: 10,
@@ -213,6 +257,9 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: AppColor.primary,
     paddingHorizontal: 16,
+  },
+  buttonDisabled: {
+    backgroundColor: AppColor.likePlaceholder,
   },
   buttonText: {
     fontFamily: Mulish700,

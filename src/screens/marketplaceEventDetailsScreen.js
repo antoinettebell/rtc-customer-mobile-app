@@ -28,7 +28,12 @@ import {
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
 import ImageCarousel from "../components/ImageCarousel";
-import { formatDate, formatMoney, styles } from "./marketplaceShared";
+import {
+  formatDate,
+  formatMoney,
+  getMarketplaceMessageError,
+  styles,
+} from "./marketplaceShared";
 
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
@@ -448,8 +453,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleAnswerQuestion = async (questionId) => {
     const answerText = String(answerDrafts[questionId] || "").trim();
+    const answerError = getMarketplaceMessageError(answerText);
     if (!answerText) {
       Alert.alert("Messages", "Enter a response before posting.");
+      return;
+    }
+    if (answerError) {
+      Alert.alert("Messages", answerError);
       return;
     }
 
@@ -492,6 +502,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       ) : questions.length ? (
         questions.map((question) => {
           const canAnswer = question.status === "PENDING" && !qaArchived;
+          const answerError = getMarketplaceMessageError(
+            answerDrafts[question.question_id],
+          );
           return (
             <View
               key={question.question_id}
@@ -524,12 +537,20 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                     placeholder="Response"
                     placeholderTextColor={AppColor.textHighlighter}
                     multiline
-                    style={[styles.input, styles.textarea, { marginTop: 12 }]}
-                  />
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={[styles.button, { marginTop: 10 }]}
-                    disabled={answeringId === question.question_id}
+	                    style={[styles.input, styles.textarea, { marginTop: 12 }]}
+	                  />
+	                  {!!answerError && (
+	                    <Text style={styles.errorText}>{answerError}</Text>
+	                  )}
+	                  <TouchableOpacity
+	                    activeOpacity={0.7}
+	                    style={[
+	                      styles.button,
+	                      { marginTop: 10 },
+	                      (answeringId === question.question_id || !!answerError) &&
+	                        styles.buttonDisabled,
+	                    ]}
+	                    disabled={answeringId === question.question_id || !!answerError}
                     onPress={() => handleAnswerQuestion(question.question_id)}
                   >
                     <Text style={styles.buttonText}>
