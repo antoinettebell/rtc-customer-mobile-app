@@ -19,6 +19,17 @@
         "API_PREFIX": "/api/v1"
       }
     },
+    "testflight": {
+      "autoIncrement": true,
+      "env": {
+        "API_URL": "http://157.245.6.61:8000",
+        "API_PREFIX": "/api/v1",
+        "APP_ENV": "development"
+      },
+      "ios": {
+        "image": "latest"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {
@@ -31,6 +42,7 @@
     }
   },
   "submit": {
+    "testflight": {},
     "production": {}
   }
 }
