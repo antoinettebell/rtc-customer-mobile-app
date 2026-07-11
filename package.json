@@ -7,7 +7,8 @@
     "ios": "react-native run-ios",
     "lint": "eslint App.js src/apiFolder/apiEndPoint.js src/apiFolder/appAPI.js src/screens/profileMenuScreen.js src/screens/marketplace*.js",
     "start": "react-native start --reset-cache",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "eas-build-pre-install": "node scripts/write-eas-env.js"
   },
   "dependencies": {
     "@d11/react-native-fast-image": "8.11.1",
