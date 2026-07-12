@@ -21,7 +21,6 @@ import {
   getMarketplaceEventById_API,
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
-  answerMarketplaceEventQuestion_API,
   closeMarketplaceEvent_API,
   reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
@@ -31,7 +30,6 @@ import ImageCarousel from "../components/ImageCarousel";
 import {
   formatDate,
   formatMoney,
-  getMarketplaceMessageError,
   styles,
 } from "./marketplaceShared";
 
@@ -77,6 +75,16 @@ const getRecordDocuments = (record) => [
 
 const isRecordPaymentFulfilled = (record) =>
   ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED");
+
+const hasEventDatePassed = (eventDate) => {
+  if (!eventDate) return false;
+  const date = new Date(eventDate);
+  if (Number.isNaN(date.getTime())) return false;
+  date.setHours(23, 59, 59, 999);
+  return date < new Date();
+};
+
+const formatPayloadDate = (date) => date.toISOString().slice(0, 10);
 
 const getServiceSpecificRows = (event) => {
   if (!event) return [];
@@ -172,6 +180,26 @@ const safeStyles = StyleSheet.create({
   modalActionButton: {
     flex: 1,
   },
+  sectionControls: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  sectionControlButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    backgroundColor: AppColor.white,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 });
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
@@ -180,27 +208,25 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
-  const [qaArchived, setQaArchived] = useState(false);
-  const [qaLoading, setQaLoading] = useState(false);
-  const [answerDrafts, setAnswerDrafts] = useState({});
-  const [answeringId, setAnsweringId] = useState(null);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    overview: true,
+    requirements: true,
+    budget: true,
+    visibility: true,
+  });
 
   const loadQuestions = async () => {
     if (!eventId || customerSafe) return;
-    setQaLoading(true);
     try {
       const response = await getMarketplaceEventQuestions_API(eventId);
       if (response?.success) {
         setQuestions(response.data?.marketplaceQuestionList || []);
-        setQaArchived(!!response.data?.qa_archived);
       }
     } catch (error) {
       console.log("Marketplace messages error", error);
-    } finally {
-      setQaLoading(false);
     }
   };
 
@@ -245,6 +271,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isClosed = event?.status === "CLOSED";
   const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
+  const canEditEvent = !["AWARDED", "CANCELLED"].includes(eventStatus);
   const submissionCount = Number(
     event?.submission_count ?? event?.final_submission_count ?? 0
   );
@@ -281,34 +308,53 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       console.log("Marketplace ticket click tracking error", error);
     }
 
-    try {
-      await Linking.openURL(ticketUrl);
-    } catch (error) {
-      Alert.alert("Tickets", "Unable to open the ticket sales link.");
-    }
+    navigation.navigate("marketplaceTicketWebViewScreen", {
+      url: ticketUrl,
+      title: event?.event_name || "Tickets",
+    });
   };
 
   const handleReopenEvent = () => {
     if (!event) return;
+    const eventDatePassed = hasEventDatePassed(event.event_date);
+    if (eventDatePassed) {
+      navigation.navigate("marketplaceCreateEventScreen", {
+        eventId,
+        draftEvent: {
+          ...event,
+          status: "OPEN",
+          event_date: "",
+          event_close_date: "",
+          event_close_time: "",
+        },
+        reopenMode: true,
+      });
+      return;
+    }
+
     Alert.alert(
       "Reopen Bidding",
-      "This will reopen the event with a new 7-day submission window. Previous submitters remain visible but cannot submit again.",
+      "This will reopen bidding and move you to the event editor. Previous submissions remain visible for comparison, but previous submitters cannot submit again.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Reopen",
+          text: "Reopen & Edit",
           onPress: async () => {
             setLoading(true);
             try {
               const closeDate = new Date();
               closeDate.setDate(closeDate.getDate() + 7);
+              const eventDate = event.event_date ? new Date(event.event_date) : null;
+              if (eventDate && !Number.isNaN(eventDate.getTime()) && closeDate > eventDate) {
+                closeDate.setTime(eventDate.getTime());
+              }
               const payload = {
                 ...event,
                 event_date: event.event_date
-                  ? new Date(event.event_date).toISOString().slice(0, 10)
+                  ? formatPayloadDate(new Date(event.event_date))
                   : "",
-                event_close_date: closeDate.toISOString().slice(0, 10),
-                event_close_time: "11:59 PM",
+                event_close_date: formatPayloadDate(closeDate),
+                event_close_time: event.event_close_time || "11:59 PM",
                 event_time: event.event_time || "12:00 PM",
                 service_types:
                   event.service_types?.length
@@ -336,7 +382,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 payload,
               });
               if (response?.success) {
-                setEvent(response.data?.marketplaceEvent);
+                const reopenedEvent = response.data?.marketplaceEvent;
+                setEvent(reopenedEvent);
+                navigation.navigate("marketplaceCreateEventScreen", {
+                  eventId,
+                  draftEvent: reopenedEvent,
+                  reopenMode: true,
+                });
               }
             } catch (error) {
               Alert.alert(
@@ -451,124 +503,81 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleAnswerQuestion = async (questionId) => {
-    const answerText = String(answerDrafts[questionId] || "").trim();
-    const answerError = getMarketplaceMessageError(answerText);
-    if (!answerText) {
-      Alert.alert("Messages", "Enter a response before posting.");
-      return;
-    }
-    if (answerError) {
-      Alert.alert("Messages", answerError);
-      return;
-    }
+  const sectionKeys = ["overview", "requirements", "budget", "visibility"];
 
-    setAnsweringId(questionId);
-    try {
-      const response = await answerMarketplaceEventQuestion_API({
-        eventId,
-        questionId,
-        answerText,
-      });
-      if (response?.success) {
-        setAnswerDrafts((prev) => ({ ...prev, [questionId]: "" }));
-        await loadQuestions();
-      } else if (response?.message) {
-        Alert.alert("Messages", response.message);
-      }
-    } catch (error) {
-      Alert.alert("Messages", error?.message || "Unable to post response.");
-    } finally {
-      setAnsweringId(null);
-    }
+  const toggleSection = (key) => {
+    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const renderMessages = () => (
-    <View style={styles.card}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={styles.title}>Messages</Text>
-        {qaArchived ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>ARCHIVED</Text>
-          </View>
-        ) : null}
-      </View>
-      {qaLoading ? (
-        <ActivityIndicator
-          color={AppColor.primary}
-          size="small"
-          style={{ marginTop: 16 }}
-        />
-      ) : questions.length ? (
-        questions.map((question) => {
-          const canAnswer = question.status === "PENDING" && !qaArchived;
-          const answerError = getMarketplaceMessageError(
-            answerDrafts[question.question_id],
-          );
-          return (
-            <View
-              key={question.question_id}
-              style={{
-                borderTopWidth: 1,
-                borderTopColor: AppColor.borderColor,
-                marginTop: 14,
-                paddingTop: 14,
-              }}
-            >
-              <Text style={styles.label}>{question.vendor_display_id}</Text>
-              <Text style={styles.meta}>
-                {question.question_text || "Blocked by RTC moderation."}
-              </Text>
-              {question.answer_text ? (
-                <>
-                  <Text style={styles.label}>Coordinator Response</Text>
-                  <Text style={styles.meta}>{question.answer_text}</Text>
-                </>
-              ) : canAnswer ? (
-                <>
-                  <TextInput
-                    value={answerDrafts[question.question_id] || ""}
-                    onChangeText={(text) =>
-                      setAnswerDrafts((prev) => ({
-                        ...prev,
-                        [question.question_id]: text,
-                      }))
-                    }
-                    placeholder="Response"
-                    placeholderTextColor={AppColor.textHighlighter}
-                    multiline
-	                    style={[styles.input, styles.textarea, { marginTop: 12 }]}
-	                  />
-	                  {!!answerError && (
-	                    <Text style={styles.errorText}>{answerError}</Text>
-	                  )}
-	                  <TouchableOpacity
-	                    activeOpacity={0.7}
-	                    style={[
-	                      styles.button,
-	                      { marginTop: 10 },
-	                      (answeringId === question.question_id || !!answerError) &&
-	                        styles.buttonDisabled,
-	                    ]}
-	                    disabled={answeringId === question.question_id || !!answerError}
-                    onPress={() => handleAnswerQuestion(question.question_id)}
-                  >
-                    <Text style={styles.buttonText}>
-                      {answeringId === question.question_id ? "Posting..." : "Post Answer"}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <Text style={styles.meta}>Awaiting response.</Text>
-              )}
-            </View>
-          );
-        })
-      ) : (
-        <Text style={styles.emptyText}>No messages yet.</Text>
-      )}
+  const setAllSectionsExpanded = (expanded) => {
+    setExpandedSections(
+      sectionKeys.reduce((next, key) => ({ ...next, [key]: expanded }), {})
+    );
+  };
+
+  const renderSectionControls = () => (
+    <View style={safeStyles.sectionControls}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={safeStyles.sectionControlButton}
+        onPress={() => setAllSectionsExpanded(true)}
+      >
+        <Text style={styles.secondaryButtonText}>Expand All</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={safeStyles.sectionControlButton}
+        onPress={() => setAllSectionsExpanded(false)}
+      >
+        <Text style={styles.secondaryButtonText}>Collapse All</Text>
+      </TouchableOpacity>
     </View>
   );
+
+  const renderCollapsibleSection = (key, title, children) => (
+    <View style={styles.card}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={safeStyles.sectionHeaderRow}
+        onPress={() => toggleSection(key)}
+      >
+        <Text style={styles.title}>{title}</Text>
+        <MaterialIcons
+          name={expandedSections[key] ? "expand-less" : "expand-more"}
+          size={24}
+          color={AppColor.primary}
+        />
+      </TouchableOpacity>
+      {expandedSections[key] ? children : null}
+    </View>
+  );
+
+  const renderMessagesEntry = () => {
+    const unreadCount = questions.filter((question) => question.unread).length;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={styles.card}
+        onPress={() =>
+          navigation.navigate("marketplaceEventMessagesScreen", { eventId })
+        }
+      >
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={styles.title}>Messages</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {unreadCount ? `${unreadCount} UNREAD` : "READ"}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.meta}>
+          {questions.length
+            ? "Open event messages and vendor questions."
+            : "No messages yet."}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderAwardedDocuments = () => {
     if (!canViewAwardedDocs) return null;
@@ -749,8 +758,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle="Event Details" rightSide={isDraft}>
-        {isDraft ? (
+      <AppHeader headerTitle="Event Details" rightSide={canEditEvent}>
+        {canEditEvent ? (
           <TouchableOpacity
             activeOpacity={0.7}
             style={safeStyles.headerAction}
@@ -766,7 +775,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
-          <View style={styles.card}>
+          {renderMessagesEntry()}
+          {renderSectionControls()}
+          {renderCollapsibleSection("overview", "Event Details", (
+            <>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={[styles.title, { flex: 1, paddingRight: 8 }]}>
                 {event?.event_name || "Event"}
@@ -782,10 +794,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Location"
               value={`${event?.event_address || ""}, ${event?.event_city || ""}, ${event?.event_state || ""} ${event?.event_zip || ""}`}
             />
-          </View>
+            </>
+          ))}
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Event Requirements</Text>
+          {renderCollapsibleSection("requirements", "Event Requirements", (
+            <>
             <DetailRow label="Event Type" value={event?.event_type} />
             <DetailRow label="Event Style" value={event?.event_style} />
             <DetailRow label="Service Type" value={event?.service_type} />
@@ -822,10 +835,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Equipment"
               value={listValue(event?.equipment_needed)}
             />
-          </View>
+            </>
+          ))}
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Budget</Text>
+          {renderCollapsibleSection("budget", "Budget", (
+            <>
             <DetailRow label="Vendor Fee" value={formatMoney(event?.vendor_fee)} />
             <DetailRow label="Who Pays" value={event?.payment_responsibility || "Not set"} />
             <DetailRow
@@ -854,10 +868,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Agreement"
               value={event?.agreement_status || "NOT_REQUIRED"}
             />
-          </View>
+            </>
+          ))}
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Event Visibility</Text>
+          {renderCollapsibleSection("visibility", "Event Visibility", (
+            <>
             <DetailRow
               label="Event Views"
               value={String(event?.event_impression_count || 0)}
@@ -866,12 +881,12 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Ticket Clicks"
               value={String(event?.ticket_click_count || 0)}
             />
-          </View>
+            </>
+          ))}
 
           {renderAwardedDocuments()}
           {renderCoordinatorActions()}
 
-          {renderMessages()}
         </ScrollView>
       )}
       <Modal

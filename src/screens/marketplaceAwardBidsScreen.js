@@ -168,26 +168,41 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     const selected = selectedBidIds.includes(item.bid_id);
     const locked = ["AWARDED", "NOT_AWARDED", "WITHDRAWN"].includes(
       item.bid_status
-    );
+    ) || !!item.archived_at;
 
     return (
       <TouchableOpacity
-        activeOpacity={locked ? 1 : 0.8}
+        activeOpacity={0.8}
         style={[
           styles.card,
           selected ? { borderColor: AppColor.primary, backgroundColor: "#FFF8F1" } : null,
         ]}
-        onPress={() => toggleBid(item)}
+        onPress={() =>
+          navigation.navigate("marketplaceSubmissionDetailsScreen", {
+            submission: item,
+            submissionType: "Bid",
+          })
+        }
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <MaterialIcons
-            name={selected ? "check-circle" : "radio-button-unchecked"}
-            size={24}
-            color={selected ? AppColor.primary : AppColor.gray}
-          />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            disabled={locked}
+            onPress={() => toggleBid(item)}
+          >
+            <MaterialIcons
+              name={selected ? "check-circle" : "radio-button-unchecked"}
+              size={24}
+              color={selected ? AppColor.primary : AppColor.gray}
+            />
+          </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.title}>{getVendorName(item)}</Text>
             <Text style={styles.meta}>Bid {formatMoney(item.full_bid_amount)}</Text>
+            <Text style={styles.meta}>
+              Round {item.submission_round || 1}
+              {item.archived_at ? " • Previous submission" : ""}
+            </Text>
           </View>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{item.bid_status}</Text>
@@ -220,16 +235,32 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           Insurance: {item.insurance_confirmed ? "Confirmed" : "Not confirmed"} •
           Permits: {item.permits_confirmed ? " Confirmed" : " Not confirmed"}
         </Text>
+        <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>
+          Review full proposal
+        </Text>
       </TouchableOpacity>
     );
   };
 
   const renderApplication = (item) => (
-    <View key={item.application_id} style={styles.card}>
+    <TouchableOpacity
+      key={item.application_id}
+      activeOpacity={0.8}
+      style={styles.card}
+      onPress={() =>
+        navigation.navigate("marketplaceSubmissionDetailsScreen", {
+          submission: item,
+          submissionType: "Application",
+        })
+      }
+    >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{getVendorName(item)}</Text>
-          <Text style={styles.meta}>Application round {item.submission_round || 1}</Text>
+          <Text style={styles.meta}>
+            Application round {item.submission_round || 1}
+            {item.archived_at ? " • Previous submission" : ""}
+          </Text>
         </View>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{item.application_status}</Text>
@@ -245,7 +276,10 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       {item.image_urls?.length ? (
         <Text style={styles.meta}>Food/Menu Images: {item.image_urls.length} uploaded</Text>
       ) : null}
-    </View>
+      <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>
+        Review full application
+      </Text>
+    </TouchableOpacity>
   );
 
   const awardLocked = ["AWARDED", "CLOSED", "CANCELLED"].includes(

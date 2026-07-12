@@ -89,7 +89,7 @@ const initialForm = {
   geocoding_provider: "",
   geocoded_at: "",
   number_of_guests: "",
-  number_of_vendors_needed: "",
+  number_of_vendors_needed: "1",
   power_required: [],
   permits_required: [],
   insurance_required: false,
@@ -277,6 +277,7 @@ const isValidUrl = (value) => {
 
 const getAutoFoodTruckVendorCount = (guestCount) =>
   Math.max(1, Math.ceil(Number(guestCount || 0) / 100));
+const getDefaultVendorCount = (value) => String(Math.max(1, Number(value || 1)));
 
 const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
 const isCoordinatorBudgetRequired = (form) =>
@@ -374,6 +375,19 @@ const parseTimeFieldValue = (value) => {
   if (period === "AM" && hours === 12) hours = 0;
 
   date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+const combineFormDateTime = (dateValue, timeValue, fallbackEndOfDay = false) => {
+  if (!dateValue) return null;
+  const date = parseDateFieldValue(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const time = parseTimeFieldValue(timeValue);
+  if (timeValue && !Number.isNaN(time.getTime())) {
+    date.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  } else if (fallbackEndOfDay) {
+    date.setHours(23, 59, 59, 999);
+  }
   return date;
 };
 
@@ -1166,8 +1180,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
   const draftEvent = route?.params?.draftEvent;
+  const isReopenMode = !!route?.params?.reopenMode;
   const eventAddressMapRef = useRef(null);
   const eventAddressSearchRef = useRef(null);
+  const formScrollRef = useRef(null);
+  const vendorNeedsYRef = useRef(0);
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1213,9 +1230,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   useEffect(() => {
     setForm((prev) => {
       if (!isFoodTruckService(prev)) {
-        return prev.number_of_vendors_needed === ""
+        return Number(prev.number_of_vendors_needed || 0) >= 1
           ? prev
-          : { ...prev, number_of_vendors_needed: "" };
+          : { ...prev, number_of_vendors_needed: "1" };
       }
 
       return {
@@ -1292,7 +1309,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             );
             autoFoodTruckStyleRef.current = false;
           }
-          next.number_of_vendors_needed = "";
+          next.number_of_vendors_needed = getDefaultVendorCount(
+            prev.number_of_vendors_needed
+          );
         }
       }
 
@@ -1586,10 +1605,37 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
-    if (isFoodTruckService(form) && Number(form.number_of_vendors_needed || 0) < 1) {
+    if (Number(form.number_of_vendors_needed || 0) < 1) {
       setSnackbar({
         visible: true,
         message: "Vendors Needed must be at least 1.",
+      });
+      return false;
+    }
+    const eventDateTime = combineFormDateTime(form.event_date, form.event_time, true);
+    const closeDateTime = combineFormDateTime(
+      form.event_close_date,
+      form.event_close_time,
+      true
+    );
+    if (!eventDateTime || eventDateTime <= new Date()) {
+      setSnackbar({
+        visible: true,
+        message: "Event date/time must be in the future.",
+      });
+      return false;
+    }
+    if (!closeDateTime || closeDateTime <= new Date()) {
+      setSnackbar({
+        visible: true,
+        message: "Close date/time must be in the future.",
+      });
+      return false;
+    }
+    if (closeDateTime >= eventDateTime) {
+      setSnackbar({
+        visible: true,
+        message: "Close date/time must be before the event date/time.",
       });
       return false;
     }
@@ -1666,9 +1712,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       primary_service_style:
         form.primary_service_style || form.service_styles[0] || form.event_style || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
-      number_of_vendors_needed: isFoodTruckService(form) && form.number_of_guests
-        ? getAutoFoodTruckVendorCount(form.number_of_guests)
-        : null,
+      number_of_vendors_needed:
+        isFoodTruckService(form) && form.number_of_guests
+          ? getAutoFoodTruckVendorCount(form.number_of_guests)
+          : Number(form.number_of_vendors_needed || 1),
       plated_number_of_courses: form.plated_number_of_courses
         ? form.plated_number_of_courses
         : null,
@@ -1781,16 +1828,28 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleSubmitConfirmation = () => {
-    if (loading) return;
+  const scrollToVendorNeeds = () => {
+    formScrollRef.current?.scrollTo({
+      y: Math.max(0, vendorNeedsYRef.current - 20),
+      animated: true,
+    });
+  };
 
+  const continueSubmitConfirmation = () => {
     Alert.alert(
       "Submit Event",
       "By submitting this event you agree to the following terms and conditions. Do you wish to proceed?",
       [
         {
           text: "Yes",
-          onPress: () => handleSubmit("OPEN"),
+          onPress: () =>
+            handleSubmit("OPEN", {
+              navigateToDetails: isReopenMode,
+              replaceDetails: isReopenMode,
+              successMessage: isReopenMode
+                ? "Event dates and details have been updated."
+                : undefined,
+            }),
         },
         {
           text: "No",
@@ -1804,6 +1863,34 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         },
       ]
     );
+  };
+
+  const handleSubmitConfirmation = () => {
+    if (loading) return;
+
+    if (
+      form.event_visibility === "PRIVATE" &&
+      Number(form.number_of_vendors_needed || 0) === 1
+    ) {
+      Alert.alert(
+        "Confirm Vendor Count",
+        "You have selected only one vendor for this private event. Are you sure you only need one vendor?",
+        [
+          {
+            text: "Yes",
+            onPress: continueSubmitConfirmation,
+          },
+          {
+            text: "No",
+            style: "cancel",
+            onPress: scrollToVendorNeeds,
+          },
+        ]
+      );
+      return;
+    }
+
+    continueSubmitConfirmation();
   };
 
   const handleDeleteDraft = () => {
@@ -2948,17 +3035,17 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         })}
       </View>
       <View style={localStyles.sideField}>
-        {foodTruckSelected ? renderInput("Vendors Needed *", "number_of_vendors_needed", {
+        {renderInput("Vendors Needed *", "number_of_vendors_needed", {
           keyboardType: "number-pad",
-          editable: false,
-        }) : null}
+          editable: !foodTruckSelected,
+        })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
             Vendors needed is calculated automatically at one vendor per 100 guests.
           </Text>
         ) : (
           <Text style={styles.meta}>
-            Vendors needed only applies when Food Truck is selected.
+            Vendors needed defaults to one and can be updated before submission.
           </Text>
         )}
       </View>
@@ -2974,6 +3061,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         style={{ flex: 1 }}
       >
         <ScrollView
+          ref={formScrollRef}
           contentContainerStyle={localStyles.body}
           keyboardShouldPersistTaps="handled"
         >
@@ -3010,7 +3098,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          <View style={localStyles.card}>
+          <View
+            style={localStyles.card}
+            onLayout={(event) => {
+              vendorNeedsYRef.current = event.nativeEvent.layout.y;
+            }}
+          >
             {renderSectionHeader("Location", "place")}
             {renderAddressInput()}
             <View style={localStyles.sideBySide}>

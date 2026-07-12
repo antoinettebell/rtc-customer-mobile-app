@@ -63,11 +63,18 @@ import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
+import MarketplaceMyEventsScreen from "./src/screens/marketplaceMyEventsScreen";
+import MarketplaceCreateEventScreen from "./src/screens/marketplaceCreateEventScreen";
+import MarketplaceEventDetailsScreen from "./src/screens/marketplaceEventDetailsScreen";
+import MarketplaceEventMessagesScreen from "./src/screens/marketplaceEventMessagesScreen";
+import MarketplaceSubmissionDetailsScreen from "./src/screens/marketplaceSubmissionDetailsScreen";
+import MarketplaceTicketWebViewScreen from "./src/screens/marketplaceTicketWebViewScreen";
+import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
+import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
 import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
-const EVENT_MARKETPLACE_ENABLED = false;
 
 const linking = {
   prefixes: ["rtc-customer://"],
@@ -120,18 +127,6 @@ const AuthRequiredScreen = ({ title }) => {
   );
 };
 
-const FeatureComingSoonScreen = () => (
-  <SafeAreaView style={styles.authRequiredContainer}>
-    <View style={styles.authRequiredContent}>
-      <MaterialIcons name="event-note" size={44} color={AppColor.primary} />
-      <Text style={styles.authRequiredTitle}>Feature Coming Soon</Text>
-      <Text style={styles.authRequiredMessage}>
-        Event Marketplace is being finalized and will be available in a future update.
-      </Text>
-    </View>
-  </SafeAreaView>
-);
-
 const AuthNavigator = () => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
@@ -153,8 +148,7 @@ const AuthNavigator = () => (
 const BottomNavigator = ({ insets }) => {
   const { isSignedIn } = useSelector((state) => state.authReducer);
   const { user } = useSelector((state) => state.userReducer);
-  const showEventMarketplace =
-    EVENT_MARKETPLACE_ENABLED && isSignedIn && !!user?.isEventCoordinator;
+  const showEventMarketplace = isSignedIn && !!user?.isEventCoordinator;
 
   return (
     <BottomTab.Navigator
@@ -299,23 +293,35 @@ const AppNavigator = ({ insets }) => (
     />
     <Stack.Screen
       name="marketplaceMyEventsScreen"
-      component={FeatureComingSoonScreen}
+      component={MarketplaceMyEventsScreen}
     />
     <Stack.Screen
       name="marketplaceCreateEventScreen"
-      component={FeatureComingSoonScreen}
+      component={MarketplaceCreateEventScreen}
     />
     <Stack.Screen
       name="marketplaceEventDetailsScreen"
-      component={FeatureComingSoonScreen}
+      component={MarketplaceEventDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceEventMessagesScreen"
+      component={MarketplaceEventMessagesScreen}
+    />
+    <Stack.Screen
+      name="marketplaceSubmissionDetailsScreen"
+      component={MarketplaceSubmissionDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceTicketWebViewScreen"
+      component={MarketplaceTicketWebViewScreen}
     />
     <Stack.Screen
       name="marketplaceAwardBidsScreen"
-      component={FeatureComingSoonScreen}
+      component={MarketplaceAwardBidsScreen}
     />
     <Stack.Screen
       name="marketplacePaymentScreen"
-      component={FeatureComingSoonScreen}
+      component={MarketplacePaymentScreen}
     />
   </Stack.Navigator>
 );

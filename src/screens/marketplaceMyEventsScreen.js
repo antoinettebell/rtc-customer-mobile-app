@@ -11,6 +11,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AntDesign from "react-native-vector-icons/AntDesign";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
@@ -26,6 +27,13 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const visibleEvents = statusFilter
     ? events.filter((event) => event.status === statusFilter)
     : events;
+  const notificationCount = visibleEvents.reduce(
+    (total, event) =>
+      total +
+      Number(event.unread_message_count || 0) +
+      Number(event.unseen_submission_count || 0),
+    0
+  );
 
   const loadEvents = async () => {
     setLoading(true);
@@ -174,6 +182,13 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
       <Text style={styles.meta}>
         {item.bid_count || 0} bids • Budget {formatMoney(item.budgeted_amount)}
       </Text>
+      {Number(item.unread_message_count || 0) ||
+      Number(item.unseen_submission_count || 0) ? (
+        <Text style={[styles.meta, { color: AppColor.primary, marginTop: 8 }]}>
+          {Number(item.unread_message_count || 0)} unread message(s) •{" "}
+          {Number(item.unseen_submission_count || 0)} new bid/application(s)
+        </Text>
+      ) : null}
     </TouchableOpacity>
   );
 
@@ -185,13 +200,42 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
         rightSide={!statusFilter}
       >
         {!statusFilter ? (
-          <TouchableOpacity
-            hitSlop={10}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
-          >
-            <AntDesign name="plussquareo" size={22} color={AppColor.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <View style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+              <MaterialIcons
+                name={notificationCount ? "notifications-active" : "notifications-none"}
+                size={24}
+                color={notificationCount ? AppColor.primary : AppColor.gray}
+              />
+              {notificationCount ? (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -3,
+                    right: -5,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    paddingHorizontal: 3,
+                    backgroundColor: AppColor.primary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: AppColor.white, fontSize: 10, fontWeight: "700" }}>
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              hitSlop={10}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("marketplaceCreateEventScreen")}
+            >
+              <AntDesign name="plussquareo" size={22} color={AppColor.primary} />
+            </TouchableOpacity>
+          </View>
         ) : null}
       </AppHeader>
       {loading && !refreshing ? (

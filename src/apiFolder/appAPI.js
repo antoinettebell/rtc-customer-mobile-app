@@ -981,11 +981,15 @@ export const getMarketplaceEventBids_API = async (eventId) => {
   }
 };
 
-export const getMarketplaceEventQuestions_API = async (eventId) => {
+export const getMarketplaceEventQuestions_API = async (eventId, options = {}) => {
   try {
-    const response = await apiClient.get(MARKETPLACE_EVENT_QUESTIONS(eventId), {
-      skipToken: false,
-    });
+    const query = options.markRead ? "?markRead=true" : "";
+    const response = await apiClient.get(
+      `${MARKETPLACE_EVENT_QUESTIONS(eventId)}${query}`,
+      {
+        skipToken: false,
+      }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

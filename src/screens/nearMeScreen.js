@@ -27,15 +27,17 @@ import AppImage from "../components/AppImage";
 import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
+import { EVENT_TYPES } from "./marketplaceShared";
 
 const { width, height } = Dimensions.get("window");
-const EVENT_MARKETPLACE_ENABLED = false;
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "food", label: "Food" },
+  { key: "events", label: "Events" },
   { key: "cuisine", label: "Cuisine" },
 ];
-const HERO_COPY = "Find amazing food \uD83C\uDF7D\uFE0F near you today!";
+const HERO_COPY =
+  "Find amazing events \uD83C\uDFAA and food \uD83C\uDF7D\uFE0F near you today!";
 const TENT_ICON = "\uD83C\uDFAA";
 
 // Set up geolocation for navigator
@@ -61,8 +63,7 @@ const getItemLongitude = (item) =>
 
 const getResultTypeForFilter = (filter) => {
   if (filter === "food" || filter === "cuisine") return "FOOD";
-  if (EVENT_MARKETPLACE_ENABLED && filter === "events") return "EVENT";
-  if (!EVENT_MARKETPLACE_ENABLED) return "FOOD";
+  if (filter === "events") return "EVENT";
   return "ALL";
 };
 
@@ -96,6 +97,7 @@ const NearMeScreen = ({ navigation }) => {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [cuisineOptions, setCuisineOptions] = useState([]);
   const [selectedCuisineIds, setSelectedCuisineIds] = useState([]);
+  const [selectedEventTypes, setSelectedEventTypes] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fetchError, setFetchError] = useState("");
   const [tempSelectedLocation, setTempSelectedLocation] =
@@ -127,16 +129,14 @@ const NearMeScreen = ({ navigation }) => {
         search: debouncedQuery,
         type: getResultTypeForFilter(selectedFilter),
         cuisineIds: selectedFilter === "cuisine" ? selectedCuisineIds : [],
-        eventTypes: [],
+        eventTypes: selectedFilter === "events" ? selectedEventTypes : [],
         eventVisibility: "PUBLIC",
       };
 
       const response = await getNearMeResults_API(params);
 
       if (response?.success && response?.data) {
-        const items = EVENT_MARKETPLACE_ENABLED
-          ? response.data.nearMeList || []
-          : (response.data.nearMeList || []).filter((item) => item.type !== "EVENT");
+        const items = response.data.nearMeList || [];
         setNearMeItems(items);
         const firstMappableItem = items.find(
           (item) => getItemLatitude(item) != null && getItemLongitude(item) != null
@@ -185,6 +185,14 @@ const NearMeScreen = ({ navigation }) => {
       current.includes(cuisineId)
         ? current.filter((item) => item !== cuisineId)
         : [...current, cuisineId]
+    );
+  };
+
+  const toggleEventTypeFilter = (eventType) => {
+    setSelectedEventTypes((current) =>
+      current.includes(eventType)
+        ? current.filter((item) => item !== eventType)
+        : [...current, eventType]
     );
   };
 
@@ -290,9 +298,26 @@ const NearMeScreen = ({ navigation }) => {
                 {item.title || item.name}
               </Text>
               <Text style={styles.statusBadgeText}>
-                {`(${item?.raw?.currentLocation ? " Open " : " Closed "})`}
+                {`(${
+                  ["OPEN_TRUCK_UNIT", "CURRENT_LOCATION"].includes(
+                    item.location_source
+                  )
+                    ? " Open "
+                    : " Closed "
+                })`}
               </Text>
             </View>
+            {item.truck_unit_name ? (
+              <Text style={styles.horizontalDistanceText} numberOfLines={1}>
+                {item.truck_unit_name}
+              </Text>
+            ) : null}
+            {item.location_label && item.location_source !== "OPEN_TRUCK_UNIT" ? (
+              <Text style={styles.horizontalDistanceText} numberOfLines={1}>
+                {item.location_label}
+                {item.address ? ` - ${item.address}` : ""}
+              </Text>
+            ) : null}
             <View style={styles.horizontalCardDetails}>
               <View style={styles.ratingContainer}>
                 <MaterialIcons name="star" size={16} color={AppColor.text} />
@@ -378,6 +403,7 @@ const NearMeScreen = ({ navigation }) => {
     debouncedQuery,
     selectedFilter,
     selectedCuisineIds,
+    selectedEventTypes,
   ]);
 
   useEffect(() => {
@@ -569,6 +595,37 @@ const NearMeScreen = ({ navigation }) => {
         </View>
       ) : null}
 
+      {selectedFilter === "events" ? (
+        <View style={styles.subFilterRail}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={EVENT_TYPES}
+            keyExtractor={(item) => item}
+            contentContainerStyle={styles.filterContent}
+            renderItem={({ item }) => {
+              const active = selectedEventTypes.includes(item);
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.subFilterChip, active && styles.filterChipActive]}
+                  onPress={() => toggleEventTypeFilter(item)}
+                >
+                  <Text
+                    style={[
+                      styles.subFilterChipText,
+                      active && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      ) : null}
+
       {/* Map View */}
       <View style={styles.mapContainer}>
         <MapView
@@ -699,7 +756,7 @@ const NearMeScreen = ({ navigation }) => {
             color={AppColor.textPlaceholder}
           />
           <Text style={styles.noResultsText}>
-            No nearby food found matching your filters
+            No nearby food or events found matching your filters
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -729,7 +786,7 @@ const NearMeScreen = ({ navigation }) => {
             color={AppColor.textPlaceholder}
           />
           <Text style={styles.noResultsText}>
-            Nearby food could not be loaded right now.
+            Nearby food and events could not be loaded right now.
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -763,7 +820,7 @@ const NearMeScreen = ({ navigation }) => {
                 {isEventCoordinator ? "Event Coordinator" : "Round Da' Corner"}
               </Text>
               <Text style={styles.menuProfileSub} numberOfLines={1}>
-                {user?.email || "Find food near you"}
+                {user?.email || "Find food and events near you"}
               </Text>
             </View>
           </View>
@@ -776,15 +833,15 @@ const NearMeScreen = ({ navigation }) => {
             <MaterialIcons name="storefront" size={23} color={AppColor.primary} />
             <View style={styles.menuItemTextWrap}>
               <Text style={styles.menuItemTitle}>
-                Near Me Food
+                Marketplace / Near Me Food/Events
               </Text>
               <Text style={styles.menuItemSubtitle}>
-                Find food near you
+                Find events and food near you
               </Text>
             </View>
           </TouchableOpacity>
 
-          {EVENT_MARKETPLACE_ENABLED && isEventCoordinator ? (
+          {isEventCoordinator ? (
             <>
               <TouchableOpacity
                 activeOpacity={0.75}
