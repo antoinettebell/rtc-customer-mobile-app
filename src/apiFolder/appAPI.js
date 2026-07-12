@@ -996,6 +996,19 @@ export const getMarketplaceEventQuestions_API = async (eventId, options = {}) =>
   }
 };
 
+export const sendMarketplaceEventQuestion_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_QUESTIONS(eventId),
+      payload,
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 export const answerMarketplaceEventQuestion_API = async ({
   eventId,
   questionId,

@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   Image,
   Linking,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -12,7 +14,8 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
-import { formatMoney, styles } from "./marketplaceShared";
+import { sendMarketplaceEventQuestion_API } from "../apiFolder/appAPI";
+import { formatMoney, getMarketplaceMessageError, styles } from "./marketplaceShared";
 
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
@@ -69,6 +72,49 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const submissionType = route?.params?.submissionType || "Bid";
   const imageUrls = getImageUrls(submission);
   const menuAttachments = getMenuAttachments(submission);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const messageError = getMarketplaceMessageError(messageText);
+  const eventId = submission.event_id || submission.marketplaceEvent?.event_id || submission.event?.event_id;
+  const canSendMessage =
+    !!eventId &&
+    !!submission.vendor_user_id &&
+    !!messageText.trim() &&
+    !messageError &&
+    !sendingMessage;
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim()) {
+      Alert.alert("Messages", "Enter a message before sending.");
+      return;
+    }
+    if (messageError) {
+      Alert.alert("Messages", messageError);
+      return;
+    }
+    setSendingMessage(true);
+    try {
+      const response = await sendMarketplaceEventQuestion_API({
+        eventId,
+        payload: {
+          question_text: messageText.trim(),
+          vendor_user_id: submission.vendor_user_id,
+          bid_id: submission.bid_id || null,
+          application_id: submission.application_id || null,
+        },
+      });
+      if (response?.success) {
+        setMessageText("");
+        Alert.alert("Messages", "Message sent to vendor.");
+      } else {
+        Alert.alert("Messages", response?.message || "Unable to send message.");
+      }
+    } catch (error) {
+      Alert.alert("Messages", error?.message || "Unable to send message.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -127,6 +173,33 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             label="Permits"
             value={submission.permits_confirmed ? "Confirmed" : "Not confirmed"}
           />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.title}>Message Vendor</Text>
+          <TextInput
+            value={messageText}
+            onChangeText={setMessageText}
+            placeholder="Ask for clarification"
+            placeholderTextColor={AppColor.textHighlighter}
+            multiline
+            style={[styles.input, styles.textarea, { marginTop: 12 }]}
+          />
+          {!!messageError && <Text style={styles.errorText}>{messageError}</Text>}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[
+              styles.button,
+              { marginTop: 12 },
+              !canSendMessage && styles.buttonDisabled,
+            ]}
+            disabled={!canSendMessage}
+            onPress={handleSendMessage}
+          >
+            <Text style={styles.buttonText}>
+              {sendingMessage ? "Sending..." : "Send Message"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
