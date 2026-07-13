@@ -432,6 +432,9 @@ const resetServiceSpecificFields = () => ({
   service_notes: "",
 });
 
+const MARKETPLACE_TERMS_URL =
+  "https://img1.wsimg.com/blobby/go/76d338e8-ba24-489e-b6e5-cd418f2432d1/downloads/60e83491-cc62-426e-9745-52bde989f441/Round_the_Corner_Terms_and_Conditions_Website_.pdf?ver=1782883580972";
+
 const localStyles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -456,6 +459,66 @@ const localStyles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 10,
     elevation: 3,
+  },
+  termsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(17, 24, 39, 0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  termsModal: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    backgroundColor: AppColor.white,
+    padding: 18,
+  },
+  termsTitle: {
+    color: AppColor.text,
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  termsMessage: {
+    color: AppColor.text,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  termsLink: {
+    color: AppColor.primary,
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
+  termsActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 20,
+  },
+  termsActionButton: {
+    minHeight: 42,
+    minWidth: 82,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  termsNoButton: {
+    borderWidth: 1,
+    borderColor: "#D8DDE6",
+    backgroundColor: AppColor.white,
+  },
+  termsYesButton: {
+    backgroundColor: AppColor.primary,
+  },
+  termsNoText: {
+    color: AppColor.text,
+    fontWeight: "700",
+  },
+  termsYesText: {
+    color: AppColor.white,
+    fontWeight: "700",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1200,6 +1263,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     message: "",
     type: "error",
   });
+  const [showTermsConfirmation, setShowTermsConfirmation] = useState(false);
   const autoFoodTruckStyleRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
@@ -1836,33 +1900,34 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
 
   const continueSubmitConfirmation = () => {
-    Alert.alert(
-      "Submit Event",
-      "By submitting this event you agree to the following terms and conditions. Do you wish to proceed?",
-      [
-        {
-          text: "Yes",
-          onPress: () =>
-            handleSubmit("OPEN", {
-              navigateToDetails: isReopenMode,
-              replaceDetails: isReopenMode,
-              successMessage: isReopenMode
-                ? "Event dates and details have been updated."
-                : undefined,
-            }),
-        },
-        {
-          text: "No",
-          style: "cancel",
-          onPress: () =>
-            handleSubmit("DRAFT", {
-              navigateToDetails: true,
-              replaceDetails: !!editingEventId,
-              successMessage: "Your changes have been saved as a draft.",
-            }),
-        },
-      ]
-    );
+    setShowTermsConfirmation(true);
+  };
+
+  const handleViewTerms = () => {
+    navigation.navigate("marketplaceTicketWebViewScreen", {
+      url: MARKETPLACE_TERMS_URL,
+      title: "Terms and Conditions",
+    });
+  };
+
+  const handleTermsConfirm = () => {
+    setShowTermsConfirmation(false);
+    handleSubmit("OPEN", {
+      navigateToDetails: isReopenMode,
+      replaceDetails: isReopenMode,
+      successMessage: isReopenMode
+        ? "Event dates and details have been updated."
+        : undefined,
+    });
+  };
+
+  const handleTermsDecline = () => {
+    setShowTermsConfirmation(false);
+    handleSubmit("DRAFT", {
+      navigateToDetails: true,
+      replaceDetails: !!editingEventId,
+      successMessage: "Your changes have been saved as a draft.",
+    });
   };
 
   const handleSubmitConfirmation = () => {
@@ -3303,6 +3368,41 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       >
         {snackbar.message}
       </Snackbar>
+      <Modal
+        visible={showTermsConfirmation}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTermsConfirmation(false)}
+      >
+        <View style={localStyles.termsOverlay}>
+          <View style={localStyles.termsModal}>
+            <Text style={localStyles.termsTitle}>Submit Event</Text>
+            <Text style={localStyles.termsMessage}>
+              By submitting this event you agree to all{" "}
+              <Text style={localStyles.termsLink} onPress={handleViewTerms}>
+                terms and conditions
+              </Text>
+              . Do you wish to proceed?
+            </Text>
+            <View style={localStyles.termsActions}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[localStyles.termsActionButton, localStyles.termsNoButton]}
+                onPress={handleTermsDecline}
+              >
+                <Text style={localStyles.termsNoText}>No</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[localStyles.termsActionButton, localStyles.termsYesButton]}
+                onPress={handleTermsConfirm}
+              >
+                <Text style={localStyles.termsYesText}>Yes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
