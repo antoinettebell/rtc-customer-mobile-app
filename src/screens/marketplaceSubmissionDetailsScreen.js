@@ -66,6 +66,14 @@ const getVendorDisplay = (submission = {}) => {
   return "Vendor identity hidden";
 };
 
+const getVendorMessageId = (submission = {}) => {
+  const vendorUser = submission.vendor_user_id;
+  if (typeof vendorUser === "string") return vendorUser;
+  if (vendorUser?._id) return String(vendorUser._id);
+  if (vendorUser?.id) return String(vendorUser.id);
+  return submission.vendor_display_id || submission.food_truck_id?.display_id || "";
+};
+
 const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const submission = route?.params?.submission || {};
@@ -76,9 +84,10 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const messageError = getMarketplaceMessageError(messageText);
   const eventId = submission.event_id || submission.marketplaceEvent?.event_id || submission.event?.event_id;
+  const vendorMessageId = getVendorMessageId(submission);
   const canSendMessage =
     !!eventId &&
-    !!submission.vendor_user_id &&
+    !!vendorMessageId &&
     !!messageText.trim() &&
     !messageError &&
     !sendingMessage;
@@ -98,7 +107,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
         eventId,
         payload: {
           question_text: messageText.trim(),
-          vendor_user_id: submission.vendor_user_id,
+          vendor_user_id: vendorMessageId,
           bid_id: submission.bid_id || null,
           application_id: submission.application_id || null,
         },
