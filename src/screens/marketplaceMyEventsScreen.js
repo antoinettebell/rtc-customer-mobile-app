@@ -201,7 +201,12 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
       >
         {!statusFilter ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-            <View style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}>
+            <TouchableOpacity
+              hitSlop={10}
+              activeOpacity={0.7}
+              style={{ width: 28, height: 28, alignItems: "center", justifyContent: "center" }}
+              onPress={() => navigation.navigate("marketplaceNotificationsScreen")}
+            >
               <MaterialIcons
                 name={notificationCount ? "notifications-active" : "notifications-none"}
                 size={24}
@@ -227,7 +232,7 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
               ) : null}
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity
               hitSlop={10}
               activeOpacity={0.7}

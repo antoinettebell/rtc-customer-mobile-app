@@ -68,6 +68,7 @@ import MarketplaceCreateEventScreen from "./src/screens/marketplaceCreateEventSc
 import MarketplaceEventDetailsScreen from "./src/screens/marketplaceEventDetailsScreen";
 import MarketplaceEventMessagesScreen from "./src/screens/marketplaceEventMessagesScreen";
 import MarketplaceSubmissionDetailsScreen from "./src/screens/marketplaceSubmissionDetailsScreen";
+import MarketplaceNotificationsScreen from "./src/screens/marketplaceNotificationsScreen";
 import MarketplaceTicketWebViewScreen from "./src/screens/marketplaceTicketWebViewScreen";
 import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
 import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
@@ -310,6 +311,10 @@ const AppNavigator = ({ insets }) => (
     <Stack.Screen
       name="marketplaceSubmissionDetailsScreen"
       component={MarketplaceSubmissionDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceNotificationsScreen"
+      component={MarketplaceNotificationsScreen}
     />
     <Stack.Screen
       name="marketplaceTicketWebViewScreen"
