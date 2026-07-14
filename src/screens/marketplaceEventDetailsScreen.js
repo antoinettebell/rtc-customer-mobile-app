@@ -22,6 +22,7 @@ import {
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
   closeMarketplaceEvent_API,
+  createMarketplaceFinalPayment_API,
   reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
@@ -77,6 +78,21 @@ const getRecordDocuments = (record) => [
 
 const isRecordPaymentFulfilled = (record) =>
   ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED");
+
+const getAwardAmount = (record, event) =>
+  Number(record?.full_bid_amount || record?.final_payment_base_amount || event?.budgeted_amount || 0);
+
+const canCreateRecordFinalPayment = (record, event) =>
+  !!record &&
+  ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED") &&
+  !record?.final_payment_id &&
+  record?.final_payment_status !== "PAID" &&
+  getAwardAmount(record, event) > 0;
+
+const canContinueRecordFinalPayment = (record) =>
+  !!record?.final_payment_id &&
+  record?.final_payment_status &&
+  record.final_payment_status !== "PAID";
 
 const hasEventDatePassed = (eventDate) => {
   if (!eventDate) return false;
@@ -213,6 +229,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
+  const [finalPaymentModalVisible, setFinalPaymentModalVisible] = useState(false);
+  const [finalPaymentTip, setFinalPaymentTip] = useState("");
+  const [selectedFinalPaymentRecord, setSelectedFinalPaymentRecord] = useState(null);
+  const [creatingFinalPayment, setCreatingFinalPayment] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     requirements: true,
@@ -451,6 +471,51 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     );
   };
 
+  const handleCreateFinalPayment = async () => {
+    if (!selectedFinalPaymentRecord) {
+      Alert.alert("Close Event for Payment", "Select an awarded vendor first.");
+      return;
+    }
+    const tipAmount = Number(finalPaymentTip || 0);
+    if (Number.isNaN(tipAmount) || tipAmount < 0) {
+      Alert.alert("Close Event for Payment", "Please enter a valid tip amount.");
+      return;
+    }
+
+    setCreatingFinalPayment(true);
+    try {
+      const response = await createMarketplaceFinalPayment_API({
+        eventId,
+        bidId: selectedFinalPaymentRecord.bid_id,
+        applicationId: selectedFinalPaymentRecord.application_id,
+        tipAmount,
+      });
+      if (response?.success) {
+        const marketplacePayment = response.data?.marketplacePayment;
+        setEvent(response.data?.marketplaceEvent || event);
+        setFinalPaymentModalVisible(false);
+        setFinalPaymentTip("");
+        setSelectedFinalPaymentRecord(null);
+
+        if (response.data?.requires_payment && marketplacePayment) {
+          navigation.navigate("marketplacePaymentScreen", {
+            payment: marketplacePayment,
+            paymentId: marketplacePayment.payment_id,
+            returnScreen: "marketplaceEventDetailsScreen",
+            returnParams: { eventId },
+          });
+        }
+      }
+    } catch (error) {
+      Alert.alert(
+        "Close Event for Payment",
+        error?.message || "Unable to create final event payment.",
+      );
+    } finally {
+      setCreatingFinalPayment(false);
+    }
+  };
+
   const handleSubmitDraft = async () => {
     if (!event) return;
     setLoading(true);
@@ -583,8 +648,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderAwardedDocuments = () => {
-    if (!canViewAwardedDocs) return null;
+	  const renderAwardedDocuments = () => {
+	    if (!canViewAwardedDocs) return null;
 
     const awardedRecords = [
       ...(event?.awarded_bids || []),
@@ -606,16 +671,24 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         <Text style={styles.meta}>
           Download signed agreements, permits, licenses, menus, and vendor files.
         </Text>
-        {awardedRecords.map((record, index) => {
-          const documents = getRecordDocuments(record);
-          const key =
-            record.bid_id || record.application_id || `${record.event_id}-${index}`;
-          return (
-            <View key={key} style={{ marginTop: 14 }}>
-              <Text style={styles.label}>{getVendorName(record)}</Text>
-              {documents.length ? (
-                documents.map((document) => (
-                  <TouchableOpacity
+	        {awardedRecords.map((record, index) => {
+	          const documents = getRecordDocuments(record);
+	          const key =
+	            record.bid_id || record.application_id || `${record.event_id}-${index}`;
+	          const finalPaymentStatus = record.final_payment_status || "NOT_STARTED";
+	          const awardAmount = getAwardAmount(record, event);
+	          return (
+	            <View key={key} style={{ marginTop: 14 }}>
+	              <Text style={styles.label}>{getVendorName(record)}</Text>
+	              <Text style={styles.meta}>
+	                Award Amount: {formatMoney(awardAmount)}
+	              </Text>
+	              <Text style={styles.meta}>
+	                Final Payment: {finalPaymentStatus}
+	              </Text>
+	              {documents.length ? (
+	                documents.map((document) => (
+	                  <TouchableOpacity
                     key={`${key}-${document.label}-${document.url}`}
                     activeOpacity={0.7}
                     onPress={() => openDocument(document.url)}
@@ -624,12 +697,43 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                     <Text style={styles.secondaryButtonText}>{document.label}</Text>
                   </TouchableOpacity>
                 ))
-              ) : (
-                <Text style={styles.meta}>Documents: Not available</Text>
-              )}
-            </View>
-          );
-        })}
+	              ) : (
+	                <Text style={styles.meta}>Documents: Not available</Text>
+	              )}
+	              {canCreateRecordFinalPayment(record, event) ? (
+	                <TouchableOpacity
+	                  activeOpacity={0.7}
+	                  style={[styles.button, { marginTop: 10 }]}
+	                  onPress={() => {
+	                    setSelectedFinalPaymentRecord(record);
+	                    setFinalPaymentTip("");
+	                    setFinalPaymentModalVisible(true);
+	                  }}
+	                >
+	                  <Text style={styles.buttonText}>Close Event for Payment</Text>
+	                </TouchableOpacity>
+	              ) : canContinueRecordFinalPayment(record) ? (
+	                <TouchableOpacity
+	                  activeOpacity={0.7}
+	                  style={[styles.button, { marginTop: 10 }]}
+	                  onPress={() =>
+	                    navigation.navigate("marketplacePaymentScreen", {
+	                      paymentId: record.final_payment_id,
+	                      returnScreen: "marketplaceEventDetailsScreen",
+	                      returnParams: { eventId },
+	                    })
+	                  }
+	                >
+	                  <Text style={styles.buttonText}>Continue Final Payment</Text>
+	                </TouchableOpacity>
+	              ) : finalPaymentStatus === "PAID" ? (
+	                <Text style={[styles.meta, { marginTop: 8 }]}>
+	                  Final payment has been completed for this award.
+	                </Text>
+	              ) : null}
+	            </View>
+	          );
+	        })}
       </View>
     );
   };
@@ -696,6 +800,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         </View>
       );
     }
+
+	    if (isAwarded) return null;
 
     return null;
   };
@@ -885,6 +991,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               value={event?.award_payment_status || "NOT_REQUIRED"}
             />
             <DetailRow
+              label="Final Event Payment"
+              value={event?.final_payment_status || "NOT_REQUIRED"}
+            />
+            <DetailRow
               label="Agreement"
               value={event?.agreement_status || "NOT_REQUIRED"}
             />
@@ -963,6 +1073,67 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   <ActivityIndicator color={AppColor.white} />
                 ) : (
                   <Text style={styles.buttonText}>Continue</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={finalPaymentModalVisible}
+        onRequestClose={() => setFinalPaymentModalVisible(false)}
+      >
+        <View style={safeStyles.modalOverlay}>
+          <View style={[safeStyles.modalSheet, { paddingBottom: Math.max(insets.bottom, 18) }]}>
+	            <Text style={styles.title}>Close Event for Payment</Text>
+	            <Text style={styles.meta}>
+	              Create checkout for {getVendorName(selectedFinalPaymentRecord)}. Tip is optional.
+	            </Text>
+	            <Text style={styles.meta}>
+	              Award Amount: {formatMoney(getAwardAmount(selectedFinalPaymentRecord, event))}
+	            </Text>
+	            <TextInput
+              value={finalPaymentTip}
+              onChangeText={setFinalPaymentTip}
+              placeholder="Tip amount, optional"
+              placeholderTextColor={AppColor.textPlaceholder}
+              keyboardType="decimal-pad"
+              editable={!creatingFinalPayment}
+              style={safeStyles.closeCommentInput}
+            />
+            <View style={safeStyles.modalActions}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.secondaryButton,
+                  safeStyles.modalActionButton,
+                  { opacity: creatingFinalPayment ? 0.6 : 1 },
+                ]}
+	                onPress={() => {
+	                  setFinalPaymentModalVisible(false);
+	                  setFinalPaymentTip("");
+	                  setSelectedFinalPaymentRecord(null);
+	                }}
+                disabled={creatingFinalPayment}
+              >
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.button,
+                  safeStyles.modalActionButton,
+                  { opacity: creatingFinalPayment ? 0.6 : 1 },
+                ]}
+                onPress={handleCreateFinalPayment}
+                disabled={creatingFinalPayment}
+              >
+                {creatingFinalPayment ? (
+                  <ActivityIndicator color={AppColor.white} />
+                ) : (
+                  <Text style={styles.buttonText}>Checkout</Text>
                 )}
               </TouchableOpacity>
             </View>

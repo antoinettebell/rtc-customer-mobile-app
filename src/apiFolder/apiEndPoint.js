@@ -132,6 +132,8 @@ export const MARKETPLACE_EVENT_QUESTION_ANSWER = (event_id, question_id) =>
   `/marketplace/events/${event_id}/questions/${question_id}/answer`;
 export const MARKETPLACE_AWARD_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/award`;
+export const MARKETPLACE_EVENT_FINAL_PAYMENT = (event_id) =>
+  `/marketplace/events/${event_id}/final-payment`;
 export const MARKETPLACE_PAYMENT_BY_ID = (payment_id) =>
   `/marketplace/payments/${payment_id}`;
 export const MARKETPLACE_PAYMENT_CHECKOUT = (payment_id) =>

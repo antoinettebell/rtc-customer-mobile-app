@@ -67,6 +67,17 @@ const ANDROID_PAY_METHOD_DATA = {
 
 const toAmount = (value) => Number(value || 0).toFixed(2);
 
+const getPaymentHelpText = (payment) => {
+  if (payment?.payment_type === "COORDINATOR_AWARD_FEE") {
+    return "This is the RTC processing fee for the awarded event amount. The vendor award payment is handled separately after the successful event.";
+  }
+  if (payment?.payment_type === "FINAL_EVENT_PAYMENT") {
+    return "This payment closes out the event and pays the awarded vendor amount plus any tip.";
+  }
+
+  return "Complete this marketplace payment to continue.";
+};
+
 const MarketplacePaymentScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [payment, setPayment] = useState(route?.params?.payment || null);
@@ -205,10 +216,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
             Type: {payment?.payment_type?.replaceAll("_", " ") || "Marketplace Payment"}
           </Text>
           <Text style={styles.meta}>Status: {payment?.payment_status || "PENDING"}</Text>
-          <Text style={styles.meta}>
-            Marketplace payments are flat fees with no sales tax, service fee, or
-            delivery fee added.
-          </Text>
+          <Text style={styles.meta}>{getPaymentHelpText(payment)}</Text>
         </View>
 
         {loading ? <ActivityIndicator color={AppColor.primary} /> : null}

@@ -59,6 +59,7 @@ import {
   MARKETPLACE_EVENT_QUESTIONS,
   MARKETPLACE_EVENT_QUESTION_ANSWER,
   MARKETPLACE_AWARD_BIDS,
+  MARKETPLACE_EVENT_FINAL_PAYMENT,
   MARKETPLACE_PAYMENT_BY_ID,
   MARKETPLACE_PAYMENT_CHECKOUT,
   MARKETPLACE_PAYMENT_CALL,
@@ -1044,6 +1045,24 @@ export const awardMarketplaceBids_API = async ({ eventId, bidIds }) => {
     const response = await apiClient.post(
       MARKETPLACE_AWARD_BIDS(eventId),
       { bid_ids: bidIds },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const createMarketplaceFinalPayment_API = async ({
+  eventId,
+  bidId = null,
+  applicationId = null,
+  tipAmount = 0,
+}) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_FINAL_PAYMENT(eventId),
+      { bid_id: bidId, application_id: applicationId, tip_amount: tipAmount },
       { skipToken: false }
     );
     return response?.data;
