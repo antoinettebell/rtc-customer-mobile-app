@@ -7,6 +7,7 @@ import {
   AuthorizationStatus,
 } from "@react-native-firebase/messaging";
 import notifee from "@notifee/react-native";
+import { navigate } from "./navigation.helper";
 
 const installationsInstance = getInstallations();
 const messagingInstance = getMessaging();
@@ -81,6 +82,16 @@ export const handleNotificationAction = async (notification) => {
   console.log("handleNotificationAction => ", notification);
 
   if (!notification?.data) return;
-  const notificationData = JSON.parse(notification.data);
+  const notificationData =
+    typeof notification.data === "string"
+      ? JSON.parse(notification.data)
+      : notification.data;
   console.log("notificationData => ", notificationData);
+
+  if (
+    notificationData?.activityType === "ORDER_STATUS" &&
+    notificationData?.orderId
+  ) {
+    navigate("orderDetailsScreen", { orderId: notificationData.orderId });
+  }
 };

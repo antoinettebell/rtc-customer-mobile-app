@@ -94,6 +94,9 @@ const initialForm = {
   permits_required: [],
   insurance_required: false,
   alcohol_required: false,
+  free_food_offered: null,
+  free_food_provider: "",
+  vendors_required_to_giveaway_food: null,
   cuisine_preferences: [],
   dietary_restrictions: [],
   equipment_needed: [],
@@ -316,6 +319,16 @@ const normalizeEventForForm = (event = {}) => ({
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
   equipment_needed: normalizeOptionList(event.equipment_needed),
+  free_food_offered:
+    event.free_food_offered === true || event.free_food_offered === false
+      ? event.free_food_offered
+      : null,
+  free_food_provider: event.free_food_provider || "",
+  vendors_required_to_giveaway_food:
+    event.vendors_required_to_giveaway_food === true ||
+    event.vendors_required_to_giveaway_food === false
+      ? event.vendors_required_to_giveaway_food
+      : null,
   plated_options: normalizeOptionList(event.plated_options),
   plated_included_items: normalizeOptionList(event.plated_included_items),
   buffet_included_items: normalizeOptionList(event.buffet_included_items),
@@ -1342,7 +1355,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   }, [navigation, route?.params?.selectedEventLocation]);
 
   const updateField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "free_food_offered" && value === false) {
+        next.free_food_provider = "";
+        next.vendors_required_to_giveaway_food = null;
+      }
+      return next;
+    });
   };
 
   const updateListField = (key, option) => {
@@ -1658,6 +1678,32 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       setSnackbar({ visible: true, message: "Please describe the Other event type." });
       return false;
     }
+    if (form.free_food_offered !== true && form.free_food_offered !== false) {
+      setSnackbar({
+        visible: true,
+        message: "Please answer whether free food will be offered.",
+      });
+      return false;
+    }
+    if (form.free_food_offered === true) {
+      if (!form.free_food_provider.trim()) {
+        setSnackbar({
+          visible: true,
+          message: "Please enter which company/vendor will offer free food.",
+        });
+        return false;
+      }
+      if (
+        form.vendors_required_to_giveaway_food !== true &&
+        form.vendors_required_to_giveaway_food !== false
+      ) {
+        setSnackbar({
+          visible: true,
+          message: "Please answer whether vendors must also give away food.",
+        });
+        return false;
+      }
+    }
     if (!form.service_types.length) {
       setSnackbar({ visible: true, message: "Please select at least one service type." });
       return false;
@@ -1796,6 +1842,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           : Number(form.budgeted_amount || 0),
       ticket_sales_enabled: !!form.ticket_sales_enabled,
       ticket_url: form.ticket_url?.trim() || "",
+      free_food_provider:
+        form.free_food_offered === true ? form.free_food_provider.trim() : "",
+      vendors_required_to_giveaway_food:
+        form.free_food_offered === true
+          ? form.vendors_required_to_giveaway_food
+          : null,
       status,
     };
   };
@@ -1836,6 +1888,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       }
 
       let uploadWarning = false;
+      let uploadWarningMessage = "";
       if (status !== "DRAFT" && eventId && eventImages.length) {
         try {
           for (const image of eventImages) {
@@ -1852,6 +1905,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           }
         } catch (error) {
           uploadWarning = true;
+          uploadWarningMessage =
+            error?.message ||
+            error?.error?.message ||
+            "One or more images did not upload.";
           console.log("Marketplace event image upload error", error);
         }
       }
@@ -1863,7 +1920,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             : status === "DRAFT"
             ? "Your draft has been saved."
             : uploadWarning
-              ? "Event submitted, but one or more images did not upload."
+              ? `Event submitted, but image upload was blocked: ${uploadWarningMessage}`
               : "Your event is open for vendor bids.",
         type: "success",
       });
@@ -2789,6 +2846,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const renderEventToneSelect = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Event Tone")}
+      <View style={styles.chipWrap}>
+        {EVENT_STYLES.map((option) => {
+          const active = (form.service_styles || [])[0] === option;
+          return (
+            <TouchableOpacity
+              key={option}
+              activeOpacity={0.7}
+              onPress={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  event_style: option,
+                  service_styles: [option],
+                }))
+              }
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   const renderPaymentResponsibility = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Who is paying? *")}
@@ -2890,6 +2976,53 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           );
         })}
       </View>
+    </View>
+  );
+
+  const renderRequiredYesNo = (label, key) => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(`${label} *`)}
+      {[
+        ["Yes", true],
+        ["No", false],
+      ].map(([labelText, value]) => {
+        const active = form[key] === value;
+        return (
+          <TouchableOpacity
+            key={`${key}-${labelText}`}
+            activeOpacity={0.7}
+            style={localStyles.checkboxRow}
+            onPress={() => updateField(key, value)}
+          >
+            <View
+              style={[
+                localStyles.checkbox,
+                active && localStyles.checkboxActive,
+              ]}
+            >
+              {active && (
+                <MaterialIcons name="check" size={16} color={AppColor.white} />
+              )}
+            </View>
+            <Text style={localStyles.checkboxLabel}>{labelText}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderFreeFoodQuestions = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderRequiredYesNo("Will free food be offered?", "free_food_offered")}
+      {form.free_food_offered === true ? (
+        <>
+          {renderInput("If Yes, by which company/vendor *", "free_food_provider")}
+          {renderRequiredYesNo(
+            "Are vendors required to give away food as well?",
+            "vendors_required_to_giveaway_food"
+          )}
+        </>
+      ) : null}
     </View>
   );
 
@@ -3140,7 +3273,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {renderTicketSalesFields()}
             {renderEventTypeCards()}
             {renderVisibilityToggle()}
-            {renderChips("Event Tone", "service_styles", EVENT_STYLES)}
+            {renderEventToneSelect()}
             {renderChips("Service Type *", "service_types", SERVICE_TYPES)}
             {renderPrimaryServiceStyle()}
             {renderServiceSpecificDetails()}
@@ -3194,6 +3327,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
             {renderBoolean("Alcohol Required", "alcohol_required")}
             {renderBoolean("Insurance Required", "insurance_required")}
+            {renderFreeFoodQuestions()}
             {renderChips("Cuisine Preferences", "cuisine_preferences", CUISINE_OPTIONS)}
             {renderChips("Dietary Restrictions", "dietary_restrictions", DIETARY_OPTIONS)}
             {renderChips("Equipment Needs", "equipment_needed", EQUIPMENT_OPTIONS)}
@@ -3231,7 +3365,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 Upload JPG, PNG, or HEIC images. Maximum file size is 10 MB.
               </Text>
               <Text style={styles.meta}>
-                No words are allowed on event images. Images must appear anonymous. Violators may be removed from the app.
+                No contact information is allowed on event images. Do not include phone numbers, emails, websites, or social handles.
               </Text>
               {eventImages.length ? (
                 <View style={localStyles.imageGrid}>

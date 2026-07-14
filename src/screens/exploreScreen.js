@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -71,8 +71,6 @@ const ExploreScreen = (props) => {
   const [loading, setLoading] = useState(false);
   const [recentTrucks, setRecentTrucks] = useState([]);
   const [recentTruckLoading, setRecentTruckLoading] = useState(false);
-  const [popularFoodTrucks, setPopularFoodTrucks] = useState([]);
-  const [popularTruckLoading, setPopularTruckLoading] = useState(false);
   const [nearbyFoodTrucks, setNearbyFoodTrucks] = useState([]);
   const [nearbyTruckLoading, setNearbyTruckLoading] = useState(false);
   const [featuredFoodTrucks, setFeaturedFoodTrucks] = useState([]);
@@ -86,7 +84,37 @@ const ExploreScreen = (props) => {
     (state) => state.locationReducer,
   );
   const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { favorites = [] } = useSelector((state) => state.favoritesReducer ?? {});
   const OrderReducerStates = useSelector((state) => state.orderReducer);
+
+  const favoriteFoodTrucks = useMemo(
+    () =>
+      favorites
+        .map((favorite) => ({
+          ...(favorite?.foodTruck || {}),
+          distanceInMeters:
+            favorite?.foodTruck?.distanceInMeters ?? favorite?.distance,
+        }))
+        .filter((foodTruck) => foodTruck?._id),
+    [favorites],
+  );
+
+  const hasDiscountOffer = useCallback((foodTruck) => {
+    const menuItems = Array.isArray(foodTruck?.menu) ? foodTruck.menu : [];
+    return menuItems.some((item) => {
+      const discountType = String(item?.discountType || "").toUpperCase();
+      return (
+        item?.hasDiscount === true ||
+        ["BOGO", "BOGOHO"].includes(discountType) ||
+        Number(item?.discountRules?.discount) > 0
+      );
+    });
+  }, []);
+
+  const discountFoodTrucks = useMemo(
+    () => nearbyFoodTrucks.filter(hasDiscountOffer),
+    [hasDiscountOffer, nearbyFoodTrucks],
+  );
 
   const [tempSelectedLocation, setTempSelectedLocation] =
     useState(defaultLocation);
@@ -218,7 +246,6 @@ const ExploreScreen = (props) => {
       if (response?.success && response?.data) {
         const { foodtruckList } = response.data;
         setNearbyFoodTrucks(foodtruckList);
-        setPopularFoodTrucks([...foodtruckList].reverse());
       }
     } catch (error) {
       console.log("Error fetching nearby food trucks:", error);
@@ -446,6 +473,112 @@ const ExploreScreen = (props) => {
     );
   };
 
+  const renderFoodTruckSection = ({
+    title,
+    subtitle,
+    data,
+    screenTitle,
+    screenType,
+    shaded = false,
+  }) => (
+    <View
+      style={[
+        {
+          marginVertical: 10,
+          paddingVertical: shaded ? 16 : 0,
+        },
+        shaded && { backgroundColor: "#F2F2F7" },
+      ]}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginHorizontal: 20,
+          marginBottom: 10,
+        }}
+      >
+        <View style={styles.sectionTitleBlock}>
+          <Text numberOfLines={1} style={styles.sectionTitleText}>
+            {title}
+          </Text>
+          <Text numberOfLines={2} style={styles.sectionSubtitleText}>
+            {subtitle}
+          </Text>
+        </View>
+        {screenType ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate("seeAllTrucksScreen", {
+                screenTitle,
+                screenType,
+              })
+            }
+          >
+            <Text
+              style={{
+                fontFamily: Mulish400,
+                fontSize: 14,
+                color: AppColor.black,
+                paddingHorizontal: 20,
+              }}
+            >
+              {"See All"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <FlatList
+        horizontal
+        data={data}
+        extraData={data}
+        keyExtractor={(item) => String(item?._id)}
+        showsHorizontalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <FoodTruckGridComponent
+            title={item.name}
+            uris={item.logo}
+            showLikeButton={isSignedIn}
+            foodTruckId={item._id}
+            reviews={`${item.avgRate || 0} (${item.totalReviews || 0} reviews)`}
+            distance={item.distanceInMeters || 0}
+            showDistance={item?.distanceInMeters !== undefined}
+            onContainerPress={() =>
+              navigation.navigate("foodTruckDetailScreen", { item })
+            }
+          />
+        )}
+        contentContainerStyle={{
+          gap: 20,
+          paddingHorizontal: 20,
+          paddingVertical: 10,
+        }}
+        ListEmptyComponent={() => (
+          <View
+            style={{
+              width: width - 40,
+              height: 100,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: Mulish600,
+                color: AppColor.black,
+              }}
+            >
+              {"No Food Trucks Available."}
+            </Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <StatusBarManager barStyle="light-content" />
@@ -568,6 +701,40 @@ const ExploreScreen = (props) => {
             </View>
           )}
 
+          {renderFoodTruckSection({
+            title: "Featured Food Trucks",
+            subtitle: "Featured picks near you. Delivery shown when available.",
+            data: featuredFoodTrucks,
+            screenTitle: "Featured Food Trucks",
+            screenType: "featured_food_trucks",
+            shaded: true,
+          })}
+
+          {renderFoodTruckSection({
+            title: "Favorite Food Trucks",
+            subtitle: "Food trucks you've saved on your profile.",
+            data: favoriteFoodTrucks,
+            screenTitle: "Favorite Food Trucks",
+            screenType: null,
+          })}
+
+          {renderFoodTruckSection({
+            title: "Food Trucks With Offers",
+            subtitle: "Nearby vendors with active menu discounts.",
+            data: discountFoodTrucks,
+            screenTitle: "Food Trucks With Offers",
+            screenType: null,
+            shaded: true,
+          })}
+
+          {renderFoodTruckSection({
+            title: "Nearby Food Trucks",
+            subtitle: "Delivery available within 5 miles of your location.",
+            data: nearbyFoodTrucks,
+            screenTitle: "Nearby Food Trucks",
+            screenType: "nearby_food_trucks",
+          })}
+
           {/* Recent Trucks Container */}
           <View>
             <View
@@ -623,290 +790,6 @@ const ExploreScreen = (props) => {
                 }
               />
             ))}
-          </View>
-
-          {/* Popular nearby foodtruck container */}
-          <View
-            style={{
-              marginVertical: 10,
-              paddingVertical: 16,
-              backgroundColor: "#F2F2F7",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginHorizontal: 20,
-                marginBottom: 10,
-              }}
-            >
-              <View style={styles.sectionTitleBlock}>
-                <Text numberOfLines={1} style={styles.sectionTitleText}>
-                  {"Popular Nearby Food Trucks"}
-                </Text>
-                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
-                  {"Popular trucks 5-7 miles away. Pickup only."}
-                </Text>
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() =>
-                  navigation.navigate("seeAllTrucksScreen", {
-                    screenTitle: "Popular Nearby Food Trucks",
-                    screenType: "popular_nearby_trucks",
-                  })
-                }
-              >
-                <Text
-                  style={{
-                    fontFamily: Mulish400,
-                    fontSize: 14,
-                    color: AppColor.black,
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  {"See All"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={popularFoodTrucks}
-              extraData={popularFoodTrucks}
-              keyExtractor={(item) => item._id.toString()}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                return (
-                  <FoodTruckGridComponent
-                    title={item.name}
-                    uris={item.logo}
-                    showLikeButton={isSignedIn}
-                    foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
-                    distance={item.distanceInMeters}
-                    onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", { item })
-                    }
-                  />
-                );
-              }}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
-              ListEmptyComponent={() => (
-                <View
-                  style={{
-                    width: width - 40,
-                    height: 100,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: Mulish600,
-                      color: AppColor.black,
-                    }}
-                  >
-                    {"No Food Trucks Available."}
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
-
-          {/* Nearby foodtruck container */}
-          <View
-            style={{
-              marginVertical: 10,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginHorizontal: 20,
-                marginBottom: 10,
-              }}
-            >
-              <View style={styles.sectionTitleBlock}>
-                <Text numberOfLines={1} style={styles.sectionTitleText}>
-                  {"Nearby Food Trucks"}
-                </Text>
-                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
-                  {"Delivery available within 5 miles of your location."}
-                </Text>
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() =>
-                  navigation.navigate("seeAllTrucksScreen", {
-                    screenTitle: "Nearby Food Trucks",
-                    screenType: "nearby_food_trucks",
-                  })
-                }
-              >
-                <Text
-                  style={{
-                    fontFamily: Mulish400,
-                    fontSize: 14,
-                    color: AppColor.black,
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  {"See All"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={nearbyFoodTrucks}
-              extraData={nearbyFoodTrucks}
-              keyExtractor={(item) => item._id.toString()}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                return (
-                  <FoodTruckGridComponent
-                    title={item.name}
-                    uris={item.logo}
-                    showLikeButton={isSignedIn}
-                    foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
-                    distance={item.distanceInMeters}
-                    onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", { item })
-                    }
-                  />
-                );
-              }}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
-              ListEmptyComponent={() => (
-                <View
-                  style={{
-                    width: width - 40,
-                    height: 100,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: Mulish600,
-                      color: AppColor.black,
-                    }}
-                  >
-                    {"No Food Trucks Available."}
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
-
-          {/* Featured foodtruck container */}
-          <View
-            style={{
-              marginVertical: 10,
-              paddingVertical: 16,
-              backgroundColor: "#F2F2F7",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginHorizontal: 20,
-                marginBottom: 10,
-              }}
-            >
-              <View style={styles.sectionTitleBlock}>
-                <Text numberOfLines={1} style={styles.sectionTitleText}>
-                  {"Featured Food Trucks"}
-                </Text>
-                <Text numberOfLines={2} style={styles.sectionSubtitleText}>
-                  {"Featured picks near you. Delivery shown when available."}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() =>
-                  navigation.navigate("seeAllTrucksScreen", {
-                    screenTitle: "Featured Food Trucks",
-                    screenType: "featured_food_trucks",
-                  })
-                }
-              >
-                <Text
-                  style={{
-                    fontFamily: Mulish400,
-                    fontSize: 14,
-                    color: AppColor.black,
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  {"See All"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={featuredFoodTrucks}
-              extraData={featuredFoodTrucks}
-              keyExtractor={(item) => item._id.toString()}
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => {
-                return (
-                  <FoodTruckGridComponent
-                    title={item.name}
-                    uris={item.logo}
-                    showLikeButton={isSignedIn}
-                    foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
-                    distance={item.distanceInMeters}
-                    onContainerPress={() =>
-                      navigation.navigate("foodTruckDetailScreen", { item })
-                    }
-                  />
-                );
-              }}
-              contentContainerStyle={{
-                gap: 20,
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-              }}
-              ListEmptyComponent={() => (
-                <View
-                  style={{
-                    width: width - 40,
-                    height: 100,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: Mulish600,
-                      color: AppColor.black,
-                    }}
-                  >
-                    {"No Food Trucks Available."}
-                  </Text>
-                </View>
-              )}
-            />
           </View>
         </View>
       </Animated.ScrollView>

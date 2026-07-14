@@ -42,6 +42,8 @@ const DetailRow = ({ label, value }) => (
 
 const listValue = (value) =>
   Array.isArray(value) && value.length ? value.join(", ") : "Not set";
+const boolValue = (value) =>
+  value === true ? "Yes" : value === false ? "No" : "Not answered";
 
 const getVendorName = (record) => {
   const foodTruck = record?.food_truck_id;
@@ -265,6 +267,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
   const ticketUrl = event?.ticket_url?.trim();
+  const showEventVisibility =
+    event?.event_visibility === "PUBLIC" && ticketSalesEnabled && !!ticketUrl;
   const eventStatus = event?.status || "DRAFT";
   const isDraft = eventStatus === "DRAFT";
   const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
@@ -824,6 +828,22 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               value={event?.alcohol_required ? "Yes" : "No"}
             />
             <DetailRow
+              label="Free Food Offered"
+              value={boolValue(event?.free_food_offered)}
+            />
+            {event?.free_food_offered === true ? (
+              <>
+                <DetailRow
+                  label="Free Food Provider"
+                  value={event?.free_food_provider || "Not set"}
+                />
+                <DetailRow
+                  label="Vendors Must Give Away Food"
+                  value={boolValue(event?.vendors_required_to_giveaway_food)}
+                />
+              </>
+            ) : null}
+            <DetailRow
               label="Cuisine Preferences"
               value={listValue(event?.cuisine_preferences)}
             />
@@ -871,18 +891,20 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </>
           ))}
 
-          {renderCollapsibleSection("visibility", "Event Visibility", (
-            <>
-            <DetailRow
-              label="Event Views"
-              value={String(event?.event_impression_count || 0)}
-            />
-            <DetailRow
-              label="Ticket Clicks"
-              value={String(event?.ticket_click_count || 0)}
-            />
-            </>
-          ))}
+          {showEventVisibility
+            ? renderCollapsibleSection("visibility", "Event Visibility", (
+                <>
+                <DetailRow
+                  label="Event Views"
+                  value={String(event?.event_impression_count || 0)}
+                />
+                <DetailRow
+                  label="Ticket Clicks"
+                  value={String(event?.ticket_click_count || 0)}
+                />
+                </>
+              ))
+            : null}
 
           {renderAwardedDocuments()}
           {renderCoordinatorActions()}
