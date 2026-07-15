@@ -3,10 +3,10 @@
     "name": "RTC_DEV_CUSTOMER",
     "slug": "foodtruck",
     "scheme": "rtc-customer",
-    "version": "1.6.1",
+    "version": "1.7",
     "ios": {
       "bundleIdentifier": "com.rounddacorner.dev.customer",
-      "buildNumber": "63",
+      "buildNumber": "1",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
