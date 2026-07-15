@@ -252,7 +252,11 @@ const CheckoutScreen = ({ navigation, route }) => {
   const order = useSelector((state) => state.orderReducer.currentOrder);
   const { defaultLocation } = useSelector((state) => state.locationReducer);
 
-  const { foodTruckId = null } = route.params || {};
+  const {
+    foodTruckId = null,
+    truckUnitId: selectedTruckUnitId = null,
+    locationId: selectedLocationId = null,
+  } = route.params || {};
 
   const [dataLoading, setDataLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -527,6 +531,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     let payload = {
       foodTruckId: foodTruckId,
       locationId: truckCurrentLocation?._id, // for pre-order it'll change latter
+      truckUnitId: selectedTruckUnitId || order.truckUnitId || null,
       taxAmount: salesTaxAmount || 0,
       tax: salesTaxAmount || 0,
       subtotal,
@@ -1204,18 +1209,23 @@ const CheckoutScreen = ({ navigation, route }) => {
         setFoodTruckDetail(response_2?.data?.foodtruck);
       }
 
-      if (response_2?.data?.foodtruck?.currentLocation) {
-        const current_location = response_2?.data?.foodtruck.currentLocation
+      const activeLocationId =
+        selectedLocationId ||
+        order.locationId ||
+        response_2?.data?.foodtruck?.currentLocation;
+
+      if (activeLocationId) {
+        const current_location = activeLocationId
           ? response_2?.data?.foodtruck?.locations.find(
               (location) =>
-                location._id === response_2?.data?.foodtruck.currentLocation,
+                location._id?.toString() === activeLocationId?.toString(),
             )
           : null;
         setTruckCurrentLocation(current_location);
 
         // Fetch TAX for location
         const initialTaxParams = buildTaxParams({
-          locationId: response_2?.data?.foodtruck.currentLocation,
+          locationId: activeLocationId,
           amount: taxableAmount,
         });
         const initialTaxKey = getTaxCacheKey(initialTaxParams);

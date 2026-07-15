@@ -81,10 +81,17 @@ const handleSocialPress = (url) => {
   });
 };
 
+const idsMatch = (first, second) =>
+  first !== null &&
+  first !== undefined &&
+  second !== null &&
+  second !== undefined &&
+  first.toString() === second.toString();
+
 const getCurrentLocation = (currentLocation, locations) => {
   if (!currentLocation) return null;
 
-  const matchedLocation = locations.find((loc) => loc._id === currentLocation);
+  const matchedLocation = locations.find((loc) => idsMatch(loc._id, currentLocation));
 
   if (!matchedLocation) return null;
 
@@ -99,7 +106,7 @@ const getCurrentLocation = (currentLocation, locations) => {
 const getLocationInfo = (currentLocation, locations) => {
   if (!currentLocation) return null;
 
-  const matchedLocation = locations.find((loc) => loc._id === currentLocation);
+  const matchedLocation = locations.find((loc) => idsMatch(loc._id, currentLocation));
   if (!matchedLocation) return null;
 
   return {
@@ -118,6 +125,13 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const businessHoursActionSheetRef = useRef(null);
 
   const { item } = route.params;
+  const selectedTruckUnitId = item?.selectedTruckUnitId || null;
+  const selectedTruckUnitName = item?.selectedTruckUnitName || null;
+  const selectedLocationId = item?.selectedLocationId || item?.selectedLocation?._id || null;
+  const selectedLocation =
+    item?.selectedLocation ||
+    (selectedLocationId && item?.locations?.find((loc) => idsMatch(loc._id, selectedLocationId))) ||
+    null;
 
   const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -212,14 +226,18 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     setMenuTabs(tabs);
   };
 
-  const currentLocationInfo = getLocationInfo(
-    foodTruckDetail?.currentLocation,
-    foodTruckDetail?.locations
-  );
+  const activeLocationId = selectedLocationId || foodTruckDetail?.currentLocation;
+  const currentLocationInfo =
+    selectedLocation ||
+    getLocationInfo(activeLocationId, foodTruckDetail?.locations || []);
 
-  const currentStatus = foodTruckDetail?.currentLocation
+  const currentStatus = activeLocationId
     ? "Open Now"
     : "Closed Now";
+  const isCurrentOrderContext =
+    currentOrder.foodTruckId === item._id &&
+    idsMatch(currentOrder.truckUnitId || "", selectedTruckUnitId || "") &&
+    idsMatch(currentOrder.locationId || "", activeLocationId || "");
 
   const images =
     foodTruckDetail?.photos && foodTruckDetail?.photos?.length > 0
@@ -238,14 +256,19 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const handleAddItem = (menuItem) => {
-    if (
+    const isDifferentOrderContext =
       currentOrder.foodTruckId &&
-      currentOrder.foodTruckId !== item._id &&
+      (currentOrder.foodTruckId !== item._id ||
+        !idsMatch(currentOrder.truckUnitId || "", selectedTruckUnitId || "") ||
+        !idsMatch(currentOrder.locationId || "", activeLocationId || ""));
+
+    if (
+      isDifferentOrderContext &&
       currentOrder.items.length > 0
     ) {
       Alert.alert(
         "Different Food Truck",
-        `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${item.name}?`,
+        `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${selectedTruckUnitName || item.name}?`,
         [
           {
             text: "Cancel",
@@ -280,8 +303,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     dispatch(
       addItemToOrder({
         foodTruckId: item._id,
-        foodTruckName: item.name,
+        foodTruckName: selectedTruckUnitName || item.name,
         foodTruckLogo: item.logo,
+        truckUnitId: selectedTruckUnitId,
+        locationId: activeLocationId,
         item: { ...menuItem },
       })
     );
@@ -656,14 +681,20 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const getItemQuantity = (itemId) => {
+    if (!isCurrentOrderContext) return 0;
+
     const orderItem = currentOrder.items.find((item) => item._id === itemId);
     return orderItem ? orderItem.quantity : 0;
   };
 
-  const truckLocation = getCurrentLocation(
-    foodTruckDetail?.currentLocation,
-    foodTruckDetail?.locations
-  );
+  const truckLocation = selectedLocation
+    ? {
+        latitude: parseFloat(selectedLocation.lat),
+        longitude: parseFloat(selectedLocation.long),
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }
+    : getCurrentLocation(activeLocationId, foodTruckDetail?.locations || []);
 
   const handleGetDirection = async () => {
     if (!truckLocation) {
@@ -738,7 +769,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   />
                   <View style={styles.titleContainer}>
                     <Text style={styles.title} numberOfLines={2}>
-                      {foodTruckDetail?.name}
+                      {selectedTruckUnitName || foodTruckDetail?.name}
                     </Text>
                   </View>
                 </View>
@@ -1094,7 +1125,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
           {/* Bottom Bar - Conditional display */}
           {currentOrder.totalItems > 0 &&
-            currentOrder.foodTruckId === item._id && (
+            isCurrentOrderContext && (
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[
@@ -1107,6 +1138,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   if (isSignedIn) {
                     navigation.navigate("checkoutScreen", {
                       foodTruckId: item?._id,
+                      truckUnitId: selectedTruckUnitId,
+                      locationId: activeLocationId,
                     });
                   } else {
                     // navigate to login screen

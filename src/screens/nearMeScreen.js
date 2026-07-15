@@ -271,7 +271,14 @@ const NearMeScreen = ({ navigation }) => {
           style={styles.horizontalCard}
           onPress={() =>
             navigation.navigate("foodTruckDetailScreen", {
-              item: item.raw || item,
+              item: {
+                ...(item.raw || item),
+                name: item.name || item.title || item.raw?.name,
+                selectedTruckUnitId: item.truck_unit_id || null,
+                selectedTruckUnitName: item.truck_unit_name || null,
+                selectedLocationId: item.location?._id || null,
+                selectedLocation: item.location || null,
+              },
             })
           }
         >

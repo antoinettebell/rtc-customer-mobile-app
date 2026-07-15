@@ -6,6 +6,8 @@ const initialState = {
     foodTruckId: null,
     foodTruckName: null,
     foodTruckLogo: null,
+    truckUnitId: null,
+    locationId: null,
     items: [],
     totalItems: 0,
     subtotal: 0,
@@ -27,17 +29,28 @@ const orderSlice = createSlice({
   initialState,
   reducers: {
     addItemToOrder: (state, { payload }) => {
-      const { foodTruckId, foodTruckName, foodTruckLogo, item } = payload;
+      const {
+        foodTruckId,
+        foodTruckName,
+        foodTruckLogo,
+        truckUnitId = null,
+        locationId = null,
+        item,
+      } = payload;
 
       // If this is the first item or from a different food truck, reset the order
       if (
         !state.currentOrder.foodTruckId ||
-        state.currentOrder.foodTruckId !== foodTruckId
+        state.currentOrder.foodTruckId !== foodTruckId ||
+        state.currentOrder.truckUnitId !== truckUnitId ||
+        state.currentOrder.locationId !== locationId
       ) {
         state.currentOrder = {
           foodTruckId,
           foodTruckName,
           foodTruckLogo,
+          truckUnitId,
+          locationId,
           items: [],
           totalItems: 0,
           subtotal: 0,
