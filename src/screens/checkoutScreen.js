@@ -13,11 +13,9 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { useIsFocused } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/FontAwesome";
-import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import moment from "moment";
 import { Divider, ActivityIndicator, IconButton } from "react-native-paper";
-import ActionSheet from "react-native-actions-sheet";
 import {
   AppColor,
   Mulish700,
@@ -245,7 +243,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const isFocused = useIsFocused();
-  const actionSheetRef = useRef(null);
   const taxDataCacheRef = useRef({});
   const activeTaxKeyRef = useRef(null);
 
@@ -268,10 +265,6 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [dessert, setDessert] = useState(null);
   const [pickupSource, setPickupSource] = useState("regular");
 
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedAvailability, setSelectedAvailability] = useState(null);
-  const [pickupTime, setPickupTime] = useState(null);
-
   const [preventAPI, setPreventAPI] = useState(false);
   const [driverTip, setDriverTip] = useState(0);
 
@@ -279,8 +272,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   const debouncedSubtotal = useDebounce(subtotal, 1000);
   const isDelivery = pickupSource === "delivery";
   const fulfillmentType = isDelivery ? "DELIVERY" : "PICKUP";
-  const isPreOrder = pickupSource === "pre_order";
-  const orderNowUnavailable = !isPreOrder && !truckCurrentLocation;
+  const orderNowUnavailable = !truckCurrentLocation;
   const isConfirmDisabled =
     order.items.length === 0 || loading || orderNowUnavailable;
   const discount = useMemo(() => {
@@ -372,10 +364,8 @@ const CheckoutScreen = ({ navigation, route }) => {
   });
   const currentTaxLocationId = useMemo(
     () =>
-      pickupSource === "pre_order"
-        ? selectedLocation?._id
-        : truckCurrentLocation?._id,
-    [pickupSource, selectedLocation?._id, truckCurrentLocation?._id],
+      truckCurrentLocation?._id,
+    [truckCurrentLocation?._id],
   );
   const currentTaxKey = useMemo(() => {
     if (!currentTaxLocationId || taxableAmount <= 0) {
@@ -405,10 +395,6 @@ const CheckoutScreen = ({ navigation, route }) => {
       currentTaxKey ? taxDataCacheRef.current[currentTaxKey] || null : null,
     );
   }, [currentTaxKey]);
-
-  const handlePickupTimePress = () => {
-    actionSheetRef.current?.show();
-  };
 
   const handleAdd = (item) => {
     const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100;
@@ -442,73 +428,12 @@ const CheckoutScreen = ({ navigation, route }) => {
       return;
     }
 
-    const now = moment(); // Declare 'now' once here
-
-    // Validations
-    if (isPreOrder) {
-      // Check if the selected location is valid
-      if (!selectedLocation) {
-        Alert.alert("Location required", "Please select a location.");
-        return;
-      }
-
-      // Check if the selected availability is valid
-      if (!selectedAvailability) {
-        Alert.alert("Availability required", "Please select a availability.");
-        return;
-      }
-
-      // Check if the selected pickup time is valid
-      if (!pickupTime) {
-        Alert.alert(
-          "Pickup Time Required",
-          "Please enter a pickup time for your pre-order.",
-        );
-        return;
-      }
-
-      const selectedDate = moment(selectedAvailability.date);
-      const selectedDateTime = moment(
-        `${selectedDate.format("YYYY-MM-DD")} ${pickupTime}`,
-        "YYYY-MM-DD HH:mm",
+    if (!truckCurrentLocation) {
+      Alert.alert(
+        "Can not place order.",
+        "Vendor is not available at the moment. Please try again later.",
       );
-      const availabilityStartTime = moment(
-        `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.startTime}`,
-        "YYYY-MM-DD HH:mm",
-      );
-      const availabilityEndTime = moment(
-        `${selectedDate.format("YYYY-MM-DD")} ${selectedAvailability.endTime}`,
-        "YYYY-MM-DD HH:mm",
-      );
-
-      // Check if the selected time is not in the past for today's availability
-      if (selectedDate.isSame(now, "day") && selectedDateTime.isBefore(now)) {
-        Alert.alert(
-          "Invalid Pickup Time",
-          `Pickup time cannot be in the past for today's availability. Please select a time between ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} and ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`,
-        );
-        return;
-      }
-
-      // Check if the selected time is within the availability range
-      if (
-        selectedDateTime.isBefore(availabilityStartTime) ||
-        selectedDateTime.isAfter(availabilityEndTime)
-      ) {
-        Alert.alert(
-          "Invalid Pickup Time",
-          `Pickup time must be within the selected availability range: ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}.`,
-        );
-        return;
-      }
-    } else {
-      if (!truckCurrentLocation) {
-        Alert.alert(
-          "Can not place order.",
-          "Vendor is not available at the moment. Please try again later or select pre-order.",
-        );
-        return;
-      }
+      return;
     }
 
     if (isDelivery && !defaultLocation?.address) {
@@ -608,15 +533,6 @@ const CheckoutScreen = ({ navigation, route }) => {
       }),
     };
 
-    // add params for pre-order
-    if (isPreOrder) {
-      const pickupDate = moment(selectedAvailability?.date).format("DD-MMM");
-      payload.locationId = selectedLocation?._id;
-      payload.deliveryTime = pickupTime;
-      payload.deliveryDate = pickupDate;
-      payload.availabilityId = selectedAvailability?._id;
-    }
-
     // add "couponId" if discount is applied
     if (coupon) {
       payload.couponId = coupon?._id;
@@ -658,19 +574,6 @@ const CheckoutScreen = ({ navigation, route }) => {
       );
     } finally {
       setLoading(false);
-    }
-  };
-
-  const onLocationDonePress = () => {
-    if (!selectedLocation) {
-      Alert.alert("Location required", "Please select a location.");
-    } else if (!selectedAvailability) {
-      Alert.alert("Availability required", "Please select a availability.");
-    } else if (!pickupTime) {
-      Alert.alert("Pickup Time Required", "Please select a pickup time.");
-    } else {
-      getTaxInfoFromAPI();
-      actionSheetRef.current?.hide();
     }
   };
 
@@ -949,244 +852,6 @@ const CheckoutScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderAvailability = () => {
-    if (!selectedLocation || !foodTruckDetail?.availability) return null;
-
-    const locationAvailability = foodTruckDetail.availability.filter(
-      (slot) => slot.locationId === selectedLocation._id && slot.available,
-    );
-
-    if (locationAvailability.length === 0) {
-      return (
-        <View style={styles.availabilityContainer}>
-          <Text>No availability for this location.</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.availabilityContainer}>
-        <Text
-          style={{
-            fontFamily: Mulish600,
-            fontSize: 16,
-            marginTop: 4,
-            marginBottom: 8,
-          }}
-        >
-          {"Select Availability :"}
-        </Text>
-        {locationAvailability.map((slot) => {
-          const isSelected = selectedAvailability?._id === slot._id;
-          const isDisabled = isSlotPast(slot.day, slot.startTime, slot.endTime);
-          const dateOfTheDay = getFutureDateForDay(slot.day);
-          const openTime = moment(slot.startTime, "HH:mm").format("hh:mm A");
-          const closeTime = moment(slot.endTime, "HH:mm").format("hh:mm A");
-
-          return (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              key={slot._id}
-              style={[
-                styles.radioOption,
-                {
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingLeft: 0,
-                  paddingRight: 8,
-                },
-                isSelected && styles.radioOptionActive,
-              ]}
-              onPress={() => {
-                setSelectedAvailability({ ...slot, date: dateOfTheDay });
-                setPickupTime(null);
-              }}
-              disabled={isDisabled}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  gap: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingLeft: 16,
-                  paddingRight: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: Mulish400,
-                    fontSize: 15,
-                    textTransform: "capitalize",
-                    color: isDisabled ? AppColor.gray : AppColor.text,
-                  }}
-                >
-                  {dateOfTheDay.format("ddd (DD-MMM)")}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    fontSize: 15,
-                    fontFamily: Mulish400,
-                    textTransform: "capitalize",
-                    color: isDisabled ? AppColor.gray : AppColor.text,
-                  }}
-                >
-                  {`${openTime} - ${closeTime}`}
-                </Text>
-              </View>
-              <Pressable
-                hitSlop={5}
-                disabled={!isSelected}
-                onPress={() => setSelectedAvailability(null)}
-                style={{ opacity: isSelected ? 1 : 0 }}
-              >
-                <Ionicons
-                  name="close-circle-sharp"
-                  color={AppColor.text}
-                  size={24}
-                />
-              </Pressable>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
-
-  const getPickupTimeOptions = () => {
-    if (!selectedAvailability?.date || !selectedAvailability?.startTime) {
-      return [];
-    }
-
-    const selectedDate = moment(selectedAvailability.date).format("YYYY-MM-DD");
-    const start = moment(
-      `${selectedDate} ${selectedAvailability.startTime}`,
-      "YYYY-MM-DD HH:mm",
-    );
-    const end = moment(
-      `${selectedDate} ${selectedAvailability.endTime}`,
-      "YYYY-MM-DD HH:mm",
-    );
-    const now = moment();
-    const options = [];
-    const cursor = start.clone();
-
-    while (cursor.isSameOrBefore(end)) {
-      if (cursor.isAfter(now)) {
-        options.push(cursor.format("HH:mm"));
-      }
-      cursor.add(15, "minutes");
-    }
-
-    return options;
-  };
-
-  const renderPreorderTimePicker = () => {
-    if (!selectedAvailability) return null;
-    const pickupTimeOptions = getPickupTimeOptions();
-
-    return (
-      <View style={styles.availabilityContainer}>
-        <Text
-          style={{
-            fontFamily: Mulish600,
-            fontSize: 16,
-            marginTop: 4,
-            marginBottom: 8,
-          }}
-        >
-          {"Select Pickup Time"}
-        </Text>
-        {pickupTimeOptions.length > 0 ? (
-          <View style={styles.pickupTimeGrid}>
-            {pickupTimeOptions.map((timeOption) => {
-              const isSelected = pickupTime === timeOption;
-              return (
-                <TouchableOpacity
-                  key={timeOption}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.pickupTimeOption,
-                    isSelected && styles.pickupTimeOptionActive,
-                  ]}
-                  onPress={() => setPickupTime(timeOption)}
-                >
-                  <Text
-                    style={[
-                      styles.pickupTimeOptionText,
-                      isSelected && styles.pickupTimeOptionTextActive,
-                    ]}
-                  >
-                    {moment(timeOption, "HH:mm").format("hh:mm A")}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ) : (
-          <Text
-            style={{
-              fontSize: 14,
-              fontFamily: Mulish500,
-              color: AppColor.text,
-            }}
-          >
-            {"No remaining pickup times for this availability."}
-          </Text>
-        )}
-      </View>
-    );
-  };
-
-  const isSlotPast = (dayOfWeek, startTime, endTime) => {
-    const now = moment();
-    const currentDay = now.day(); // 0 for Sunday, 1 for Monday, etc.
-
-    const dayMap = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
-    const slotDay = dayMap[dayOfWeek.toLowerCase()];
-
-    // Only check if the slot is past if it's for the current day
-    if (currentDay === slotDay) {
-      const end = moment(endTime, "HH:mm");
-      return now.isAfter(end, "minute");
-    }
-    return false;
-  };
-
-  const getFutureDateForDay = (dayOfWeek) => {
-    const today = moment();
-    const dayMap = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
-    const targetDayIndex = dayMap[dayOfWeek.toLowerCase()];
-    const currentDayIndex = today.day();
-
-    let daysToAdd = targetDayIndex - currentDayIndex;
-
-    if (daysToAdd < 0) {
-      daysToAdd += 7;
-    }
-
-    return today.add(daysToAdd, "days");
-  };
-
   const getIntitalDataFromAPI = async () => {
     setDataLoading(true);
     try {
@@ -1435,34 +1100,6 @@ const CheckoutScreen = ({ navigation, route }) => {
                     Delivery
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: 4,
-                    backgroundColor:
-                      pickupSource === "pre_order"
-                        ? AppColor.primary
-                        : "#E5E5EA",
-                  }}
-                  onPress={() => setPickupSource("pre_order")}
-                >
-                  <Text
-                    style={{
-                      fontFamily: Mulish600,
-                      fontSize: 14,
-                      color:
-                        pickupSource === "pre_order"
-                          ? AppColor.white
-                          : AppColor.text,
-                    }}
-                  >
-                    Pre-Order
-                  </Text>
-                </TouchableOpacity>
               </View>
               {pickupSource === "regular" ? (
                 <View
@@ -1503,9 +1140,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                           color: AppColor.text,
                         }}
                       >
-                        {
-                          "This vendor is not available at the moment. Kindly Check for pre-order."
-                        }
+                        {"This vendor is not available at the moment."}
                       </Text>
                     </View>
                   )}
@@ -1543,134 +1178,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                           color: AppColor.text,
                         }}
                       >
-                        {
-                          "This vendor is not available at the moment. Kindly Check for pre-order."
-                        }
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              ) : null}
-              {pickupSource === "pre_order" ? (
-                <View
-                  style={{
-                    gap: 16,
-                    padding: 16,
-                    borderWidth: 1,
-                    borderRadius: 10,
-                    borderColor: AppColor.borderColor,
-                    backgroundColor: AppColor.white,
-                  }}
-                >
-                  <View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontFamily: Mulish700,
-                          fontSize: 18,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {"Location:"}
-                      </Text>
-                      <IconButton
-                        icon="plus"
-                        size={18}
-                        containerColor="#E5E5EA"
-                        style={{ margin: 0 }}
-                        onPress={handlePickupTimePress}
-                      />
-                    </View>
-                    {selectedLocation ? (
-                      <View style={{ gap: 8, marginTop: 8 }}>
-                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
-                          {`${selectedLocation.title}, `}
-                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
-                            {`${selectedLocation.address}`}
-                          </Text>
-                        </Text>
-                        {selectedAvailability ? (
-                          <Text
-                            style={{
-                              fontFamily: Mulish600,
-                              fontSize: 14,
-                              color: AppColor.text,
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {`${getFutureDateForDay(selectedAvailability.day).format("ddd (DD-MMM)")}  ${moment(selectedAvailability.startTime, "HH:mm").format("hh:mm A")} - ${moment(selectedAvailability.endTime, "HH:mm").format("hh:mm A")}`}
-                          </Text>
-                        ) : (
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontFamily: Mulish500,
-                              color: AppColor.text,
-                            }}
-                          >
-                            {"* Please select pre-order availability"}
-                          </Text>
-                        )}
-                      </View>
-                    ) : null}
-                  </View>
-                  <Divider />
-                  <View>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                      onPress={handlePickupTimePress}
-                    >
-                      <Text
-                        style={{
-                          fontFamily: Mulish700,
-                          fontSize: 18,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {"Pickup Time:"}
-                      </Text>
-                      <IconButton
-                        icon={pickupTime ? "pencil" : "plus"}
-                        size={18}
-                        containerColor="#E5E5EA"
-                        style={{ margin: 0 }}
-                        onPress={handlePickupTimePress}
-                      />
-                    </TouchableOpacity>
-                    {pickupTime ? (
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish500,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {moment(pickupTime, "HH:mm").format("hh:mm A")}
-                      </Text>
-                    ) : !selectedLocation ||
-                      !selectedAvailability ||
-                      !pickupTime ? (
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontFamily: Mulish500,
-                          color: AppColor.text,
-                        }}
-                      >
-                        {
-                          "* Select location, availability, and pickup time together"
-                        }
+                        {"This vendor is not available at the moment."}
                       </Text>
                     ) : null}
                   </View>
@@ -1863,63 +1371,11 @@ const CheckoutScreen = ({ navigation, route }) => {
                 <ActivityIndicator color={AppColor.white} />
               ) : (
                 <Text style={styles.confirmBtnText}>
-                  {pickupSource === "pre_order"
-                    ? "Continue to Schedule"
-                    : "Continue to Payment"}
+                  {"Continue to Payment"}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
-
-          {/* Pre-Order Availability */}
-          <ActionSheet ref={actionSheetRef} headerAlwaysVisible={true}>
-            <View style={{ paddingVertical: 8 }}>
-              <Text style={styles.modalTitle}>{"Pre-Order Availability"}</Text>
-              <Divider style={{ marginVertical: 16 }} />
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
-              >
-                <View style={styles.section}>
-                  {foodTruckDetail?.locations.map((loc) => (
-                    <View key={loc._id}>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={[
-                          styles.radioOption,
-                          selectedLocation?._id === loc._id &&
-                            styles.radioOptionActive,
-                        ]}
-                        onPress={() => {
-                          setSelectedLocation(loc);
-                          setSelectedAvailability(null); // Reset availability on new location
-                          setPickupTime(null);
-                        }}
-                      >
-                        <Text style={{ fontFamily: Mulish600, fontSize: 15 }}>
-                          {`${loc.title}\n`}
-                          <Text style={{ fontFamily: Mulish400, fontSize: 14 }}>
-                            {`${loc.address}`}
-                          </Text>
-                        </Text>
-                      </TouchableOpacity>
-                      {selectedLocation?._id === loc._id &&
-                        renderAvailability()}
-                      {selectedLocation?._id === loc._id &&
-                        renderPreorderTimePicker()}
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.confirmBtn, { marginHorizontal: 16 }]}
-                onPress={onLocationDonePress}
-              >
-                <Text style={styles.confirmBtnText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </ActionSheet>
         </>
       )}
     </View>
@@ -2250,77 +1706,6 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 14,
     textAlign: "right",
-  },
-  // Modal Specific Styles
-  modal: {
-    justifyContent: "flex-end",
-    margin: 0,
-  },
-  modalContent: {},
-  modalTitle: {
-    fontFamily: Mulish700,
-    fontSize: 20,
-    textAlign: "center",
-  },
-  section: {
-    marginBottom: 20,
-  },
-  radioOption: {
-    borderWidth: 1,
-    borderColor: AppColor.borderColor,
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  radioOptionActive: {
-    borderColor: AppColor.primary,
-    backgroundColor: "#FFF6ED",
-  },
-  availabilityContainer: {
-    marginLeft: 16,
-    borderLeftWidth: 2,
-    borderLeftColor: AppColor.primary,
-    paddingLeft: 16,
-    marginBottom: 10,
-  },
-  pickupTimeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  pickupTimeOption: {
-    borderWidth: 1,
-    borderColor: AppColor.borderColor,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 88,
-    alignItems: "center",
-  },
-  pickupTimeOptionActive: {
-    borderColor: AppColor.primary,
-    backgroundColor: AppColor.primary,
-  },
-  pickupTimeOptionText: {
-    color: AppColor.text,
-    fontFamily: Mulish600,
-    fontSize: 14,
-  },
-  pickupTimeOptionTextActive: {
-    color: AppColor.white,
-  },
-  cancelBtn: {
-    borderColor: AppColor.primary,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 15,
-    alignItems: "center",
-  },
-  cancelBtnText: {
-    color: AppColor.primary,
-    fontFamily: Mulish400,
-    fontSize: 16,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -8,40 +8,39 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AppColor, Mulish700, Mulish400, Mulish600 } from "../utils/theme";
+import { AppColor, Mulish400, Mulish600 } from "../utils/theme";
 import ActionSheet from "react-native-actions-sheet";
-import { IconButton, SegmentedButtons } from "react-native-paper";
+import { IconButton } from "react-native-paper";
 import moment from "moment";
 import PropTypes from "prop-types";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
-const getFutureDateForDay = (dayOfWeek) => {
-  const today = moment();
-  const dayMap = {
-    sun: 0,
-    mon: 1,
-    tue: 2,
-    wed: 3,
-    thu: 4,
-    fri: 5,
-    sat: 6,
-  };
-  const targetDayIndex = dayMap[dayOfWeek.toLowerCase()];
-  const currentDayIndex = today.day();
+const dayLabels = {
+  sun: "Sunday",
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+};
 
-  let daysToAdd = targetDayIndex - currentDayIndex;
-
-  if (daysToAdd < 0) {
-    daysToAdd += 7;
+const getTruckLabel = (foodTruckDetail, truckUnitId) => {
+  const activeUnits = (foodTruckDetail?.truck_units || []).filter(
+    (unit) => !unit.is_archived
+  );
+  const unitIndex = activeUnits.findIndex(
+    (unit) => unit._id?.toString() === truckUnitId?.toString()
+  );
+  if (unitIndex >= 0) {
+    return `Truck ${unitIndex + 1}`;
   }
-
-  return today.add(daysToAdd, "days");
+  return activeUnits.length > 1 ? "Truck" : null;
 };
 
 const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
   const insets = useSafeAreaInsets();
-  const [segment, setSegment] = useState("business");
 
   return (
     <ActionSheet
@@ -59,26 +58,7 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
         {/* Header with close button */}
         <View style={styles.actionSheetHeader}>
           <View style={{ flex: 1 }}>
-            <SegmentedButtons
-              value={segment}
-              onValueChange={setSegment}
-              buttons={[
-                {
-                  value: "business",
-                  label: "Business Hours",
-                },
-                {
-                  value: "preOrder",
-                  label: "Pre-Order",
-                },
-              ]}
-              theme={{
-                colors: {
-                  secondaryContainer: AppColor.primary,
-                  onSecondaryContainer: AppColor.white,
-                },
-              }}
-            />
+            <Text style={styles.modalTitle}>Business Hours</Text>
           </View>
           <IconButton
             icon="close"
@@ -91,8 +71,7 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
           contentContainerStyle={styles.actionSheetScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {segment === "business" ? (
-            <View>
+          <View>
               {foodTruckDetail?.locations.map((loc) => {
                 const locationAvailability =
                   foodTruckDetail.businessHours.filter(
@@ -147,8 +126,10 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
                 );
               })}
             </View>
-          ) : (
-            <View>
+          <Text style={[styles.modalTitle, styles.sectionTitle]}>
+            Weekly Schedule
+          </Text>
+          <View>
               {foodTruckDetail?.locations.map((loc) => {
                 const locationAvailability =
                   foodTruckDetail.availability.filter(
@@ -174,7 +155,6 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
                     ) : (
                       <View style={styles.availabilityContainer}>
                         {locationAvailability.map((slot) => {
-                          const dateOfTheDay = getFutureDateForDay(slot.day);
                           const openTime = moment(
                             slot.startTime,
                             "HH:mm"
@@ -183,6 +163,10 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
                             slot.endTime,
                             "HH:mm"
                           ).format("hh:mm A");
+                          const truckLabel = getTruckLabel(
+                            foodTruckDetail,
+                            slot.truckUnitId
+                          );
 
                           return (
                             <View
@@ -190,8 +174,13 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
                               style={styles.preOrderSlot}
                             >
                               <Text style={styles.preOrderDay}>
-                                {dateOfTheDay.format("ddd (DD-MMM)")}
+                                {dayLabels[slot.day] || slot.day}
                               </Text>
+                              {truckLabel ? (
+                                <Text style={styles.truckLabel}>
+                                  {truckLabel}
+                                </Text>
+                              ) : null}
                               <Text
                                 numberOfLines={1}
                                 style={styles.preOrderTime}
@@ -207,7 +196,6 @@ const BusinessHoursModal = ({ actionSheetRef, foodTruckDetail }) => {
                 );
               })}
             </View>
-          )}
         </ScrollView>
       </View>
     </ActionSheet>
@@ -224,6 +212,15 @@ const styles = StyleSheet.create({
   },
   actionSheetScrollContent: {
     paddingBottom: 20,
+  },
+  modalTitle: {
+    fontFamily: Mulish600,
+    fontSize: 18,
+    color: AppColor.text,
+  },
+  sectionTitle: {
+    marginTop: 18,
+    marginBottom: 4,
   },
   locationTitleContainer: {
     borderWidth: 1,
@@ -292,6 +289,12 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     textTransform: "capitalize",
     color: AppColor.text,
+  },
+  truckLabel: {
+    fontFamily: Mulish600,
+    fontSize: 13,
+    color: AppColor.textHighlighter,
+    marginHorizontal: 8,
   },
 });
 

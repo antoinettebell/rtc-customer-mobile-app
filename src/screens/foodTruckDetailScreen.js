@@ -988,7 +988,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                       style={[styles.infoRowTitle, styles.flexWrapTitle]}
                       numberOfLines={2}
                     >
-                      {"Business Hours and Pre-Order Availability"}
+                      {"Business Hours and Weekly Schedule"}
                     </Text>
                     <IconButton
                       icon="information"
@@ -1215,7 +1215,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
             onSelectedComboSidesChange={handleSelectedComboSidesChange}
 			      />
 
-      {/* Business Hours and Pre-Order Availability */}
+      {/* Business Hours and Weekly Schedule */}
       <BusinessHoursModal
         actionSheetRef={businessHoursActionSheetRef}
         foodTruckDetail={foodTruckDetail}

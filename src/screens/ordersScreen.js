@@ -77,7 +77,7 @@ const OrdersScreen = ({ navigation }) => {
         {/* Order Header */}
         <View style={[styles.orderHeader, { marginTop: 0 }]}>
           <Text style={[styles.orderIdText, { color: AppColor.black }]}>
-            {item?.availabilityId ? "Pre-Order" : "Regular Order"}
+            {item?.availabilityId ? "Scheduled Order" : "Regular Order"}
           </Text>
           <Text style={styles.orderStatusText}>
             {orderCurrentStatusNames[item.orderStatus]}
