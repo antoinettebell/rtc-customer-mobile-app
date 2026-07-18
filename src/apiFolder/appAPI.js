@@ -55,6 +55,7 @@ import {
   PUBLIC_MARKETPLACE_EVENT_BY_ID,
   PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK,
   MARKETPLACE_EVENT_IMAGES,
+  MARKETPLACE_EVENT_COORDINATOR_PAYMENT_QR,
   MARKETPLACE_EVENT_BIDS,
   MARKETPLACE_EVENT_QUESTIONS,
   MARKETPLACE_EVENT_QUESTION_ANSWER,
@@ -814,12 +815,24 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "permits_required",
   "insurance_required",
   "alcohol_required",
+  "free_food_offered",
+  "free_food_provider",
+  "vendors_required_to_giveaway_food",
   "cuisine_preferences",
   "dietary_restrictions",
   "equipment_needed",
   "vendor_fee",
   "budgeted_amount",
   "payment_responsibility",
+  "coordinator_tax_identifier_type",
+  "coordinator_tax_identifier",
+  "coordinator_payment_preference",
+  "coordinator_payment_handle",
+  "coordinator_payment_qr_code_url",
+  "coordinator_payment_qr_code_key",
+  "coordinator_payment_qr_pending",
+  "coordinator_direct_deposit_routing_number",
+  "coordinator_direct_deposit_account_number",
   "event_close_date",
   "event_close_time",
   "status",
@@ -1031,6 +1044,22 @@ export const uploadMarketplaceEventImage_API = async ({ eventId, payload }) => {
   try {
     const response = await apiClient.post(
       MARKETPLACE_EVENT_IMAGES(eventId),
+      payload,
+      { formData: true, skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const uploadMarketplaceCoordinatorPaymentQr_API = async ({
+  eventId,
+  payload,
+}) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_COORDINATOR_PAYMENT_QR(eventId),
       payload,
       { formData: true, skipToken: false }
     );

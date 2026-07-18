@@ -34,9 +34,10 @@ import {
   createMarketplaceEvent_API,
   deleteMarketplaceEvent_API,
   getLocationName,
-  updateMarketplaceEvent_API,
-  uploadMarketplaceEventImage_API,
-} from "../apiFolder/appAPI";
+	  updateMarketplaceEvent_API,
+	  uploadMarketplaceCoordinatorPaymentQr_API,
+	  uploadMarketplaceEventImage_API,
+	} from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import {
@@ -102,10 +103,18 @@ const initialForm = {
   equipment_needed: [],
   vendor_fee: "",
   budgeted_amount: "",
-  payment_responsibility: "COORDINATOR",
-  event_close_date: "",
-  event_close_time: "",
-};
+	  payment_responsibility: "COORDINATOR",
+	  coordinator_tax_identifier_type: "",
+	  coordinator_tax_identifier: "",
+	  coordinator_payment_preference: "",
+	  coordinator_payment_handle: "",
+	  coordinator_payment_qr_code_url: "",
+	  coordinator_payment_qr_code_key: "",
+	  coordinator_direct_deposit_routing_number: "",
+	  coordinator_direct_deposit_account_number: "",
+	  event_close_date: "",
+	  event_close_time: "",
+	};
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const initialEventAddressRegion = {
@@ -145,6 +154,14 @@ const PRIMARY_SERVICE_STYLES = [
     icon: "more-horiz",
     description: "Custom service setup that does not match the standard styles.",
   },
+];
+
+const COORDINATOR_PAYMENT_OPTIONS = [
+  { label: "Cash App", value: "CASHAPP" },
+  { label: "Zelle", value: "ZELLE" },
+  { label: "PayPal", value: "PAYPAL" },
+  { label: "Venmo", value: "VENMO" },
+  { label: "Direct Deposit", value: "DIRECT_DEPOSIT" },
 ];
 const PLATED_OPTIONS = [
   "Individual Plated Meals",
@@ -309,6 +326,9 @@ const formatDateForDisplay = (value) => {
   return `${month}/${day}/${date.getFullYear()}`;
 };
 
+const hideEncryptedFormValue = (value) =>
+  typeof value === "string" && value.includes(":") ? "" : value || "";
+
 const normalizeEventForForm = (event = {}) => ({
   ...initialForm,
   ...event,
@@ -350,9 +370,19 @@ const normalizeEventForForm = (event = {}) => ({
   number_of_vendors_needed: event.number_of_vendors_needed
     ? String(event.number_of_vendors_needed)
     : "",
-  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
-  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
-});
+	  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
+	  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
+	  coordinator_tax_identifier_type: event.coordinator_tax_identifier_type || "",
+	  coordinator_tax_identifier: hideEncryptedFormValue(event.coordinator_tax_identifier),
+	  coordinator_payment_preference: event.coordinator_payment_preference || "",
+	  coordinator_payment_handle: event.coordinator_payment_handle || "",
+	  coordinator_payment_qr_code_url: event.coordinator_payment_qr_code_url || "",
+	  coordinator_payment_qr_code_key: event.coordinator_payment_qr_code_key || "",
+	  coordinator_direct_deposit_routing_number:
+	    hideEncryptedFormValue(event.coordinator_direct_deposit_routing_number),
+	  coordinator_direct_deposit_account_number:
+	    hideEncryptedFormValue(event.coordinator_direct_deposit_account_number),
+	});
 
 const formatTimeForPayload = (date) => {
   if (!date) return "";
@@ -670,10 +700,32 @@ const localStyles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 19,
   },
-  readOnlyInput: {
-    backgroundColor: "#F2F4F7",
-    color: AppColor.textHighlighter,
-  },
+	  readOnlyInput: {
+	    backgroundColor: "#F2F4F7",
+	    color: AppColor.textHighlighter,
+	  },
+	  pickerShell: {
+	    minHeight: 48,
+	    borderWidth: 1,
+	    borderColor: "#D8DDE6",
+	    borderRadius: 10,
+	    justifyContent: "center",
+	    backgroundColor: AppColor.white,
+	    overflow: "hidden",
+	  },
+	  payoutPanel: {
+	    borderWidth: 1,
+	    borderColor: "#E7EAF0",
+	    borderRadius: 12,
+	    padding: 12,
+	    marginTop: 14,
+	    backgroundColor: "#FAFBFC",
+	  },
+	  infoRow: {
+	    flexDirection: "row",
+	    alignItems: "center",
+	    gap: 8,
+	  },
   segmented: {
     flexDirection: "row",
     borderWidth: 1,
@@ -1261,8 +1313,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const eventAddressSearchRef = useRef(null);
   const formScrollRef = useRef(null);
   const vendorNeedsYRef = useRef(0);
-  const [form, setForm] = useState(initialForm);
-  const [eventImages, setEventImages] = useState([]);
+	  const [form, setForm] = useState(initialForm);
+	  const [eventImages, setEventImages] = useState([]);
+	  const [coordinatorPaymentQrImage, setCoordinatorPaymentQrImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
@@ -1284,12 +1337,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
     permission.location
   );
-  const foodTruckSelected = isFoodTruckService(form);
+	  const foodTruckSelected = isFoodTruckService(form);
+	  const savedEventLocationLocked = !!editingEventId && !isReopenMode;
 
   useEffect(() => {
     if (!draftEvent) return;
-    const nextForm = normalizeEventForForm(draftEvent);
-    setForm(nextForm);
+	    const nextForm = normalizeEventForForm(draftEvent);
+	    setForm(nextForm);
+	    setCoordinatorPaymentQrImage(null);
     if (nextForm.latitude && nextForm.longitude) {
       const region = {
         latitude: Number(nextForm.latitude),
@@ -1792,18 +1847,43 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
-    if (isCoordinatorBudgetRequired(form)) {
-      const minimumBudget = Number(form.number_of_guests || 0) * 25;
-      if (Number(form.budgeted_amount || 0) < minimumBudget) {
+	    if (isCoordinatorBudgetRequired(form)) {
+	      const minimumBudget = Number(form.number_of_guests || 0) * 25;
+	      if (Number(form.budgeted_amount || 0) < minimumBudget) {
         setSnackbar({
           visible: true,
           message: `Budget must be at least $${minimumBudget.toFixed(2)} for this guest count.`,
         });
-        return false;
-      }
-    }
-    return true;
-  };
+	        return false;
+	      }
+	    }
+	    if (status !== "DRAFT" && form.coordinator_tax_identifier_type && !form.coordinator_tax_identifier.trim()) {
+	      setSnackbar({
+	        visible: true,
+	        message: "Enter the coordinator EIN or SSN for accounting and tax purposes.",
+	      });
+	      return false;
+	    }
+	    if (status !== "DRAFT" && form.coordinator_payment_preference) {
+	      if (form.coordinator_payment_preference === "DIRECT_DEPOSIT") {
+	        if (!form.coordinator_direct_deposit_routing_number.trim()) {
+	          setSnackbar({ visible: true, message: "Routing number is required for direct deposit." });
+	          return false;
+	        }
+	        if (!form.coordinator_direct_deposit_account_number.trim()) {
+	          setSnackbar({ visible: true, message: "Account number is required for direct deposit." });
+	          return false;
+	        }
+	      } else if (!coordinatorPaymentQrImage && !form.coordinator_payment_qr_code_url) {
+	        setSnackbar({
+	          visible: true,
+	          message: "Upload the coordinator payment QR code for the selected payment preference.",
+	        });
+	        return false;
+	      }
+	    }
+	    return true;
+	  };
 
   const buildPayload = (status) => {
     const {
@@ -1842,15 +1922,40 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           : Number(form.budgeted_amount || 0),
       ticket_sales_enabled: !!form.ticket_sales_enabled,
       ticket_url: form.ticket_url?.trim() || "",
-      free_food_provider:
-        form.free_food_offered === true ? form.free_food_provider.trim() : "",
+	      free_food_provider:
+	        form.free_food_offered === true ? form.free_food_provider.trim() : "",
       vendors_required_to_giveaway_food:
         form.free_food_offered === true
-          ? form.vendors_required_to_giveaway_food
-          : null,
-      status,
-    };
-  };
+	          ? form.vendors_required_to_giveaway_food
+	          : null,
+	      coordinator_tax_identifier_type:
+	        form.coordinator_tax_identifier_type || null,
+	      coordinator_tax_identifier:
+	        form.coordinator_tax_identifier?.trim() || null,
+	      coordinator_payment_preference:
+	        form.coordinator_payment_preference || null,
+	      coordinator_payment_handle:
+	        form.coordinator_payment_handle?.trim() || null,
+	      coordinator_payment_qr_code_url:
+	        form.coordinator_payment_qr_code_url || null,
+	      coordinator_payment_qr_code_key:
+	        form.coordinator_payment_qr_code_key || null,
+	      coordinator_payment_qr_pending:
+	        !!coordinatorPaymentQrImage &&
+	        form.coordinator_payment_preference &&
+	        form.coordinator_payment_preference !== "DIRECT_DEPOSIT" &&
+	        !form.coordinator_payment_qr_code_url,
+	      coordinator_direct_deposit_routing_number:
+	        form.coordinator_payment_preference === "DIRECT_DEPOSIT"
+	          ? form.coordinator_direct_deposit_routing_number?.trim() || null
+	          : null,
+	      coordinator_direct_deposit_account_number:
+	        form.coordinator_payment_preference === "DIRECT_DEPOSIT"
+	          ? form.coordinator_direct_deposit_account_number?.trim() || null
+	          : null,
+	      status,
+	    };
+	  };
 
   const handleSubmit = async (status = "OPEN", options = {}) => {
     if (!validate(status)) return;
@@ -1887,9 +1992,54 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         return;
       }
 
-      let uploadWarning = false;
-      let uploadWarningMessage = "";
-      if (status !== "DRAFT" && eventId && eventImages.length) {
+	      let uploadWarning = false;
+	      let uploadWarningMessage = "";
+	      if (
+	        status !== "DRAFT" &&
+	        eventId &&
+	        coordinatorPaymentQrImage &&
+	        form.coordinator_payment_preference !== "DIRECT_DEPOSIT"
+	      ) {
+	        try {
+	          const qrFormData = new FormData();
+	          qrFormData.append("file", {
+	            uri: coordinatorPaymentQrImage.uri,
+	            name: coordinatorPaymentQrImage.name,
+	            type: coordinatorPaymentQrImage.type,
+	          });
+	          const qrResponse = await uploadMarketplaceCoordinatorPaymentQr_API({
+	            eventId,
+	            payload: qrFormData,
+	          });
+	          const qrUrl = qrResponse?.data?.coordinator_payment_qr_code_url;
+	          const qrKey = qrResponse?.data?.coordinator_payment_qr_code_key;
+	          if (qrUrl) {
+	            await updateMarketplaceEvent_API({
+	              eventId,
+	              payload: {
+	                ...payload,
+	                coordinator_payment_qr_pending: false,
+	                coordinator_payment_qr_code_url: qrUrl,
+	                coordinator_payment_qr_code_key: qrKey || null,
+	              },
+	            });
+	            setCoordinatorPaymentQrImage(null);
+	            setForm((prev) => ({
+	              ...prev,
+	              coordinator_payment_qr_code_url: qrUrl,
+	              coordinator_payment_qr_code_key: qrKey || "",
+	            }));
+	          }
+	        } catch (error) {
+	          uploadWarning = true;
+	          uploadWarningMessage =
+	            error?.message ||
+	            error?.error?.message ||
+	            "Coordinator payment QR code did not upload.";
+	          console.log("Coordinator payment QR upload error", error);
+	        }
+	      }
+	      if (status !== "DRAFT" && eventId && eventImages.length) {
         try {
           for (const image of eventImages) {
             const formData = new FormData();
@@ -2057,7 +2207,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     );
   };
 
-  const handlePickEventImages = async () => {
+	  const handlePickEventImages = async () => {
     try {
       if (Platform.OS === "ios") {
         const photosStatus = await photosPermissionStatus();
@@ -2095,7 +2245,51 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         });
       }
     }
-  };
+	  };
+
+	  const handlePickCoordinatorPaymentQr = async () => {
+	    try {
+	      if (Platform.OS === "ios") {
+	        const photosStatus = await photosPermissionStatus();
+	        if (
+	          photosStatus !== RESULTS.GRANTED &&
+	          photosStatus !== RESULTS.LIMITED
+	        ) {
+	          return;
+	        }
+	      }
+
+	      const image = await ImagePicker.openPicker({
+	        multiple: false,
+	        mediaType: "photo",
+	      });
+	      setCoordinatorPaymentQrImage(
+	        Platform.OS === "ios"
+	          ? {
+	              uri: image?.sourceURL || image?.path,
+	              name: image?.filename || `coordinator-payment-${Date.now()}.jpg`,
+	              type: image.mime,
+	            }
+	          : {
+	              uri: image?.path,
+	              name: `${image?.path?.split("/").pop()}`,
+	              type: image.mime,
+	            }
+	      );
+	      setForm((prev) => ({
+	        ...prev,
+	        coordinator_payment_qr_code_url: "",
+	        coordinator_payment_qr_code_key: "",
+	      }));
+	    } catch (error) {
+	      if (error?.code !== "E_PICKER_CANCELLED") {
+	        setSnackbar({
+	          visible: true,
+	          message: error?.message || "Failed to select payment QR code.",
+	        });
+	      }
+	    }
+	  };
 
   const renderSectionHeader = (title, icon) => (
     <View style={localStyles.sectionHeader}>
@@ -2117,8 +2311,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderInput = (label, key, props = {}) => (
-    <View style={localStyles.fieldGroup}>
+	  const renderInput = (label, key, props = {}) => (
+	    <View style={localStyles.fieldGroup}>
       {renderLabel(label)}
       <TextInput
         value={form[key]}
@@ -2135,8 +2329,131 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           props.editable === false ? localStyles.readOnlyInput : null,
         ]}
       />
-    </View>
-  );
+	    </View>
+	  );
+
+	  const renderCoordinatorPayoutFields = () => {
+	    const usesDirectDeposit =
+	      form.coordinator_payment_preference === "DIRECT_DEPOSIT";
+	    const needsQr =
+	      form.coordinator_payment_preference &&
+	      form.coordinator_payment_preference !== "DIRECT_DEPOSIT";
+	    const qrReady = !!coordinatorPaymentQrImage || !!form.coordinator_payment_qr_code_url;
+
+	    return (
+	      <View style={localStyles.payoutPanel}>
+	        <View style={localStyles.infoRow}>
+	          <MaterialIcons name="info-outline" size={18} color={AppColor.primary} />
+	          <Text style={styles.meta}>
+	            Information is needed for accounting and tax purposes.
+	          </Text>
+	        </View>
+	        <View style={localStyles.sideBySide}>
+	          <View style={localStyles.sideField}>
+	            <View style={localStyles.fieldGroup}>
+	              {renderLabel("Tax ID Type")}
+	              <View style={localStyles.pickerShell}>
+	                <Picker
+	                  selectedValue={form.coordinator_tax_identifier_type}
+	                  onValueChange={(value) =>
+	                    updateField("coordinator_tax_identifier_type", value)
+	                  }
+	                >
+	                  <Picker.Item label="Select" value="" />
+	                  <Picker.Item label="EIN" value="EIN" />
+	                  <Picker.Item label="SSN" value="SSN" />
+	                </Picker>
+	              </View>
+	            </View>
+	          </View>
+	          <View style={localStyles.sideField}>
+	            {renderInput("EIN / SSN", "coordinator_tax_identifier", {
+	              keyboardType: "number-pad",
+	              placeholder: "Required if type is selected",
+	            })}
+	          </View>
+	        </View>
+
+	        <Text style={[styles.label, { marginTop: 8 }]}>Coordinator Payment Preference</Text>
+	        <View style={styles.chipWrap}>
+	          {COORDINATOR_PAYMENT_OPTIONS.map((option) => {
+	            const active = form.coordinator_payment_preference === option.value;
+	            return (
+	              <TouchableOpacity
+	                key={option.value}
+	                activeOpacity={0.75}
+	                onPress={() =>
+	                  setForm((prev) => ({
+	                    ...prev,
+	                    coordinator_payment_preference: option.value,
+	                    coordinator_payment_qr_code_url:
+	                      option.value === "DIRECT_DEPOSIT"
+	                        ? ""
+	                        : prev.coordinator_payment_qr_code_url,
+	                    coordinator_payment_qr_code_key:
+	                      option.value === "DIRECT_DEPOSIT"
+	                        ? ""
+	                        : prev.coordinator_payment_qr_code_key,
+	                    coordinator_direct_deposit_routing_number:
+	                      option.value === "DIRECT_DEPOSIT"
+	                        ? prev.coordinator_direct_deposit_routing_number
+	                        : "",
+	                    coordinator_direct_deposit_account_number:
+	                      option.value === "DIRECT_DEPOSIT"
+	                        ? prev.coordinator_direct_deposit_account_number
+	                        : "",
+	                  }))
+	                }
+	                style={[styles.chip, active && styles.chipActive]}
+	              >
+	                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+	                  {option.label}
+	                </Text>
+	              </TouchableOpacity>
+	            );
+	          })}
+	        </View>
+
+	        {usesDirectDeposit ? (
+	          <View style={localStyles.sideBySide}>
+	            <View style={localStyles.sideField}>
+	              {renderInput("Routing Number *", "coordinator_direct_deposit_routing_number", {
+	                keyboardType: "number-pad",
+	              })}
+	            </View>
+	            <View style={localStyles.sideField}>
+	              {renderInput("Account Number *", "coordinator_direct_deposit_account_number", {
+	                keyboardType: "number-pad",
+	              })}
+	            </View>
+	          </View>
+	        ) : null}
+
+	        {needsQr ? (
+	          <>
+	            {renderInput("Payment Handle", "coordinator_payment_handle", {
+	              placeholder: "Optional username/email/phone",
+	            })}
+	            <TouchableOpacity
+	              activeOpacity={0.75}
+	              style={[styles.secondaryButton, localStyles.uploadButton, { marginTop: 10 }]}
+	              onPress={handlePickCoordinatorPaymentQr}
+	              disabled={loading}
+	            >
+	              <MaterialIcons
+	                name={qrReady ? "check-circle" : "qr-code-scanner"}
+	                size={20}
+	                color={AppColor.primary}
+	              />
+	              <Text style={styles.secondaryButtonText}>
+	                {qrReady ? "Payment QR Selected" : "Upload Payment QR Code *"}
+	              </Text>
+	            </TouchableOpacity>
+	          </>
+	        ) : null}
+	      </View>
+	    );
+	  };
 
   const renderDateTimePicker = (label, key, mode) => (
     <View style={localStyles.fieldGroup}>
@@ -2694,16 +3011,22 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             form.event_address && localStyles.eventMapWrapSelected,
           ]}
         >
-          <MapView
-            ref={eventAddressMapRef}
-            provider={PROVIDER_GOOGLE}
-            style={localStyles.eventMap}
-            loadingEnabled={true}
-            loadingIndicatorColor={AppColor.primary}
-            initialRegion={initialEventAddressRegion}
-            region={eventAddressRegion}
-            onRegionChangeComplete={handleEventMapRegionChange}
-          />
+	          <MapView
+	            ref={eventAddressMapRef}
+	            provider={PROVIDER_GOOGLE}
+	            style={localStyles.eventMap}
+	            loadingEnabled={true}
+	            loadingIndicatorColor={AppColor.primary}
+	            initialRegion={initialEventAddressRegion}
+	            region={eventAddressRegion}
+	            scrollEnabled={!savedEventLocationLocked}
+	            zoomEnabled={!savedEventLocationLocked}
+	            pitchEnabled={!savedEventLocationLocked}
+	            rotateEnabled={!savedEventLocationLocked}
+	            onRegionChangeComplete={
+	              savedEventLocationLocked ? undefined : handleEventMapRegionChange
+	            }
+	          />
           <View style={localStyles.eventMapPin}>
             {eventAddressLoading ? (
               <ActivityIndicator size="large" color={AppColor.primary} />
@@ -2711,14 +3034,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               <MaterialIcons name="location-on" size={44} color={AppColor.primary} />
             )}
           </View>
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={centerEventAddressOnCurrentLocation}
-            style={localStyles.eventLocateButton}
-            disabled={eventAddressLoading}
-          >
-            <MaterialIcons name="gps-fixed" size={22} color={AppColor.black} />
-          </TouchableOpacity>
+	          {savedEventLocationLocked ? null : (
+	            <TouchableOpacity
+	              activeOpacity={0.75}
+	              onPress={centerEventAddressOnCurrentLocation}
+	              style={localStyles.eventLocateButton}
+	              disabled={eventAddressLoading}
+	            >
+	              <MaterialIcons name="gps-fixed" size={22} color={AppColor.black} />
+	            </TouchableOpacity>
+	          )}
         </View>
 
         <View style={localStyles.eventSearchWrap}>
@@ -2727,9 +3052,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               <Text style={localStyles.eventAddressText} numberOfLines={2}>
                 {form.formatted_address || form.event_address}
               </Text>
-              <Pressable onPress={handleClearAddress} style={localStyles.eventAddressClear}>
-                <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
-              </Pressable>
+	              {savedEventLocationLocked ? null : (
+	                <Pressable onPress={handleClearAddress} style={localStyles.eventAddressClear}>
+	                  <MaterialIcons name="close" size={22} color={AppColor.textHighlighter} />
+	                </Pressable>
+	              )}
             </View>
           ) : (
             <GooglePlacesAutocomplete
@@ -2786,9 +3113,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </View>
       </View>
       <Text style={styles.meta}>
-        Type an address, choose a result, or move the pin. Vendors see city/state
-        until address unlock.
-      </Text>
+	        {savedEventLocationLocked
+	          ? "Saved event address is read only."
+	          : "Type an address, choose a result, or move the pin. Vendors see city/state until address unlock."}
+	      </Text>
     </View>
   );
 
@@ -3304,20 +3632,28 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           >
             {renderSectionHeader("Location", "place")}
             {renderAddressInput()}
-            <View style={localStyles.sideBySide}>
-              <View style={localStyles.sideField}>
-                {renderInput("City *", "event_city")}
-              </View>
-              <View style={localStyles.sideField}>
-                <View style={localStyles.fieldGroup}>
-                  <StatePickerModal
-                    value={form.event_state}
-                    onChange={(value) => updateField("event_state", value)}
-                  />
-                </View>
-              </View>
-            </View>
-            {renderInput("Zip", "event_zip")}
+	            <View style={localStyles.sideBySide}>
+	              <View style={localStyles.sideField}>
+	                {renderInput("City *", "event_city", {
+	                  editable: !savedEventLocationLocked,
+	                })}
+	              </View>
+	              <View style={localStyles.sideField}>
+	                <View style={localStyles.fieldGroup}>
+	                  {savedEventLocationLocked ? (
+	                    renderInput("State *", "event_state", { editable: false })
+	                  ) : (
+	                    <StatePickerModal
+	                      value={form.event_state}
+	                      onChange={(value) => updateField("event_state", value)}
+	                    />
+	                  )}
+	                </View>
+	              </View>
+	            </View>
+	            {renderInput("Zip", "event_zip", {
+	              editable: !savedEventLocationLocked,
+	            })}
           </View>
 
           <View style={localStyles.card}>
@@ -3350,13 +3686,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 form.payment_responsibility === "VENDOR",
               )}
             </View>
-            {isCoordinatorBudgetRequired(form) ? (
-              <Text style={styles.meta}>
-                Minimum budget for this guest count is $
-                {(Number(form.number_of_guests || 0) * 25).toFixed(2)}.
-              </Text>
-            ) : null}
-          </View>
+	            {isCoordinatorBudgetRequired(form) ? (
+	              <Text style={styles.meta}>
+	                Minimum budget for this guest count is $
+	                {(Number(form.number_of_guests || 0) * 25).toFixed(2)}.
+	              </Text>
+	            ) : null}
+	            {renderCoordinatorPayoutFields()}
+	          </View>
 
           <View style={localStyles.card}>
             {renderSectionHeader("Event Images", "image")}

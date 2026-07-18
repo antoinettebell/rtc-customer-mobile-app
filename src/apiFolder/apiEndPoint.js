@@ -124,6 +124,8 @@ export const PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK = (event_id) =>
   `/public/marketplace/events/${event_id}/ticket-click`;
 export const MARKETPLACE_EVENT_IMAGES = (event_id) =>
   `/marketplace/events/${event_id}/images`;
+export const MARKETPLACE_EVENT_COORDINATOR_PAYMENT_QR = (event_id) =>
+  `/marketplace/events/${event_id}/coordinator-payment-qr`;
 export const MARKETPLACE_EVENT_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/bids`;
 export const MARKETPLACE_EVENT_QUESTIONS = (event_id) =>
