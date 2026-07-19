@@ -6,7 +6,7 @@
     "version": "1.7",
     "ios": {
       "bundleIdentifier": "com.rounddacorner.dev.customer",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.rounddacorner.dev.customer",
-      "versionCode": 61
+      "versionCode": 62
     },
     "extra": {
       "eas": {
