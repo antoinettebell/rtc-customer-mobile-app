@@ -11,14 +11,15 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
-import { styles } from "./marketplaceShared";
+import { normalizeExternalUrl, styles } from "./marketplaceShared";
 
 const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const webViewRef = useRef(null);
   const { url, title = "Tickets" } = route.params || {};
+  const ticketUrl = normalizeExternalUrl(url);
 
-  if (!url) {
+  if (!ticketUrl) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBarManager />
@@ -55,7 +56,7 @@ const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
       <View style={{ flex: 1 }}>
         <WebView
           ref={webViewRef}
-          source={{ uri: url }}
+          source={{ uri: ticketUrl }}
           startInLoadingState
           renderLoading={() => (
             <View

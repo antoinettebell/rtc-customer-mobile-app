@@ -28,6 +28,7 @@ import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
 import { EVENT_TYPES } from "./marketplaceShared";
+import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 
 const { width, height } = Dimensions.get("window");
 const FILTERS = [
@@ -70,6 +71,20 @@ const getResultTypeForFilter = (filter) => {
 const formatCuisineNames = (cuisines = []) => {
   const names = cuisines.map((item) => item?.name || item).filter(Boolean);
   return names.length > 0 ? names.slice(0, 3).join(", ") : "Cuisine pending";
+};
+
+const isNearMeFoodTruckOpen = (item) => {
+  if (item?.location?.isOrderingOpen !== undefined) {
+    return !!item.location.isOrderingOpen;
+  }
+
+  const currentLocation = item?.raw?.currentLocation;
+  const selectedLocationId = item?.location?._id;
+  if (currentLocation && selectedLocationId) {
+    return currentLocation.toString() === selectedLocationId.toString();
+  }
+
+  return ["OPEN_TRUCK_UNIT", "CURRENT_LOCATION"].includes(item?.location_source);
 };
 
 const NearMeScreen = ({ navigation }) => {
@@ -305,13 +320,7 @@ const NearMeScreen = ({ navigation }) => {
                 {item.title || item.name}
               </Text>
               <Text style={styles.statusBadgeText}>
-                {`(${
-                  ["OPEN_TRUCK_UNIT", "CURRENT_LOCATION"].includes(
-                    item.location_source
-                  )
-                    ? " Open "
-                    : " Closed "
-                })`}
+                {`(${isNearMeFoodTruckOpen(item) ? " Open " : " Closed "})`}
               </Text>
             </View>
             {item.truck_unit_name ? (
@@ -330,7 +339,7 @@ const NearMeScreen = ({ navigation }) => {
                 <MaterialIcons name="star" size={16} color={AppColor.text} />
                 <Text
                   style={styles.horizontalRatingText}
-                >{`${item.raw?.avgRate || 0} (${item.raw?.totalReviews || 0} reviews)`}</Text>
+                >{formatRatingWithSanitationGrade(item.raw)}</Text>
               </View>
               <Text style={styles.horizontalDistanceText}>
                 {formatCuisineNames(item?.raw?.cuisine)}

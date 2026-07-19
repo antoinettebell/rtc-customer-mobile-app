@@ -40,6 +40,7 @@ import {
 	} from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
+import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 import {
   CUISINE_OPTIONS,
   DIETARY_OPTIONS,
@@ -49,6 +50,8 @@ import {
   PERMIT_OPTIONS,
   POWER_OPTIONS,
   SERVICE_TYPES,
+  isValidExternalUrl,
+  normalizeExternalUrl,
   styles,
   toggleListValue,
 } from "./marketplaceShared";
@@ -238,41 +241,21 @@ const EVENT_TYPE_ICONS = {
   Other: "more-horiz",
 };
 
-const getAddressPart = (components = [], type, field = "long_name") =>
-  components.find((component) => component.types?.includes(type))?.[field] || "";
-
 const parseLocationDetails = ({ data, details, fallbackAddress = "" }) => {
-  const components = details?.address_components || [];
-  const formattedAddress =
-    details?.formatted_address || data?.description || fallbackAddress || "";
-  const street = [
-    getAddressPart(components, "street_number"),
-    getAddressPart(components, "route"),
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const latitude = details?.geometry?.location?.lat;
-  const longitude = details?.geometry?.location?.lng;
+  const address = parseUsAddressFromGooglePlace({ data, details, fallbackAddress });
 
   return {
-    event_address: street || formattedAddress,
-    event_city:
-      getAddressPart(components, "locality") ||
-      getAddressPart(components, "postal_town") ||
-      getAddressPart(components, "administrative_area_level_2"),
-    event_state: getAddressPart(
-      components,
-      "administrative_area_level_1",
-      "short_name"
-    ),
-    event_zip: getAddressPart(components, "postal_code", "short_name"),
-    latitude: latitude != null ? String(latitude) : "",
-    longitude: longitude != null ? String(longitude) : "",
-    formatted_address: formattedAddress,
-    place_id: data?.place_id || details?.place_id || "",
-    geocoding_provider: latitude != null && longitude != null ? "GOOGLE_PLACES" : "",
+    event_address: address.line1,
+    event_city: address.city,
+    event_state: address.state,
+    event_zip: address.zip,
+    latitude: address.latitude,
+    longitude: address.longitude,
+    formatted_address: address.formattedAddress,
+    place_id: address.placeId,
+    geocoding_provider: address.latitude && address.longitude ? "GOOGLE_PLACES" : "",
     geocoded_at:
-      latitude != null && longitude != null ? new Date().toISOString() : "",
+      address.latitude && address.longitude ? new Date().toISOString() : "",
   };
 };
 
@@ -289,11 +272,6 @@ const requiredFields = [
   "event_close_date",
   "event_close_time",
 ];
-
-const isValidUrl = (value) => {
-  if (!value?.trim()) return true;
-  return /^https?:\/\/[^\s]+\.[^\s]+$/i.test(value.trim());
-};
 
 const getAutoFoodTruckVendorCount = (guestCount) =>
   Math.max(1, Math.ceil(Number(guestCount || 0) / 100));
@@ -603,6 +581,9 @@ const localStyles = StyleSheet.create({
     borderRadius: 10,
     borderColor: "#D8DDE6",
     backgroundColor: AppColor.white,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    textAlignVertical: "center",
   },
   textarea: {
     minHeight: 98,
@@ -816,7 +797,7 @@ const localStyles = StyleSheet.create({
   eventPlacesInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: AppColor.border,
     borderRadius: 8,
@@ -824,14 +805,15 @@ const localStyles = StyleSheet.create({
   },
   eventPlacesInput: {
     flex: 1,
-    minHeight: 42,
-    height: 42,
+    minHeight: 48,
+    height: 48,
     margin: 0,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 11,
     fontSize: 14,
     color: AppColor.text,
     backgroundColor: AppColor.white,
+    textAlignVertical: "center",
   },
   eventPlacesList: {
     position: "absolute",
@@ -1552,17 +1534,27 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }
     setForm((prev) => ({
       ...prev,
-      event_address: address.event_address || "",
-      event_city: address.event_city || prev.event_city,
-      event_state: address.event_state || prev.event_state,
-      event_zip: address.event_zip || prev.event_zip,
-      latitude: address.latitude || prev.latitude,
-      longitude: address.longitude || prev.longitude,
+      event_address:
+        address.event_address !== undefined ? address.event_address : "",
+      event_city:
+        address.event_city !== undefined ? address.event_city : prev.event_city,
+      event_state:
+        address.event_state !== undefined ? address.event_state : prev.event_state,
+      event_zip:
+        address.event_zip !== undefined ? address.event_zip : prev.event_zip,
+      latitude: address.latitude !== undefined ? address.latitude : prev.latitude,
+      longitude: address.longitude !== undefined ? address.longitude : prev.longitude,
       formatted_address:
-        address.formatted_address || address.event_address || prev.formatted_address,
-      place_id: address.place_id || prev.place_id,
-      geocoding_provider: address.geocoding_provider || prev.geocoding_provider,
-      geocoded_at: address.geocoded_at || prev.geocoded_at,
+        address.formatted_address !== undefined
+          ? address.formatted_address
+          : address.event_address || prev.formatted_address,
+      place_id: address.place_id !== undefined ? address.place_id : prev.place_id,
+      geocoding_provider:
+        address.geocoding_provider !== undefined
+          ? address.geocoding_provider
+          : prev.geocoding_provider,
+      geocoded_at:
+        address.geocoded_at !== undefined ? address.geocoded_at : prev.geocoded_at,
     }));
   };
 
@@ -1763,7 +1755,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       setSnackbar({ visible: true, message: "Please select at least one service type." });
       return false;
     }
-    if (!isValidUrl(form.ticket_url)) {
+    if (!isValidExternalUrl(form.ticket_url)) {
       setSnackbar({
         visible: true,
         message: "Please enter a valid ticket sales link.",
@@ -1921,7 +1913,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ? 0
           : Number(form.budgeted_amount || 0),
       ticket_sales_enabled: !!form.ticket_sales_enabled,
-      ticket_url: form.ticket_url?.trim() || "",
+      ticket_url: normalizeExternalUrl(form.ticket_url),
 	      free_food_provider:
 	        form.free_food_offered === true ? form.free_food_provider.trim() : "",
       vendors_required_to_giveaway_food:
@@ -3423,7 +3415,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
       {form.ticket_sales_enabled &&
         renderInput("Ticket Sales Link", "ticket_url", {
-          placeholder: "https://example.com/tickets",
+          placeholder: "example.com/tickets",
           keyboardType: "url",
         })}
     </View>

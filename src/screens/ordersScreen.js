@@ -61,6 +61,16 @@ const OrdersScreen = ({ navigation }) => {
     return baseTotal;
   };
 
+  const getDisplayOrderStatus = (order) => {
+    if (order?.paymentStatus === "REFUNDED" || order?.refundStatus === "SUCCESS") {
+      return "Refunded";
+    }
+    if (order?.refundStatus === "PENDING") {
+      return "Refund Pending";
+    }
+    return orderCurrentStatusNames[order?.orderStatus];
+  };
+
   // render order component
   const renderOrderComponent = ({ item, index }) => {
     const locationData = extractAdvanceOrderLocationAndTime(item);
@@ -80,7 +90,7 @@ const OrdersScreen = ({ navigation }) => {
             {item?.availabilityId ? "Scheduled Order" : "Regular Order"}
           </Text>
           <Text style={styles.orderStatusText}>
-            {orderCurrentStatusNames[item.orderStatus]}
+            {getDisplayOrderStatus(item)}
           </Text>
         </View>
         {/* Order ID and Location */}

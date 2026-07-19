@@ -31,6 +31,8 @@ import ImageCarousel from "../components/ImageCarousel";
 import {
   formatDate,
   formatMoney,
+  formatPermitList,
+  normalizeExternalUrl,
   styles,
 } from "./marketplaceShared";
 
@@ -286,7 +288,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .filter(Boolean)
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
-  const ticketUrl = event?.ticket_url?.trim();
+  const ticketUrl = normalizeExternalUrl(event?.ticket_url);
   const showEventVisibility =
     event?.event_visibility === "PUBLIC" && ticketSalesEnabled && !!ticketUrl;
   const eventStatus = event?.status || "DRAFT";
@@ -924,7 +926,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               value={String(event?.number_of_vendors_needed || 0)}
             />
             <DetailRow label="Power" value={listValue(event?.power_required)} />
-            <DetailRow label="Permits" value={listValue(event?.permits_required)} />
+            <DetailRow label="Permits" value={formatPermitList(event?.permits_required)} />
             <DetailRow
               label="Insurance Required"
               value={event?.insurance_required ? "Yes" : "No"}

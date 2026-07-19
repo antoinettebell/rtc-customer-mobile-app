@@ -37,6 +37,7 @@ const statusTitleMap = {
   COMPLETED: "Delivered",
   CANCELLED: "Cancelled",
   REJECTED: "Rejected",
+  REFUNDED: "Refunded",
 };
 
 const { width, height } = Dimensions.get("window");
@@ -67,7 +68,12 @@ const OrderTrackingScreen = ({ navigation, route }) => {
     order?.truck_unit_phone ||
     `${order?.vendor?.countryCode || ""}${order?.vendor?.mobileNumber || ""}`;
 
-  const getStatusHistory = (statusTime) => {
+  const isRefundedOrder = (orderData) =>
+    orderData?.paymentStatus === "REFUNDED" ||
+    orderData?.refundStatus === "SUCCESS";
+
+  const getStatusHistory = (orderData) => {
+    const statusTime = orderData?.statusTime || {};
     const statusMap = {
       placedAt: "PLACED",
       acceptedAt: "ACCEPTED",
@@ -89,11 +95,20 @@ const OrderTrackingScreen = ({ navigation, route }) => {
 
     history.sort((a, b) => new Date(a.time) - new Date(b.time));
 
+    if (isRefundedOrder(orderData)) {
+      history.push({
+        status: "REFUNDED",
+        time: orderData?.refundDateTime || new Date().toISOString(),
+      });
+    }
+
     return history;
   };
 
   const calculateProgress = () => {
-    if (order?.statusTime?.deliveredAt || order?.statusTime?.completedAt) {
+    if (isRefundedOrder(order)) {
+      setProgress(0);
+    } else if (order?.statusTime?.deliveredAt || order?.statusTime?.completedAt) {
       setProgress(100);
     } else if (order?.statusTime?.driverPickedUpAt) {
       setProgress(85);
@@ -137,7 +152,7 @@ const OrderTrackingScreen = ({ navigation, route }) => {
           latitudeDelta: LATITUDE_DELTA,
           longitudeDelta: LONGITUDE_DELTA,
         });
-        setiamstate(getStatusHistory(response.data?.order?.statusTime));
+        setiamstate(getStatusHistory(response.data?.order));
       } else {
         setOrder(null);
       }

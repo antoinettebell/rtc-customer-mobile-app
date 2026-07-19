@@ -38,33 +38,9 @@ import { RESULTS } from "react-native-permissions";
 import AppImage from "../components/AppImage";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
+import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
-
-const getAddressPart = (components = [], type, field = "long_name") =>
-  components.find((component) => component.types?.includes(type))?.[field] || "";
-
-const parseGooglePlaceDetails = (data, details) => {
-  const components = details?.address_components || [];
-  const streetNumber = getAddressPart(components, "street_number");
-  const route = getAddressPart(components, "route");
-  const city =
-    getAddressPart(components, "locality") ||
-    getAddressPart(components, "postal_town") ||
-    getAddressPart(components, "administrative_area_level_2");
-  const state = getAddressPart(components, "administrative_area_level_1", "short_name");
-  const zip = getAddressPart(components, "postal_code", "short_name");
-  const formattedAddress = details?.formatted_address || data?.description || "";
-
-  return {
-    line1: [streetNumber, route].filter(Boolean).join(" ") || formattedAddress,
-    city,
-    state,
-    zip,
-    formattedAddress,
-    placeId: data?.place_id || details?.place_id || "",
-  };
-};
 
 const formatTaxIdInput = (value, type) => {
   const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
@@ -986,9 +962,9 @@ const SignupScreen = ({ navigation }) => {
 	                      keyboardShouldPersistTaps="always"
 	                      minLength={2}
 	                      timeout={20000}
-	                      onPress={(data, details) => {
-	                        if (!details) return;
-	                        const address = parseGooglePlaceDetails(data, details);
+		                      onPress={(data, details) => {
+		                        if (!details) return;
+		                        const address = parseUsAddressFromGooglePlace({ data, details });
 	                        setEventCoordinatorAddressLine1(address.line1);
 	                        setEventCoordinatorAddressCity(address.city);
 	                        setEventCoordinatorAddressState(address.state);
@@ -1005,9 +981,9 @@ const SignupScreen = ({ navigation }) => {
 	                        language: "en",
 	                        types: "geocode|establishment",
 	                        components: "country:us",
-	                      }}
-	                      textInputProps={{
-	                        defaultValue: eventCoordinatorAddressLine1,
+		                      }}
+		                      textInputProps={{
+		                        value: eventCoordinatorAddressLine1,
 	                        placeholderTextColor: AppColor.placeholderTextColor,
 	                        returnKeyType: "search",
 	                        onChangeText: (value) => {
@@ -1258,9 +1234,14 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: AppColor.white,
+    minHeight: 48,
+    justifyContent: "center",
   },
   inputText: {
     fontFamily: Mulish400,
+    minHeight: 48,
+    paddingVertical: 0,
+    textAlignVertical: "center",
   },
   countryPickerButton: {
     height: "100%",
@@ -1394,16 +1375,17 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   placesTextInput: {
-    minHeight: 50,
-    height: 50,
+    minHeight: 48,
+    height: 48,
     margin: 0,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
     backgroundColor: AppColor.white,
     borderRadius: 8,
+    textAlignVertical: "center",
   },
   placesListView: {
     borderWidth: 1,

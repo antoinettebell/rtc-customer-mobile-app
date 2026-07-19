@@ -17,6 +17,7 @@ import {
   getRecentFoodTrucks_API,
 } from "../apiFolder/appAPI";
 import FoodTruckListComponent from "../components/FoodTruckListComponent";
+import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 
 const LIMIT = 15;
 const DEBOUNCE_DELAY = 500;
@@ -107,7 +108,7 @@ const SeeAllTrucksScreen = ({ navigation, route }) => {
         title={item.name}
         uri={item.logo}
         foodTruckId={item._id}
-        reviews={item.totalReviews}
+        reviews={formatRatingWithSanitationGrade(item)}
         showLikeButton={isSignedIn}
         showDistance={item?.distanceInMeters != undefined}
         distance={item.distanceInMeters || 0}

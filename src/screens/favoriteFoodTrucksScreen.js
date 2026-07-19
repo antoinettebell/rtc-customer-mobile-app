@@ -21,6 +21,7 @@ import AppHeader from "../components/AppHeader";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites, toggleFavorite } from "../redux/slices/favoritesSlice";
 import AppImage from "../components/AppImage";
+import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -138,7 +139,7 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
               <Text style={styles.truckName}>{item.foodTruck?.name}</Text>
               <Text style={styles.truckReview}>
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
-                {item.foodTruck?.totalReviews || "0"} reviews
+                {formatRatingWithSanitationGrade(item.foodTruck)}
               </Text>
             </View>
             <TouchableOpacity

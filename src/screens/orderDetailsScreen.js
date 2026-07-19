@@ -38,6 +38,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { getRewardItemsDisplay } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
+const isRefundedOrder = (order) =>
+  order?.paymentStatus === "REFUNDED" || order?.refundStatus === "SUCCESS";
+
+const getDisplayOrderStatus = (order) => {
+  if (isRefundedOrder(order)) return "Refunded";
+  if (order?.refundStatus === "PENDING") return "Refund Pending";
+  return orderCurrentStatusNames[order?.orderStatus];
+};
+
 const OrderDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
@@ -761,7 +770,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
             </Text>
           </View>
 
-          {order.orderStatus === orderStatusStrings.placed ? (
+          {order.orderStatus === orderStatusStrings.placed && !isRefundedOrder(order) ? (
             <TouchableOpacity
               style={styles.cancelBtn}
               activeOpacity={0.7}
@@ -782,7 +791,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               }}
             >
               <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
-                {orderCurrentStatusNames[order.orderStatus]}
+                {getDisplayOrderStatus(order)}
               </Text>
             </View>
           )}

@@ -42,11 +42,9 @@ import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
+import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
-
-const getAddressPart = (components = [], type, field = "long_name") =>
-  components.find((component) => component.types?.includes(type))?.[field] || "";
 
 const trimAddressValue = (value) => String(value || "").trim();
 
@@ -94,28 +92,6 @@ const getLegacyCoordinatorAddress = (user = {}) => {
       "",
     formattedAddress,
     placeId: user.eventCoordinatorPlaceId || "",
-  };
-};
-
-const parseGooglePlaceDetails = (data, details) => {
-  const components = details?.address_components || [];
-  const streetNumber = getAddressPart(components, "street_number");
-  const route = getAddressPart(components, "route");
-  const city =
-    getAddressPart(components, "locality") ||
-    getAddressPart(components, "postal_town") ||
-    getAddressPart(components, "administrative_area_level_2");
-  const state = getAddressPart(components, "administrative_area_level_1", "short_name");
-  const zip = getAddressPart(components, "postal_code", "short_name");
-  const formattedAddress = details?.formatted_address || data?.description || "";
-
-  return {
-    line1: [streetNumber, route].filter(Boolean).join(" ") || formattedAddress,
-    city,
-    state,
-    zip,
-    formattedAddress,
-    placeId: data?.place_id || details?.place_id || "",
   };
 };
 
@@ -853,7 +829,7 @@ const UserProfileScreen = ({ navigation }) => {
                   timeout={20000}
                   onPress={(data, details) => {
                     if (!details) return;
-                    const address = parseGooglePlaceDetails(data, details);
+                    const address = parseUsAddressFromGooglePlace({ data, details });
                     setEventCoordinatorAddressLine1(address.line1);
                     setEventCoordinatorAddressCity(address.city);
                     setEventCoordinatorAddressState(address.state);
@@ -872,7 +848,7 @@ const UserProfileScreen = ({ navigation }) => {
                     components: "country:us",
                   }}
                   textInputProps={{
-                    defaultValue: eventCoordinatorAddressLine1,
+                    value: eventCoordinatorAddressLine1,
                     placeholderTextColor: AppColor.placeholderTextColor,
                     returnKeyType: "search",
                     onChangeText: (value) => {
@@ -1193,13 +1169,16 @@ const styles = StyleSheet.create({
     color: AppColor.subText,
   },
   coordinatorInput: {
+    minHeight: 48,
     borderWidth: 1,
     borderColor: AppColor.borderColor,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Mulish400,
+    fontSize: 14,
     color: AppColor.text,
+    textAlignVertical: "center",
   },
   taxTypeRow: {
     flexDirection: "row",
@@ -1239,16 +1218,17 @@ const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   placesTextInput: {
-    minHeight: 46,
-    height: 46,
+    minHeight: 48,
+    height: 48,
     margin: 0,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
     backgroundColor: AppColor.white,
     borderRadius: 8,
+    textAlignVertical: "center",
   },
   placesListView: {
     borderWidth: 1,

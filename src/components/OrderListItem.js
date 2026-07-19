@@ -25,6 +25,16 @@ export const orderCurrentStatusNames = {
   COMPLETED: "Completed",
 };
 
+const getDisplayOrderStatus = (order) => {
+  if (order?.paymentStatus === "REFUNDED" || order?.refundStatus === "SUCCESS") {
+    return "Refunded";
+  }
+  if (order?.refundStatus === "PENDING") {
+    return "Refund Pending";
+  }
+  return orderCurrentStatusNames[order?.orderStatus];
+};
+
 const OrderListItem = ({
   order,
   type,
@@ -94,6 +104,9 @@ const OrderListItem = ({
 
       <View style={styles.footerRow}>
         <Text style={styles.total}>${order.total.toFixed(2)}</Text>
+        {order?.orderStatus ? (
+          <Text style={styles.statusText}>{getDisplayOrderStatus(order)}</Text>
+        ) : null}
         {type === "current" ? (
           <View style={styles.actionRow}>
             <TouchableOpacity activeOpacity={0.7} style={styles.trackBtn} onPress={onTrack}>
@@ -239,6 +252,14 @@ const styles = StyleSheet.create({
     fontFamily: Mulish700,
     fontSize: 20,
     marginLeft: 6,
+  },
+  statusText: {
+    flex: 1,
+    marginHorizontal: 10,
+    fontFamily: Mulish700,
+    fontSize: 13,
+    color: AppColor.primary,
+    textAlign: "right",
   },
   rateBtn: {
     flexDirection: "row",

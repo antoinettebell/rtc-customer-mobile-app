@@ -27,9 +27,31 @@ export const PERMIT_OPTIONS = [
   "None",
   "City Permit",
   "Food Vendor",
-  "Health Department",
+  "Sanitation Grade",
   "Alcohol",
 ];
+
+export const formatPermitLabel = (value) =>
+  value === "Health Department" ? "Sanitation Grade" : value;
+
+export const formatPermitList = (value) =>
+  Array.isArray(value) && value.length
+    ? value.map(formatPermitLabel).join(", ")
+    : "Not set";
+
+export const normalizeExternalUrl = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+};
+
+export const isValidExternalUrl = (value) => {
+  const normalized = normalizeExternalUrl(value);
+  if (!normalized) return true;
+  return /^https?:\/\/[^\s]+\.[^\s]+$/i.test(normalized);
+};
 export const CUISINE_OPTIONS = [
   "BBQ",
   "Latin",
@@ -149,12 +171,12 @@ export const styles = StyleSheet.create({
     marginTop: 14,
   },
   input: {
-    minHeight: 46,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: AppColor.border,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
@@ -174,11 +196,11 @@ export const styles = StyleSheet.create({
     backgroundColor: AppColor.white,
   },
   placesTextInput: {
-    minHeight: 46,
-    height: 46,
+    minHeight: 48,
+    height: 48,
     margin: 0,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.text,
