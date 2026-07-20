@@ -16,7 +16,7 @@ import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
-import { formatDate, formatMoney, styles } from "./marketplaceShared";
+import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -134,7 +134,8 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
     >
       <Text style={styles.title}>{item.event_name}</Text>
       <Text style={styles.meta}>
-        {formatDate(item.event_date)}{item.event_time ? ` - ${item.event_time}` : ""}
+        {formatDate(item.event_date)}
+        {item.event_time ? ` - ${formatEventTime(item.event_time, item)}` : ""}
       </Text>
       <Text style={styles.meta}>
         {[item.event_address, item.event_city, item.event_state]

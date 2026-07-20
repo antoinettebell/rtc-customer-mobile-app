@@ -1009,7 +1009,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               />
             ) : null}
             <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />
-            <DetailRow label="Close Time" value={event?.event_close_time} />
+            <DetailRow
+              label="Close Time"
+              value={formatEventTime(event?.event_close_time, {
+                ...event,
+                event_date: event?.event_close_date || event?.event_date,
+              })}
+            />
             {event?.close_comment ? (
               <DetailRow label="Close Comment" value={event.close_comment} />
             ) : null}
