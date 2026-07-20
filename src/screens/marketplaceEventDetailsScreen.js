@@ -143,6 +143,7 @@ const safeStyles = StyleSheet.create({
   carousel: {
     overflow: "hidden",
     borderRadius: 10,
+    marginTop: 14,
     marginBottom: 14,
     backgroundColor: AppColor.white,
   },
@@ -841,19 +842,19 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   <Text style={styles.buttonText}>View Tickets</Text>
                 </TouchableOpacity>
               ) : null}
-            </View>
 
-            {imageUrls.length > 0 && (
-              <ImageCarousel
-                images={imageUrls}
-                containerHeight={220}
-                containerStyle={safeStyles.carousel}
-                imageContainer={safeStyles.carouselImage}
-                onImagePress={
-                  ticketSalesEnabled ? handleCustomerEventImagePress : undefined
-                }
-              />
-            )}
+              {imageUrls.length > 0 && (
+                <ImageCarousel
+                  images={imageUrls}
+                  containerHeight={220}
+                  containerStyle={safeStyles.carousel}
+                  imageContainer={safeStyles.carouselImage}
+                  onImagePress={
+                    ticketSalesEnabled ? handleCustomerEventImagePress : undefined
+                  }
+                />
+              )}
+            </View>
 
             <View style={styles.card}>
               <Text style={styles.title}>{event?.event_name || "Event"}</Text>
