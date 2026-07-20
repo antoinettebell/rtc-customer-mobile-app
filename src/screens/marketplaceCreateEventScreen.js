@@ -328,7 +328,7 @@ const normalizeEventForForm = (event = {}) => ({
   ...initialForm,
   ...event,
   service_types: normalizeOptionList(event.service_types || event.service_type),
-  service_styles: normalizeOptionList(event.service_styles || event.event_style),
+  service_styles: normalizeOptionList(event.service_styles),
   power_required: normalizeOptionList(event.power_required),
   permits_required: normalizeOptionList(event.permits_required),
   catered_vip_section_enabled: !!event.catered_vip_section_enabled,
@@ -1394,26 +1394,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       };
     });
   }, [form.number_of_guests, form.service_types]);
-
-  useEffect(() => {
-    setForm((prev) => {
-      if (
-        prev.payment_responsibility !== "BOTH" ||
-        !prev.catered_vip_section_enabled
-      ) {
-        return prev;
-      }
-
-      const minimumBudget = getMinimumBudget(prev).toFixed(2);
-      return prev.budgeted_amount === minimumBudget
-        ? prev
-        : { ...prev, budgeted_amount: minimumBudget };
-    });
-  }, [
-    form.payment_responsibility,
-    form.catered_vip_section_enabled,
-    form.vip_guest_count,
-  ]);
 
   useEffect(() => {
     const selectedLocation = route?.params?.selectedEventLocation;
@@ -3851,18 +3831,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 "Budget Amount",
                 "budgeted_amount",
                 "Amount available when coordinator pays vendors.",
-                form.payment_responsibility === "VENDOR" ||
-                  (form.payment_responsibility === "BOTH" &&
-                    form.catered_vip_section_enabled),
+                form.payment_responsibility === "VENDOR",
               )}
             </View>
 	            {isCoordinatorBudgetRequired(form) ? (
 	              <Text style={styles.meta}>
-	                Minimum budget for this guest count is $
+	                Minimum budget for this paid guest count is $
 	                {getMinimumBudget(form).toFixed(2)}
                   {form.payment_responsibility === "BOTH" &&
                   form.catered_vip_section_enabled
-                    ? " based on VIP guests."
+                    ? " based on # of VIP Guests."
                     : "."}
 	              </Text>
 	            ) : null}
