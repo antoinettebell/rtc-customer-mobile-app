@@ -220,6 +220,9 @@ const safeStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  ticketButton: {
+    marginTop: 12,
+  },
 });
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
@@ -311,7 +314,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   let ticketAvailabilityMessage =
     "Ticket availability details are not available in the app yet.";
   if (ticketSalesEnabled && ticketUrl) {
-    ticketAvailabilityMessage = "Tap event image to view tickets.";
+    ticketAvailabilityMessage = imageUrls.length
+      ? "Tap View Tickets or the event image to open tickets."
+      : "Tap View Tickets to open tickets.";
   } else if (ticketSalesEnabled) {
     ticketAvailabilityMessage =
       "Tickets are not being sold through the app at this time.";
@@ -819,6 +824,22 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
+            <View style={styles.card}>
+              <Text style={styles.title}>Ticket Availability</Text>
+              <Text style={safeStyles.ticketText}>
+                {ticketAvailabilityMessage}
+              </Text>
+              {ticketSalesEnabled && ticketUrl ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[styles.button, safeStyles.ticketButton]}
+                  onPress={handleCustomerEventImagePress}
+                >
+                  <Text style={styles.buttonText}>View Tickets</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
             {imageUrls.length > 0 && (
               <ImageCarousel
                 images={imageUrls}
@@ -853,13 +874,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 label="Alcohol Service"
                 value={event?.alcohol_required ? "Yes" : "No"}
               />
-            </View>
-
-            <View style={styles.card}>
-              <Text style={styles.title}>Ticket Availability</Text>
-              <Text style={safeStyles.ticketText}>
-                {ticketAvailabilityMessage}
-              </Text>
             </View>
           </ScrollView>
         )}
