@@ -1324,7 +1324,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     if (!draftEvent) return;
 	    const nextForm = normalizeEventForForm(draftEvent);
 	    setForm(nextForm);
-	    setCoordinatorPaymentQrImage(null);
     if (nextForm.latitude && nextForm.longitude) {
       const region = {
         latitude: Number(nextForm.latitude),
