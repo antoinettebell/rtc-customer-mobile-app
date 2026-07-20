@@ -49,6 +49,16 @@ const listValue = (value) =>
 const boolValue = (value) =>
   value === true ? "Yes" : value === false ? "No" : "Not answered";
 
+const normalizeEventImageUrls = (images) => {
+  const list = Array.isArray(images) ? images : images ? [images] : [];
+  return list
+    .map((image) => {
+      if (typeof image === "string") return image;
+      return image?.image_url || image?.file_url || image?.url || "";
+    })
+    .filter(Boolean);
+};
+
 const getVendorName = (record) => {
   const foodTruck = record?.food_truck_id;
   const vendor = record?.vendor_user_id;
@@ -300,10 +310,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     }, [eventId, customerSafe])
   );
 
-  const imageUrls =
-    event?.images
-      ?.map((image) => image.image_url || image.file_url || image.url)
-      .filter(Boolean) || [];
+  const imageUrls = normalizeEventImageUrls(event?.images);
   const locationText =
     event?.formatted_address ||
     event?.geocoded_address ||
