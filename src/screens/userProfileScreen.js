@@ -45,6 +45,14 @@ import StatePickerModal from "../components/StatePickerModal";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
+const COORDINATOR_PAYMENT_OPTIONS = [
+  { label: "None", value: "" },
+  { label: "Cash App", value: "CASHAPP" },
+  { label: "Zelle", value: "ZELLE" },
+  { label: "PayPal", value: "PAYPAL" },
+  { label: "Venmo", value: "VENMO" },
+  { label: "Direct Deposit", value: "DIRECT_DEPOSIT" },
+];
 
 const trimAddressValue = (value) => String(value || "").trim();
 
@@ -104,6 +112,14 @@ const formatTaxIdInput = (value, type) => {
   }
   return digits.replace(/^(\d{2})(\d)/, "$1-$2");
 };
+
+const maskAccountNumber = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return `${"*".repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+};
+
+const isMaskedAccountNumber = (value) => /^\*+\d{4}$/.test(String(value || ""));
 
 const UserProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -167,6 +183,21 @@ const UserProfileScreen = ({ navigation }) => {
   const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState(
     initialCoordinatorAddress.placeId
   );
+  const [eventCoordinatorPaymentPreference, setEventCoordinatorPaymentPreference] =
+    useState(user?.eventCoordinatorPaymentPreference || "");
+  const [eventCoordinatorPaymentHandle, setEventCoordinatorPaymentHandle] =
+    useState(user?.eventCoordinatorPaymentHandle || "");
+  const [eventCoordinatorPaymentQrCodeUrl, setEventCoordinatorPaymentQrCodeUrl] =
+    useState(user?.eventCoordinatorPaymentQrCodeUrl || "");
+  const [
+    eventCoordinatorDirectDepositRoutingNumber,
+    setEventCoordinatorDirectDepositRoutingNumber,
+  ] = useState(user?.eventCoordinatorDirectDepositRoutingNumber || "");
+  const [
+    eventCoordinatorDirectDepositAccountNumber,
+    setEventCoordinatorDirectDepositAccountNumber,
+  ] = useState(user?.eventCoordinatorDirectDepositAccountNumberMasked || "");
+  const [uploadingCoordinatorQr, setUploadingCoordinatorQr] = useState(false);
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
 
@@ -200,6 +231,19 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorAddressZip(coordinatorAddress.zip);
       setEventCoordinatorFormattedAddress(coordinatorAddress.formattedAddress);
       setEventCoordinatorPlaceId(coordinatorAddress.placeId);
+      setEventCoordinatorPaymentPreference(
+        user.eventCoordinatorPaymentPreference || ""
+      );
+      setEventCoordinatorPaymentHandle(user.eventCoordinatorPaymentHandle || "");
+      setEventCoordinatorPaymentQrCodeUrl(
+        user.eventCoordinatorPaymentQrCodeUrl || ""
+      );
+      setEventCoordinatorDirectDepositRoutingNumber(
+        user.eventCoordinatorDirectDepositRoutingNumber || ""
+      );
+      setEventCoordinatorDirectDepositAccountNumber(
+        user.eventCoordinatorDirectDepositAccountNumberMasked || ""
+      );
       coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
   }, [user]);
@@ -270,6 +314,22 @@ const UserProfileScreen = ({ navigation }) => {
         setCoordinatorError("Zip is required");
         return;
       }
+      if (eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT") {
+        if (!eventCoordinatorDirectDepositRoutingNumber.trim()) {
+          setCoordinatorError("Routing number is required for direct deposit");
+          return;
+        }
+        if (!eventCoordinatorDirectDepositAccountNumber.trim()) {
+          setCoordinatorError("Account number is required for direct deposit");
+          return;
+        }
+      } else if (
+        eventCoordinatorPaymentPreference &&
+        !eventCoordinatorPaymentQrCodeUrl
+      ) {
+        setCoordinatorError("Upload the QR code for your selected payment method");
+        return;
+      }
     }
 
     setCoordinatorError("");
@@ -302,6 +362,29 @@ const UserProfileScreen = ({ navigation }) => {
           eventCoordinatorAddressZip: trimAddressValue(eventCoordinatorAddressZip),
           eventCoordinatorFormattedAddress: trimAddressValue(eventCoordinatorFormattedAddress),
           eventCoordinatorPlaceId,
+          eventCoordinatorPaymentPreference:
+            eventCoordinatorPaymentPreference || null,
+          eventCoordinatorPaymentHandle:
+            eventCoordinatorPaymentPreference &&
+            eventCoordinatorPaymentPreference !== "DIRECT_DEPOSIT"
+              ? eventCoordinatorPaymentHandle.trim() || null
+              : null,
+          eventCoordinatorPaymentQrCodeUrl:
+            eventCoordinatorPaymentPreference &&
+            eventCoordinatorPaymentPreference !== "DIRECT_DEPOSIT"
+              ? eventCoordinatorPaymentQrCodeUrl || null
+              : null,
+          eventCoordinatorDirectDepositRoutingNumber:
+            eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT"
+              ? eventCoordinatorDirectDepositRoutingNumber.trim()
+              : null,
+          ...(eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT" &&
+          !isMaskedAccountNumber(eventCoordinatorDirectDepositAccountNumber)
+            ? {
+                eventCoordinatorDirectDepositAccountNumber:
+                  eventCoordinatorDirectDepositAccountNumber.replace(/\D/g, ""),
+              }
+            : {}),
         },
       });
 
@@ -462,6 +545,66 @@ const UserProfileScreen = ({ navigation }) => {
       });
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  const handlePickCoordinatorPaymentQr = async () => {
+    try {
+      if (Platform.OS === "ios") {
+        const photosStatus = await photosPermissionStatus();
+        if (
+          photosStatus !== RESULTS.GRANTED &&
+          photosStatus !== RESULTS.LIMITED
+        ) {
+          return;
+        }
+      }
+
+      const image = await ImagePicker.openPicker({
+        multiple: false,
+        mediaType: "photo",
+      });
+      const payload =
+        Platform.OS === "ios"
+          ? {
+              uri: image?.sourceURL || image?.path,
+              name: image?.filename || `coordinator-payment-${Date.now()}.jpg`,
+              type: image.mime,
+            }
+          : {
+              uri: image?.path,
+              name: `${image?.path?.split("/").pop()}`,
+              type: image.mime,
+            };
+
+      setUploadingCoordinatorQr(true);
+      const formData = new FormData();
+      formData.append("file", {
+        uri: payload.uri,
+        name: payload.name,
+        type: payload.type,
+      });
+      const uploadResponse = await uploadImage_API(formData);
+      if (uploadResponse?.success && uploadResponse?.data?.file) {
+        setEventCoordinatorPaymentQrCodeUrl(uploadResponse.data.file);
+        setSnackbar({
+          visible: true,
+          message: "Coordinator payment QR selected. Save profile to keep it.",
+          type: "success",
+        });
+      } else {
+        throw new Error(uploadResponse?.message || "Failed to upload QR code");
+      }
+    } catch (error) {
+      if (error?.code !== "E_PICKER_CANCELLED") {
+        setSnackbar({
+          visible: true,
+          message: error?.message || "Failed to upload QR code",
+          type: "error",
+        });
+      }
+    } finally {
+      setUploadingCoordinatorQr(false);
     }
   };
 
@@ -894,6 +1037,133 @@ const UserProfileScreen = ({ navigation }) => {
                 keyboardType="number-pad"
                 style={styles.coordinatorInput}
               />
+              <Text style={styles.coordinatorSectionTitle}>
+                Coordinator Payout
+              </Text>
+              <Text style={styles.coordinatorHelpText}>
+                This is private profile information for RTC payout processing only.
+              </Text>
+              <View style={styles.paymentOptionWrap}>
+                {COORDINATOR_PAYMENT_OPTIONS.map((option) => {
+                  const active = eventCoordinatorPaymentPreference === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.paymentOptionChip,
+                        active && styles.paymentOptionChipActive,
+                      ]}
+                      onPress={() => {
+                        setEventCoordinatorPaymentPreference(option.value);
+                        if (!option.value) {
+                          setEventCoordinatorPaymentHandle("");
+                          setEventCoordinatorPaymentQrCodeUrl("");
+                          setEventCoordinatorDirectDepositRoutingNumber("");
+                          setEventCoordinatorDirectDepositAccountNumber("");
+                        } else if (option.value === "DIRECT_DEPOSIT") {
+                          setEventCoordinatorPaymentHandle("");
+                          setEventCoordinatorPaymentQrCodeUrl("");
+                        } else {
+                          setEventCoordinatorDirectDepositRoutingNumber("");
+                          setEventCoordinatorDirectDepositAccountNumber("");
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.paymentOptionText,
+                          active && styles.paymentOptionTextActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT" ? (
+                <>
+                  <TextInput
+                    value={eventCoordinatorDirectDepositRoutingNumber}
+                    onChangeText={(value) =>
+                      setEventCoordinatorDirectDepositRoutingNumber(
+                        value.replace(/\D/g, "").slice(0, 9)
+                      )
+                    }
+                    placeholder="Routing Number *"
+                    placeholderTextColor={AppColor.placeholderTextColor}
+                    keyboardType="number-pad"
+                    style={styles.coordinatorInput}
+                  />
+                  <TextInput
+                    value={eventCoordinatorDirectDepositAccountNumber}
+                    onChangeText={(value) =>
+                      setEventCoordinatorDirectDepositAccountNumber(
+                        value.replace(/\D/g, "").slice(0, 17)
+                      )
+                    }
+                    placeholder={
+                      isMaskedAccountNumber(
+                        eventCoordinatorDirectDepositAccountNumber
+                      )
+                        ? "Enter new account number to replace"
+                        : "Account Number *"
+                    }
+                    placeholderTextColor={AppColor.placeholderTextColor}
+                    keyboardType="number-pad"
+                    secureTextEntry={
+                      !isMaskedAccountNumber(
+                        eventCoordinatorDirectDepositAccountNumber
+                      )
+                    }
+                    style={styles.coordinatorInput}
+                  />
+                  {isMaskedAccountNumber(
+                    eventCoordinatorDirectDepositAccountNumber
+                  ) ? (
+                    <Text style={styles.coordinatorHelpText}>
+                      Current account ending in{" "}
+                      {eventCoordinatorDirectDepositAccountNumber.slice(-4)}
+                    </Text>
+                  ) : null}
+                </>
+              ) : eventCoordinatorPaymentPreference ? (
+                <>
+                  <TextInput
+                    value={eventCoordinatorPaymentHandle}
+                    onChangeText={setEventCoordinatorPaymentHandle}
+                    placeholder="Payment Handle"
+                    placeholderTextColor={AppColor.placeholderTextColor}
+                    style={styles.coordinatorInput}
+                  />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={styles.qrUploadButton}
+                    disabled={uploadingCoordinatorQr}
+                    onPress={handlePickCoordinatorPaymentQr}
+                  >
+                    {uploadingCoordinatorQr ? (
+                      <ActivityIndicator size="small" color={AppColor.primary} />
+                    ) : (
+                      <Ionicons
+                        name={
+                          eventCoordinatorPaymentQrCodeUrl
+                            ? "checkmark-circle-outline"
+                            : "qr-code-outline"
+                        }
+                        size={20}
+                        color={AppColor.primary}
+                      />
+                    )}
+                    <Text style={styles.qrUploadText}>
+                      {eventCoordinatorPaymentQrCodeUrl
+                        ? "Payment QR Selected"
+                        : "Upload Payment QR Code *"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
             </View>
           ) : null}
 
@@ -1168,6 +1438,12 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     color: AppColor.subText,
   },
+  coordinatorSectionTitle: {
+    fontSize: 15,
+    fontFamily: Mulish700,
+    color: AppColor.text,
+    marginTop: 6,
+  },
   coordinatorInput: {
     minHeight: 48,
     borderWidth: 1,
@@ -1203,6 +1479,48 @@ const styles = StyleSheet.create({
     color: AppColor.textHighlighter,
   },
   taxTypeTextActive: {
+    color: AppColor.primary,
+  },
+  paymentOptionWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  paymentOptionChip: {
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: AppColor.white,
+  },
+  paymentOptionChipActive: {
+    borderColor: AppColor.primary,
+    backgroundColor: "#FFF1E6",
+  },
+  paymentOptionText: {
+    fontSize: 13,
+    fontFamily: Mulish600,
+    color: AppColor.text,
+  },
+  paymentOptionTextActive: {
+    color: AppColor.primary,
+  },
+  qrUploadButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: AppColor.white,
+  },
+  qrUploadText: {
+    fontSize: 14,
+    fontFamily: Mulish700,
     color: AppColor.primary,
   },
   placesWrapper: {
