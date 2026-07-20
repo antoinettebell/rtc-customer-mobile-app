@@ -1956,30 +1956,27 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         return;
       }
 
-	      let uploadWarning = false;
-	      let uploadWarningMessage = "";
-		      if (status !== "DRAFT" && eventId && eventImages.length) {
-        try {
-          for (const image of eventImages) {
+      const shouldUploadImages = status !== "DRAFT" && eventId && eventImages.length;
+      if (shouldUploadImages) {
+        Promise.allSettled(
+          eventImages.map((image) => {
             const formData = new FormData();
             formData.append("file", {
               uri: image.uri,
               name: image.name,
               type: image.type,
             });
-            await uploadMarketplaceEventImage_API({
+            return uploadMarketplaceEventImage_API({
               eventId,
               payload: formData,
             });
+          })
+        ).then((results) => {
+          const failedUploads = results.filter((result) => result.status === "rejected");
+          if (failedUploads.length) {
+            console.log("Marketplace event image upload error", failedUploads);
           }
-        } catch (error) {
-          uploadWarning = true;
-          uploadWarningMessage =
-            error?.message ||
-            error?.error?.message ||
-            "One or more images did not upload.";
-          console.log("Marketplace event image upload error", error);
-        }
+        });
       }
       setSnackbar({
         visible: true,
@@ -1988,8 +1985,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             ? options.successMessage
             : status === "DRAFT"
             ? "Your draft has been saved."
-            : uploadWarning
-              ? `Event submitted, but image upload was blocked: ${uploadWarningMessage}`
+            : shouldUploadImages
+              ? "Your event is open for vendor bids. Images are uploading."
               : "Your event is open for vendor bids.",
         type: "success",
       });
