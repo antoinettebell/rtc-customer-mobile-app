@@ -27,7 +27,7 @@ import AppImage from "../components/AppImage";
 import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
-import { EVENT_TYPES } from "./marketplaceShared";
+import { EVENT_TYPES, formatEventTime } from "./marketplaceShared";
 import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 
 const { width, height } = Dimensions.get("window");
@@ -273,7 +273,7 @@ const NearMeScreen = ({ navigation }) => {
               </Text>
               <Text style={styles.horizontalDistanceText} numberOfLines={1}>
                 {item.event_type || "Event"}
-                {item.event_time ? ` - ${item.event_time}` : ""}
+                {item.event_time ? ` - ${formatEventTime(item.event_time, item)}` : ""}
               </Text>
             </View>
           </Pressable>

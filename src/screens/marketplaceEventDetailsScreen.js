@@ -30,6 +30,7 @@ import {
 import ImageCarousel from "../components/ImageCarousel";
 import {
   formatDate,
+  formatEventTime,
   formatMoney,
   formatPermitList,
   normalizeExternalUrl,
@@ -281,7 +282,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   );
 
   const imageUrls =
-    event?.images?.map((image) => image.image_url).filter(Boolean) || [];
+    event?.images
+      ?.map((image) => image.image_url || image.file_url || image.url)
+      .filter(Boolean) || [];
   const locationText =
     event?.formatted_address ||
     event?.geocoded_address ||
@@ -859,7 +862,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               )}
 
               <DetailRow label="Date" value={formatDate(event?.event_date)} />
-              <DetailRow label="Time" value={event?.event_time} />
+              <DetailRow
+                label="Time"
+                value={formatEventTime(event?.event_time, event)}
+              />
               <DetailRow label="Location" value={locationText} />
               <DetailRow label="City / State" value={cityStateText} />
               <DetailRow label="Event Type" value={event?.event_type} />
@@ -915,7 +921,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </View>
             <Text style={styles.subtitle}>{event?.event_description}</Text>
             <DetailRow label="Date" value={formatDate(event?.event_date)} />
-            <DetailRow label="Time" value={event?.event_time} />
+            <DetailRow
+              label="Time"
+              value={formatEventTime(event?.event_time, event)}
+            />
             <DetailRow
               label="Location"
               value={`${event?.event_address || ""}, ${event?.event_city || ""}, ${event?.event_state || ""} ${event?.event_zip || ""}`}

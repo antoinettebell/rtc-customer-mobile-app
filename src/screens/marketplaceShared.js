@@ -89,6 +89,154 @@ export const formatDate = (value) => {
   });
 };
 
+const DEFAULT_EVENT_TIME_ZONE = "America/New_York";
+
+const stateTimeZones = {
+  AL: "America/Chicago",
+  AK: "America/Anchorage",
+  AZ: "America/Phoenix",
+  AR: "America/Chicago",
+  CA: "America/Los_Angeles",
+  CO: "America/Denver",
+  CT: "America/New_York",
+  DC: "America/New_York",
+  DE: "America/New_York",
+  FL: "America/New_York",
+  GA: "America/New_York",
+  HI: "Pacific/Honolulu",
+  IA: "America/Chicago",
+  ID: "America/Denver",
+  IL: "America/Chicago",
+  IN: "America/Indiana/Indianapolis",
+  KS: "America/Chicago",
+  KY: "America/New_York",
+  LA: "America/Chicago",
+  MA: "America/New_York",
+  MD: "America/New_York",
+  ME: "America/New_York",
+  MI: "America/Detroit",
+  MN: "America/Chicago",
+  MO: "America/Chicago",
+  MS: "America/Chicago",
+  MT: "America/Denver",
+  NC: "America/New_York",
+  ND: "America/Chicago",
+  NE: "America/Chicago",
+  NH: "America/New_York",
+  NJ: "America/New_York",
+  NM: "America/Denver",
+  NV: "America/Los_Angeles",
+  NY: "America/New_York",
+  OH: "America/New_York",
+  OK: "America/Chicago",
+  OR: "America/Los_Angeles",
+  PA: "America/New_York",
+  RI: "America/New_York",
+  SC: "America/New_York",
+  SD: "America/Chicago",
+  TN: "America/Chicago",
+  TX: "America/Chicago",
+  UT: "America/Denver",
+  VA: "America/New_York",
+  VT: "America/New_York",
+  WA: "America/Los_Angeles",
+  WI: "America/Chicago",
+  WV: "America/New_York",
+  WY: "America/Denver",
+};
+
+const cityStateTimeZones = {
+  "FL:PENSACOLA": "America/Chicago",
+  "FL:PANAMA CITY": "America/Chicago",
+  "FL:TALLAHASSEE": "America/New_York",
+  "IN:EVANSVILLE": "America/Chicago",
+  "IN:GARY": "America/Chicago",
+  "IN:SOUTH BEND": "America/Indiana/Indianapolis",
+  "KY:BOWLING GREEN": "America/Chicago",
+  "KY:LOUISVILLE": "America/New_York",
+  "KY:LEXINGTON": "America/New_York",
+  "MI:IRONWOOD": "America/Menominee",
+  "MI:DETROIT": "America/Detroit",
+  "TN:MEMPHIS": "America/Chicago",
+  "TN:NASHVILLE": "America/Chicago",
+  "TN:CHATTANOOGA": "America/New_York",
+  "TN:KNOXVILLE": "America/New_York",
+  "TX:EL PASO": "America/Denver",
+};
+
+const normalizeAddressPart = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase();
+
+export const resolveEventTimeZone = (event = {}) => {
+  const explicitTimeZone =
+    event.event_time_zone ||
+    event.event_timezone ||
+    event.time_zone ||
+    event.timezone ||
+    event.location_time_zone;
+  if (explicitTimeZone) return explicitTimeZone;
+
+  const state = normalizeAddressPart(event.event_state || event.state);
+  const city = normalizeAddressPart(event.event_city || event.city);
+  return (
+    cityStateTimeZones[`${state}:${city}`] ||
+    stateTimeZones[state] ||
+    DEFAULT_EVENT_TIME_ZONE
+  );
+};
+
+const parseEventTimeParts = (value) => {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  const meridiem = match[3]?.toUpperCase();
+  if (hours > 24 || minutes > 59) return null;
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  if (!meridiem && hours === 24) hours = 0;
+
+  return { hours, minutes };
+};
+
+export const formatEventTime = (timeValue, event = {}) => {
+  if (!timeValue) return "Not set";
+  const parts = parseEventTimeParts(timeValue);
+  if (!parts) return timeValue;
+
+  const dateValue = event.event_date ? new Date(event.event_date) : new Date();
+  const zoneProbeDate = Number.isNaN(dateValue.getTime())
+    ? new Date()
+    : new Date(
+        Date.UTC(
+          dateValue.getFullYear(),
+          dateValue.getMonth(),
+          dateValue.getDate(),
+          12,
+          0,
+        ),
+      );
+  const normalizedHours = parts.hours % 24;
+  const displayHours = normalizedHours % 12 || 12;
+  const displayMinutes = String(parts.minutes).padStart(2, "0");
+  const meridiem = normalizedHours >= 12 ? "PM" : "AM";
+
+  try {
+    const zoneNameParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: resolveEventTimeZone(event),
+      timeZoneName: "short",
+    }).formatToParts(zoneProbeDate);
+    const zoneName = zoneNameParts.find((part) => part.type === "timeZoneName")?.value;
+    return `${displayHours}:${displayMinutes} ${meridiem}${zoneName ? ` ${zoneName}` : ""}`;
+  } catch (error) {
+    return `${displayHours}:${displayMinutes} ${meridiem}`;
+  }
+};
+
 export const formatMoney = (value) => {
   const amount = Number(value || 0);
   return `$${amount.toFixed(2)}`;
