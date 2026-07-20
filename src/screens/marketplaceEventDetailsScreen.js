@@ -974,6 +974,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Budgeted Amount"
               value={formatMoney(event?.budgeted_amount)}
             />
+            <DetailRow
+              label="Catered VIP Section"
+              value={event?.catered_vip_section_enabled ? "Yes" : "No"}
+            />
+            {event?.catered_vip_section_enabled ? (
+              <DetailRow
+                label="# of VIP Guests"
+                value={String(event?.vip_guest_count || 0)}
+              />
+            ) : null}
             <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />
             <DetailRow label="Close Time" value={event?.event_close_time} />
             {event?.close_comment ? (

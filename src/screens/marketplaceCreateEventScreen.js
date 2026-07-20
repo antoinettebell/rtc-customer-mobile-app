@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import ImagePicker from "react-native-image-crop-picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -101,6 +102,8 @@ const initialForm = {
   free_food_offered: null,
   free_food_provider: "",
   vendors_required_to_giveaway_food: null,
+  catered_vip_section_enabled: false,
+  vip_guest_count: "",
   cuisine_preferences: [],
   dietary_restrictions: [],
   equipment_needed: [],
@@ -278,12 +281,26 @@ const getAutoFoodTruckVendorCount = (guestCount) =>
 const getDefaultVendorCount = (value) => String(Math.max(1, Number(value || 1)));
 
 const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
+const hasServiceStyle = (form, style) =>
+  normalizeOptionList(form.service_styles).includes(style) ||
+  form.primary_service_style === style;
 const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
+const getBudgetGuestCount = (form) =>
+  form.payment_responsibility === "BOTH" && form.catered_vip_section_enabled
+    ? Number(form.vip_guest_count || 0)
+    : Number(form.number_of_guests || 0);
+const getMinimumBudget = (form) => getBudgetGuestCount(form) * 25;
 const normalizeOptionList = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
 };
+const maskAccountNumber = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return `${"*".repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+};
+const isMaskedAccountValue = (value) => /^\*+\d{4}$/.test(String(value || ""));
 
 const formatDateForPayload = (date) => {
   if (!date) return "";
@@ -314,6 +331,8 @@ const normalizeEventForForm = (event = {}) => ({
   service_styles: normalizeOptionList(event.service_styles || event.event_style),
   power_required: normalizeOptionList(event.power_required),
   permits_required: normalizeOptionList(event.permits_required),
+  catered_vip_section_enabled: !!event.catered_vip_section_enabled,
+  vip_guest_count: event.vip_guest_count ? String(event.vip_guest_count) : "",
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
   equipment_needed: normalizeOptionList(event.equipment_needed),
@@ -358,8 +377,10 @@ const normalizeEventForForm = (event = {}) => ({
 	  coordinator_payment_qr_code_key: event.coordinator_payment_qr_code_key || "",
 	  coordinator_direct_deposit_routing_number:
 	    hideEncryptedFormValue(event.coordinator_direct_deposit_routing_number),
-	  coordinator_direct_deposit_account_number:
-	    hideEncryptedFormValue(event.coordinator_direct_deposit_account_number),
+  coordinator_direct_deposit_account_number:
+    maskAccountNumber(
+      hideEncryptedFormValue(event.coordinator_direct_deposit_account_number)
+    ),
 	});
 
 const formatTimeForPayload = (date) => {
@@ -1313,6 +1334,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   });
   const [showTermsConfirmation, setShowTermsConfirmation] = useState(false);
   const autoFoodTruckStyleRef = useRef(false);
+  const allowBackNavigationRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
   );
@@ -1321,6 +1343,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   );
 	  const foodTruckSelected = isFoodTruckService(form);
 	  const savedEventLocationLocked = !!editingEventId && !isReopenMode;
+
+  const hasDraftableEventChanges = useCallback(() => {
+    return [
+      "event_name",
+      "event_description",
+      "event_type",
+      "event_address",
+      "event_city",
+      "event_state",
+      "event_zip",
+      "number_of_guests",
+      "budgeted_amount",
+      "vendor_fee",
+    ].some((key) => String(form[key] || "").trim()) || form.service_types.length > 0;
+  }, [form]);
 
   useEffect(() => {
     if (!draftEvent) return;
@@ -1357,6 +1394,26 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       };
     });
   }, [form.number_of_guests, form.service_types]);
+
+  useEffect(() => {
+    setForm((prev) => {
+      if (
+        prev.payment_responsibility !== "BOTH" ||
+        !prev.catered_vip_section_enabled
+      ) {
+        return prev;
+      }
+
+      const minimumBudget = getMinimumBudget(prev).toFixed(2);
+      return prev.budgeted_amount === minimumBudget
+        ? prev
+        : { ...prev, budgeted_amount: minimumBudget };
+    });
+  }, [
+    form.payment_responsibility,
+    form.catered_vip_section_enabled,
+    form.vip_guest_count,
+  ]);
 
   useEffect(() => {
     const selectedLocation = route?.params?.selectedEventLocation;
@@ -1409,13 +1466,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
       if (key === "service_types" && option === "Food Truck") {
         if (nextList.includes("Food Truck")) {
-          if (!prev.primary_service_style || autoFoodTruckStyleRef.current) {
-            next.primary_service_style = "Food Truck";
-            next.service_styles = [
-              ...new Set([...(prev.service_styles || []), "Food Truck"]),
-            ];
-            autoFoodTruckStyleRef.current = true;
-          }
+          next.primary_service_style = "Food Truck";
+          next.service_styles = [
+            ...new Set([...(prev.service_styles || []), "Food Truck"]),
+          ];
+          autoFoodTruckStyleRef.current = true;
           next.number_of_vendors_needed = String(
             getAutoFoodTruckVendorCount(prev.number_of_guests)
           );
@@ -1441,6 +1496,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           next.service_types = [
             ...new Set([...(prev.service_types || []), "Food Truck"]),
           ];
+          next.primary_service_style = "Food Truck";
+        } else if (prev.service_types?.includes("Food Truck")) {
+          nextList = [...new Set([...nextList, "Food Truck"])];
+          next.service_styles = nextList;
           next.primary_service_style = "Food Truck";
         }
       }
@@ -1755,6 +1814,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       setSnackbar({ visible: true, message: "Please select at least one service type." });
       return false;
     }
+    if (isFoodTruckService(form) && !hasServiceStyle(form, "Food Truck")) {
+      setSnackbar({
+        visible: true,
+        message: "Food Truck must be selected under Primary Service Style.",
+      });
+      return false;
+    }
     if (!isValidExternalUrl(form.ticket_url)) {
       setSnackbar({
         visible: true,
@@ -1839,12 +1905,23 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
+    if (
+      form.payment_responsibility === "BOTH" &&
+      form.catered_vip_section_enabled &&
+      Number(form.vip_guest_count || 0) < 1
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Enter the number of VIP guests for the catered section.",
+      });
+      return false;
+    }
 	    if (isCoordinatorBudgetRequired(form)) {
-	      const minimumBudget = Number(form.number_of_guests || 0) * 25;
+	      const minimumBudget = getMinimumBudget(form);
 	      if (Number(form.budgeted_amount || 0) < minimumBudget) {
         setSnackbar({
           visible: true,
-          message: `Budget must be at least $${minimumBudget.toFixed(2)} for this guest count.`,
+          message: `Budget must be at least $${minimumBudget.toFixed(2)} for the paid guest count.`,
         });
 	        return false;
 	      }
@@ -1889,11 +1966,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     return {
       ...formPayload,
       ...durationPayload,
-      event_style: form.service_styles[0] || form.event_style || "",
+      event_style: form.event_style || "",
       service_type: form.service_types[0] || "",
       primary_service_style:
-        form.primary_service_style || form.service_styles[0] || form.event_style || "",
+        form.primary_service_style || form.service_styles[0] || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
+      catered_vip_section_enabled: !!form.catered_vip_section_enabled,
+      vip_guest_count: form.catered_vip_section_enabled
+        ? Number(form.vip_guest_count || 0)
+        : 0,
       number_of_vendors_needed:
         isFoodTruckService(form) && form.number_of_guests
           ? getAutoFoodTruckVendorCount(form.number_of_guests)
@@ -1942,7 +2023,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	          ? form.coordinator_direct_deposit_routing_number?.trim() || null
 	          : null,
 	      coordinator_direct_deposit_account_number:
-	        form.coordinator_payment_preference === "DIRECT_DEPOSIT"
+	        form.coordinator_payment_preference === "DIRECT_DEPOSIT" &&
+	        !isMaskedAccountValue(form.coordinator_direct_deposit_account_number)
 	          ? form.coordinator_direct_deposit_account_number?.trim() || null
 	          : null,
 	      status,
@@ -2067,6 +2149,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         type: "success",
       });
       setTimeout(() => {
+        if (options.skipNavigation) {
+          return;
+        }
         if (options.navigateToDetails && eventId) {
           if (options.replaceDetails) {
             navigation.replace("marketplaceEventDetailsScreen", { eventId });
@@ -2077,6 +2162,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         }
         navigation.navigate("marketplaceMyEventsScreen");
       }, 600);
+      return true;
     } catch (error) {
       setSnackbar({
         visible: true,
@@ -2085,11 +2171,54 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           (status === "DRAFT" ? "Failed to save draft." : "Failed to create event."),
         type: "error",
       });
+      return false;
     } finally {
       setLoading(false);
       setSubmitMode(null);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener("beforeRemove", (event) => {
+        if (allowBackNavigationRef.current || loading || !hasDraftableEventChanges()) {
+          return;
+        }
+
+        event.preventDefault();
+        Alert.alert(
+          "Save your event?",
+          "Do you want to save your event before leaving?",
+          [
+            {
+              text: "No",
+              style: "destructive",
+              onPress: () => {
+                allowBackNavigationRef.current = true;
+                navigation.dispatch(event.data.action);
+              },
+            },
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Yes",
+              onPress: async () => {
+                const saved = await handleSubmit("DRAFT", {
+                  skipNavigation: true,
+                  successMessage: "Your draft has been saved.",
+                });
+                if (saved) {
+                  allowBackNavigationRef.current = true;
+                  navigation.dispatch(event.data.action);
+                }
+              },
+            },
+          ]
+        );
+      });
+
+      return unsubscribe;
+    }, [hasDraftableEventChanges, loading, navigation])
+  );
 
   const scrollToVendorNeeds = () => {
     formScrollRef.current?.scrollTo({
@@ -2307,8 +2436,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	    <View style={localStyles.fieldGroup}>
       {renderLabel(label)}
       <TextInput
-        value={form[key]}
-        onChangeText={(value) => updateField(key, value)}
+        value={props.value !== undefined ? props.value : form[key]}
+        onChangeText={(value) =>
+          props.onChangeText ? props.onChangeText(value) : updateField(key, value)
+        }
         placeholder={props.placeholder}
         keyboardType={props.keyboardType}
         multiline={props.multiline}
@@ -2416,6 +2547,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	            <View style={localStyles.sideField}>
 	              {renderInput("Account Number *", "coordinator_direct_deposit_account_number", {
 	                keyboardType: "number-pad",
+                  placeholder: "Account number",
+                  onChangeText: (value) =>
+                    updateField(
+                      "coordinator_direct_deposit_account_number",
+                      value.replace(/\D/g, "").slice(0, 17)
+                    ),
 	              })}
 	            </View>
 	          </View>
@@ -3171,7 +3308,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       {renderLabel("Event Tone")}
       <View style={styles.chipWrap}>
         {EVENT_STYLES.map((option) => {
-          const active = (form.service_styles || [])[0] === option;
+          const active = form.event_style === option;
           return (
             <TouchableOpacity
               key={option}
@@ -3180,7 +3317,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 setForm((prev) => ({
                   ...prev,
                   event_style: option,
-                  service_styles: [option],
                 }))
               }
               style={[styles.chip, active && styles.chipActive]}
@@ -3343,6 +3479,40 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           )}
         </>
       ) : null}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={localStyles.checkboxRow}
+        onPress={() =>
+          setForm((prev) => ({
+            ...prev,
+            catered_vip_section_enabled: !prev.catered_vip_section_enabled,
+            vip_guest_count: !prev.catered_vip_section_enabled
+              ? prev.vip_guest_count
+              : "",
+          }))
+        }
+      >
+        <View
+          style={[
+            localStyles.checkbox,
+            form.catered_vip_section_enabled && localStyles.checkboxActive,
+          ]}
+        >
+          {form.catered_vip_section_enabled && (
+            <MaterialIcons name="check" size={16} color={AppColor.white} />
+          )}
+        </View>
+        <Text style={localStyles.checkboxLabel}>
+          Is there a catered VIP Section paid for by Coordinator?
+        </Text>
+      </TouchableOpacity>
+      {form.catered_vip_section_enabled
+        ? renderInput("# of VIP Guests", "vip_guest_count", {
+            keyboardType: "number-pad",
+            onChangeText: (value) =>
+              updateField("vip_guest_count", value.replace(/\D/g, "")),
+          })
+        : null}
     </View>
   );
 
@@ -3426,7 +3596,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       {renderLabel("Primary Service Style *")}
       <View style={localStyles.serviceGrid}>
         {PRIMARY_SERVICE_STYLES.map((option) => {
-          const active = form.primary_service_style === option.label;
+          const active = hasServiceStyle(form, option.label);
           return (
             <TouchableOpacity
               key={option.label}
@@ -3437,14 +3607,25 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               ]}
               onPress={() =>
                 setForm((prev) => {
-                  autoFoodTruckStyleRef.current = false;
+                  const previousStyles = normalizeOptionList(prev.service_styles);
+                  const mustKeepFoodTruck =
+                    prev.service_types?.includes("Food Truck") &&
+                    option.label === "Food Truck";
+                  const nextStyles =
+                    active && !mustKeepFoodTruck
+                      ? previousStyles.filter((item) => item !== option.label)
+                      : [...new Set([...previousStyles, option.label])];
+                  const normalizedStyles =
+                    prev.service_types?.includes("Food Truck") &&
+                    !nextStyles.includes("Food Truck")
+                      ? [...nextStyles, "Food Truck"]
+                      : nextStyles;
+                  autoFoodTruckStyleRef.current =
+                    prev.service_types?.includes("Food Truck");
                   return {
                     ...prev,
-                    ...resetServiceSpecificFields(),
-                    primary_service_style: option.label,
-                    service_styles: [
-                      ...new Set([...(prev.service_styles || []), option.label]),
-                    ],
+                    primary_service_style: normalizedStyles[0] || "",
+                    service_styles: normalizedStyles,
                     service_types:
                       option.label === "Food Truck"
                         ? [...new Set([...(prev.service_types || []), "Food Truck"])]
@@ -3501,48 +3682,43 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   );
 
   const renderServiceSpecificDetails = () => {
-    if (form.primary_service_style === "Plated") {
-      return (
-        <View style={localStyles.fieldGroup}>
-          {renderChips("Plated Options", "plated_options", PLATED_OPTIONS)}
-          {renderSingleSelect("Number of Courses", "plated_number_of_courses", COURSE_OPTIONS)}
-          {renderSingleSelect("Entree Selection", "plated_entree_selection", ENTREE_SELECTION_OPTIONS)}
-          {renderChips("Included Items", "plated_included_items", PLATED_INCLUDED_ITEMS)}
-        </View>
-      );
-    }
+    const selectedStyles = normalizeOptionList(form.service_styles);
+    if (!selectedStyles.length && !form.primary_service_style) return null;
 
-    if (form.primary_service_style === "Buffet") {
-      return (
-        <View style={localStyles.fieldGroup}>
-          {renderSingleSelect("Buffet Setup", "buffet_setup", BUFFET_SETUP_OPTIONS)}
-          {renderChips("Included Items", "buffet_included_items", CATERING_INCLUDED_ITEMS)}
-        </View>
-      );
-    }
+    return (
+      <View style={localStyles.fieldGroup}>
+        {hasServiceStyle(form, "Plated") ? (
+          <View style={localStyles.fieldGroup}>
+            {renderChips("Plated Options", "plated_options", PLATED_OPTIONS)}
+            {renderSingleSelect("Number of Courses", "plated_number_of_courses", COURSE_OPTIONS)}
+            {renderSingleSelect("Entree Selection", "plated_entree_selection", ENTREE_SELECTION_OPTIONS)}
+            {renderChips("Included Items", "plated_included_items", PLATED_INCLUDED_ITEMS)}
+          </View>
+        ) : null}
 
-    if (form.primary_service_style === "Food Truck") {
-      return renderSingleSelect(
-        "Menu Availability",
-        "food_truck_options",
-        FOOD_TRUCK_OPTIONS
-      );
-    }
+        {hasServiceStyle(form, "Buffet") ? (
+          <View style={localStyles.fieldGroup}>
+            {renderSingleSelect("Buffet Setup", "buffet_setup", BUFFET_SETUP_OPTIONS)}
+            {renderChips("Included Items", "buffet_included_items", CATERING_INCLUDED_ITEMS)}
+          </View>
+        ) : null}
 
-    if (form.primary_service_style === "Family Style / Stations") {
-      return (
-        <View style={localStyles.fieldGroup}>
-          {renderSingleSelect("Setup Type", "station_setup_type", STATION_SETUP_OPTIONS)}
-          {renderChips("Included Items", "station_included_items", CATERING_INCLUDED_ITEMS)}
-        </View>
-      );
-    }
+        {hasServiceStyle(form, "Food Truck")
+          ? renderSingleSelect("Menu Availability", "food_truck_options", FOOD_TRUCK_OPTIONS)
+          : null}
 
-    if (form.primary_service_style === "Other") {
-      return renderInput("Service Notes", "service_notes", { multiline: true });
-    }
+        {hasServiceStyle(form, "Family Style / Stations") ? (
+          <View style={localStyles.fieldGroup}>
+            {renderSingleSelect("Setup Type", "station_setup_type", STATION_SETUP_OPTIONS)}
+            {renderChips("Included Items", "station_included_items", CATERING_INCLUDED_ITEMS)}
+          </View>
+        ) : null}
 
-    return null;
+        {hasServiceStyle(form, "Other")
+          ? renderInput("Service Notes", "service_notes", { multiline: true })
+          : null}
+      </View>
+    );
   };
 
   const renderVendorCountFields = () => (
@@ -3675,13 +3851,19 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 "Budget Amount",
                 "budgeted_amount",
                 "Amount available when coordinator pays vendors.",
-                form.payment_responsibility === "VENDOR",
+                form.payment_responsibility === "VENDOR" ||
+                  (form.payment_responsibility === "BOTH" &&
+                    form.catered_vip_section_enabled),
               )}
             </View>
 	            {isCoordinatorBudgetRequired(form) ? (
 	              <Text style={styles.meta}>
 	                Minimum budget for this guest count is $
-	                {(Number(form.number_of_guests || 0) * 25).toFixed(2)}.
+	                {getMinimumBudget(form).toFixed(2)}
+                  {form.payment_responsibility === "BOTH" &&
+                  form.catered_vip_section_enabled
+                    ? " based on VIP guests."
+                    : "."}
 	              </Text>
 	            ) : null}
 	            {renderCoordinatorPayoutFields()}

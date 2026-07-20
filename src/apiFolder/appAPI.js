@@ -818,6 +818,8 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "free_food_offered",
   "free_food_provider",
   "vendors_required_to_giveaway_food",
+  "catered_vip_section_enabled",
+  "vip_guest_count",
   "cuisine_preferences",
   "dietary_restrictions",
   "equipment_needed",
