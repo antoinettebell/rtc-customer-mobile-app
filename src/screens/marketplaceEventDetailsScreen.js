@@ -107,6 +107,24 @@ const hasEventDatePassed = (eventDate) => {
 
 const formatPayloadDate = (date) => date.toISOString().slice(0, 10);
 
+const getEventDurationMinutes = (event = {}) => {
+  const hours = Number(event.event_duration_hours || 0);
+  const minutes = Number(event.event_duration_minutes || 0);
+  if (minutes > 59) return minutes;
+  return hours > 0 ? hours * 60 + minutes : minutes;
+};
+
+const formatEventDuration = (event = {}) => {
+  const totalMinutes = Math.max(0, Number(getEventDurationMinutes(event) || 0));
+  if (!totalMinutes) return "Not set";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} hr${hours === 1 ? "" : "s"}`);
+  if (minutes > 0) parts.push(`${minutes} min`);
+  return parts.join(" ");
+};
+
 const getServiceSpecificRows = (event) => {
   if (!event) return [];
 
@@ -568,10 +586,21 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleEditDraft = () => {
     if (!event) return;
-    navigation.navigate("marketplaceCreateEventScreen", {
-      eventId,
-      draftEvent: event,
-    });
+    const navigateToEditor = () =>
+      navigation.navigate("marketplaceCreateEventScreen", {
+        eventId,
+        draftEvent: event,
+      });
+
+    if (!isDraft) {
+      Alert.alert("Edit Event", "Do you want to edit this event?", [
+        { text: "No", style: "cancel" },
+        { text: "Yes", onPress: navigateToEditor },
+      ]);
+      return;
+    }
+
+    navigateToEditor();
   };
 
   const openDocument = async (url) => {
@@ -867,16 +896,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 label="Time"
                 value={formatEventTime(event?.event_time, event)}
               />
+              <DetailRow
+                label="Duration"
+                value={formatEventDuration(event)}
+              />
               <DetailRow label="Location" value={locationText} />
               <DetailRow label="City / State" value={cityStateText} />
-              <DetailRow label="Event Type" value={event?.event_type} />
               <DetailRow
                 label="Primary Service Style"
-                value={event?.primary_service_style}
+                value={event?.primary_service_style || listValue(event?.service_styles)}
               />
-              {getServiceSpecificRows(event).map(([label, value]) => (
-                <DetailRow key={label} label={label} value={String(value || "Not set")} />
-              ))}
               <DetailRow
                 label="Alcohol Service"
                 value={event?.alcohol_required ? "Yes" : "No"}
@@ -922,10 +951,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </View>
             <Text style={styles.subtitle}>{event?.event_description}</Text>
             <DetailRow label="Date" value={formatDate(event?.event_date)} />
-            <DetailRow
-              label="Time"
-              value={formatEventTime(event?.event_time, event)}
-            />
+	            <DetailRow
+	              label="Time"
+	              value={formatEventTime(event?.event_time, event)}
+	            />
+	            <DetailRow
+	              label="Duration"
+	              value={formatEventDuration(event)}
+	            />
             <DetailRow
               label="Location"
               value={`${event?.event_address || ""}, ${event?.event_city || ""}, ${event?.event_state || ""} ${event?.event_zip || ""}`}
@@ -1028,18 +1061,20 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Reopen Round"
               value={String(event?.current_submission_round || 1)}
             />
-            <DetailRow
-              label="Booking Payment"
-              value={event?.award_payment_status || "NOT_REQUIRED"}
-            />
-            <DetailRow
-              label="Final Event Payment"
-              value={event?.final_payment_status || "NOT_REQUIRED"}
-            />
-            <DetailRow
-              label="Agreement"
-              value={event?.agreement_status || "NOT_REQUIRED"}
-            />
+	            <DetailRow
+	              label="RTC Processing Fee"
+	              value={event?.award_payment_status || "NOT_REQUIRED"}
+	            />
+	            <DetailRow
+	              label="Awarded Vendor Payment"
+	              value={event?.final_payment_status || "NOT_REQUIRED"}
+	            />
+	            {event?.agreement_status && event.agreement_status !== "NOT_REQUIRED" ? (
+	              <DetailRow
+	                label="Agreement"
+	                value={event.agreement_status}
+	              />
+	            ) : null}
             </>
           ))}
 

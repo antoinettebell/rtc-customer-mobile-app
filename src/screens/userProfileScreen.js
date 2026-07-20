@@ -200,6 +200,9 @@ const UserProfileScreen = ({ navigation }) => {
   const [uploadingCoordinatorQr, setUploadingCoordinatorQr] = useState(false);
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
+  const [isCoordinatorPayoutEditing, setIsCoordinatorPayoutEditing] = useState(
+    !user?.eventCoordinatorPaymentPreference
+  );
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -244,6 +247,7 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorDirectDepositAccountNumber(
         user.eventCoordinatorDirectDepositAccountNumberMasked || ""
       );
+      setIsCoordinatorPayoutEditing(!user.eventCoordinatorPaymentPreference);
       coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
   }, [user]);
@@ -278,6 +282,22 @@ const UserProfileScreen = ({ navigation }) => {
         { text: "Cancel", style: "cancel" },
         { text: "Yes", onPress: () => setIsEventCoordinator(true) },
       ]
+    );
+  };
+
+  const resetCoordinatorPayoutFromUser = () => {
+    setEventCoordinatorPaymentPreference(
+      user?.eventCoordinatorPaymentPreference || ""
+    );
+    setEventCoordinatorPaymentHandle(user?.eventCoordinatorPaymentHandle || "");
+    setEventCoordinatorPaymentQrCodeUrl(
+      user?.eventCoordinatorPaymentQrCodeUrl || ""
+    );
+    setEventCoordinatorDirectDepositRoutingNumber(
+      user?.eventCoordinatorDirectDepositRoutingNumber || ""
+    );
+    setEventCoordinatorDirectDepositAccountNumber(
+      user?.eventCoordinatorDirectDepositAccountNumberMasked || ""
     );
   };
 
@@ -396,6 +416,7 @@ const UserProfileScreen = ({ navigation }) => {
             : "Event coordination removed from your profile",
           type: "success",
         });
+        setIsCoordinatorPayoutEditing(!isEventCoordinator);
         await fetchUserDataFromAPI();
       }
     } catch (error) {
@@ -1040,12 +1061,38 @@ const UserProfileScreen = ({ navigation }) => {
               <Text style={styles.coordinatorSectionTitle}>
                 Coordinator Payout
               </Text>
+              {user?.eventCoordinatorPaymentPreference ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.payoutEditButton}
+                  onPress={() =>
+                    setIsCoordinatorPayoutEditing((current) => {
+                      if (current) {
+                        resetCoordinatorPayoutFromUser();
+                      }
+                      return !current;
+                    })
+                  }
+                >
+                  <Feather
+                    name={isCoordinatorPayoutEditing ? "x" : "edit"}
+                    size={16}
+                    color={AppColor.primary}
+                  />
+                  <Text style={styles.payoutEditText}>
+                    {isCoordinatorPayoutEditing ? "Cancel Edit" : "Edit Payout"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
               <Text style={styles.coordinatorHelpText}>
                 This is private profile information for RTC payout processing only.
               </Text>
               <View style={styles.paymentOptionWrap}>
                 {COORDINATOR_PAYMENT_OPTIONS.map((option) => {
                   const active = eventCoordinatorPaymentPreference === option.value;
+                  const disabled =
+                    !isCoordinatorPayoutEditing &&
+                    !!user?.eventCoordinatorPaymentPreference;
                   return (
                     <TouchableOpacity
                       key={option.value}
@@ -1053,7 +1100,9 @@ const UserProfileScreen = ({ navigation }) => {
                       style={[
                         styles.paymentOptionChip,
                         active && styles.paymentOptionChipActive,
+                        disabled && !active && styles.paymentOptionChipDisabled,
                       ]}
+                      disabled={disabled}
                       onPress={() => {
                         setEventCoordinatorPaymentPreference(option.value);
                         if (!option.value) {
@@ -1086,6 +1135,7 @@ const UserProfileScreen = ({ navigation }) => {
                 <>
                   <TextInput
                     value={eventCoordinatorDirectDepositRoutingNumber}
+                    editable={isCoordinatorPayoutEditing}
                     onChangeText={(value) =>
                       setEventCoordinatorDirectDepositRoutingNumber(
                         value.replace(/\D/g, "").slice(0, 9)
@@ -1098,6 +1148,7 @@ const UserProfileScreen = ({ navigation }) => {
                   />
                   <TextInput
                     value={eventCoordinatorDirectDepositAccountNumber}
+                    editable={isCoordinatorPayoutEditing}
                     onChangeText={(value) =>
                       setEventCoordinatorDirectDepositAccountNumber(
                         value.replace(/\D/g, "").slice(0, 17)
@@ -1132,6 +1183,7 @@ const UserProfileScreen = ({ navigation }) => {
                 <>
                   <TextInput
                     value={eventCoordinatorPaymentHandle}
+                    editable={isCoordinatorPayoutEditing}
                     onChangeText={setEventCoordinatorPaymentHandle}
                     placeholder="Payment Handle"
                     placeholderTextColor={AppColor.placeholderTextColor}
@@ -1140,7 +1192,7 @@ const UserProfileScreen = ({ navigation }) => {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={styles.qrUploadButton}
-                    disabled={uploadingCoordinatorQr}
+                    disabled={uploadingCoordinatorQr || !isCoordinatorPayoutEditing}
                     onPress={handlePickCoordinatorPaymentQr}
                   >
                     {uploadingCoordinatorQr ? (
@@ -1498,6 +1550,9 @@ const styles = StyleSheet.create({
     borderColor: AppColor.primary,
     backgroundColor: "#FFF1E6",
   },
+  paymentOptionChipDisabled: {
+    opacity: 0.45,
+  },
   paymentOptionText: {
     fontSize: 13,
     fontFamily: Mulish600,
@@ -1522,6 +1577,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Mulish700,
     color: AppColor.primary,
+  },
+  payoutEditButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingVertical: 6,
+  },
+  payoutEditText: {
+    color: AppColor.primary,
+    fontFamily: Mulish700,
+    fontSize: 14,
   },
   placesWrapper: {
     zIndex: 10,

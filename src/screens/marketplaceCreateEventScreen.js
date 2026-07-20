@@ -341,9 +341,24 @@ const normalizeEventForForm = (event = {}) => ({
   number_of_vendors_needed: event.number_of_vendors_needed
     ? String(event.number_of_vendors_needed)
     : "",
-	  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
-	  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
-		});
+		  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
+		  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
+			});
+
+const normalizeExistingEventImages = (event = {}) =>
+  (event.images || [])
+    .map((image) => {
+      const uri = image.image_url || image.file_url || image.url;
+      if (!uri) return null;
+      return {
+        uri,
+        name: image.original_name || "Event image",
+        type: image.mime_type || "image/jpeg",
+        image_id: image.image_id,
+        uploaded: true,
+      };
+    })
+    .filter(Boolean);
 
 const formatTimeForPayload = (date) => {
   if (!date) return "";
@@ -1272,8 +1287,10 @@ const localStyles = StyleSheet.create({
 const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
-  const draftEvent = route?.params?.draftEvent;
-  const isReopenMode = !!route?.params?.reopenMode;
+	  const draftEvent = route?.params?.draftEvent;
+	  const isReopenMode = !!route?.params?.reopenMode;
+	  const isEditingSubmittedEvent =
+	    !!editingEventId && draftEvent?.status && draftEvent.status !== "DRAFT" && !isReopenMode;
   const eventAddressMapRef = useRef(null);
   const eventAddressSearchRef = useRef(null);
   const formScrollRef = useRef(null);
@@ -1320,10 +1337,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     ].some((key) => String(form[key] || "").trim()) || form.service_types.length > 0;
   }, [form]);
 
-  useEffect(() => {
-    if (!draftEvent) return;
+	  useEffect(() => {
+	    if (!draftEvent) return;
 	    const nextForm = normalizeEventForForm(draftEvent);
 	    setForm(nextForm);
+	    setEventImages(normalizeExistingEventImages(draftEvent));
     if (nextForm.latitude && nextForm.longitude) {
       const region = {
         latitude: Number(nextForm.latitude),
@@ -1955,10 +1973,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         return;
       }
 
-      const shouldUploadImages = status !== "DRAFT" && eventId && eventImages.length;
+      const imagesToUpload = eventImages.filter((image) => !image.uploaded);
+      const shouldUploadImages = status !== "DRAFT" && eventId && imagesToUpload.length;
       if (shouldUploadImages) {
-        Promise.allSettled(
-          eventImages.map((image) => {
+        const results = await Promise.allSettled(
+          imagesToUpload.map((image) => {
             const formData = new FormData();
             formData.append("file", {
               uri: image.uri,
@@ -1970,12 +1989,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               payload: formData,
             });
           })
-        ).then((results) => {
-          const failedUploads = results.filter((result) => result.status === "rejected");
-          if (failedUploads.length) {
-            console.log("Marketplace event image upload error", failedUploads);
-          }
-        });
+        );
+        const failedUploads = results.filter((result) => result.status === "rejected");
+        if (failedUploads.length) {
+          console.log("Marketplace event image upload error", failedUploads);
+          setSnackbar({
+            visible: true,
+            message: "Event saved, but one or more images failed to upload.",
+            type: "error",
+          });
+        }
       }
       setSnackbar({
         visible: true,
@@ -1983,10 +2006,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           options.successMessage
             ? options.successMessage
             : status === "DRAFT"
-            ? "Your draft has been saved."
-            : shouldUploadImages
-              ? "Your event is open for vendor bids. Images are uploading."
-              : "Your event is open for vendor bids.",
+	            ? "Your draft has been saved."
+	            : shouldUploadImages
+	              ? "Your event is open for vendor bids. Images are uploaded."
+	              : "Your event is open for vendor bids.",
         type: "success",
       });
       setTimeout(() => {
@@ -2022,7 +2045,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       const unsubscribe = navigation.addListener("beforeRemove", (event) => {
-        if (allowBackNavigationRef.current || loading || !hasDraftableEventChanges()) {
+	        if (
+	          isEditingSubmittedEvent ||
+	          allowBackNavigationRef.current ||
+	          loading ||
+	          !hasDraftableEventChanges()
+	        ) {
           return;
         }
 
@@ -2058,7 +2086,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
 
       return unsubscribe;
-    }, [hasDraftableEventChanges, loading, navigation])
+	    }, [hasDraftableEventChanges, isEditingSubmittedEvent, loading, navigation])
   );
 
   const scrollToVendorNeeds = () => {
@@ -2090,11 +2118,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     });
   };
 
-  const handleTermsDecline = () => {
-    setShowTermsConfirmation(false);
-    handleSubmit("DRAFT", {
-      navigateToDetails: true,
-      replaceDetails: !!editingEventId,
+	  const handleTermsDecline = () => {
+	    setShowTermsConfirmation(false);
+	    if (isEditingSubmittedEvent) {
+	      return;
+	    }
+	    handleSubmit("DRAFT", {
+	      navigateToDetails: true,
+	      replaceDetails: !!editingEventId,
       successMessage: "Your changes have been saved as a draft.",
     });
   };
@@ -3417,7 +3448,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   return (
     <View style={[styles.container, localStyles.screen, { paddingTop: insets.top }]}>
       <StatusBarManager />
-      <AppHeader headerTitle={editingEventId ? "Edit Draft" : "Create Event"} />
+      <AppHeader
+        headerTitle={
+          isEditingSubmittedEvent
+            ? "Edit Event"
+            : editingEventId
+              ? "Edit Draft"
+              : "Create Event"
+        }
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -3607,32 +3646,34 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 <Text style={styles.buttonText}>Submit</Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[
-                styles.secondaryButton,
-                localStyles.submitButton,
-                localStyles.footerButton,
-                { opacity: loading ? 0.6 : 1 },
-              ]}
-              onPress={() =>
-                handleSubmit("DRAFT", {
-                  navigateToDetails: !!editingEventId,
-                  replaceDetails: !!editingEventId,
-                  successMessage: editingEventId
-                    ? "Your changes have been saved as a draft."
-                    : undefined,
-                })
-              }
-              disabled={loading}
-            >
-              {loading && submitMode === "DRAFT" ? (
-                <ActivityIndicator color={AppColor.primary} />
-              ) : (
-                <Text style={styles.secondaryButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
-            {editingEventId ? (
+            {!isEditingSubmittedEvent ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.secondaryButton,
+                  localStyles.submitButton,
+                  localStyles.footerButton,
+                  { opacity: loading ? 0.6 : 1 },
+                ]}
+                onPress={() =>
+                  handleSubmit("DRAFT", {
+                    navigateToDetails: !!editingEventId,
+                    replaceDetails: !!editingEventId,
+                    successMessage: editingEventId
+                      ? "Your changes have been saved as a draft."
+                      : undefined,
+                  })
+                }
+                disabled={loading}
+              >
+                {loading && submitMode === "DRAFT" ? (
+                  <ActivityIndicator color={AppColor.primary} />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+            {editingEventId && !isEditingSubmittedEvent ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[

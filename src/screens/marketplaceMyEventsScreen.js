@@ -143,11 +143,13 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
           .join(", ")}
       </Text>
       <Text style={styles.meta}>
-        Booking Payment: {item.award_payment_status || "NOT_REQUIRED"}
+        RTC Processing Fee: {item.award_payment_status || "NOT_REQUIRED"}
       </Text>
-      <Text style={styles.meta}>
-        Event Agreement / Signing: {item.agreement_status || "NOT_REQUIRED"}
-      </Text>
+      {item.agreement_status && item.agreement_status !== "NOT_REQUIRED" ? (
+        <Text style={styles.meta}>
+          Event Agreement / Signing: {item.agreement_status}
+        </Text>
+      ) : null}
       {(item.awarded_bids || []).length ? (
         item.awarded_bids.map(renderAwardedBid)
       ) : (
