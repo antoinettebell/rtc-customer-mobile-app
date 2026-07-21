@@ -224,6 +224,7 @@ const NearMeScreen = ({ navigation }) => {
         navigation.navigate("marketplaceEventDetailsScreen", {
           eventId: truck.event_id || truck.id,
           customerSafe: true,
+          initialEvent: truck.raw || truck,
           returnScreen: "nearMeScreen",
         });
         return;
@@ -253,6 +254,7 @@ const NearMeScreen = ({ navigation }) => {
               navigation.navigate("marketplaceEventDetailsScreen", {
                 eventId: item.event_id || item.id,
                 customerSafe: true,
+                initialEvent: item.raw || item,
                 returnScreen: "nearMeScreen",
               })
             }

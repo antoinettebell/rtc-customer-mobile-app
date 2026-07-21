@@ -296,8 +296,8 @@ const safeStyles = StyleSheet.create({
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const { eventId, customerSafe = false } = route.params || {};
-  const [event, setEvent] = useState(null);
+  const { eventId, customerSafe = false, initialEvent = null } = route.params || {};
+  const [event, setEvent] = useState(initialEvent);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
