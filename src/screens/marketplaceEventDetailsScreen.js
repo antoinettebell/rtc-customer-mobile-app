@@ -37,15 +37,38 @@ import {
   styles,
 } from "./marketplaceShared";
 
+const displayValue = (value) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(", ") || "Not set";
+  }
+  if (value === null || value === undefined || value === "") {
+    return "Not set";
+  }
+  if (typeof value === "object") {
+    return (
+      value.label ||
+      value.name ||
+      value.title ||
+      value.value ||
+      JSON.stringify(value)
+    );
+  }
+  return String(value);
+};
+
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
     <Text style={styles.label}>{label}</Text>
-    <Text style={styles.meta}>{value || "Not set"}</Text>
+    <Text style={styles.meta}>{displayValue(value)}</Text>
   </View>
 );
 
 const listValue = (value) =>
-  Array.isArray(value) && value.length ? value.join(", ") : "Not set";
+  Array.isArray(value)
+    ? displayValue(value)
+    : value
+      ? String(value)
+      : "Not set";
 const boolValue = (value) =>
   value === true ? "Yes" : value === false ? "No" : "Not answered";
 
@@ -137,8 +160,12 @@ const formatEventDuration = (event = {}) => {
 
 const getServiceSpecificRows = (event) => {
   if (!event) return [];
+  const primaryStyles = Array.isArray(event.primary_service_style)
+    ? event.primary_service_style
+    : [event.primary_service_style].filter(Boolean);
+  const hasPrimaryStyle = (style) => primaryStyles.includes(style);
 
-  if (event.primary_service_style === "Plated") {
+  if (hasPrimaryStyle("Plated")) {
     return [
       ["Number of Courses", event.plated_number_of_courses],
       ["Single Entree", event.plated_single_entree ? "Yes" : "No"],
@@ -151,11 +178,11 @@ const getServiceSpecificRows = (event) => {
     ];
   }
 
-  if (event.primary_service_style === "Buffet") {
+  if (hasPrimaryStyle("Buffet")) {
     return [["Buffet Options", listValue(event.buffet_options)]];
   }
 
-  if (event.primary_service_style === "Food Truck") {
+  if (hasPrimaryStyle("Food Truck")) {
     return [["Food Truck Options", listValue(event.food_truck_options)]];
   }
 
