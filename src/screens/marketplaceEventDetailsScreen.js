@@ -1127,14 +1127,25 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           {showEventVisibility
             ? renderCollapsibleSection("visibility", "Event Visibility", (
                 <>
-                <DetailRow
-                  label="Event Views"
-                  value={String(event?.event_impression_count || 0)}
-                />
-                <DetailRow
-                  label="Ticket Clicks"
-                  value={String(event?.ticket_click_count || 0)}
-                />
+                  {imageUrls.length > 0 ? (
+                    <ImageCarousel
+                      images={imageUrls}
+                      containerHeight={220}
+                      containerStyle={safeStyles.carousel}
+                      imageContainer={safeStyles.carouselImage}
+                      onImagePress={
+                        ticketSalesEnabled ? handleCustomerEventImagePress : undefined
+                      }
+                    />
+                  ) : null}
+                  <DetailRow
+                    label="Event Views"
+                    value={String(event?.event_impression_count || 0)}
+                  />
+                  <DetailRow
+                    label="Ticket Clicks"
+                    value={String(event?.ticket_click_count || 0)}
+                  />
                 </>
               ))
             : null}

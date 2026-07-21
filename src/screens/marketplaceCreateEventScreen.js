@@ -2003,28 +2003,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         return;
       }
 
-      const imagesToUpload = eventImages.filter((image) => !image.uploaded);
-      const shouldUploadImages = status !== "DRAFT" && eventId && imagesToUpload.length;
-      if (shouldUploadImages) {
-        const results = await Promise.allSettled(
-          imagesToUpload.map((image) => {
-            const formData = new FormData();
-            formData.append("file", {
-              uri: image.uri,
-              name: image.name,
-              type: image.type,
-            });
-            return uploadMarketplaceEventImage_API({
-              eventId,
-              payload: formData,
-            });
-          })
-        );
-        const failedUploads = results.filter((result) => result.status === "rejected");
-        const uploadedImages = results
-          .filter((result) => result.status === "fulfilled")
-          .map((result) => result.value?.data?.marketplaceEventImage)
-          .filter(Boolean);
+	      const imagesToUpload = eventImages.filter((image) => !image.uploaded);
+	      const shouldUploadImages = status !== "DRAFT" && eventId && imagesToUpload.length;
+	      if (shouldUploadImages) {
+	        const { failedUploads, uploadedImages } = await uploadEventImagesForEvent(
+	          eventId,
+	          imagesToUpload
+	        );
         if (failedUploads.length) {
           console.log("Marketplace event image upload error", failedUploads);
           setSnackbar({
@@ -2205,10 +2190,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return;
     }
 
-    continueSubmitConfirmation();
+	    continueSubmitConfirmation();
+	  };
+
+  const uploadEventImagesForEvent = async (eventId, images) => {
+    const results = await Promise.allSettled(
+      images.map((image) => {
+        const formData = new FormData();
+        formData.append("file", {
+          uri: image.uri,
+          name: image.name,
+          type: image.type,
+        });
+        return uploadMarketplaceEventImage_API({
+          eventId,
+          payload: formData,
+        });
+      })
+    );
+
+    return {
+      failedUploads: results.filter((result) => result.status === "rejected"),
+      uploadedImages: results
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value?.data?.marketplaceEventImage)
+        .filter(Boolean),
+    };
   };
 
-  const handleDeleteDraft = () => {
+	  const handleDeleteDraft = () => {
     if (!editingEventId || loading) return;
 
     Alert.alert(
@@ -2251,6 +2261,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
 
   const handlePickEventImages = async () => {
+    let immediateUploadStarted = false;
     try {
       if (Platform.OS === "ios") {
         const photosStatus = await photosPermissionStatus();
@@ -2279,13 +2290,46 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               type: image.mime,
             }
       );
+
+      if (editingEventId && isEditingSubmittedEvent) {
+        immediateUploadStarted = true;
+        setLoading(true);
+        setSubmitMode("IMAGE");
+        const { failedUploads } = await uploadEventImagesForEvent(
+          editingEventId,
+          selectedImages
+        );
+        if (failedUploads.length) {
+          console.log("Marketplace event image upload error", failedUploads);
+        }
+        const response = await getMarketplaceEventById_API(editingEventId);
+        const marketplaceEvent = response?.data?.marketplaceEvent;
+        if (marketplaceEvent) {
+          hydrateEventForEditing(marketplaceEvent);
+        }
+        setSnackbar({
+          visible: true,
+          message: failedUploads.length
+            ? "Event image upload finished with an error."
+            : "Event images uploaded.",
+          type: failedUploads.length ? "error" : "success",
+        });
+        return;
+      }
+
       setEventImages((prev) => [...prev, ...selectedImages]);
     } catch (error) {
       if (error?.code !== "E_PICKER_CANCELLED") {
         setSnackbar({
           visible: true,
           message: error?.message || "Failed to select event images.",
+          type: "error",
         });
+      }
+    } finally {
+      if (immediateUploadStarted) {
+        setLoading(false);
+        setSubmitMode(null);
       }
     }
   };
