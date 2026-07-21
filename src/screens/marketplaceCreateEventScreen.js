@@ -2021,6 +2021,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           })
         );
         const failedUploads = results.filter((result) => result.status === "rejected");
+        const uploadedImages = results
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value?.data?.marketplaceEventImage)
+          .filter(Boolean);
         if (failedUploads.length) {
           console.log("Marketplace event image upload error", failedUploads);
           setSnackbar({
@@ -2029,6 +2033,22 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             type: "error",
           });
         }
+        if (uploadedImages.length) {
+          setEventImages((prev) => [
+            ...prev.filter((image) => image.uploaded),
+            ...normalizeExistingEventImages({ images: uploadedImages }),
+          ]);
+        }
+      }
+      const refreshedEventResponse = eventId
+        ? await getMarketplaceEventById_API(eventId).catch((error) => {
+            console.log("Marketplace event refresh after image upload error", error);
+            return null;
+          })
+        : null;
+      const refreshedEvent = refreshedEventResponse?.data?.marketplaceEvent;
+      if (refreshedEvent) {
+        hydrateEventForEditing(refreshedEvent);
       }
       setSnackbar({
         visible: true,
@@ -2036,10 +2056,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           options.successMessage
             ? options.successMessage
             : status === "DRAFT"
-	            ? "Your draft has been saved."
-	            : shouldUploadImages
-	              ? "Your event is open for vendor bids. Images are uploaded."
-	              : "Your event is open for vendor bids.",
+	              ? "Your draft has been saved."
+	              : shouldUploadImages
+	                ? "Your event is open for vendor bids. Images are uploaded."
+	                : "Your event is open for vendor bids.",
         type: "success",
       });
       setTimeout(() => {
@@ -2230,7 +2250,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     );
   };
 
-	  const handlePickEventImages = async () => {
+  const handlePickEventImages = async () => {
     try {
       if (Platform.OS === "ios") {
         const photosStatus = await photosPermissionStatus();
@@ -2249,7 +2269,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       const selectedImages = images.map((image) =>
         Platform.OS === "ios"
           ? {
-              uri: image?.sourceURL || image?.path,
+              uri: image?.path || image?.sourceURL,
               name: image?.filename || `${Date.now()}.jpg`,
               type: image.mime,
             }
@@ -2268,7 +2288,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         });
       }
     }
-	  };
+  };
 
   const renderSectionHeader = (title, icon) => (
     <View style={localStyles.sectionHeader}>
