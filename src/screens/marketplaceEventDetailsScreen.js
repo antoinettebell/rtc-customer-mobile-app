@@ -140,14 +140,15 @@ const hasEventDatePassed = (eventDate) => {
 
 const formatPayloadDate = (date) => date.toISOString().slice(0, 10);
 
-const getEventDurationMinutes = (event = {}) => {
-  const hours = Number(event.event_duration_hours || 0);
-  const minutes = Number(event.event_duration_minutes || 0);
+const getEventDurationMinutes = (event) => {
+  const safeEvent = event || {};
+  const hours = Number(safeEvent.event_duration_hours || 0);
+  const minutes = Number(safeEvent.event_duration_minutes || 0);
   if (minutes > 59) return minutes;
   return hours > 0 ? hours * 60 + minutes : minutes;
 };
 
-const formatEventDuration = (event = {}) => {
+const formatEventDuration = (event) => {
   const totalMinutes = Math.max(0, Number(getEventDurationMinutes(event) || 0));
   if (!totalMinutes) return "Not set";
   const hours = Math.floor(totalMinutes / 60);
