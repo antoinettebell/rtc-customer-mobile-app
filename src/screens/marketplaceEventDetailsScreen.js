@@ -82,6 +82,17 @@ const normalizeEventImageUrls = (images) => {
     .filter(Boolean);
 };
 
+const getEventImageUrls = (event) => {
+  const candidates = [
+    event?.images,
+    event?.event_images,
+    event?.image_urls,
+    event?.attachments,
+    event?.image_url,
+  ];
+  return [...new Set(candidates.flatMap(normalizeEventImageUrls))];
+};
+
 const getVendorName = (record) => {
   const foodTruck = record?.food_truck_id;
   const vendor = record?.vendor_user_id;
@@ -338,7 +349,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     }, [eventId, customerSafe])
   );
 
-  const imageUrls = normalizeEventImageUrls(event?.images);
+  const imageUrls = getEventImageUrls(event);
   const locationText =
     event?.formatted_address ||
     event?.geocoded_address ||
@@ -893,6 +904,18 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
             <View style={styles.card}>
+              {imageUrls.length > 0 && (
+                <ImageCarousel
+                  images={imageUrls}
+                  containerHeight={220}
+                  containerStyle={safeStyles.carousel}
+                  imageContainer={safeStyles.carouselImage}
+                  onImagePress={
+                    ticketSalesEnabled ? handleCustomerEventImagePress : undefined
+                  }
+                />
+              )}
+
               <Text style={styles.title}>Ticket Availability</Text>
               <Text style={safeStyles.ticketText}>
                 {ticketAvailabilityMessage}
@@ -906,18 +929,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   <Text style={styles.buttonText}>View Tickets</Text>
                 </TouchableOpacity>
               ) : null}
-
-              {imageUrls.length > 0 && (
-                <ImageCarousel
-                  images={imageUrls}
-                  containerHeight={220}
-                  containerStyle={safeStyles.carousel}
-                  imageContainer={safeStyles.carouselImage}
-                  onImagePress={
-                    ticketSalesEnabled ? handleCustomerEventImagePress : undefined
-                  }
-                />
-              )}
             </View>
 
             <View style={styles.card}>
