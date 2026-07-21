@@ -34,10 +34,11 @@ import StatePickerModal from "../components/StatePickerModal";
 import {
   createMarketplaceEvent_API,
   deleteMarketplaceEvent_API,
+  getMarketplaceEventById_API,
   getLocationName,
-	  updateMarketplaceEvent_API,
-	  uploadMarketplaceEventImage_API,
-	} from "../apiFolder/appAPI";
+  updateMarketplaceEvent_API,
+  uploadMarketplaceEventImage_API,
+} from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
@@ -1337,11 +1338,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     ].some((key) => String(form[key] || "").trim()) || form.service_types.length > 0;
   }, [form]);
 
-	  useEffect(() => {
-	    if (!draftEvent) return;
-	    const nextForm = normalizeEventForForm(draftEvent);
-	    setForm(nextForm);
-	    setEventImages(normalizeExistingEventImages(draftEvent));
+  const hydrateEventForEditing = useCallback((event) => {
+    if (!event) return;
+    const nextForm = normalizeEventForForm(event);
+    setForm(nextForm);
+    setEventImages(normalizeExistingEventImages(event));
     if (nextForm.latitude && nextForm.longitude) {
       const region = {
         latitude: Number(nextForm.latitude),
@@ -1354,7 +1355,36 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         eventAddressMapRef.current?.animateToRegion(region, 600);
       }, 300);
     }
-  }, [draftEvent]);
+  }, []);
+
+  useEffect(() => {
+    if (draftEvent) {
+      hydrateEventForEditing(draftEvent);
+    }
+  }, [draftEvent, hydrateEventForEditing]);
+
+  useEffect(() => {
+    if (!editingEventId) return;
+    let mounted = true;
+
+    const loadEditingEvent = async () => {
+      try {
+        const response = await getMarketplaceEventById_API(editingEventId);
+        const marketplaceEvent = response?.data?.marketplaceEvent;
+        if (mounted && marketplaceEvent) {
+          hydrateEventForEditing(marketplaceEvent);
+        }
+      } catch (error) {
+        console.log("Marketplace event editor load error", error);
+      }
+    };
+
+    loadEditingEvent();
+
+    return () => {
+      mounted = false;
+    };
+  }, [editingEventId, hydrateEventForEditing]);
 
   useEffect(() => {
     setForm((prev) => {
