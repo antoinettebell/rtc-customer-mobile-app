@@ -2014,7 +2014,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           console.log("Marketplace event image upload error", failedUploads);
           setSnackbar({
             visible: true,
-            message: "Event saved, but one or more images failed to upload.",
+            message: getUploadFailureMessage(
+              failedUploads,
+              "Event saved, but one or more images failed to upload."
+            ),
             type: "error",
           });
         }
@@ -2193,6 +2196,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	    continueSubmitConfirmation();
 	  };
 
+  const getUploadFailureMessage = (failedUploads, fallbackMessage) => {
+    const firstReason = failedUploads?.[0]?.reason;
+    return (
+      firstReason?.message ||
+      firstReason?.error ||
+      firstReason?.data?.message ||
+      fallbackMessage
+    );
+  };
+
   const uploadEventImagesForEvent = async (eventId, images) => {
     const results = await Promise.allSettled(
       images.map((image) => {
@@ -2310,7 +2323,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         setSnackbar({
           visible: true,
           message: failedUploads.length
-            ? "Event image upload finished with an error."
+            ? getUploadFailureMessage(
+                failedUploads,
+                "Event image upload finished with an error."
+              )
             : "Event images uploaded.",
           type: failedUploads.length ? "error" : "success",
         });
