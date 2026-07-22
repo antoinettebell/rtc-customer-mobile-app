@@ -13,10 +13,16 @@ const formatReviewCount = (value) => {
 };
 
 export const getSanitationGrade = (foodTruck) =>
-  foodTruck?.sanitationGrade || foodTruck?.sanitation_grade || "N/A";
+  foodTruck?.sanitationGrade || foodTruck?.sanitation_grade || null;
 
 export const formatRatingWithSanitationGrade = (foodTruck) => {
   const rating = foodTruck?.avgRate ?? 0;
-  const reviews = formatReviewCount(foodTruck?.totalReviews);
-  return `${rating} (${getSanitationGrade(foodTruck)} - ${reviews} reviews)`;
+  const rawReviewCount = Number(foodTruck?.totalReviews || 0);
+  const reviews = formatReviewCount(rawReviewCount);
+  const reviewLabel = rawReviewCount === 1 ? "review" : "reviews";
+  const grade = getSanitationGrade(foodTruck);
+
+  return grade
+    ? `${rating} (${grade} - ${reviews} ${reviewLabel})`
+    : `${rating} (${reviews} ${reviewLabel})`;
 };

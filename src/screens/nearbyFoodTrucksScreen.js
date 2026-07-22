@@ -12,6 +12,7 @@ import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import { getNearbyFoodTrucks_API } from "../apiFolder/appAPI";
 import StatusBarManager from "../components/StatusBarManager";
 import { useNavigation } from "@react-navigation/native";
+import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 
 const NearbyFoodTrucksScreen = ({ route }) => {
   const insets = useSafeAreaInsets();
@@ -77,7 +78,7 @@ const NearbyFoodTrucksScreen = ({ route }) => {
       uri={item.logo}
       isLiked={item.isLiked}
       foodTruckId={item._id}
-      reviews={item.reviews}
+      reviews={formatRatingWithSanitationGrade(item)}
       distance={item.distanceInMeters}
       onContainerPress={() =>
         navigation.navigate("foodTruckDetailScreen", { item })
