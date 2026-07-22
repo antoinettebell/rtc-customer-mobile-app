@@ -242,18 +242,24 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderApplication = (item) => (
-    <TouchableOpacity
-      key={item.application_id}
-      activeOpacity={0.8}
-      style={styles.card}
-      onPress={() =>
-        navigation.navigate("marketplaceSubmissionDetailsScreen", {
-          submission: item,
-          submissionType: "Application",
-        })
-      }
-    >
+  const renderApplication = (item) => {
+    const withdrawn = item.application_status === "WITHDRAWN";
+
+    return (
+      <TouchableOpacity
+        key={item.application_id}
+        activeOpacity={0.8}
+        style={[
+          styles.card,
+          withdrawn ? { opacity: 0.75, borderColor: "#D93025" } : null,
+        ]}
+        onPress={() =>
+          navigation.navigate("marketplaceSubmissionDetailsScreen", {
+            submission: item,
+            submissionType: "Application",
+          })
+        }
+      >
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{getVendorName(item)}</Text>
@@ -276,11 +282,17 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       {item.image_urls?.length ? (
         <Text style={styles.meta}>Food/Menu Images: {item.image_urls.length} uploaded</Text>
       ) : null}
+      {withdrawn ? (
+        <Text style={[styles.meta, { color: "#D93025", marginTop: 8 }]}>
+          This application was withdrawn by the vendor and cannot be selected.
+        </Text>
+      ) : null}
       <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>
         Review full application
       </Text>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const awardLocked = ["AWARDED", "CLOSED", "CANCELLED"].includes(
     event?.status
