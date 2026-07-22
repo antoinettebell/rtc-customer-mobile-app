@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Linking,
   Modal,
   StyleSheet,
@@ -27,6 +28,7 @@ import {
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
+import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
 import {
   formatDate,
@@ -36,6 +38,8 @@ import {
   normalizeExternalUrl,
   styles,
 } from "./marketplaceShared";
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 const displayValue = (value) => {
   if (Array.isArray(value)) {
@@ -295,6 +299,68 @@ const safeStyles = StyleSheet.create({
   ticketButton: {
     marginTop: 12,
   },
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.94)",
+  },
+  imagePreviewHeader: {
+    minHeight: 64,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  imagePreviewActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  imagePreviewIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  imagePreviewScroll: {
+    flex: 1,
+  },
+  imagePreviewHorizontalContent: {
+    flexGrow: 1,
+    alignItems: "center",
+  },
+  imagePreviewScrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePreviewImageContainer: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  },
+  imagePreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  imagePreviewFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  imagePreviewTicketButton: {
+    height: 54,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: AppColor.primary,
+  },
+  imagePreviewTicketText: {
+    color: AppColor.white,
+    fontSize: 16,
+    fontWeight: "700",
+  },
 });
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
@@ -310,6 +376,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [finalPaymentTip, setFinalPaymentTip] = useState("");
   const [selectedFinalPaymentRecord, setSelectedFinalPaymentRecord] = useState(null);
   const [creatingFinalPayment, setCreatingFinalPayment] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     requirements: true,
@@ -386,7 +454,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     "Ticket availability details are not available in the app yet.";
   if (ticketSalesEnabled && ticketUrl) {
     ticketAvailabilityMessage = imageUrls.length
-      ? "Tap View Tickets or the event image to open tickets."
+      ? "Tap an event image to preview it, or View Tickets to open tickets."
       : "Tap View Tickets to open tickets.";
   } else if (ticketSalesEnabled) {
     ticketAvailabilityMessage =
@@ -414,6 +482,139 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       url: ticketUrl,
       title: event?.event_name || "Tickets",
     });
+  };
+
+  const openImagePreview = (image) => {
+    const url =
+      typeof image === "string"
+        ? image
+        : image?.image_url || image?.file_url || image?.url || "";
+    if (!url) return;
+    setPreviewImageUrl(url);
+    setPreviewZoom(1);
+  };
+
+  const closeImagePreview = () => {
+    setPreviewImageUrl(null);
+    setPreviewZoom(1);
+  };
+
+  const adjustPreviewZoom = (delta) => {
+    setPreviewZoom((current) =>
+      Math.min(3, Math.max(1, Number((current + delta).toFixed(2))))
+    );
+  };
+
+  const renderImagePreviewModal = () => {
+    const previewHeight = Math.max(
+      360,
+      screenHeight - Math.max(insets.top, 0) - Math.max(insets.bottom, 0) - 170
+    );
+
+    return (
+      <Modal
+        transparent
+        animationType="fade"
+        visible={!!previewImageUrl}
+        onRequestClose={closeImagePreview}
+      >
+        <View style={safeStyles.imagePreviewOverlay}>
+          <View
+            style={[
+              safeStyles.imagePreviewHeader,
+              { paddingTop: Math.max(insets.top, 16) },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={safeStyles.imagePreviewIconButton}
+              onPress={closeImagePreview}
+            >
+              <MaterialIcons name="close" size={24} color={AppColor.white} />
+            </TouchableOpacity>
+            <View style={safeStyles.imagePreviewActions}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={safeStyles.imagePreviewIconButton}
+                onPress={() => adjustPreviewZoom(-0.25)}
+                disabled={previewZoom <= 1}
+              >
+                <MaterialIcons
+                  name="zoom-out"
+                  size={24}
+                  color={
+                    previewZoom <= 1
+                      ? "rgba(255,255,255,0.35)"
+                      : AppColor.white
+                  }
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={safeStyles.imagePreviewIconButton}
+                onPress={() => adjustPreviewZoom(0.25)}
+                disabled={previewZoom >= 3}
+              >
+                <MaterialIcons
+                  name="zoom-in"
+                  size={24}
+                  color={
+                    previewZoom >= 3
+                      ? "rgba(255,255,255,0.35)"
+                      : AppColor.white
+                  }
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            style={safeStyles.imagePreviewScroll}
+            contentContainerStyle={safeStyles.imagePreviewHorizontalContent}
+          >
+            <ScrollView contentContainerStyle={safeStyles.imagePreviewScrollContent}>
+              <AppImage
+                uri={previewImageUrl}
+                resizeMode="contain"
+                containerStyle={[
+                  safeStyles.imagePreviewImageContainer,
+                  {
+                    width: screenWidth * previewZoom,
+                    height: previewHeight * previewZoom,
+                  },
+                ]}
+                imageStyle={safeStyles.imagePreviewImage}
+              />
+            </ScrollView>
+          </ScrollView>
+
+          {ticketSalesEnabled && ticketUrl ? (
+            <View
+              style={[
+                safeStyles.imagePreviewFooter,
+                { paddingBottom: Math.max(insets.bottom, 18) },
+              ]}
+            >
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={safeStyles.imagePreviewTicketButton}
+                onPress={handleCustomerEventImagePress}
+              >
+                <MaterialIcons
+                  name="confirmation-number"
+                  size={20}
+                  color={AppColor.white}
+                />
+                <Text style={safeStyles.imagePreviewTicketText}>
+                  View Tickets
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+    );
   };
 
   const handleReopenEvent = () => {
@@ -914,9 +1115,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   containerStyle={safeStyles.carousel}
                   imageContainer={safeStyles.carouselImage}
                   imageResizeMode="contain"
-                  onImagePress={
-                    ticketSalesEnabled ? handleCustomerEventImagePress : undefined
-                  }
+                  onImagePress={openImagePreview}
                 />
               )}
 
@@ -963,6 +1162,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </View>
           </ScrollView>
         )}
+        {renderImagePreviewModal()}
       </View>
     );
   }
@@ -1138,9 +1338,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                       containerStyle={safeStyles.carousel}
                       imageContainer={safeStyles.carouselImage}
                       imageResizeMode="contain"
-                      onImagePress={
-                        ticketSalesEnabled ? handleCustomerEventImagePress : undefined
-                      }
+                      onImagePress={openImagePreview}
                     />
                   ) : null}
                   <DetailRow
@@ -1279,6 +1477,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+      {renderImagePreviewModal()}
     </View>
   );
 };
