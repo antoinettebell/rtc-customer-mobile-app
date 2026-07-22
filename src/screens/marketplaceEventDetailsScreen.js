@@ -109,7 +109,7 @@ const getRecordDocuments = (record) => [
     ? [{ label: "Signed Document", url: record.signed_document_url }]
     : []),
   ...(record?.permit_license_urls || []).map((url, index) => ({
-    label: `Permit / License ${index + 1}`,
+    label: `Business License/Permit ${index + 1}`,
     url,
   })),
   ...(record?.attachments || [])

@@ -225,7 +225,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
         ) : null}
         {item.permit_license_urls?.length ? (
           <Text style={styles.meta}>
-            Permit/License Files: {item.permit_license_urls.length} uploaded
+            Business License/Permit Files: {item.permit_license_urls.length} uploaded
           </Text>
         ) : null}
         <Text style={styles.meta}>
