@@ -213,9 +213,12 @@ const safeStyles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 14,
     backgroundColor: AppColor.white,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
   },
   carouselImage: {
     borderRadius: 10,
+    backgroundColor: AppColor.white,
   },
   ticketText: {
     marginTop: 10,
@@ -907,9 +910,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               {imageUrls.length > 0 && (
                 <ImageCarousel
                   images={imageUrls}
-                  containerHeight={220}
+                  containerHeight={320}
                   containerStyle={safeStyles.carousel}
                   imageContainer={safeStyles.carouselImage}
+                  imageResizeMode="contain"
                   onImagePress={
                     ticketSalesEnabled ? handleCustomerEventImagePress : undefined
                   }
@@ -1130,9 +1134,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   {imageUrls.length > 0 ? (
                     <ImageCarousel
                       images={imageUrls}
-                      containerHeight={220}
+                      containerHeight={320}
                       containerStyle={safeStyles.carousel}
                       imageContainer={safeStyles.carouselImage}
+                      imageResizeMode="contain"
                       onImagePress={
                         ticketSalesEnabled ? handleCustomerEventImagePress : undefined
                       }
