@@ -170,16 +170,17 @@ const normalizeAddressPart = (value) =>
     .toUpperCase();
 
 export const resolveEventTimeZone = (event = {}) => {
+  const safeEvent = event || {};
   const explicitTimeZone =
-    event.event_time_zone ||
-    event.event_timezone ||
-    event.time_zone ||
-    event.timezone ||
-    event.location_time_zone;
+    safeEvent.event_time_zone ||
+    safeEvent.event_timezone ||
+    safeEvent.time_zone ||
+    safeEvent.timezone ||
+    safeEvent.location_time_zone;
   if (explicitTimeZone) return explicitTimeZone;
 
-  const state = normalizeAddressPart(event.event_state || event.state);
-  const city = normalizeAddressPart(event.event_city || event.city);
+  const state = normalizeAddressPart(safeEvent.event_state || safeEvent.state);
+  const city = normalizeAddressPart(safeEvent.event_city || safeEvent.city);
   return (
     cityStateTimeZones[`${state}:${city}`] ||
     stateTimeZones[state] ||
@@ -208,7 +209,8 @@ export const formatEventTime = (timeValue, event = {}) => {
   const parts = parseEventTimeParts(timeValue);
   if (!parts) return timeValue;
 
-  const dateValue = event.event_date ? new Date(event.event_date) : new Date();
+  const safeEvent = event || {};
+  const dateValue = safeEvent.event_date ? new Date(safeEvent.event_date) : new Date();
   const zoneProbeDate = Number.isNaN(dateValue.getTime())
     ? new Date()
     : new Date(
@@ -227,7 +229,7 @@ export const formatEventTime = (timeValue, event = {}) => {
 
   try {
     const zoneNameParts = new Intl.DateTimeFormat("en-US", {
-      timeZone: resolveEventTimeZone(event),
+      timeZone: resolveEventTimeZone(safeEvent),
       timeZoneName: "short",
     }).formatToParts(zoneProbeDate);
     const zoneName = zoneNameParts.find((part) => part.type === "timeZoneName")?.value;

@@ -117,6 +117,19 @@ const getLocationInfo = (currentLocation, locations) => {
   };
 };
 
+const getTruckOpenLocationId = (foodTruck, truckUnitId) => {
+  const units = (foodTruck?.truck_units || []).filter((unit) => !unit.is_archived);
+  const selectedUnit =
+    units.find((unit) => idsMatch(unit._id, truckUnitId)) ||
+    units.find((unit) =>
+      (unit.open_locations || []).some((location) => location.isOrderingOpen)
+    );
+  const openLocation = (selectedUnit?.open_locations || []).find(
+    (location) => location.isOrderingOpen
+  );
+  return openLocation?.locationId || null;
+};
+
 const FoodTruckDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -227,7 +240,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     setMenuTabs(tabs);
   };
 
-  const activeLocationId = selectedLocationId || foodTruckDetail?.currentLocation;
+  const truckOpenLocationId = getTruckOpenLocationId(
+    foodTruckDetail,
+    selectedTruckUnitId
+  );
+  const activeLocationId =
+    selectedLocationId || truckOpenLocationId || foodTruckDetail?.currentLocation;
   const currentLocationInfo =
     selectedLocation ||
     getLocationInfo(activeLocationId, foodTruckDetail?.locations || []);
@@ -236,12 +254,16 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     selectedLocation?.isOrderingOpen !== undefined
       ? !!selectedLocation.isOrderingOpen
       : !!(
-          selectedLocationId &&
-          foodTruckDetail?.currentLocation &&
-          idsMatch(selectedLocationId, foodTruckDetail.currentLocation)
+          (activeLocationId &&
+            truckOpenLocationId &&
+            idsMatch(activeLocationId, truckOpenLocationId)) ||
+          (!truckOpenLocationId &&
+            activeLocationId &&
+            foodTruckDetail?.currentLocation &&
+            idsMatch(activeLocationId, foodTruckDetail.currentLocation))
         );
   const currentStatus =
-    (selectedLocationId ? selectedLocationIsOpen : !!foodTruckDetail?.currentLocation)
+    selectedLocationIsOpen
       ? "Open Now"
       : "Closed Now";
   const isCurrentOrderContext =
