@@ -1286,6 +1286,8 @@ const localStyles = StyleSheet.create({
 });
 
 const MarketplaceCreateEventScreen = ({ navigation, route }) => {
+  const EVENT_IMAGE_CONTACT_INFO_MESSAGE =
+    "This image was not uploaded because it appears to include contact information. Please choose an event image without phone numbers, emails, websites, or social handles.";
   const insets = useSafeAreaInsets();
   const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
 	  const draftEvent = route?.params?.draftEvent;
@@ -2016,7 +2018,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             visible: true,
             message: getUploadFailureMessage(
               failedUploads,
-              "Event saved, but one or more images failed to upload."
+              EVENT_IMAGE_CONTACT_INFO_MESSAGE
             ),
             type: "error",
           });
@@ -2325,7 +2327,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           message: failedUploads.length
             ? getUploadFailureMessage(
                 failedUploads,
-                "Event image upload finished with an error."
+                EVENT_IMAGE_CONTACT_INFO_MESSAGE
               )
             : "Event images uploaded.",
           type: failedUploads.length ? "error" : "success",
