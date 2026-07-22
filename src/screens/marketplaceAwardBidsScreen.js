@@ -214,6 +214,46 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             ? "Not provided"
             : formatMoney(item.price_per_guest)}
         </Text>
+        {!locked ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[
+              styles.secondaryButton,
+              {
+                marginTop: 10,
+                borderColor: selected ? AppColor.primary : "#DDE2EA",
+                backgroundColor: selected ? "#FFF1E6" : AppColor.white,
+                flexDirection: "row",
+              },
+            ]}
+            onPress={() => toggleBid(item)}
+          >
+            <MaterialIcons
+              name={selected ? "check-circle" : "add-circle-outline"}
+              size={18}
+              color={selected ? AppColor.primary : AppColor.textHighlighter}
+            />
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                {
+                  marginLeft: 8,
+                  color: selected ? AppColor.primary : AppColor.textHighlighter,
+                },
+              ]}
+            >
+              {selected ? "Selected to Award" : "Select to Award"}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.meta, { marginTop: 10 }]}>
+            {item.bid_status === "AWARDED"
+              ? "Awarded"
+              : item.bid_status === "WITHDRAWN"
+                ? "Withdrawn by vendor"
+                : "Not selected"}
+          </Text>
+        )}
         <Text style={styles.meta}>Menu: {item.menu_description || "Not provided"}</Text>
         {item.menu_pdf_url ? (
           <Text style={styles.meta}>Menu PDF: Uploaded</Text>
@@ -286,7 +326,11 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
         <Text style={[styles.meta, { color: "#D93025", marginTop: 8 }]}>
           This application was withdrawn by the vendor and cannot be selected.
         </Text>
-      ) : null}
+      ) : (
+        <Text style={[styles.meta, { marginTop: 8 }]}>
+          Review this application before accepting or declining it.
+        </Text>
+      )}
       <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>
         Review full application
       </Text>
