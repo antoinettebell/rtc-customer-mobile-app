@@ -21,7 +21,12 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import StatusBarManager from "../components/StatusBarManager";
 import AppHeader from "../components/AppHeader";
 import AppImage from "../components/AppImage";
-import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
+import {
+  AppColor,
+  customerTheme,
+  Mulish700,
+  Mulish400,
+} from "../utils/theme";
 import OrderTrackingSteps from "../components/OrderTrackingSteps";
 import { getOrderByOrderId_API } from "../apiFolder/appAPI";
 import { IconButton } from "react-native-paper";
@@ -536,8 +541,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   statusBadge: {
-    backgroundColor: "#FC7B0338",
-    color: AppColor.primary,
+    backgroundColor: customerTheme.status.successSoft,
+    color: customerTheme.status.success,
     borderRadius: 8,
     padding: 6,
     fontFamily: Mulish400,

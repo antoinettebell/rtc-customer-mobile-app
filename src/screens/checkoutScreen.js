@@ -18,6 +18,7 @@ import moment from "moment";
 import { Divider, ActivityIndicator, IconButton } from "react-native-paper";
 import {
   AppColor,
+  customerTheme,
   Mulish700,
   Mulish400,
   Mulish600,
@@ -1587,12 +1588,12 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   couponBox: {
-    backgroundColor: "#FC7B0338",
+    backgroundColor: `${customerTheme.status.warning}38`,
     borderRadius: 6,
     padding: 16,
   },
   couponText: {
-    color: AppColor.primary,
+    color: customerTheme.status.warning,
     fontFamily: Mulish400,
   },
   totalCard: {
@@ -1694,7 +1695,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FC7B0338",
+    backgroundColor: `${customerTheme.status.warning}38`,
     borderRadius: 6,
     padding: 10,
   },
@@ -1702,7 +1703,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   viewAllCouponsText: {
-    color: AppColor.primary,
+    color: customerTheme.status.warning,
     fontFamily: Mulish400,
     fontSize: 14,
     textAlign: "right",

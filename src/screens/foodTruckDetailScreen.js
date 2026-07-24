@@ -14,7 +14,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
+import {
+  AppColor,
+  customerTheme,
+  Mulish700,
+  Mulish400,
+} from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
@@ -1453,7 +1458,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   getDirectionBtn: {
-    backgroundColor: "#FC7B0338",
+    backgroundColor: customerTheme.background.soft,
     borderRadius: 8,
     padding: 6,
   },

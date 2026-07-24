@@ -1,37 +1,116 @@
 import { Platform } from "react-native";
 
-export const AppColor = {
-  primary: "#FC7B03",
-  primaryLight: "#FFAE62",
-  orderProgressbar: "#C25D00",
-  text: "#111520",
-  subText: "#9A9FAC",
-  textHighlighter: "#606268",
-  textPlaceholder: "#8A8A8A",
-  border: "#D9D9D9",
-  likePlaceholder: "#C7C7CC",
-  ratingStar: "#FFE101",
-  placeholderTextColor: "#D1D1D6",
-  borderColor: "#E5E5EA",
-
+export const BrandColor = {
+  navyBlue: "#0D1B2A",
+  carolinaBlue: "#4DA3E6",
+  hunterGreen: "#1B5E3B",
+  forestGreen: "#2E7D32",
+  softGreen: "#A8D5B2",
+  lightGray: "#F4F6F8",
   white: "#FFFFFF",
-  black: "#000000",
-  gray: "#8E8E93",
-  red: "#FF0000",
-  yellow: "#FFCC00",
+  accentOrange: "#FF8A00",
+  errorRed: "#D32F2F",
+};
 
-  snackbarInfo: "#2196F3",
-  snackbarSuccess: "#4CAF50",
-  snackbarError: "#F44336",
-  snackbarWarning: "#FF9800",
-  snackbarDefault: "#323232",
+export const customerTheme = {
+  background: {
+    primary: BrandColor.white,
+    secondary: BrandColor.lightGray,
+    soft: "#EAF4FB",
+  },
+  text: {
+    primary: BrandColor.navyBlue,
+    secondary: "#5F6B7A",
+    inverse: BrandColor.white,
+  },
+  action: {
+    primary: BrandColor.carolinaBlue,
+    primaryPressed: "#2F86C9",
+    secondary: BrandColor.forestGreen,
+    secondaryPressed: BrandColor.hunterGreen,
+  },
+  navigation: {
+    active: BrandColor.carolinaBlue,
+    inactive: "#8A9099",
+  },
+  status: {
+    success: BrandColor.forestGreen,
+    successSoft: BrandColor.softGreen,
+    warning: BrandColor.accentOrange,
+    error: BrandColor.errorRed,
+    errorSoft: "#FDECEC",
+  },
+  border: "#D9E0E7",
+};
 
-  grayText: "#6F6F6F",
-  darkText: "#1D1D1D",
+export const vendorTheme = {
+  background: {
+    primary: BrandColor.navyBlue,
+    secondary: "#14283D",
+    card: BrandColor.white,
+    cardAlt: BrandColor.lightGray,
+  },
+  text: {
+    primary: BrandColor.navyBlue,
+    secondary: "#5F6B7A",
+    inverse: BrandColor.white,
+    mutedOnDark: "#C9D3DF",
+  },
+  action: {
+    primary: BrandColor.hunterGreen,
+    primaryPressed: "#13452B",
+    secondary: BrandColor.forestGreen,
+    secondaryPressed: BrandColor.hunterGreen,
+  },
+  navigation: {
+    background: BrandColor.navyBlue,
+    active: BrandColor.carolinaBlue,
+    inactive: "#AAB4C0",
+  },
+  chart: {
+    primary: BrandColor.carolinaBlue,
+    positive: BrandColor.forestGreen,
+    secondary: BrandColor.softGreen,
+  },
+  status: {
+    success: BrandColor.forestGreen,
+    pending: BrandColor.accentOrange,
+    error: BrandColor.errorRed,
+  },
+};
 
-  screenBg: "#F0F1F2",
-  lightGreenBG: "#CDFFC2",
-  lightRedBG: "#f8d7da",
+export const AppColor = {
+  primary: customerTheme.action.primary,
+  primaryLight: customerTheme.background.soft,
+  orderProgressbar: customerTheme.action.primaryPressed,
+  text: customerTheme.text.primary,
+  subText: customerTheme.text.secondary,
+  textHighlighter: customerTheme.text.secondary,
+  textPlaceholder: customerTheme.navigation.inactive,
+  border: customerTheme.border,
+  likePlaceholder: customerTheme.navigation.inactive,
+  ratingStar: BrandColor.accentOrange,
+  placeholderTextColor: customerTheme.navigation.inactive,
+  borderColor: customerTheme.background.secondary,
+
+  white: BrandColor.white,
+  black: BrandColor.navyBlue,
+  gray: customerTheme.navigation.inactive,
+  red: customerTheme.status.error,
+  yellow: BrandColor.accentOrange,
+
+  snackbarInfo: customerTheme.action.primary,
+  snackbarSuccess: customerTheme.status.success,
+  snackbarError: customerTheme.status.error,
+  snackbarWarning: customerTheme.status.warning,
+  snackbarDefault: BrandColor.navyBlue,
+
+  grayText: customerTheme.text.secondary,
+  darkText: customerTheme.text.primary,
+
+  screenBg: customerTheme.background.secondary,
+  lightGreenBG: customerTheme.status.successSoft,
+  lightRedBG: customerTheme.status.errorSoft,
 };
 
 // Fonts

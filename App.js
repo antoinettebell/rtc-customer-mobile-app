@@ -17,7 +17,7 @@ import {
 } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
-import { AppColor, Mulish400 } from "./src/utils/theme";
+import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
 import {
   createAndroidChannel,
@@ -158,6 +158,8 @@ const BottomNavigator = ({ insets }) => {
         headerShown: false,
         tabBarStyle: {
           height: insets.bottom + 60,
+          backgroundColor: customerTheme.background.primary,
+          borderTopColor: customerTheme.background.secondary,
         },
         tabBarLabelStyle: {
           // fontFamily: Mulish400,
@@ -165,8 +167,8 @@ const BottomNavigator = ({ insets }) => {
           fontWeight: "500",
           bottom: 5,
         },
-        tabBarActiveTintColor: AppColor.primary,
-        tabBarInactiveTintColor: AppColor.gray,
+        tabBarActiveTintColor: customerTheme.navigation.active,
+        tabBarInactiveTintColor: customerTheme.navigation.inactive,
       }}
     >
       <BottomTab.Screen
@@ -177,7 +179,7 @@ const BottomNavigator = ({ insets }) => {
           tabBarIcon: ({ focused, color, size }) => (
             <Image
               source={focused ? exploreActive : exploreInactive}
-              style={{ height: 24, width: 24 }}
+              style={{ height: 24, width: 24, tintColor: color }}
             />
           ),
         }}
@@ -190,7 +192,7 @@ const BottomNavigator = ({ insets }) => {
           tabBarIcon: ({ focused, color, size }) => (
             <Image
               source={focused ? nearmeActive : nearmeInactive}
-              style={{ height: 24, width: 24 }}
+              style={{ height: 24, width: 24, tintColor: color }}
             />
           ),
           tabBarHideOnKeyboard: false,
@@ -222,7 +224,7 @@ const BottomNavigator = ({ insets }) => {
           tabBarIcon: ({ focused, color, size }) => (
             <Image
               source={focused ? ordersActive : ordersInactive}
-              style={{ height: 24, width: 24 }}
+              style={{ height: 24, width: 24, tintColor: color }}
             />
           ),
         }}
@@ -239,7 +241,7 @@ const BottomNavigator = ({ insets }) => {
           tabBarIcon: ({ focused, color, size }) => (
             <Image
               source={focused ? profileActive : profileInactive}
-              style={{ height: 24, width: 24 }}
+              style={{ height: 24, width: 24, tintColor: color }}
             />
           ),
         }}
