@@ -131,13 +131,26 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
                     paddingTop: 14,
                   }}
                 >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={styles.label}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.label,
+                        { flex: 1, minWidth: 0, paddingRight: 12 },
+                      ]}
+                    >
                       {question.initiated_by_role === "CUSTOMER"
                         ? `Coordinator Message to ${question.vendor_display_id}`
                         : question.vendor_display_id}
                     </Text>
-                    <Text style={styles.meta}>{question.unread ? "Unread" : "Read"}</Text>
+                    <Text style={[styles.meta, { flexShrink: 0 }]}>
+                      {question.unread ? "Unread" : "Read"}
+                    </Text>
                   </View>
                   <Text style={styles.meta}>
                     {question.question_text || "Blocked by RTC moderation."}

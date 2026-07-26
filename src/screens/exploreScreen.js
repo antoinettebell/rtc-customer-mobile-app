@@ -29,7 +29,7 @@ import FoodTruckListComponent from "../components/FoodTruckListComponent";
 import FoodTruckGridComponent from "../components/FoodTruckGridComponent";
 import StatusBarManager from "../components/StatusBarManager";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import FoodHomeHeaderSvg from "../assets/images/foodHomeHeader.svg";
+import ExploreHeaderArtwork from "../components/ExploreHeaderArtwork";
 import {
   getNearbyFoodTrucks_API,
   getAddress_API,
@@ -632,7 +632,7 @@ const ExploreScreen = (props) => {
             {"Feeling Snacky?\nWe Got You...!"}
           </Text>
           <View style={{ flex: 1 }} />
-          <FoodHomeHeaderSvg />
+          <ExploreHeaderArtwork />
         </Animated.View>
       </Animated.View>
 

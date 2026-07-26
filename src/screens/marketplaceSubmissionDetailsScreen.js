@@ -34,12 +34,17 @@ const getAttachmentLabel = (attachment = {}) => {
 };
 
 const getImageUrls = (submission = {}) => {
-  const imageUrls = Array.isArray(submission.image_urls)
-    ? submission.image_urls
-    : [];
+  const imageUrls = [
+    ...(Array.isArray(submission.image_urls) ? submission.image_urls : []),
+    ...(Array.isArray(submission.imageUrls) ? submission.imageUrls : []),
+    ...(Array.isArray(submission.images) ? submission.images : []),
+  ]
+    .map((image) => (typeof image === "string" ? image : image?.file_url || image?.url))
+    .filter(Boolean);
   const attachmentUrls = (submission.attachments || [])
     .filter((attachment) =>
-      ["BID_IMAGE", "APPLICATION_IMAGE"].includes(attachment.attachment_type)
+      ["BID_IMAGE", "APPLICATION_IMAGE"].includes(attachment.attachment_type) ||
+      String(attachment.mime_type || "").startsWith("image/")
     )
     .map((attachment) => attachment.file_url)
     .filter(Boolean);
@@ -49,11 +54,13 @@ const getImageUrls = (submission = {}) => {
 
 const getMenuAttachments = (submission = {}) => {
   const attachments = (submission.attachments || []).filter((attachment) =>
-    ["BID_MENU_PDF", "APPLICATION_MENU_PDF"].includes(attachment.attachment_type)
+    ["BID_MENU_PDF", "APPLICATION_MENU_PDF"].includes(attachment.attachment_type) ||
+    String(attachment.mime_type || "").includes("pdf")
   );
-  if (submission.menu_pdf_url) {
+  const menuUrl = submission.menu_pdf_url || submission.menuPdfUrl || submission.menu_url;
+  if (menuUrl) {
     return [
-      { attachment_id: "menu_pdf_url", file_url: submission.menu_pdf_url, original_name: "Menu PDF" },
+      { attachment_id: "menu_pdf_url", file_url: menuUrl, original_name: "Menu PDF" },
       ...attachments,
     ];
   }
