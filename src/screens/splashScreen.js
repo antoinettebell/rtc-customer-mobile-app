@@ -11,8 +11,6 @@ import SplashTop1Svg from "../assets/images/splashTop1.svg";
 import SplashTop2Svg from "../assets/images/splashTop2.svg";
 import SplashTop3Svg from "../assets/images/splashTop3.svg";
 
-import SplashBottom1Svg from "../assets/images/splashBottom1.svg";
-
 const SplashScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -77,10 +75,6 @@ const SplashScreen = () => {
         </Text>
       </View>
 
-      {/* Bottom SVG */}
-      <View style={styles.bottomContainer}>
-        <SplashBottom1Svg />
-      </View>
     </View>
   );
 };
@@ -91,7 +85,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
-    justifyContent: "space-between",
   },
   topSvgsContainer: {
     flexDirection: "row", // Horizontal layout
@@ -104,13 +97,15 @@ const styles = StyleSheet.create({
     // marginHorizontal: 5,
   },
   middleContainer: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 20,
   },
   middleImage: {
-    width: 108.52,
-    height: 108.52,
-    // marginVertical: 20,
+    width: 220,
+    height: 220,
+    marginBottom: 12,
   },
   title: {
     fontSize: 19.73,
@@ -123,9 +118,5 @@ const styles = StyleSheet.create({
     color: AppColor.gray,
     textAlign: "center",
     marginTop: 5,
-  },
-  bottomContainer: {
-    alignItems: "center",
-    // marginBottom: 20,
   },
 });
