@@ -16,7 +16,7 @@ import IntroLandingArtwork from "../components/IntroLandingArtwork";
 import { AppColor, BrandColor, Mulish400, Mulish700 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 const featureItems = [
   {
@@ -73,7 +73,7 @@ const AuthIntroScreen = ({ navigation }) => {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <IntroLandingArtwork width={width} height={height * 0.48} />
+        <IntroLandingArtwork width={width} height={width * 1.18} />
 
         <View style={styles.copyBlock}>
           <Text style={styles.title}>
