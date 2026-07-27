@@ -1,15 +1,11 @@
 import React, { useEffect } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppColor } from "../utils/theme";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import BootSplash from "react-native-bootsplash";
 import StatusBarManager from "../components/StatusBarManager";
-
-import SplashTop1Svg from "../assets/images/splashTop1.svg";
-import SplashTop2Svg from "../assets/images/splashTop2.svg";
-import SplashTop3Svg from "../assets/images/splashTop3.svg";
 
 const SplashScreen = () => {
   const insets = useSafeAreaInsets();
@@ -55,20 +51,8 @@ const SplashScreen = () => {
     <View style={[styles.container, { paddingTop: insets.top / 2 }]}>
       <StatusBarManager />
 
-      {/* Top 3 SVGs */}
-      <View style={styles.topSvgsContainer}>
-        <SplashTop3Svg style={styles.topSvg} />
-        <SplashTop2Svg style={styles.topSvg} />
-        <SplashTop1Svg style={styles.topSvg} />
-      </View>
-
-      {/* Middle Image and Text */}
+      {/* Middle Text */}
       <View style={styles.middleContainer}>
-        <Image
-          source={require("../assets/images/AppLogo.png")}
-          style={styles.middleImage}
-          resizeMode="contain"
-        />
         <Text style={styles.title}>Round the Corner</Text>
         <Text style={styles.subtitle}>
           Find & Savor the Best Food Trucks{"\n"}Near You!
@@ -86,26 +70,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  topSvgsContainer: {
-    flexDirection: "row", // Horizontal layout
-    alignItems: "center",
-    justifyContent: "center",
-    // marginTop: 20,
-    // gap: 10,
-  },
-  topSvg: {
-    // marginHorizontal: 5,
-  },
   middleContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-  },
-  middleImage: {
-    width: 220,
-    height: 220,
-    marginBottom: 12,
   },
   title: {
     fontSize: 19.73,

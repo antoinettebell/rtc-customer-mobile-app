@@ -19,10 +19,10 @@ import {
 } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
+import IntroLandingArtwork from "../components/IntroLandingArtwork";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
 
-import Screen1Svg from "../assets/images/intro1.svg";
 import Screen2Svg from "../assets/images/intro2.svg";
 import Screen3Svg from "../assets/images/intro3.svg";
 
@@ -30,7 +30,7 @@ const { width, height } = Dimensions.get("window");
 
 const slides = [
   {
-    Svg: Screen1Svg,
+    Svg: IntroLandingArtwork,
     title: "Round the Corner ",
     subTitle: "– Your Street Food Buddy!",
     description:
