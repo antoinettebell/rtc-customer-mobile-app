@@ -76,5 +76,20 @@ target 'foodtruck' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # JSI uses writable std::string::data(), which requires C++17 or newer.
+    # Keep the Pods project default and the affected targets aligned with
+    # React Native's C++20 build settings so Xcode cannot fall back to GNU++14.
+    installer.pods_project.build_configurations.each do |build_configuration|
+      build_configuration.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+    end
+
+    installer.pods_project.targets.each do |pod_target|
+      next unless ['React-jsi', 'ExpoModulesJSI'].include?(pod_target.name)
+
+      pod_target.build_configurations.each do |build_configuration|
+        build_configuration.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+      end
+    end
   end
 end
