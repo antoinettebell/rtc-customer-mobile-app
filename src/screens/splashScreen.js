@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AppColor } from "../utils/theme";
+import IntroLandingArtwork from "../components/IntroLandingArtwork";
+import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import BootSplash from "react-native-bootsplash";
@@ -48,17 +49,14 @@ const SplashScreen = () => {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top / 2 }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
 
-      {/* Middle Text */}
-      <View style={styles.middleContainer}>
+      <View style={styles.content}>
+        <IntroLandingArtwork width={360} height={420} />
         <Text style={styles.title}>Round the Corner</Text>
-        <Text style={styles.subtitle}>
-          Find & Savor the Best Food Trucks{"\n"}Near You!
-        </Text>
+        <Text style={styles.subtitle}>Find & Savor the Best Food Trucks Near You!</Text>
       </View>
-
     </View>
   );
 };
@@ -70,22 +68,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColor.white,
   },
-  middleContainer: {
+  content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   title: {
-    fontSize: 19.73,
-    fontWeight: "bold",
+    fontFamily: Mulish700,
+    fontSize: 30,
     color: AppColor.text,
     textAlign: "center",
+    marginTop: 12,
   },
   subtitle: {
-    fontSize: 11.28,
-    color: AppColor.gray,
+    fontFamily: Mulish400,
+    fontSize: 17,
+    color: AppColor.subText,
     textAlign: "center",
-    marginTop: 5,
+    marginTop: 8,
+    lineHeight: 24,
   },
 });

@@ -591,7 +591,7 @@ const ExploreScreen = (props) => {
           style={styles.locationContainer}
         >
           <Image source={LocationPinWhite} style={styles.iconImage} />
-          <View>
+          <View style={styles.locationTextBlock}>
             <View style={styles.locationRow}>
               <Text style={styles.locationTitle} numberOfLines={1}>
                 {defaultLocation?.title || "NA"}
@@ -622,7 +622,7 @@ const ExploreScreen = (props) => {
           style={[
             styles.headerTextContainer,
             {
-              marginTop: insets.top + 40,
+              marginTop: insets.top + 92,
             },
             headerContentStyle,
           ]}
@@ -1070,21 +1070,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  locationTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 15,
+    gap: 4,
   },
   locationTitle: {
     color: AppColor.white,
     fontFamily: Mulish400,
-    fontSize: 20,
+    fontSize: 16,
+    flexShrink: 1,
   },
   locationSubtitle: {
     fontFamily: Mulish400,
-    fontSize: 14,
+    fontSize: 12,
     color: AppColor.white,
-    maxWidth: "95%",
   },
   iconImage: {
     height: 37,
@@ -1108,14 +1112,14 @@ const styles = StyleSheet.create({
   },
   headerTextContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
   },
   headerText: {
     fontSize: 24,
     fontFamily: Mulish700,
     color: AppColor.white,
-    position: "absolute",
-    left: 20,
+    lineHeight: 30,
     zIndex: 1,
   },
   animatedSearchBar: {

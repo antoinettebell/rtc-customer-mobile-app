@@ -1,72 +1,54 @@
-import React, { useRef } from "react";
+import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   Dimensions,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
-import PagerView from "react-native-pager-view";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
 import IntroLandingArtwork from "../components/IntroLandingArtwork";
-import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
+import { AppColor, BrandColor, Mulish400, Mulish700 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
-
-import Screen2Svg from "../assets/images/intro2.svg";
-import Screen3Svg from "../assets/images/intro3.svg";
 
 const { width, height } = Dimensions.get("window");
 
-const slides = [
+const featureItems = [
   {
-    Svg: IntroLandingArtwork,
-    title: "Round the Corner ",
-    subTitle: "– Your Street Food Buddy!",
-    description:
-      "Discover the best food trucks around you and order your favorite bites in just a few taps.",
+    icon: "location-on",
+    title: "Find Nearby",
+    subtitle: "Food Trucks",
+    color: AppColor.primary,
   },
   {
-    Svg: Screen2Svg,
-    title: "Hungry?",
-    subTitle: " Let’s Find a Truck!",
-    description:
-      "We’re scouting the streets to show you the most loved food trucks nearby fast, fresh, and full of flavor.",
+    icon: "assignment",
+    title: "Order & Prepay",
+    subtitle: "With Ease",
+    color: BrandColor.forestGreen,
   },
   {
-    Svg: Screen3Svg,
-    title: "Skip the Line, ",
-    subTitle1: "Savor",
-    subTitle2: " the Taste!",
-    description:
-      "No more waiting in line! Browse, order, and enjoy delicious street food anytime, anywhere.",
+    icon: "local-shipping",
+    title: "Track Your Order",
+    subtitle: "In Real-Time",
+    color: AppColor.primary,
+  },
+  {
+    icon: "favorite",
+    title: "Support Local",
+    subtitle: "& Small Business",
+    color: BrandColor.forestGreen,
   },
 ];
 
-const DOT_SIZE = 7.02;
-const ACTIVE_DOT_SIZE = 26.54;
-
 const AuthIntroScreen = ({ navigation }) => {
-  const pagerRef = useRef(null);
-  const activeIndex = useSharedValue(0);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-
   const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
-
-  const onPageSelected = (e) => {
-    activeIndex.value = e.nativeEvent.position;
-  };
 
   const handleSigninPress = () => {
     if (allSigninUsers?.length > 0) {
@@ -83,89 +65,76 @@ const AuthIntroScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
-
-      <PagerView
-        style={styles.pagerView}
-        initialPage={0}
-        onPageSelected={onPageSelected}
-        ref={pagerRef}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom, 18) },
+        ]}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
       >
-        {slides.map((item, index) => (
-          <View style={styles.page} key={index}>
-            <item.Svg width={width} height={height * 0.5} />
+        <IntroLandingArtwork width={width} height={height * 0.48} />
 
-            <View>
-              {index !== 2 ? (
-                <Text style={styles.title}>
-                  {item.title}
-                  <Text style={styles.subTitle}>{item.subTitle}</Text>
-                </Text>
-              ) : (
-                <Text style={[styles.title, styles.titleLastSlide]}>
-                  {item.title}
-                  <Text style={styles.subTitlePrimary}>{item.subTitle1}</Text>
-                  <Text style={styles.subTitle}>{item.subTitle2}</Text>
-                </Text>
-              )}
-              <Text style={styles.description}>{item.description}</Text>
+        <View style={styles.copyBlock}>
+          <Text style={styles.title}>
+            <Text style={styles.titlePrimary}>Round the Corner</Text>
+            {" –\n"}
+            <Text>Your Street Food Buddy!</Text>
+          </Text>
+          <Text style={styles.description}>
+            Discover the best food trucks around you and order your favorite
+            bites in just a few taps.
+          </Text>
+        </View>
+
+        <View style={styles.featureRow}>
+          {featureItems.map((item) => (
+            <View key={item.title} style={styles.featureItem}>
+              <View style={styles.featureIconCircle}>
+                <MaterialIcons name={item.icon} size={30} color={item.color} />
+              </View>
+              <Text style={styles.featureTitle}>{item.title}</Text>
+              <Text style={styles.featureSubtitle}>{item.subtitle}</Text>
             </View>
-          </View>
-        ))}
-      </PagerView>
+          ))}
+        </View>
 
-      <View style={styles.dotsContainer}>
-        {slides.map((_, i) => {
-          const animatedDotStyle = useAnimatedStyle(() => {
-            return {
-              width: withTiming(
-                activeIndex.value === i ? ACTIVE_DOT_SIZE : DOT_SIZE,
-                {
-                  duration: 200,
-                }
-              ),
-              opacity: withTiming(activeIndex.value === i ? 1 : 0.5),
-              backgroundColor:
-                activeIndex.value === i ? AppColor.primary : AppColor.border,
-            };
-          });
+        <View style={styles.dotsContainer}>
+          <View style={[styles.dot, styles.activeDot]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
 
-          return (
-            <Animated.View key={i} style={[styles.dot, animatedDotStyle]} />
-          );
-        })}
-      </View>
+        <View style={styles.buttonBlock}>
+          <TouchableOpacity
+            onPress={handleSigninPress}
+            activeOpacity={0.7}
+            style={styles.signInButton}
+          >
+            <Text style={[styles.buttonLabel, styles.signInLabel]}>
+              Sign In
+            </Text>
+          </TouchableOpacity>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          onPress={handleSigninPress}
-          activeOpacity={0.7}
-          style={styles.signInButton}
-        >
-          <Text style={[styles.buttonLabel, { color: AppColor.white }]}>
-            {"Sign In"}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("signup")}
+            activeOpacity={0.7}
+            style={styles.signUpButton}
+          >
+            <Text style={[styles.buttonLabel, styles.signUpLabel]}>
+              Sign Up
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("signup")}
-          activeOpacity={0.7}
-          style={styles.signUpButton}
-        >
-          <Text style={[styles.buttonLabel, { color: AppColor.primary }]}>
-            {"Sign Up"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        onPress={handleSigninLater}
-        activeOpacity={0.7}
-        style={styles.skipButton}
-      >
-        <Text style={[styles.buttonLabel, { color: AppColor.black }]}>
-          {"SIGN IN LATER"}
-        </Text>
-      </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSigninLater}
+            activeOpacity={0.7}
+            style={styles.skipButton}
+          >
+            <Text style={styles.skipLabel}>SIGN IN LATER</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -176,74 +145,105 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: AppColor.white,
+  },
+  content: {
     alignItems: "center",
   },
-  pagerView: {
-    flex: 1,
-    width,
-  },
-  page: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
+  copyBlock: {
+    paddingHorizontal: 22,
+    paddingTop: 18,
   },
   title: {
+    color: AppColor.text,
     fontFamily: Mulish700,
-    fontSize: 26,
-    color: AppColor.primary,
+    fontSize: 30,
+    lineHeight: 38,
     textAlign: "center",
   },
-  titleLastSlide: {
-    color: AppColor.black,
-  },
-  subTitle: {
-    color: AppColor.black,
-  },
-  subTitlePrimary: {
+  titlePrimary: {
     color: AppColor.primary,
   },
   description: {
+    color: AppColor.subText,
     fontFamily: Mulish400,
-    fontSize: 14,
-    color: "#8E8E93",
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 12,
+    paddingHorizontal: 16,
     textAlign: "center",
-    marginTop: 10,
-    lineHeight: 22,
+  },
+  featureRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 28,
+    paddingHorizontal: 18,
+    width: "100%",
+  },
+  featureItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  featureIconCircle: {
+    alignItems: "center",
+    backgroundColor: AppColor.primaryLight,
+    borderRadius: 32,
+    height: 64,
+    justifyContent: "center",
+    marginBottom: 9,
+    width: 64,
+  },
+  featureTitle: {
+    color: AppColor.text,
+    fontFamily: Mulish700,
+    fontSize: 12,
+    textAlign: "center",
+  },
+  featureSubtitle: {
+    color: AppColor.subText,
+    fontFamily: Mulish400,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 4,
+    textAlign: "center",
   },
   dotsContainer: {
+    alignItems: "center",
     flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 30,
     gap: 10,
+    justifyContent: "center",
+    marginTop: 30,
   },
   dot: {
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
+    backgroundColor: AppColor.border,
+    borderRadius: 4,
+    height: 8,
+    width: 8,
   },
-  buttonRow: {
-    width: "88%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  activeDot: {
+    backgroundColor: AppColor.primary,
+    width: 28,
+  },
+  buttonBlock: {
+    marginTop: 28,
+    paddingHorizontal: 28,
+    width: "100%",
   },
   signInButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 5,
-    justifyContent: "center",
-    backgroundColor: AppColor.primary,
     alignItems: "center",
+    backgroundColor: AppColor.primary,
+    borderRadius: 6,
+    height: 56,
     justifyContent: "center",
+    width: "100%",
     ...Platform.select({
       ios: {
         shadowColor: AppColor.black,
         shadowOffset: {
           width: 0,
-          height: 2,
+          height: 3,
         },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
       },
       android: {
         elevation: 4,
@@ -251,22 +251,35 @@ const styles = StyleSheet.create({
     }),
   },
   signUpButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 5,
-    justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
     borderColor: AppColor.primary,
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: "center",
+    marginTop: 14,
+    width: "100%",
   },
   skipButton: {
-    height: 48,
-    borderRadius: 5,
+    alignItems: "center",
+    height: 52,
     justifyContent: "center",
-    marginVertical: 20,
+    marginTop: 14,
   },
   buttonLabel: {
     fontFamily: Mulish700,
+    fontSize: 18,
+  },
+  signInLabel: {
+    color: AppColor.white,
+  },
+  signUpLabel: {
+    color: AppColor.primary,
+  },
+  skipLabel: {
+    color: AppColor.text,
+    fontFamily: Mulish700,
     fontSize: 16,
+    letterSpacing: 0.5,
   },
 });
