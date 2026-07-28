@@ -72,6 +72,8 @@ const OrderTrackingScreen = ({ navigation, route }) => {
   const vendorPhoneNumber =
     order?.truck_unit_phone ||
     `${order?.vendor?.countryCode || ""}${order?.vendor?.mobileNumber || ""}`;
+  const isPickupOrder =
+    String(order?.fulfillmentType || "").toUpperCase() === "PICKUP";
 
   const isRefundedOrder = (orderData) =>
     orderData?.paymentStatus === "REFUNDED" ||
@@ -279,37 +281,39 @@ const OrderTrackingScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <>
-            {/* Map Container */}
-            <View
-              style={{
-                overflow: "hidden",
-                borderRadius: 10,
-                marginBottom: 10,
-              }}
-            >
-              <MapView
-                ref={mapRef}
-                provider={PROVIDER_GOOGLE}
-                style={styles.mapView}
-                loadingEnabled={true}
-                loadingIndicatorColor={AppColor.primary}
-                zoomEnabled={true}
-                zoomControlEnabled={true}
-                rotateEnabled={false}
-                scrollEnabled={false}
-                scrollDuringRotateOrZoomEnabled={false}
-                pitchEnabled={true}
-                region={pickupRegion}
-                // onPress={() => openMap(postData.lat, postData.long)}
+            {/* Delivery orders need live location context; pickup orders do not. */}
+            {!isPickupOrder ? (
+              <View
+                style={{
+                  overflow: "hidden",
+                  borderRadius: 10,
+                  marginBottom: 10,
+                }}
               >
-                <Marker coordinate={pickupRegion} anchor={{ x: 0.5, y: 0.5 }}>
-                  <Image
-                    source={require("../assets/images/location.png")}
-                    style={styles.mapImg}
-                  />
-                </Marker>
-              </MapView>
-            </View>
+                <MapView
+                  ref={mapRef}
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.mapView}
+                  loadingEnabled={true}
+                  loadingIndicatorColor={AppColor.primary}
+                  zoomEnabled={true}
+                  zoomControlEnabled={true}
+                  rotateEnabled={false}
+                  scrollEnabled={false}
+                  scrollDuringRotateOrZoomEnabled={false}
+                  pitchEnabled={true}
+                  region={pickupRegion}
+                  // onPress={() => openMap(postData.lat, postData.long)}
+                >
+                  <Marker coordinate={pickupRegion} anchor={{ x: 0.5, y: 0.5 }}>
+                    <Image
+                      source={require("../assets/images/location.png")}
+                      style={styles.mapImg}
+                    />
+                  </Marker>
+                </MapView>
+              </View>
+            ) : null}
 
             {/* Order Details with FT */}
             <View style={styles.commonCard}>

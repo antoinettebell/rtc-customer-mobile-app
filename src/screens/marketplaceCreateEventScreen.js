@@ -273,9 +273,10 @@ const hasServiceStyle = (form, style) =>
 const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
 const getBudgetGuestCount = (form) =>
-  form.payment_responsibility === "BOTH" && form.catered_vip_section_enabled
+  Number(form.number_of_guests || 0) +
+  (form.catered_vip_section_enabled
     ? Number(form.vip_guest_count || 0)
-    : Number(form.number_of_guests || 0);
+    : 0);
 const getMinimumBudget = (form) => getBudgetGuestCount(form) * 25;
 const normalizeOptionList = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -3712,9 +3713,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	              <Text style={styles.meta}>
 	                Minimum budget for this paid guest count is $
 	                {getMinimumBudget(form).toFixed(2)}
-                  {form.payment_responsibility === "BOTH" &&
-                  form.catered_vip_section_enabled
-                    ? " based on # of VIP Guests."
+                  {form.catered_vip_section_enabled
+                    ? " based on regular and VIP guests."
                     : "."}
 	              </Text>
 	            ) : null}
