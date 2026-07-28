@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSelector } from "react-redux";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
@@ -23,12 +24,12 @@ import {
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
   closeMarketplaceEvent_API,
-  createMarketplaceFinalPayment_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
+import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 import {
   formatDate,
   formatEventTime,
@@ -131,18 +132,6 @@ const isRecordPaymentFulfilled = (record) =>
 
 const getAwardAmount = (record, event) =>
   Number(record?.full_bid_amount || record?.final_payment_base_amount || event?.budgeted_amount || 0);
-
-const canCreateRecordFinalPayment = (record, event) =>
-  !!record &&
-  ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED") &&
-  !record?.final_payment_id &&
-  record?.final_payment_status !== "PAID" &&
-  getAwardAmount(record, event) > 0;
-
-const canContinueRecordFinalPayment = (record) =>
-  !!record?.final_payment_id &&
-  record?.final_payment_status &&
-  record.final_payment_status !== "PAID";
 
 const hasEventDatePassed = (eventDate) => {
   if (!eventDate) return false;
@@ -362,6 +351,7 @@ const safeStyles = StyleSheet.create({
 
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { isSignedIn } = useSelector((state) => state.authReducer);
   const { eventId, customerSafe = false, initialEvent = null } = route.params || {};
   const [event, setEvent] = useState(initialEvent);
   const [loading, setLoading] = useState(false);
@@ -369,10 +359,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
-  const [finalPaymentModalVisible, setFinalPaymentModalVisible] = useState(false);
-  const [finalPaymentTip, setFinalPaymentTip] = useState("");
-  const [selectedFinalPaymentRecord, setSelectedFinalPaymentRecord] = useState(null);
-  const [creatingFinalPayment, setCreatingFinalPayment] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
@@ -460,6 +446,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleCustomerEventImagePress = async () => {
     if (!ticketSalesEnabled) return;
+
+    if (!isSignedIn) {
+      showGuestSignupRequired(navigation);
+      return;
+    }
 
     if (!ticketUrl) {
       Alert.alert(
@@ -688,51 +679,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     );
   };
 
-  const handleCreateFinalPayment = async () => {
-    if (!selectedFinalPaymentRecord) {
-      Alert.alert("Close Event for Payment", "Select an awarded vendor first.");
-      return;
-    }
-    const tipAmount = Number(finalPaymentTip || 0);
-    if (Number.isNaN(tipAmount) || tipAmount < 0) {
-      Alert.alert("Close Event for Payment", "Please enter a valid tip amount.");
-      return;
-    }
-
-    setCreatingFinalPayment(true);
-    try {
-      const response = await createMarketplaceFinalPayment_API({
-        eventId,
-        bidId: selectedFinalPaymentRecord.bid_id,
-        applicationId: selectedFinalPaymentRecord.application_id,
-        tipAmount,
-      });
-      if (response?.success) {
-        const marketplacePayment = response.data?.marketplacePayment;
-        setEvent(response.data?.marketplaceEvent || event);
-        setFinalPaymentModalVisible(false);
-        setFinalPaymentTip("");
-        setSelectedFinalPaymentRecord(null);
-
-        if (response.data?.requires_payment && marketplacePayment) {
-          navigation.navigate("marketplacePaymentScreen", {
-            payment: marketplacePayment,
-            paymentId: marketplacePayment.payment_id,
-            returnScreen: "marketplaceEventDetailsScreen",
-            returnParams: { eventId },
-          });
-        }
-      }
-    } catch (error) {
-      Alert.alert(
-        "Close Event for Payment",
-        error?.message || "Unable to create final event payment.",
-      );
-    } finally {
-      setCreatingFinalPayment(false);
-    }
-  };
-
   const handleSubmitDraft = async () => {
     if (!event) return;
     setLoading(true);
@@ -930,33 +876,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	              ) : (
 	                <Text style={styles.meta}>Documents: Not available</Text>
 	              )}
-	              {canCreateRecordFinalPayment(record, event) ? (
-	                <TouchableOpacity
-	                  activeOpacity={0.7}
-	                  style={[styles.button, { marginTop: 10 }]}
-	                  onPress={() => {
-	                    setSelectedFinalPaymentRecord(record);
-	                    setFinalPaymentTip("");
-	                    setFinalPaymentModalVisible(true);
-	                  }}
-	                >
-	                  <Text style={styles.buttonText}>Close Event for Payment</Text>
-	                </TouchableOpacity>
-	              ) : canContinueRecordFinalPayment(record) ? (
-	                <TouchableOpacity
-	                  activeOpacity={0.7}
-	                  style={[styles.button, { marginTop: 10 }]}
-	                  onPress={() =>
-	                    navigation.navigate("marketplacePaymentScreen", {
-	                      paymentId: record.final_payment_id,
-	                      returnScreen: "marketplaceEventDetailsScreen",
-	                      returnParams: { eventId },
-	                    })
-	                  }
-	                >
-	                  <Text style={styles.buttonText}>Continue Final Payment</Text>
-	                </TouchableOpacity>
-	              ) : finalPaymentStatus === "PAID" ? (
+	              {finalPaymentStatus === "PAID" ? (
 	                <Text style={[styles.meta, { marginTop: 8 }]}>
 	                  Final payment has been completed for this award.
 	                </Text>
@@ -1252,10 +1172,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               value={String(event?.current_submission_round || 1)}
             />
 	            <DetailRow
-	              label="RTC Processing Fee"
-	              value={event?.award_payment_status || "NOT_REQUIRED"}
-	            />
-	            <DetailRow
 	              label="Awarded Vendor Payment"
 	              value={event?.final_payment_status || "NOT_REQUIRED"}
 	            />
@@ -1350,67 +1266,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   <ActivityIndicator color={AppColor.white} />
                 ) : (
                   <Text style={styles.buttonText}>Continue</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        transparent
-        animationType="fade"
-        visible={finalPaymentModalVisible}
-        onRequestClose={() => setFinalPaymentModalVisible(false)}
-      >
-        <View style={safeStyles.modalOverlay}>
-          <View style={[safeStyles.modalSheet, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-	            <Text style={styles.title}>Close Event for Payment</Text>
-	            <Text style={styles.meta}>
-	              Create checkout for {getVendorName(selectedFinalPaymentRecord)}. Tip is optional.
-	            </Text>
-	            <Text style={styles.meta}>
-	              Award Amount: {formatMoney(getAwardAmount(selectedFinalPaymentRecord, event))}
-	            </Text>
-	            <TextInput
-              value={finalPaymentTip}
-              onChangeText={setFinalPaymentTip}
-              placeholder="Tip amount, optional"
-              placeholderTextColor={AppColor.textPlaceholder}
-              keyboardType="decimal-pad"
-              editable={!creatingFinalPayment}
-              style={safeStyles.closeCommentInput}
-            />
-            <View style={safeStyles.modalActions}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.secondaryButton,
-                  safeStyles.modalActionButton,
-                  { opacity: creatingFinalPayment ? 0.6 : 1 },
-                ]}
-	                onPress={() => {
-	                  setFinalPaymentModalVisible(false);
-	                  setFinalPaymentTip("");
-	                  setSelectedFinalPaymentRecord(null);
-	                }}
-                disabled={creatingFinalPayment}
-              >
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.button,
-                  safeStyles.modalActionButton,
-                  { opacity: creatingFinalPayment ? 0.6 : 1 },
-                ]}
-                onPress={handleCreateFinalPayment}
-                disabled={creatingFinalPayment}
-              >
-                {creatingFinalPayment ? (
-                  <ActivityIndicator color={AppColor.white} />
-                ) : (
-                  <Text style={styles.buttonText}>Checkout</Text>
                 )}
               </TouchableOpacity>
             </View>
