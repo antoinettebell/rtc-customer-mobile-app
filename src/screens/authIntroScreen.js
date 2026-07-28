@@ -110,17 +110,18 @@ const AuthIntroScreen = ({ navigation }) => {
             style={styles.signInButton}
           >
             <Text style={[styles.buttonLabel, styles.signInLabel]}>
-              Customer/Event Coordinator Sign In
+              Sign In
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("signup")}
             activeOpacity={0.7}
-            style={styles.signUpButton}
+            style={styles.signUpPrompt}
           >
-            <Text style={[styles.buttonLabel, styles.signUpLabel]}>
-              Customer/Event Coordinator Sign Up
+            <Text style={styles.signUpPromptText}>
+              Don&apos;t have an account?{" "}
+              <Text style={styles.signUpLabel}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
 
@@ -231,14 +232,11 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  signUpButton: {
+  signUpPrompt: {
     alignItems: "center",
-    borderColor: AppColor.primary,
-    borderRadius: 6,
-    borderWidth: 1,
-    height: 50,
+    minHeight: 36,
     justifyContent: "center",
-    marginTop: 10,
+    marginTop: 6,
     width: "100%",
   },
   skipButton: {
@@ -256,8 +254,15 @@ const styles = StyleSheet.create({
   signInLabel: {
     color: AppColor.white,
   },
+  signUpPromptText: {
+    color: AppColor.subText,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    textAlign: "center",
+  },
   signUpLabel: {
     color: AppColor.primary,
+    fontFamily: Mulish700,
   },
   skipLabel: {
     color: AppColor.text,
