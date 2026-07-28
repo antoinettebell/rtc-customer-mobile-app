@@ -30,13 +30,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   toggleFavorite,
   fetchFavorites,
-  clearFavorites,
 } from "../redux/slices/favoritesSlice";
 import {
   addItemToOrder,
   removeItemFromOrder,
   clearCurrentOrder,
-  clearOrderSlice,
   updateItemProperty,
 } from "../redux/slices/orderSlice";
 import {
@@ -53,11 +51,8 @@ import DishItemDetailsModal from "../components/DishItemDetailsModal";
 import DishItemComponent from "../components/DishItemComponent";
 import AppImage from "../components/AppImage";
 import { Divider, IconButton } from "react-native-paper";
-import { onGuest, onSignOut } from "../redux/slices/authSlice";
-import { clearUserSlice } from "../redux/slices/userSlice";
-import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
-import { clearLocationSlice } from "../redux/slices/locationSlice";
 import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -293,6 +288,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const handleAddItem = (menuItem) => {
+    if (!isSignedIn) {
+      showGuestSignupRequired(navigation);
+      return;
+    }
+
     const isDifferentOrderContext =
       currentOrder.foodTruckId &&
       (currentOrder.foodTruckId !== item._id ||
@@ -443,6 +443,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   };
 
   const handleQuickAddItem = (menuItem) => {
+    if (!isSignedIn) {
+      showGuestSignupRequired(navigation);
+      return;
+    }
+
     if (menuItemRequiresOptions(menuItem)) {
       openMenuItemOptions(menuItem);
       return;
@@ -1193,35 +1198,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                       locationId: activeLocationId,
                     });
                   } else {
-                    // navigate to login screen
-                    // navigate to login screen
-                    const handleSignIn = () => {
-                      dispatch(onGuest(false));
-                      dispatch(clearUserSlice());
-                      dispatch(clearFavorites());
-                      // dispatch(clearOrderSlice());
-                      dispatch(clearFoodTruckProfileSlice());
-                      dispatch(clearLocationSlice());
-                      dispatch(onSignOut());
-                    };
-
-                    Alert.alert(
-                      "Sign In",
-                      "To order food, you need to sign in.",
-                      [
-                        {
-                          text: "Cancel",
-                          style: "cancel",
-                        },
-                        {
-                          text: "OK",
-                          style: "destructive",
-                          onPress: () => {
-                            handleSignIn();
-                          },
-                        },
-                      ]
-                    );
+                    showGuestSignupRequired(navigation);
                   }
                 }}
               >
