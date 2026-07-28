@@ -369,10 +369,14 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     const bogoItems = Array.isArray(menuItem?.bogoItems)
       ? menuItem.bogoItems
       : [];
-    const discountSourceItem =
-      bogoItems.find((item) => item?.isSameItem) ||
-      bogoItems.find((item) => !item?.isSameItem) ||
-      (menuItem?.discountRules?.discount > 0 ? menuItem : null);
+    const sameItemReward = bogoItems.find((item) => item?.isSameItem);
+    const differentItemReward = bogoItems.find((item) => !item?.isSameItem);
+    const discountSourceItem = sameItemReward
+      ? menuItem
+      : differentItemReward?.itemId ||
+        differentItemReward?.menuItem ||
+        differentItemReward ||
+        (menuItem?.discountRules?.discount > 0 ? menuItem : null);
     const discountHasFlavors =
       discountSourceItem?.hasFlavors &&
       ((Array.isArray(discountSourceItem?.flavorOptions) &&

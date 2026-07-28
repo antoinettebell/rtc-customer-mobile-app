@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
-import { getStateLabel, usStates } from "../utils/usStates";
+import { getStateCode, usStates } from "../utils/usStates";
 
 const StatePickerModal = ({
   disabled = false,
@@ -45,7 +45,7 @@ const StatePickerModal = ({
             !value && { color: AppColor.placeholderTextColor },
           ]}
         >
-          {value ? getStateLabel(value) : "Select State"}
+          {value ? getStateCode(value) : "Select State"}
         </Text>
         {!disabled ? (
           <AntDesign

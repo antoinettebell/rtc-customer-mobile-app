@@ -92,7 +92,12 @@ export const getDiscountSourceItem = (item) => {
     return safeItem;
   }
 
-  return differentItemReward || safeItem;
+  return (
+    differentItemReward?.itemId ||
+    differentItemReward?.menuItem ||
+    differentItemReward ||
+    safeItem
+  );
 };
 
 export const calculateItemTotalWithDiscount = (item) => {

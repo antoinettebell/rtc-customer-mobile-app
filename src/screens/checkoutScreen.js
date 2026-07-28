@@ -129,7 +129,33 @@ const getRequiredCount = (configuredCount, optionsCount) => {
   return Math.min(numericCount, optionsCount);
 };
 
-const getItemId = (item) => item?._id || item?.menuItem?._id || item?.itemId?._id || "";
+const getItemId = (item) =>
+  item?.menuItem?._id ||
+  (item?.menuItem && typeof item.menuItem !== "object" ? item.menuItem : "") ||
+  item?.itemId?._id ||
+  (item?.itemId && typeof item.itemId !== "object" ? item.itemId : "") ||
+  item?._id ||
+  "";
+
+const getNestedMenuItem = (item) => item?.menuItem || item?.itemId || item;
+
+const hasIncompleteOptionSelection = (requiredCount, selectedOptions) => {
+  if (requiredCount <= 0) return false;
+  const selectedCount = Array.isArray(selectedOptions)
+    ? selectedOptions.length
+    : 0;
+  return selectedCount < 1 || selectedCount > requiredCount;
+};
+
+const hasMissingConfiguredChildren = (configuredItems, selectedItems) =>
+  (Array.isArray(configuredItems) ? configuredItems : []).some(
+    (configuredItem) => {
+      const childId = getItemId(configuredItem);
+      return !(Array.isArray(selectedItems) ? selectedItems : []).some(
+        (selection) => String(getItemId(selection)) === String(childId)
+      );
+    },
+  );
 
 const buildComboItemPayload = (subItem, parentQuantity) => {
   const payload = {
@@ -155,10 +181,13 @@ const buildComboItemPayload = (subItem, parentQuantity) => {
 
 const hasIncompleteRequiredSelections = (item) => {
   const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
-  const discountSourceItem =
+  const discountSourceEntry =
     bogoItems.find((bogoItem) => bogoItem?.isSameItem) ||
     bogoItems.find((bogoItem) => !bogoItem?.isSameItem) ||
     (item?.discountRules?.discount > 0 ? item : null);
+  const discountSourceItem = discountSourceEntry?.isSameItem
+    ? item
+    : getNestedMenuItem(discountSourceEntry);
   const flavorCount = getOptionCount(item, "flavorOptions", "flavors");
   const toppingCount = getOptionCount(item, "toppingOptions", "toppings");
   const requiredFlavors = item?.hasFlavors
@@ -208,21 +237,37 @@ const hasIncompleteRequiredSelections = (item) => {
           discountComboSideCount,
         )
       : 0;
+  const configuredComboItems =
+    item?.itemType === foodTypeStrings.combo && Array.isArray(item?.subItem)
+      ? item.subItem
+      : [];
+  const configuredDiscountComboItems =
+    discountSourceItem?.itemType === foodTypeStrings.combo &&
+    Array.isArray(discountSourceItem?.subItem)
+      ? discountSourceItem.subItem
+      : [];
 
   return (
-    (requiredFlavors > 0 &&
-      (item?.selectedFlavors || []).length !== requiredFlavors) ||
-    (requiredToppings > 0 &&
-      (item?.selectedToppings || []).length !== requiredToppings) ||
+    hasIncompleteOptionSelection(requiredFlavors, item?.selectedFlavors) ||
+    hasIncompleteOptionSelection(requiredToppings, item?.selectedToppings) ||
     (requiredComboSides > 0 &&
       (item?.selectedComboSides || []).length !== requiredComboSides) ||
-    (requiredDiscountFlavors > 0 &&
-      (item?.selectedDiscountFlavors || []).length !== requiredDiscountFlavors) ||
-    (requiredDiscountToppings > 0 &&
-      (item?.selectedDiscountToppings || []).length !== requiredDiscountToppings) ||
+    hasIncompleteOptionSelection(
+      requiredDiscountFlavors,
+      item?.selectedDiscountFlavors,
+    ) ||
+    hasIncompleteOptionSelection(
+      requiredDiscountToppings,
+      item?.selectedDiscountToppings,
+    ) ||
     (requiredDiscountComboSides > 0 &&
       (item?.selectedDiscountComboSides || []).length !==
         requiredDiscountComboSides) ||
+    hasMissingConfiguredChildren(configuredComboItems, item?.selectedSubItems) ||
+    hasMissingConfiguredChildren(
+      configuredDiscountComboItems,
+      item?.selectedDiscountSubItems,
+    ) ||
     (item?.selectedSubItems || []).some(hasIncompleteRequiredSelections) ||
     (item?.selectedDiscountSubItems || []).some(hasIncompleteRequiredSelections)
   );

@@ -42,6 +42,7 @@ import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
+import { getStateCode } from "../utils/usStates";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
@@ -95,10 +96,15 @@ const getLegacyCoordinatorAddress = (user = {}) => {
       user.eventCoordinatorAddressCity ||
       (cityStateZipMatch ? cityStateZipMatch[1] : parts.length >= 4 ? parts[1] : "") ||
       "",
-    state:
+    state: getStateCode(
       user.eventCoordinatorAddressState ||
-      (cityStateZipMatch ? cityStateZipMatch[2] : stateZipMatch ? stateZipMatch[1] : "") ||
-      "",
+        (cityStateZipMatch
+          ? cityStateZipMatch[2]
+          : stateZipMatch
+          ? stateZipMatch[1]
+          : "") ||
+        ""
+    ),
     zip:
       user.eventCoordinatorAddressZip ||
       (cityStateZipMatch ? cityStateZipMatch[3] : stateZipMatch ? stateZipMatch[2] : "") ||
