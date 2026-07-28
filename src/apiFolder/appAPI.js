@@ -2,6 +2,7 @@ import Config from "../config/env";
 import {
   ADD_FAVORITE_FOODTRUCK,
   CUISINE,
+  PUBLIC_CUISINE,
   GET_FAVORITE_FOODTRUCK,
   GET_USER_DETAILS,
   MEDIA_UPLOAD,
@@ -99,8 +100,9 @@ export const uploadImage_API = async (payload) => {
 // Get Cuisine List API
 export const cuisineList_API = async (payload) => {
   try {
-    const URL = `${CUISINE}?page=${payload.page}&limit=50`;
-    const response = await apiClient.get(URL, { skipToken: false });
+    const { isSignedIn } = store.getState().authReducer;
+    const URL = `${isSignedIn ? CUISINE : PUBLIC_CUISINE}?page=${payload.page}&limit=50`;
+    const response = await apiClient.get(URL, { skipToken: !isSignedIn });
     return response?.data;
   } catch (error) {
     throw error?.response;
@@ -316,7 +318,7 @@ export const getNearbyFoodTrucks_API = async (params = {}) => {
 // Get combined Near Me food and event results
 export const getNearMeResults_API = async (params = {}) => {
   try {
-    const { authToken } = store.getState().userReducer;
+    const { isSignedIn } = store.getState().authReducer;
     const {
       search = "",
       page = 1,
@@ -369,7 +371,7 @@ export const getNearMeResults_API = async (params = {}) => {
     URL += `?${queryParams.join("&")}`;
 
     const response = await apiClient.get(URL, {
-      skipToken: authToken ? false : true,
+      skipToken: !isSignedIn,
     });
     return response?.data;
   } catch (error) {
@@ -380,11 +382,11 @@ export const getNearMeResults_API = async (params = {}) => {
 // Get FoodTruckDetails By Id
 export const getFoodTruckDetailById_API = async (foodTruck_id) => {
   try {
-    const { authToken } = store.getState().userReducer;
+    const { isSignedIn } = store.getState().authReducer;
 
     const URL = `${GET_FOOD_TRUCK_DETAIL_BY_ID}/${foodTruck_id}`;
     const response = await apiClient.get(URL, {
-      skipToken: authToken ? false : true,
+      skipToken: !isSignedIn,
     });
     return response?.data;
   } catch (error) {
@@ -395,11 +397,11 @@ export const getFoodTruckDetailById_API = async (foodTruck_id) => {
 // Get FoodTruckMenu Details By Id
 export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
   try {
-    const { authToken } = store.getState().userReducer;
+    const { isSignedIn } = store.getState().authReducer;
 
     const URL = GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
     const response = await apiClient.get(URL, {
-      skipToken: authToken ? false : true,
+      skipToken: !isSignedIn,
     });
     return response?.data;
   } catch (error) {
@@ -963,9 +965,9 @@ export const getMarketplaceEventById_API = async (eventId) => {
 
 export const getPublicMarketplaceEventById_API = async (eventId) => {
   try {
-    const { authToken } = store.getState().userReducer;
+    const { isSignedIn } = store.getState().authReducer;
     const response = await apiClient.get(PUBLIC_MARKETPLACE_EVENT_BY_ID(eventId), {
-      skipToken: authToken ? false : true,
+      skipToken: !isSignedIn,
     });
     return response?.data;
   } catch (error) {
