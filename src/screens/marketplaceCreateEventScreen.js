@@ -373,6 +373,31 @@ const formatTimeForPayload = (date) => {
   });
 };
 
+const formatTimeForDisplay = (value) => {
+  if (!value) return "";
+  const match = String(value)
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return String(value);
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3]?.toUpperCase();
+  if (minutes > 59) return String(value);
+
+  if (period) {
+    if (hours < 1 || hours > 12) return String(value);
+    if (period === "PM" && hours < 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+  } else if (hours > 23) {
+    return String(value);
+  }
+
+  const displayHours = hours % 12 || 12;
+  const displayPeriod = hours >= 12 ? "PM" : "AM";
+  return `${displayHours}:${String(minutes).padStart(2, "0")} ${displayPeriod}`;
+};
+
 const parseDateFieldValue = (value) => {
   if (!value) return new Date();
   const [year, month, day] = String(value).split("-").map(Number);
@@ -384,13 +409,17 @@ const parseTimeFieldValue = (value) => {
   if (!value) return new Date();
   const match = String(value)
     .trim()
-    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
   if (!match) return new Date();
 
   const date = new Date();
   let hours = Number(match[1]);
   const minutes = Number(match[2]);
-  const period = match[3].toUpperCase();
+  const period = match[3]?.toUpperCase();
+
+  if (minutes > 59) return new Date();
+  if (period && (hours < 1 || hours > 12)) return new Date();
+  if (!period && hours > 23) return new Date();
 
   if (period === "PM" && hours < 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
@@ -1293,7 +1322,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
 	  const draftEvent = route?.params?.draftEvent;
 	  const isReopenMode = !!route?.params?.reopenMode;
-  const reopenEventId = draftEvent?._id || draftEvent?.event_id || editingEventId;
+  const reopenEventId = draftEvent?.event_id || editingEventId;
 	  const isEditingSubmittedEvent =
 	    !!editingEventId && draftEvent?.status && draftEvent.status !== "DRAFT" && !isReopenMode;
   const eventAddressMapRef = useRef(null);
@@ -1635,7 +1664,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         ...parsedPlace,
         latitude: String(region.latitude),
         longitude: String(region.longitude),
-        geocoding_provider: "GOOGLE_REVERSE_GEOCODE",
+        geocoding_provider: "GOOGLE_PLACES",
         geocoded_at: new Date().toISOString(),
       },
       { syncSearchText: false }
@@ -2418,7 +2447,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           {form[key]
             ? mode === "date"
               ? formatDateForDisplay(form[key])
-              : form[key]
+              : formatTimeForDisplay(form[key])
             : mode === "date"
               ? "Select date"
               : "Select time"}
@@ -3566,7 +3595,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <StatusBarManager />
       <AppHeader
         headerTitle={
-          isEditingSubmittedEvent
+          isReopenMode
+            ? "Reopen Event"
+            : isEditingSubmittedEvent
             ? "Edit Event"
             : editingEventId
               ? "Edit Draft"
@@ -3759,10 +3790,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {loading && submitMode === "OPEN" ? (
                 <ActivityIndicator color={AppColor.white} />
               ) : (
-                <Text style={styles.buttonText}>Submit</Text>
+                <Text style={styles.buttonText}>
+                  {isReopenMode ? "Reopen Event" : "Submit"}
+                </Text>
               )}
             </TouchableOpacity>
-            {!isEditingSubmittedEvent ? (
+            {!isEditingSubmittedEvent && !isReopenMode ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[
@@ -3789,7 +3822,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 )}
               </TouchableOpacity>
             ) : null}
-            {editingEventId && !isEditingSubmittedEvent ? (
+            {editingEventId && !isEditingSubmittedEvent && !isReopenMode ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[

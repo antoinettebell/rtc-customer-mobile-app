@@ -832,6 +832,13 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
 
 const normalizeMarketplaceEventPayload = (payload = {}) => {
   const nextPayload = { ...payload };
+
+  // The marketplace API records Google Places as the provider for both
+  // place selections and Google reverse-geocoded map coordinates.
+  if (nextPayload.geocoding_provider === "GOOGLE_REVERSE_GEOCODE") {
+    nextPayload.geocoding_provider = "GOOGLE_PLACES";
+  }
+
   const totalDurationMinutes = Number(
     nextPayload.event_duration_total_minutes ??
       (Number(nextPayload.event_duration_minutes) > 59
@@ -906,9 +913,13 @@ export const deleteMarketplaceEvent_API = async (eventId) => {
 
 export const reopenMarketplaceEvent_API = async ({ eventId, payload }) => {
   try {
-    const response = await apiClient.post(MARKETPLACE_EVENT_REOPEN(eventId), payload, {
-      skipToken: false,
-    });
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_REOPEN(eventId),
+      normalizeMarketplaceEventPayload(payload),
+      {
+        skipToken: false,
+      }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

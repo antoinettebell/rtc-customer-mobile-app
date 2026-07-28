@@ -3,12 +3,16 @@ import { Image, StyleSheet, View } from "react-native";
 
 const customerAuthHero = require("../assets/images/customer-auth-hero.jpg");
 
-const IntroLandingArtwork = ({ width = 412, height = 486 }) => (
+const IntroLandingArtwork = ({
+  width = 412,
+  height = 486,
+  resizeMode = "cover",
+}) => (
   <View style={[styles.container, { width, height }]}>
     <Image
       accessibilityIgnoresInvertColors
       accessibilityLabel="Round Da’ Corner food truck in a city park"
-      resizeMode="cover"
+      resizeMode={resizeMode}
       source={customerAuthHero}
       style={styles.image}
     />

@@ -205,14 +205,8 @@ const UserProfileScreen = ({ navigation }) => {
   const [uploadingCoordinatorQr, setUploadingCoordinatorQr] = useState(false);
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
-  const [isCoordinatorPayoutEditing, setIsCoordinatorPayoutEditing] = useState(
-    !user?.eventCoordinatorPaymentPreference
-  );
-  const hasSavedCoordinatorAddress = Boolean(
-    trimAddressValue(user?.eventCoordinatorAddressLine1) ||
-      trimAddressValue(user?.eventCoordinatorFormattedAddress) ||
-      trimAddressValue(user?.eventCoordinatorCompanyAddress)
-  );
+  const [isCoordinatorProfileEditing, setIsCoordinatorProfileEditing] =
+    useState(false);
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -257,7 +251,7 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorDirectDepositAccountNumber(
         user.eventCoordinatorDirectDepositAccountNumberMasked || ""
       );
-      setIsCoordinatorPayoutEditing(!user.eventCoordinatorPaymentPreference);
+      setIsCoordinatorProfileEditing(false);
       coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
   }, [user]);
@@ -295,7 +289,25 @@ const UserProfileScreen = ({ navigation }) => {
     );
   };
 
-  const resetCoordinatorPayoutFromUser = () => {
+  const cancelCoordinatorProfileEdit = () => {
+    const coordinatorTax = getTaxIdDisplayParts(
+      user?.eventCoordinatorTaxIdMasked,
+      user?.eventCoordinatorTaxIdType
+    );
+    const coordinatorAddress = getLegacyCoordinatorAddress(user);
+
+    setIsEventCoordinator(!!user?.isEventCoordinator);
+    setEventCoordinatorCompanyName(user?.eventCoordinatorCompanyName || "");
+    setEventCoordinatorTaxIdType(coordinatorTax.type);
+    setEventCoordinatorTaxId("");
+    setEventCoordinatorTaxIdMasked(coordinatorTax.masked);
+    setEventCoordinatorAddressLine1(coordinatorAddress.line1);
+    setEventCoordinatorAddressLine2(coordinatorAddress.line2);
+    setEventCoordinatorAddressCity(coordinatorAddress.city);
+    setEventCoordinatorAddressState(coordinatorAddress.state);
+    setEventCoordinatorAddressZip(coordinatorAddress.zip);
+    setEventCoordinatorFormattedAddress(coordinatorAddress.formattedAddress);
+    setEventCoordinatorPlaceId(coordinatorAddress.placeId);
     setEventCoordinatorPaymentPreference(
       user?.eventCoordinatorPaymentPreference || ""
     );
@@ -309,6 +321,8 @@ const UserProfileScreen = ({ navigation }) => {
     setEventCoordinatorDirectDepositAccountNumber(
       user?.eventCoordinatorDirectDepositAccountNumberMasked || ""
     );
+    setCoordinatorError("");
+    setIsCoordinatorProfileEditing(false);
   };
 
   const saveCoordinatorProfile = async () => {
@@ -430,7 +444,7 @@ const UserProfileScreen = ({ navigation }) => {
             : "Event coordination removed from your profile",
           type: "success",
         });
-        setIsCoordinatorPayoutEditing(!isEventCoordinator);
+        setIsCoordinatorProfileEditing(false);
         await fetchUserDataFromAPI();
       }
     } catch (error) {
@@ -920,24 +934,50 @@ const UserProfileScreen = ({ navigation }) => {
               />
               <Text style={styles.infoLabel}>Event Coordinator</Text>
             </View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.coordinatorToggle}
-              onPress={() =>
-                isEventCoordinator
-                  ? setIsEventCoordinator(false)
-                  : promptEnableEventCoordinator()
-              }
-            >
-              <Ionicons
-                name={isEventCoordinator ? "checkbox" : "square-outline"}
-                size={24}
-                color={AppColor.primary}
-              />
-              <Text style={styles.coordinatorToggleText}>
-                {isEventCoordinator ? "Enabled" : "Disabled"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.coordinatorActions}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.coordinatorToggle}
+                disabled={!isCoordinatorProfileEditing}
+                onPress={() =>
+                  isEventCoordinator
+                    ? setIsEventCoordinator(false)
+                    : promptEnableEventCoordinator()
+                }
+              >
+                <Ionicons
+                  name={isEventCoordinator ? "checkbox" : "square-outline"}
+                  size={24}
+                  color={AppColor.primary}
+                />
+                <Text style={styles.coordinatorToggleText}>
+                  {isEventCoordinator ? "Enabled" : "Disabled"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isCoordinatorProfileEditing
+                    ? "Cancel event coordinator edits"
+                    : "Edit event coordinator profile"
+                }
+                onPress={() => {
+                  if (isCoordinatorProfileEditing) {
+                    cancelCoordinatorProfileEdit();
+                  } else {
+                    setCoordinatorError("");
+                    setIsCoordinatorProfileEditing(true);
+                  }
+                }}
+              >
+                <Feather
+                  name={isCoordinatorProfileEditing ? "x" : "edit"}
+                  size={18}
+                  color={AppColor.primary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {isEventCoordinator ? (
@@ -948,9 +988,13 @@ const UserProfileScreen = ({ navigation }) => {
               <TextInput
                 value={eventCoordinatorCompanyName}
                 onChangeText={setEventCoordinatorCompanyName}
+                editable={isCoordinatorProfileEditing}
                 placeholder="Company Name *"
                 placeholderTextColor={AppColor.placeholderTextColor}
-                style={styles.coordinatorInput}
+                style={[
+                  styles.coordinatorInput,
+                  !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
+                ]}
               />
               <View style={styles.taxTypeRow}>
                 {["EIN", "SSN"].map((type) => {
@@ -959,7 +1003,12 @@ const UserProfileScreen = ({ navigation }) => {
                     <TouchableOpacity
                       key={type}
                       activeOpacity={0.7}
-                      style={[styles.taxTypeButton, active && styles.taxTypeButtonActive]}
+                      disabled={!isCoordinatorProfileEditing}
+                      style={[
+                        styles.taxTypeButton,
+                        active && styles.taxTypeButtonActive,
+                        !isCoordinatorProfileEditing && styles.coordinatorControlReadOnly,
+                      ]}
                       onPress={() => {
                         setEventCoordinatorTaxIdType(type);
                         setEventCoordinatorTaxId("");
@@ -991,10 +1040,14 @@ const UserProfileScreen = ({ navigation }) => {
                 placeholderTextColor={AppColor.placeholderTextColor}
                 keyboardType="number-pad"
                 secureTextEntry
+                editable={isCoordinatorProfileEditing}
                 maxLength={eventCoordinatorTaxIdType === "SSN" ? 11 : 10}
-                style={styles.coordinatorInput}
+                style={[
+                  styles.coordinatorInput,
+                  !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
+                ]}
               />
-              {hasSavedCoordinatorAddress ? (
+              {!isCoordinatorProfileEditing ? (
                 <TextInput
                   value={eventCoordinatorAddressLine1}
                   editable={false}
@@ -1059,77 +1112,52 @@ const UserProfileScreen = ({ navigation }) => {
               <TextInput
                 value={eventCoordinatorAddressLine2}
                 onChangeText={setEventCoordinatorAddressLine2}
-                editable={!hasSavedCoordinatorAddress}
+                editable={isCoordinatorProfileEditing}
                 placeholder="Address Line 2"
                 placeholderTextColor={AppColor.placeholderTextColor}
                 style={[
                   styles.coordinatorInput,
-                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                  !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
               />
               <TextInput
                 value={eventCoordinatorAddressCity}
                 onChangeText={setEventCoordinatorAddressCity}
-                editable={!hasSavedCoordinatorAddress}
+                editable={isCoordinatorProfileEditing}
                 placeholder="City *"
                 placeholderTextColor={AppColor.placeholderTextColor}
                 style={[
                   styles.coordinatorInput,
-                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                  !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
               />
               <StatePickerModal
-                disabled={hasSavedCoordinatorAddress}
+                disabled={!isCoordinatorProfileEditing}
                 value={eventCoordinatorAddressState}
                 onChange={setEventCoordinatorAddressState}
               />
               <TextInput
                 value={eventCoordinatorAddressZip}
                 onChangeText={setEventCoordinatorAddressZip}
-                editable={!hasSavedCoordinatorAddress}
+                editable={isCoordinatorProfileEditing}
                 placeholder="Zip *"
                 placeholderTextColor={AppColor.placeholderTextColor}
                 keyboardType="number-pad"
                 style={[
                   styles.coordinatorInput,
-                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                  !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
               />
               <Text style={styles.coordinatorSectionTitle}>
                 Coordinator Payout
               </Text>
-              {user?.eventCoordinatorPaymentPreference ? (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={styles.payoutEditButton}
-                  onPress={() =>
-                    setIsCoordinatorPayoutEditing((current) => {
-                      if (current) {
-                        resetCoordinatorPayoutFromUser();
-                      }
-                      return !current;
-                    })
-                  }
-                >
-                  <Feather
-                    name={isCoordinatorPayoutEditing ? "x" : "edit"}
-                    size={16}
-                    color={AppColor.primary}
-                  />
-                  <Text style={styles.payoutEditText}>
-                    {isCoordinatorPayoutEditing ? "Cancel Edit" : "Edit Payout"}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
               <Text style={styles.coordinatorHelpText}>
                 This is private profile information for RTC payout processing only.
               </Text>
               <View style={styles.paymentOptionWrap}>
                 {COORDINATOR_PAYMENT_OPTIONS.map((option) => {
                   const active = eventCoordinatorPaymentPreference === option.value;
-                  const disabled =
-                    !isCoordinatorPayoutEditing &&
-                    !!user?.eventCoordinatorPaymentPreference;
+                  const disabled = !isCoordinatorProfileEditing;
                   return (
                     <TouchableOpacity
                       key={option.value}
@@ -1167,7 +1195,7 @@ const UserProfileScreen = ({ navigation }) => {
                 <>
                   <TextInput
                     value={eventCoordinatorDirectDepositRoutingNumber}
-                    editable={isCoordinatorPayoutEditing}
+                    editable={isCoordinatorProfileEditing}
                     onChangeText={(value) =>
                       setEventCoordinatorDirectDepositRoutingNumber(
                         value.replace(/\D/g, "").slice(0, 9)
@@ -1176,11 +1204,15 @@ const UserProfileScreen = ({ navigation }) => {
                     placeholder="Routing Number *"
                     placeholderTextColor={AppColor.placeholderTextColor}
                     keyboardType="number-pad"
-                    style={styles.coordinatorInput}
+                    style={[
+                      styles.coordinatorInput,
+                      !isCoordinatorProfileEditing &&
+                        styles.coordinatorInputReadOnly,
+                    ]}
                   />
                   <TextInput
                     value={eventCoordinatorDirectDepositAccountNumber}
-                    editable={isCoordinatorPayoutEditing}
+                    editable={isCoordinatorProfileEditing}
                     onChangeText={(value) =>
                       setEventCoordinatorDirectDepositAccountNumber(
                         value.replace(/\D/g, "").slice(0, 17)
@@ -1200,7 +1232,11 @@ const UserProfileScreen = ({ navigation }) => {
                         eventCoordinatorDirectDepositAccountNumber
                       )
                     }
-                    style={styles.coordinatorInput}
+                    style={[
+                      styles.coordinatorInput,
+                      !isCoordinatorProfileEditing &&
+                        styles.coordinatorInputReadOnly,
+                    ]}
                   />
                   {isMaskedAccountNumber(
                     eventCoordinatorDirectDepositAccountNumber
@@ -1215,16 +1251,22 @@ const UserProfileScreen = ({ navigation }) => {
                 <>
                   <TextInput
                     value={eventCoordinatorPaymentHandle}
-                    editable={isCoordinatorPayoutEditing}
+                    editable={isCoordinatorProfileEditing}
                     onChangeText={setEventCoordinatorPaymentHandle}
                     placeholder="Payment Handle"
                     placeholderTextColor={AppColor.placeholderTextColor}
-                    style={styles.coordinatorInput}
+                    style={[
+                      styles.coordinatorInput,
+                      !isCoordinatorProfileEditing &&
+                        styles.coordinatorInputReadOnly,
+                    ]}
                   />
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={styles.qrUploadButton}
-                    disabled={uploadingCoordinatorQr || !isCoordinatorPayoutEditing}
+                    disabled={
+                      uploadingCoordinatorQr || !isCoordinatorProfileEditing
+                    }
                     onPress={handlePickCoordinatorPaymentQr}
                   >
                     {uploadingCoordinatorQr ? (
@@ -1251,22 +1293,26 @@ const UserProfileScreen = ({ navigation }) => {
             </View>
           ) : null}
 
-          {coordinatorError ? (
+          {isCoordinatorProfileEditing && coordinatorError ? (
             <Text style={styles.errorText}>{coordinatorError}</Text>
           ) : null}
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.coordinatorSaveButton}
-            disabled={coordinatorLoading}
-            onPress={saveCoordinatorProfile}
-          >
-            {coordinatorLoading ? (
-              <ActivityIndicator size="small" color={AppColor.white} />
-            ) : (
-              <Text style={styles.coordinatorSaveText}>Save Event Coordination</Text>
-            )}
-          </TouchableOpacity>
+          {isCoordinatorProfileEditing ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.coordinatorSaveButton}
+              disabled={coordinatorLoading}
+              onPress={saveCoordinatorProfile}
+            >
+              {coordinatorLoading ? (
+                <ActivityIndicator size="small" color={AppColor.white} />
+              ) : (
+                <Text style={styles.coordinatorSaveText}>
+                  Save Event Coordination
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
 
           <View style={styles.divider} />
 
@@ -1508,6 +1554,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  coordinatorActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   coordinatorToggleText: {
     fontSize: 14,
     fontFamily: Mulish600,
@@ -1542,6 +1593,9 @@ const styles = StyleSheet.create({
   },
   coordinatorInputReadOnly: {
     backgroundColor: AppColor.screenBg,
+  },
+  coordinatorControlReadOnly: {
+    opacity: 0.7,
   },
   taxTypeRow: {
     flexDirection: "row",
@@ -1612,19 +1666,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Mulish700,
     color: AppColor.primary,
-  },
-  payoutEditButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-    paddingVertical: 6,
-  },
-  payoutEditText: {
-    color: AppColor.primary,
-    fontFamily: Mulish700,
-    fontSize: 14,
   },
   placesWrapper: {
     zIndex: 10,

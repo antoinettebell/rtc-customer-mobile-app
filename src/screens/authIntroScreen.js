@@ -48,7 +48,7 @@ const AuthIntroScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
-  const heroHeight = Math.min(width * 0.7, height * 0.28);
+  const heroHeight = Math.min(width * 0.82, height * 0.36);
 
   const handleSigninPress = () => {
     if (allSigninUsers?.length > 0) {
@@ -73,7 +73,11 @@ const AuthIntroScreen = ({ navigation }) => {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <IntroLandingArtwork width={width} height={heroHeight} />
+        <IntroLandingArtwork
+          width={width}
+          height={heroHeight}
+          resizeMode="contain"
+        />
 
         <View style={styles.copyBlock}>
           <Text style={styles.title}>
@@ -97,12 +101,6 @@ const AuthIntroScreen = ({ navigation }) => {
               <Text style={styles.featureSubtitle}>{item.subtitle}</Text>
             </View>
           ))}
-        </View>
-
-        <View style={styles.dotsContainer}>
-          <View style={[styles.dot, styles.activeDot]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
         </View>
 
         <View style={styles.buttonBlock}>
@@ -205,23 +203,6 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     marginTop: 3,
     textAlign: "center",
-  },
-  dotsContainer: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "center",
-    marginTop: 18,
-  },
-  dot: {
-    backgroundColor: AppColor.border,
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  activeDot: {
-    backgroundColor: AppColor.primary,
-    width: 28,
   },
   buttonBlock: {
     marginTop: 18,
