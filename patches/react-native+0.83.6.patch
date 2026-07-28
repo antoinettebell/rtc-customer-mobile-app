@@ -1,0 +1,25 @@
+diff --git a/node_modules/react-native/ReactCommon/jsi/jsi/jsi.h b/node_modules/react-native/ReactCommon/jsi/jsi/jsi.h
+--- a/node_modules/react-native/ReactCommon/jsi/jsi/jsi.h
++++ b/node_modules/react-native/ReactCommon/jsi/jsi/jsi.h
+@@ -76,9 +76,9 @@ struct UUID {
+   // UUID format: 8-4-4-4-12
+   std::string toString() const {
+-    std::string buffer(36, ' ');
++    char buffer[37];
+     std::snprintf(
+-        buffer.data(),
+-        buffer.size() + 1,
++        buffer,
++        sizeof(buffer),
+         "%08x-%04x-%04x-%04x-%012llx",
+         getTimeLow(),
+         getTimeMid(),
+@@ -85,7 +85,7 @@ struct UUID {
+         getTimeHighAndVersion(),
+         getVariantAndClockSeq(),
+         (unsigned long long)getNode());
+-    return buffer;
++    return std::string(buffer);
+   }
+ 
+   constexpr uint32_t getTimeLow() const {
