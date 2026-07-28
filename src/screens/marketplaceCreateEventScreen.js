@@ -262,8 +262,6 @@ const requiredFields = [
   "event_close_time",
 ];
 
-const getAutoFoodTruckVendorCount = (guestCount) =>
-  Math.max(1, Math.ceil(Number(guestCount || 0) / 100));
 const getDefaultVendorCount = (value) => String(Math.max(1, Number(value || 1)));
 
 const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
@@ -277,6 +275,15 @@ const getBudgetGuestCount = (form) =>
   (form.catered_vip_section_enabled
     ? Number(form.vip_guest_count || 0)
     : 0);
+const getAutoFoodTruckVendorCount = (form) =>
+  Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
+const getAllowedFoodTruckVendorCount = (form) => {
+  const calculatedCount = getAutoFoodTruckVendorCount(form);
+  const requestedCount = Number(form.number_of_vendors_needed);
+  return Number.isFinite(requestedCount) && requestedCount >= 1
+    ? Math.min(Math.floor(requestedCount), calculatedCount)
+    : calculatedCount;
+};
 const getMinimumBudget = (form) => getBudgetGuestCount(form) * 25;
 const normalizeOptionList = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -1421,23 +1428,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   }, [editingEventId, hydrateEventForEditing]);
 
   useEffect(() => {
-    setForm((prev) => {
-      if (!isFoodTruckService(prev)) {
-        return Number(prev.number_of_vendors_needed || 0) >= 1
-          ? prev
-          : { ...prev, number_of_vendors_needed: "1" };
-      }
-
-      return {
-        ...prev,
-        number_of_vendors_needed: String(
-          getAutoFoodTruckVendorCount(prev.number_of_guests)
-        ),
-      };
-    });
-  }, [form.number_of_guests, form.service_types]);
-
-  useEffect(() => {
     const selectedLocation = route?.params?.selectedEventLocation;
     if (!selectedLocation) return;
 
@@ -1473,6 +1463,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
+      if (
+        isFoodTruckService(next) &&
+        ["number_of_guests", "vip_guest_count"].includes(key)
+      ) {
+        next.number_of_vendors_needed = String(
+          getAutoFoodTruckVendorCount(next)
+        );
+      }
       if (key === "free_food_offered" && value === false) {
         next.free_food_provider = "";
         next.vendors_required_to_giveaway_food = null;
@@ -1494,7 +1492,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ];
           autoFoodTruckStyleRef.current = true;
           next.number_of_vendors_needed = String(
-            getAutoFoodTruckVendorCount(prev.number_of_guests)
+            getAutoFoodTruckVendorCount(next)
           );
         } else {
           if (
@@ -1973,8 +1971,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         ? Number(form.vip_guest_count || 0)
         : 0,
       number_of_vendors_needed:
-        isFoodTruckService(form) && form.number_of_guests
-          ? getAutoFoodTruckVendorCount(form.number_of_guests)
+        isFoodTruckService(form)
+          ? getAllowedFoodTruckVendorCount(form)
           : Number(form.number_of_vendors_needed || 1),
       plated_number_of_courses: form.plated_number_of_courses
         ? form.plated_number_of_courses
@@ -3328,13 +3326,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
         onPress={() =>
-          setForm((prev) => ({
-            ...prev,
-            catered_vip_section_enabled: !prev.catered_vip_section_enabled,
-            vip_guest_count: !prev.catered_vip_section_enabled
-              ? prev.vip_guest_count
-              : "",
-          }))
+          setForm((prev) => {
+            const next = {
+              ...prev,
+              catered_vip_section_enabled: !prev.catered_vip_section_enabled,
+              vip_guest_count: !prev.catered_vip_section_enabled
+                ? prev.vip_guest_count
+                : "",
+            };
+            if (isFoodTruckService(next)) {
+              next.number_of_vendors_needed = String(
+                getAutoFoodTruckVendorCount(next)
+              );
+            }
+            return next;
+          })
         }
       >
         <View
@@ -3477,7 +3483,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                         : prev.service_types,
                     number_of_vendors_needed:
                       option.label === "Food Truck"
-                        ? String(getAutoFoodTruckVendorCount(prev.number_of_guests))
+                        ? String(getAutoFoodTruckVendorCount(prev))
                         : prev.number_of_vendors_needed,
                   };
                 })
@@ -3576,7 +3582,22 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <View style={localStyles.sideField}>
         {renderInput("Vendors Needed *", "number_of_vendors_needed", {
           keyboardType: "number-pad",
-          editable: !foodTruckSelected,
+          onChangeText: (value) => {
+            const digits = value.replace(/\D/g, "");
+            if (!foodTruckSelected || !digits) {
+              updateField("number_of_vendors_needed", digits);
+              return;
+            }
+            updateField(
+              "number_of_vendors_needed",
+              String(
+                Math.min(
+                  Number(digits),
+                  getAutoFoodTruckVendorCount(form)
+                )
+              )
+            );
+          },
         })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
@@ -3682,11 +3703,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           <View style={localStyles.card}>
             {renderSectionHeader("Vendor Needs", "groups")}
             {renderVendorCountFields()}
+            {renderFreeFoodQuestions()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
             {renderBoolean("Alcohol Required", "alcohol_required")}
             {renderBoolean("Insurance Required", "insurance_required")}
-            {renderFreeFoodQuestions()}
             {renderChips("Cuisine Preferences", "cuisine_preferences", CUISINE_OPTIONS)}
             {renderChips("Dietary Restrictions", "dietary_restrictions", DIETARY_OPTIONS)}
             {renderChips("Equipment Needs", "equipment_needed", EQUIPMENT_OPTIONS)}
