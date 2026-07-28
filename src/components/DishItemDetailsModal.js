@@ -319,32 +319,6 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.selectedDiscountSubItems,
   ]);
 
-  // Clear subitems when main item quantity becomes 0
-  useEffect(() => {
-    const mainItemId = selectedMenuItem?._id;
-
-    if (!mainItemId || !getItemQuantity) {
-      return;
-    }
-
-    const quantity = getItemQuantity(mainItemId);
-
-    if (!quantity && selectedSubItems.length) {
-      setSelectedSubItems([]);
-
-      if (onSelectedSubItemsChange) {
-        requestAnimationFrame(() => {
-          onSelectedSubItemsChange([]);
-        });
-      }
-    }
-  }, [
-    selectedMenuItem?._id,
-    getItemQuantity,
-    selectedSubItems.length,
-    onSelectedSubItemsChange,
-  ]);
-
   const flavorOptions = ensurePlainOption(
     normalizeMenuOptions(selectedMenuItem, "flavor")
   );
@@ -777,36 +751,8 @@ const DishItemDetailsModal = ({
   // Optimized toggle function
   const toggleSubItemSelection = useCallback(
     (menuItem) => {
-      const mainItemId = selectedMenuItem?._id;
-      const mainItemQuantity =
-        mainItemId && getItemQuantity ? getItemQuantity(mainItemId) : 0;
-
       if (!menuItem?._id) {
         return;
-      }
-
-      if (!mainItemQuantity) {
-        handleAddItem({
-          ...selectedMenuItem,
-          selectedSubItems: [],
-          customizationInput,
-          selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
-          selectedToppings: hasToppingChoices ? selectedToppings : [],
-          selectedComboSides: hasComboSideChoices ? selectedComboSides : [],
-          selectedDiscountFlavors: hasDiscountFlavorChoices
-            ? selectedDiscountFlavors
-            : [],
-          selectedDiscountToppings: hasDiscountToppingChoices
-            ? selectedDiscountToppings
-            : [],
-          selectedDiscountCustomizationInput: hasDiscountCustomization
-            ? selectedDiscountCustomizationInput
-            : "",
-          selectedDiscountComboSides: hasDiscountComboSideChoices
-            ? selectedDiscountComboSides
-            : [],
-          selectedDiscountSubItems,
-        });
       }
 
       setSelectedSubItems((prevItems) => {
@@ -837,28 +783,7 @@ const DishItemDetailsModal = ({
         return newSelectedItems;
       });
     },
-    [
-      customizationInput,
-      getItemQuantity,
-      handleAddItem,
-      hasComboSideChoices,
-      hasDiscountComboSideChoices,
-      hasDiscountCustomization,
-      hasDiscountFlavorChoices,
-      hasDiscountToppingChoices,
-      hasFlavorChoices,
-      hasToppingChoices,
-      onSelectedSubItemsChange,
-      selectedComboSides,
-      selectedDiscountComboSides,
-      selectedDiscountCustomizationInput,
-      selectedDiscountFlavors,
-      selectedDiscountSubItems,
-      selectedDiscountToppings,
-      selectedFlavors,
-      selectedMenuItem,
-      selectedToppings,
-    ]
+    [onSelectedSubItemsChange]
   );
 
   const toggleDiscountSubItemSelection = useCallback(

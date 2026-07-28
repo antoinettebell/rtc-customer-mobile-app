@@ -46,7 +46,6 @@ import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const COORDINATOR_PAYMENT_OPTIONS = [
-  { label: "None", value: "" },
   { label: "Cash App", value: "CASHAPP" },
   { label: "Zelle", value: "ZELLE" },
   { label: "PayPal", value: "PAYPAL" },
@@ -59,12 +58,18 @@ const trimAddressValue = (value) => String(value || "").trim();
 const normalizeTaxIdType = (value) =>
   String(value || "").toUpperCase() === "SSN" ? "SSN" : "EIN";
 
+const maskTaxId = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 4) return "";
+  return `${"*".repeat(Math.max(5, digits.length - 4))}${digits.slice(-4)}`;
+};
+
 const getTaxIdDisplayParts = (maskedValue, fallbackType = "EIN") => {
   const raw = trimAddressValue(maskedValue);
   const match = raw.match(/^(EIN|SSN)\s*:\s*(.+)$/i);
   return {
     type: normalizeTaxIdType(match?.[1] || fallbackType),
-    masked: match?.[2]?.trim() || raw,
+    masked: maskTaxId(match?.[2]?.trim() || raw),
   };
 };
 
@@ -203,6 +208,11 @@ const UserProfileScreen = ({ navigation }) => {
   const [isCoordinatorPayoutEditing, setIsCoordinatorPayoutEditing] = useState(
     !user?.eventCoordinatorPaymentPreference
   );
+  const hasSavedCoordinatorAddress = Boolean(
+    trimAddressValue(user?.eventCoordinatorAddressLine1) ||
+      trimAddressValue(user?.eventCoordinatorFormattedAddress) ||
+      trimAddressValue(user?.eventCoordinatorCompanyAddress)
+  );
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -332,6 +342,10 @@ const UserProfileScreen = ({ navigation }) => {
       }
       if (!eventCoordinatorAddressZip.trim()) {
         setCoordinatorError("Zip is required");
+        return;
+      }
+      if (!eventCoordinatorPaymentPreference) {
+        setCoordinatorError("Select a coordinator payout method");
         return;
       }
       if (eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT") {
@@ -960,8 +974,8 @@ const UserProfileScreen = ({ navigation }) => {
               </View>
               {eventCoordinatorTaxIdMasked ? (
                 <Text style={styles.coordinatorHelpText}>
-                  Current federal tax ID: {eventCoordinatorTaxIdType} ending in{" "}
-                  {eventCoordinatorTaxIdMasked.slice(-4)}
+                  Current federal tax ID: {eventCoordinatorTaxIdType}{" "}
+                  {eventCoordinatorTaxIdMasked}
                 </Text>
               ) : null}
               <TextInput
@@ -980,83 +994,106 @@ const UserProfileScreen = ({ navigation }) => {
                 maxLength={eventCoordinatorTaxIdType === "SSN" ? 11 : 10}
                 style={styles.coordinatorInput}
               />
-              <View style={styles.placesWrapper}>
-                <GooglePlacesAutocomplete
-                  ref={coordinatorAddressRef}
+              {hasSavedCoordinatorAddress ? (
+                <TextInput
+                  value={eventCoordinatorAddressLine1}
+                  editable={false}
                   placeholder="Street Address *"
-                  fetchDetails
-                  debounce={250}
-                  enablePoweredByContainer={false}
-                  predefinedPlaces={[]}
-                  keyboardShouldPersistTaps="always"
-                  minLength={2}
-                  timeout={20000}
-                  onPress={(data, details) => {
-                    if (!details) return;
-                    const address = parseUsAddressFromGooglePlace({ data, details });
-                    setEventCoordinatorAddressLine1(address.line1);
-                    setEventCoordinatorAddressCity(address.city);
-                    setEventCoordinatorAddressState(address.state);
-                    setEventCoordinatorAddressZip(address.zip);
-                    setEventCoordinatorFormattedAddress(address.formattedAddress);
-                    setEventCoordinatorPlaceId(address.placeId);
-                    coordinatorAddressRef.current?.setAddressText(address.line1);
-                  }}
-                  onFail={(error) => {
-                    console.log("Google Places coordinator profile address error", error);
-                  }}
-                  query={{
-                    key: GOOGLE_MAP_API_KEY,
-                    language: "en",
-                    types: "geocode|establishment",
-                    components: "country:us",
-                  }}
-                  textInputProps={{
-                    value: eventCoordinatorAddressLine1,
-                    placeholderTextColor: AppColor.placeholderTextColor,
-                    returnKeyType: "search",
-                    onChangeText: (value) => {
-                      setEventCoordinatorAddressLine1(value);
-                      setEventCoordinatorFormattedAddress("");
-                      setEventCoordinatorPlaceId("");
-                    },
-                  }}
-                  styles={{
-                    container: styles.placesContainer,
-                    textInputContainer: styles.placesTextInputContainer,
-                    textInput: styles.placesTextInput,
-                    listView: styles.placesListView,
-                    row: styles.placesRow,
-                    description: styles.placesDescription,
-                    separator: styles.placesSeparator,
-                  }}
+                  placeholderTextColor={AppColor.placeholderTextColor}
+                  style={[styles.coordinatorInput, styles.coordinatorInputReadOnly]}
                 />
-              </View>
+              ) : (
+                <View style={styles.placesWrapper}>
+                  <GooglePlacesAutocomplete
+                    ref={coordinatorAddressRef}
+                    placeholder="Street Address *"
+                    fetchDetails
+                    debounce={250}
+                    enablePoweredByContainer={false}
+                    predefinedPlaces={[]}
+                    keyboardShouldPersistTaps="always"
+                    minLength={2}
+                    timeout={20000}
+                    onPress={(data, details) => {
+                      if (!details) return;
+                      const address = parseUsAddressFromGooglePlace({ data, details });
+                      setEventCoordinatorAddressLine1(address.line1);
+                      setEventCoordinatorAddressCity(address.city);
+                      setEventCoordinatorAddressState(address.state);
+                      setEventCoordinatorAddressZip(address.zip);
+                      setEventCoordinatorFormattedAddress(address.formattedAddress);
+                      setEventCoordinatorPlaceId(address.placeId);
+                      coordinatorAddressRef.current?.setAddressText(address.line1);
+                    }}
+                    onFail={(error) => {
+                      console.log("Google Places coordinator profile address error", error);
+                    }}
+                    query={{
+                      key: GOOGLE_MAP_API_KEY,
+                      language: "en",
+                      types: "geocode|establishment",
+                      components: "country:us",
+                    }}
+                    textInputProps={{
+                      value: eventCoordinatorAddressLine1,
+                      placeholderTextColor: AppColor.placeholderTextColor,
+                      returnKeyType: "search",
+                      onChangeText: (value) => {
+                        setEventCoordinatorAddressLine1(value);
+                        setEventCoordinatorFormattedAddress("");
+                        setEventCoordinatorPlaceId("");
+                      },
+                    }}
+                    styles={{
+                      container: styles.placesContainer,
+                      textInputContainer: styles.placesTextInputContainer,
+                      textInput: styles.placesTextInput,
+                      listView: styles.placesListView,
+                      row: styles.placesRow,
+                      description: styles.placesDescription,
+                      separator: styles.placesSeparator,
+                    }}
+                  />
+                </View>
+              )}
               <TextInput
                 value={eventCoordinatorAddressLine2}
                 onChangeText={setEventCoordinatorAddressLine2}
+                editable={!hasSavedCoordinatorAddress}
                 placeholder="Address Line 2"
                 placeholderTextColor={AppColor.placeholderTextColor}
-                style={styles.coordinatorInput}
+                style={[
+                  styles.coordinatorInput,
+                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                ]}
               />
               <TextInput
                 value={eventCoordinatorAddressCity}
                 onChangeText={setEventCoordinatorAddressCity}
+                editable={!hasSavedCoordinatorAddress}
                 placeholder="City *"
                 placeholderTextColor={AppColor.placeholderTextColor}
-                style={styles.coordinatorInput}
+                style={[
+                  styles.coordinatorInput,
+                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                ]}
               />
               <StatePickerModal
+                disabled={hasSavedCoordinatorAddress}
                 value={eventCoordinatorAddressState}
                 onChange={setEventCoordinatorAddressState}
               />
               <TextInput
                 value={eventCoordinatorAddressZip}
                 onChangeText={setEventCoordinatorAddressZip}
+                editable={!hasSavedCoordinatorAddress}
                 placeholder="Zip *"
                 placeholderTextColor={AppColor.placeholderTextColor}
                 keyboardType="number-pad"
-                style={styles.coordinatorInput}
+                style={[
+                  styles.coordinatorInput,
+                  hasSavedCoordinatorAddress && styles.coordinatorInputReadOnly,
+                ]}
               />
               <Text style={styles.coordinatorSectionTitle}>
                 Coordinator Payout
@@ -1105,12 +1142,7 @@ const UserProfileScreen = ({ navigation }) => {
                       disabled={disabled}
                       onPress={() => {
                         setEventCoordinatorPaymentPreference(option.value);
-                        if (!option.value) {
-                          setEventCoordinatorPaymentHandle("");
-                          setEventCoordinatorPaymentQrCodeUrl("");
-                          setEventCoordinatorDirectDepositRoutingNumber("");
-                          setEventCoordinatorDirectDepositAccountNumber("");
-                        } else if (option.value === "DIRECT_DEPOSIT") {
+                        if (option.value === "DIRECT_DEPOSIT") {
                           setEventCoordinatorPaymentHandle("");
                           setEventCoordinatorPaymentQrCodeUrl("");
                         } else {
@@ -1507,6 +1539,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.text,
     textAlignVertical: "center",
+  },
+  coordinatorInputReadOnly: {
+    backgroundColor: AppColor.screenBg,
   },
   taxTypeRow: {
     flexDirection: "row",

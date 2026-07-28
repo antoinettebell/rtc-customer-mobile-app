@@ -13,6 +13,7 @@ import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { getStateLabel, usStates } from "../utils/usStates";
 
 const StatePickerModal = ({
+  disabled = false,
   error,
   label = "State *",
   onChange,
@@ -30,8 +31,13 @@ const StatePickerModal = ({
       <Text style={styles.inputLabel}>{label}</Text>
       <TouchableOpacity
         activeOpacity={0.7}
+        disabled={disabled}
         onPress={() => setVisible(true)}
-        style={[styles.pickerButton, error && styles.errorBorder]}
+        style={[
+          styles.pickerButton,
+          disabled && styles.pickerButtonDisabled,
+          error && styles.errorBorder,
+        ]}
       >
         <Text
           style={[
@@ -41,11 +47,13 @@ const StatePickerModal = ({
         >
           {value ? getStateLabel(value) : "Select State"}
         </Text>
-        <AntDesign
-          name="caretdown"
-          color={AppColor.textHighlighter}
-          size={14}
-        />
+        {!disabled ? (
+          <AntDesign
+            name="caretdown"
+            color={AppColor.textHighlighter}
+            size={14}
+          />
+        ) : null}
       </TouchableOpacity>
 
       <Modal
@@ -107,6 +115,9 @@ const styles = StyleSheet.create({
     color: AppColor.text,
     fontSize: 15,
     fontFamily: Mulish400,
+  },
+  pickerButtonDisabled: {
+    backgroundColor: AppColor.screenBg,
   },
   errorBorder: {
     borderColor: "#b3261e",

@@ -24,7 +24,6 @@ import {
   getPublicMarketplaceEventById_API,
   closeMarketplaceEvent_API,
   createMarketplaceFinalPayment_API,
-  reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
 } from "../apiFolder/appAPI";
@@ -152,8 +151,6 @@ const hasEventDatePassed = (eventDate) => {
   date.setHours(23, 59, 59, 999);
   return date < new Date();
 };
-
-const formatPayloadDate = (date) => date.toISOString().slice(0, 10);
 
 const getEventDurationMinutes = (event) => {
   const safeEvent = event || {};
@@ -439,7 +436,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isClosed = event?.status === "CLOSED";
   const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
-  const canEditEvent = !["AWARDED", "CANCELLED"].includes(eventStatus);
+  const canEditEvent = isPublished;
   const submissionCount = Number(
     event?.submission_count ?? event?.final_submission_count ?? 0
   );
@@ -620,87 +617,28 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const handleReopenEvent = () => {
     if (!event) return;
     const eventDatePassed = hasEventDatePassed(event.event_date);
-    if (eventDatePassed) {
-      navigation.navigate("marketplaceCreateEventScreen", {
-        eventId,
-        draftEvent: {
-          ...event,
-          status: "OPEN",
-          event_date: "",
-          event_close_date: "",
-          event_close_time: "",
-        },
-        reopenMode: true,
-      });
-      return;
-    }
 
     Alert.alert(
       "Reopen Bidding",
-      "This will reopen bidding and move you to the event editor. Previous submissions remain visible for comparison, but previous submitters cannot submit again.",
+      eventDatePassed
+        ? "Update the event dates before reopening bidding. Previous submissions will be archived and remain visible for comparison."
+        : "This will move you to the event editor. When you submit, previous submissions will be archived and remain visible for comparison.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Reopen & Edit",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const closeDate = new Date();
-              closeDate.setDate(closeDate.getDate() + 7);
-              const eventDate = event.event_date ? new Date(event.event_date) : null;
-              if (eventDate && !Number.isNaN(eventDate.getTime()) && closeDate > eventDate) {
-                closeDate.setTime(eventDate.getTime());
-              }
-              const payload = {
+          onPress: () => {
+            navigation.navigate("marketplaceCreateEventScreen", {
+              eventId,
+              draftEvent: {
                 ...event,
-                event_date: event.event_date
-                  ? formatPayloadDate(new Date(event.event_date))
-                  : "",
-                event_close_date: formatPayloadDate(closeDate),
-                event_close_time: event.event_close_time || "11:59 PM",
-                event_time: event.event_time || "12:00 PM",
-                service_types:
-                  event.service_types?.length
-                    ? event.service_types
-                    : event.service_type
-                      ? [event.service_type]
-                      : [],
-                service_styles:
-                  event.service_styles?.length
-                    ? event.service_styles
-                    : event.event_style
-                      ? [event.event_style]
-                      : [],
-                payment_responsibility:
-                  event.payment_responsibility ||
-                  (Number(event.vendor_fee || 0) > 0 &&
-                  Number(event.budgeted_amount || 0) > 0
-                    ? "BOTH"
-                    : Number(event.vendor_fee || 0) > 0
-                      ? "VENDOR"
-                      : "COORDINATOR"),
-              };
-              const response = await reopenMarketplaceEvent_API({
-                eventId,
-                payload,
-              });
-              if (response?.success) {
-                const reopenedEvent = response.data?.marketplaceEvent;
-                setEvent(reopenedEvent);
-                navigation.navigate("marketplaceCreateEventScreen", {
-                  eventId,
-                  draftEvent: reopenedEvent,
-                  reopenMode: true,
-                });
-              }
-            } catch (error) {
-              Alert.alert(
-                "Reopen Bidding",
-                error?.message || "Failed to reopen event."
-              );
-            } finally {
-              setLoading(false);
-            }
+                status: "OPEN",
+                event_date: eventDatePassed ? "" : event.event_date,
+                event_close_date: eventDatePassed ? "" : event.event_close_date,
+                event_close_time: eventDatePassed ? "" : event.event_close_time,
+              },
+              reopenMode: true,
+            });
           },
         },
       ]
@@ -836,6 +774,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleEditDraft = () => {
     if (!event) return;
+    if (!isDraft && !isPublished) return;
+
     const navigateToEditor = () =>
       navigation.navigate("marketplaceCreateEventScreen", {
         eventId,

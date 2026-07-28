@@ -362,6 +362,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       menuItem?.itemType === "COMBO" &&
       Array.isArray(menuItem?.comboSideOptions) &&
       menuItem.comboSideOptions.length > 0;
+    const hasComboItems =
+      menuItem?.itemType === "COMBO" &&
+      Array.isArray(menuItem?.subItem) &&
+      menuItem.subItem.length > 0;
     const bogoItems = Array.isArray(menuItem?.bogoItems)
       ? menuItem.bogoItems
       : [];
@@ -385,15 +389,21 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       discountSourceItem?.itemType === "COMBO" &&
       Array.isArray(discountSourceItem?.comboSideOptions) &&
       discountSourceItem.comboSideOptions.length > 0;
+    const discountHasComboItems =
+      discountSourceItem?.itemType === "COMBO" &&
+      Array.isArray(discountSourceItem?.subItem) &&
+      discountSourceItem.subItem.length > 0;
     const discountAllowsCustomize = !!discountSourceItem?.allowCustomize;
 
     return (
       hasFlavors ||
       hasToppings ||
       hasComboSides ||
+      hasComboItems ||
       discountHasFlavors ||
       discountHasToppings ||
       discountHasComboSides ||
+      discountHasComboItems ||
       discountAllowsCustomize
     );
   };

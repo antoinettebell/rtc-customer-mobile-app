@@ -111,7 +111,9 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
                 activeOpacity={0.7}
                 onPress={() => openDocument(document.url)}
               >
-                <Text style={styles.secondaryButtonText}>{document.label}</Text>
+                <Text style={[styles.secondaryButtonText, { color: AppColor.text }]}>
+                  {document.label}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -173,7 +175,9 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
           {item.event_name}
         </Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{item.status}</Text>
+          <Text style={[styles.badgeText, { color: AppColor.text }]}>
+            {item.status}
+          </Text>
         </View>
       </View>
       <Text style={styles.meta}>
@@ -187,7 +191,7 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
       </Text>
       {Number(item.unread_message_count || 0) ||
       Number(item.unseen_submission_count || 0) ? (
-        <Text style={[styles.meta, { color: AppColor.primary, marginTop: 8 }]}>
+        <Text style={[styles.meta, { color: AppColor.text, marginTop: 8 }]}>
           {Number(item.unread_message_count || 0)} unread message(s) •{" "}
           {Number(item.unseen_submission_count || 0)} new bid/application(s)
         </Text>

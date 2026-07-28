@@ -82,7 +82,7 @@ const SignupScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
   const [agreed, setAgreed] = useState(true);
-  const [offGrid, setOffGrid] = useState(true);
+  const [offGrid] = useState(true);
   const [smsAgreed, setSmsAgreed] = useState(false);
   const [isEventCoordinator, setIsEventCoordinator] = useState(false);
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
@@ -793,68 +793,6 @@ const SignupScreen = ({ navigation }) => {
                 onBackdropPress={() => setCountryPickerVisible(false)}
               />
 
-              {/* T&C */}
-              <View style={styles.termsContainer}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setAgreed(!agreed)}
-                  style={styles.iconBox}
-                >
-                  <Ionicons
-                    name={agreed ? "checkbox" : "square-outline"}
-                    size={22}
-                    color={AppColor.primary}
-                  />
-                </TouchableOpacity>
-
-                <Text style={styles.termsText}>
-                  {"I agree to the"}
-                  <Text
-                    style={styles.linkText}
-                    onPress={() => navigation.navigate("termsOfService")}
-                  >
-                    {" Terms of Service"}
-                  </Text>
-                  {" and "}
-                  <Text
-                    style={styles.linkText}
-                    onPress={() => navigation.navigate("privacyPolicy")}
-                  >
-                    {"Privacy Policy."}
-                  </Text>
-                </Text>
-              </View>
-              {errors.agreed ? (
-                <HelperText
-                  type="error"
-                  visible={!!errors.agreed}
-                  style={styles.helper}
-                >
-                  {errors.agreed}
-                </HelperText>
-              ) : null}
-
-              {/* off-the-grid communication subscribe */}
-              <View style={styles.termsContainer}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setOffGrid(!offGrid)}
-                  style={styles.iconBox}
-                >
-                  <Ionicons
-                    name={offGrid ? "checkbox" : "square-outline"}
-                    size={22}
-                    color={AppColor.primary}
-                  />
-                </TouchableOpacity>
-
-                <Text style={styles.termsText}>
-                  {
-                    "Would you like to join our nonprofit Underground of Wisdom Lane, an off-the-grid communication system?"
-                  }
-                </Text>
-              </View>
-
               <View style={[styles.termsContainer, { marginTop: 12 }]}>
                 <TouchableOpacity
                   activeOpacity={0.7}
@@ -1117,6 +1055,47 @@ const SignupScreen = ({ navigation }) => {
                   style={styles.helper}
                 >
                   {errors.smsAgreed}
+                </HelperText>
+              ) : null}
+
+              {/* T&C */}
+              <View style={[styles.termsContainer, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setAgreed(!agreed)}
+                  style={styles.iconBox}
+                >
+                  <Ionicons
+                    name={agreed ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={AppColor.primary}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.termsText}>
+                  {"I agree to the"}
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("termsOfService")}
+                  >
+                    {" Terms of Service"}
+                  </Text>
+                  {" and "}
+                  <Text
+                    style={styles.linkText}
+                    onPress={() => navigation.navigate("privacyPolicy")}
+                  >
+                    {"Privacy Policy."}
+                  </Text>
+                </Text>
+              </View>
+              {errors.agreed ? (
+                <HelperText
+                  type="error"
+                  visible={!!errors.agreed}
+                  style={styles.helper}
+                >
+                  {errors.agreed}
                 </HelperText>
               ) : null}
 

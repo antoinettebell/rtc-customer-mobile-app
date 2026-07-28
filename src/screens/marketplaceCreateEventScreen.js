@@ -36,6 +36,7 @@ import {
   deleteMarketplaceEvent_API,
   getMarketplaceEventById_API,
   getLocationName,
+  reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   uploadMarketplaceEventImage_API,
 } from "../apiFolder/appAPI";
@@ -1292,6 +1293,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const editingEventId = route?.params?.eventId || route?.params?.draftEvent?.event_id;
 	  const draftEvent = route?.params?.draftEvent;
 	  const isReopenMode = !!route?.params?.reopenMode;
+  const reopenEventId = draftEvent?._id || draftEvent?.event_id || editingEventId;
 	  const isEditingSubmittedEvent =
 	    !!editingEventId && draftEvent?.status && draftEvent.status !== "DRAFT" && !isReopenMode;
   const eventAddressMapRef = useRef(null);
@@ -1983,9 +1985,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           eventId: editingEventId || null,
         });
       }
-      const response = editingEventId
-        ? await updateMarketplaceEvent_API({ eventId: editingEventId, payload })
-        : await createMarketplaceEvent_API(payload);
+      const response = isReopenMode
+        ? await reopenMarketplaceEvent_API({ eventId: reopenEventId, payload })
+        : editingEventId
+          ? await updateMarketplaceEvent_API({ eventId: editingEventId, payload })
+          : await createMarketplaceEvent_API(payload);
       if (!response?.success) {
         throw new Error(response?.message || "Event update failed.");
       }

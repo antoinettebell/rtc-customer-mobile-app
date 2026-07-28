@@ -398,6 +398,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                   style={[
                     styles.button,
                     {
+                      backgroundColor: AppColor.text,
                       marginTop: 4,
                       opacity: awarding || !bids.length || awardLocked ? 0.6 : 1,
                     },

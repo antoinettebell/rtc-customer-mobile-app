@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  Dimensions,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -15,8 +15,6 @@ import StatusBarManager from "../components/StatusBarManager";
 import IntroLandingArtwork from "../components/IntroLandingArtwork";
 import { AppColor, BrandColor, Mulish400, Mulish700 } from "../utils/theme";
 import { onGuest } from "../redux/slices/authSlice";
-
-const { width } = Dimensions.get("window");
 
 const featureItems = [
   {
@@ -48,7 +46,9 @@ const featureItems = [
 const AuthIntroScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
   const { allSigninUsers } = useSelector((state) => state.userInfoReducer);
+  const heroHeight = Math.min(width * 0.7, height * 0.28);
 
   const handleSigninPress = () => {
     if (allSigninUsers?.length > 0) {
@@ -73,7 +73,7 @@ const AuthIntroScreen = ({ navigation }) => {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <IntroLandingArtwork width={width} height={width * 1.18} />
+        <IntroLandingArtwork width={width} height={heroHeight} />
 
         <View style={styles.copyBlock}>
           <Text style={styles.title}>
@@ -112,7 +112,7 @@ const AuthIntroScreen = ({ navigation }) => {
             style={styles.signInButton}
           >
             <Text style={[styles.buttonLabel, styles.signInLabel]}>
-              Sign In
+              Customer/Event Coordinator Sign In
             </Text>
           </TouchableOpacity>
 
@@ -122,7 +122,7 @@ const AuthIntroScreen = ({ navigation }) => {
             style={styles.signUpButton}
           >
             <Text style={[styles.buttonLabel, styles.signUpLabel]}>
-              Sign Up
+              Customer/Event Coordinator Sign Up
             </Text>
           </TouchableOpacity>
 
@@ -151,13 +151,13 @@ const styles = StyleSheet.create({
   },
   copyBlock: {
     paddingHorizontal: 22,
-    paddingTop: 18,
+    paddingTop: 12,
   },
   title: {
     color: AppColor.text,
     fontFamily: Mulish700,
-    fontSize: 30,
-    lineHeight: 38,
+    fontSize: 26,
+    lineHeight: 32,
     textAlign: "center",
   },
   titlePrimary: {
@@ -166,16 +166,16 @@ const styles = StyleSheet.create({
   description: {
     color: AppColor.subText,
     fontFamily: Mulish400,
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
     paddingHorizontal: 16,
     textAlign: "center",
   },
   featureRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 28,
+    marginTop: 18,
     paddingHorizontal: 18,
     width: "100%",
   },
@@ -186,24 +186,24 @@ const styles = StyleSheet.create({
   featureIconCircle: {
     alignItems: "center",
     backgroundColor: AppColor.primaryLight,
-    borderRadius: 32,
-    height: 64,
+    borderRadius: 26,
+    height: 52,
     justifyContent: "center",
-    marginBottom: 9,
-    width: 64,
+    marginBottom: 7,
+    width: 52,
   },
   featureTitle: {
     color: AppColor.text,
     fontFamily: Mulish700,
-    fontSize: 12,
+    fontSize: 11,
     textAlign: "center",
   },
   featureSubtitle: {
     color: AppColor.subText,
     fontFamily: Mulish400,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 4,
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 3,
     textAlign: "center",
   },
   dotsContainer: {
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     justifyContent: "center",
-    marginTop: 30,
+    marginTop: 18,
   },
   dot: {
     backgroundColor: AppColor.border,
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   buttonBlock: {
-    marginTop: 28,
+    marginTop: 18,
     paddingHorizontal: 28,
     width: "100%",
   },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: AppColor.primary,
     borderRadius: 6,
-    height: 56,
+    height: 50,
     justifyContent: "center",
     width: "100%",
     ...Platform.select({
@@ -255,20 +255,22 @@ const styles = StyleSheet.create({
     borderColor: AppColor.primary,
     borderRadius: 6,
     borderWidth: 1,
-    height: 56,
+    height: 50,
     justifyContent: "center",
-    marginTop: 14,
+    marginTop: 10,
     width: "100%",
   },
   skipButton: {
     alignItems: "center",
-    height: 52,
+    height: 44,
     justifyContent: "center",
-    marginTop: 14,
+    marginTop: 6,
   },
   buttonLabel: {
     fontFamily: Mulish700,
-    fontSize: 18,
+    fontSize: 15,
+    paddingHorizontal: 10,
+    textAlign: "center",
   },
   signInLabel: {
     color: AppColor.white,
