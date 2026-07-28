@@ -5,6 +5,7 @@ export const CHANGE_PASSWORD = "/auth/change-password";
 export const REGISTER_USER = "/auth/register";
 export const RESEND_OTP = "/auth/resend-otp";
 export const CUISINE = "/cuisine";
+export const PUBLIC_CUISINE = "/public/cuisine";
 export const MEDIA_UPLOAD = "/file";
 export const REMOVE_ACCOUNT = "/user";
 
