@@ -128,6 +128,7 @@ const orderSlice = createSlice({
           selectedDiscountComboSides: item.selectedDiscountComboSides || [],
           selectedDiscountSubItems: item.selectedDiscountSubItems || [],
           selectedComboSides: item.selectedComboSides || [],
+          selectedSubItems: item.selectedSubItems || [],
         };
       });
 
@@ -149,6 +150,8 @@ const orderSlice = createSlice({
           selectedDiscountSubItems:
             existingData.selectedDiscountSubItems || [],
           selectedComboSides: existingData.selectedComboSides || [],
+          selectedSubItems:
+            newItem.selectedSubItems || existingData.selectedSubItems || [],
         };
       });
 
