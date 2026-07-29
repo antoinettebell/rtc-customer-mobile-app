@@ -187,6 +187,7 @@ const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
       return {
         ...child,
         ...(saved || {}),
+        comboMenuItemId: child._id,
         qty: configuredItem?.qty || saved?.qty || 1,
         selectedFlavors: saved?.selectedFlavors || [],
         selectedToppings: saved?.selectedToppings || [],
