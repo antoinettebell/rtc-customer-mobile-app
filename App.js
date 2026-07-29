@@ -250,10 +250,10 @@ const BottomNavigator = ({ insets }) => {
   );
 };
 
-const AppNavigator = ({ insets }) => (
+const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
-    initialRouteName="splash"
+    initialRouteName={initialRouteName}
   >
     <Stack.Screen name="splash" component={SplashScreen} />
     <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
@@ -343,6 +343,7 @@ const configureNotification = async () => {
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
+  const { allLocations } = useSelector((state) => state.locationReducer);
 
   useEffect(() => {
     configureNotification();
@@ -354,7 +355,12 @@ const App = () => {
       {isSignedIn ? (
         <AppNavigator insets={insets} />
       ) : isGuest ? (
-        <AppNavigator insets={insets} />
+        <AppNavigator
+          insets={insets}
+          initialRouteName={
+            allLocations?.length > 0 ? "bottomRoot" : "authMapScreen"
+          }
+        />
       ) : (
         <AuthNavigator />
       )}
