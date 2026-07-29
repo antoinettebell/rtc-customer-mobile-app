@@ -190,6 +190,35 @@ const buildComboItemPayload = (subItem, fallbackQty = 1) => {
   return payload;
 };
 
+const buildConfiguredComboPayloads = ({
+  configuredItems,
+  selectedItems,
+  fallbackQty,
+}) =>
+  (Array.isArray(configuredItems) ? configuredItems : [])
+    .map((configuredItem) => {
+      const configuredChild = getNestedMenuItem(configuredItem);
+      const configuredId = getItemId(configuredItem);
+      const selectedItem = (Array.isArray(selectedItems) ? selectedItems : []).find(
+        (candidate) => String(getItemId(candidate)) === String(configuredId),
+      );
+
+      if (!selectedItem || !configuredId) {
+        return null;
+      }
+
+      return buildComboItemPayload(
+        {
+          ...configuredChild,
+          ...selectedItem,
+          comboMenuItemId: configuredId,
+          qty: configuredItem?.qty || selectedItem?.qty || fallbackQty,
+        },
+        fallbackQty,
+      );
+    })
+    .filter(Boolean);
+
 const hasIncompleteRequiredSelections = (item) => {
   const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
   const discountSourceEntry =
@@ -581,9 +610,11 @@ const CheckoutScreen = ({ navigation, route }) => {
           item.selectedSubItems &&
           item.selectedSubItems.length > 0
         ) {
-          itemPayload.comboItems = item.selectedSubItems
-            .map((subItem) => buildComboItemPayload(subItem, item.quantity))
-            .filter(Boolean);
+          itemPayload.comboItems = buildConfiguredComboPayloads({
+            configuredItems: item.subItem,
+            selectedItems: item.selectedSubItems,
+            fallbackQty: item.quantity,
+          });
         }
 
         return itemPayload;
