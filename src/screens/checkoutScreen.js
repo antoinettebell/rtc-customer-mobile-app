@@ -159,10 +159,17 @@ const hasMissingConfiguredChildren = (configuredItems, selectedItems) =>
     },
   );
 
-const buildComboItemPayload = (subItem, parentQuantity) => {
+const buildComboItemPayload = (subItem, fallbackQty = 1) => {
+  const menuItem = subItem?.menuItem || subItem;
+  const comboMenuItemId = subItem?.comboMenuItemId || menuItem?._id;
+
+  if (!comboMenuItemId) {
+    return null;
+  }
+
   const payload = {
-    comboMenuItemId: subItem?.comboMenuItemId || getItemId(subItem),
-    qty: parentQuantity,
+    comboMenuItemId,
+    qty: Number(subItem?.qty || fallbackQty || 1),
   };
 
   if (subItem?.selectedFlavors?.length > 0) {
@@ -174,8 +181,10 @@ const buildComboItemPayload = (subItem, parentQuantity) => {
   if (subItem?.selectedComboSides?.length > 0) {
     payload.selectedComboSides = subItem.selectedComboSides;
   }
-  if (subItem?.customizationInput?.trim()?.length > 0) {
-    payload.customization = subItem.customizationInput.trim();
+  const customization =
+    subItem?.customization || subItem?.customizationInput || "";
+  if (typeof customization === "string" && customization.trim()) {
+    payload.customization = customization.trim();
   }
 
   return payload;
@@ -558,9 +567,9 @@ const CheckoutScreen = ({ navigation, route }) => {
         }
 
         if (item.selectedDiscountSubItems?.length > 0) {
-          itemPayload.selectedDiscountSubItems = item.selectedDiscountSubItems.map(
-            (subItem) => buildComboItemPayload(subItem, item.quantity),
-          );
+          itemPayload.selectedDiscountSubItems = item.selectedDiscountSubItems
+            .map((subItem) => buildComboItemPayload(subItem, item.quantity))
+            .filter(Boolean);
         }
 
         if (item.selectedComboSides?.length > 0) {
@@ -572,9 +581,9 @@ const CheckoutScreen = ({ navigation, route }) => {
           item.selectedSubItems &&
           item.selectedSubItems.length > 0
         ) {
-          itemPayload.comboItems = item.selectedSubItems.map((subItem) =>
-            buildComboItemPayload(subItem, item.quantity),
-          );
+          itemPayload.comboItems = item.selectedSubItems
+            .map((subItem) => buildComboItemPayload(subItem, item.quantity))
+            .filter(Boolean);
         }
 
         return itemPayload;
@@ -586,7 +595,9 @@ const CheckoutScreen = ({ navigation, route }) => {
       payload.couponId = coupon?._id;
     }
 
-    console.log("Order Payload:", payload);
+    if (__DEV__) {
+      console.log("Customer Order Payload:", JSON.stringify(payload, null, 2));
+    }
     setLoading(true);
     try {
       const response = await validateOrder_API(payload);
