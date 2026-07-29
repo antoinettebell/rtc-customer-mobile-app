@@ -6,7 +6,7 @@
     "version": "1.6.1",
     "ios": {
       "bundleIdentifier": "com.ea.rtcuser",
-      "buildNumber": "54",
+      "buildNumber": "55",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.ea.rtcuser",
-      "versionCode": 54
+      "versionCode": 55
     },
     "extra": {
       "eas": {
