@@ -163,8 +163,7 @@ const orderSlice = createSlice({
           selectedDiscountSubItems:
             existingData.selectedDiscountSubItems || [],
           selectedComboSides: existingData.selectedComboSides || [],
-          selectedSubItems:
-            newItem.selectedSubItems || existingData.selectedSubItems || [],
+          selectedSubItems: existingData.selectedSubItems || [],
         };
       });
 
