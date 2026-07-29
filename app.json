@@ -3,10 +3,10 @@
     "name": "Round Da' Corner - Customer",
     "slug": "foodtruck",
     "scheme": "rtc-customer",
-    "version": "1.6.1",
+    "version": "1.7",
     "ios": {
       "bundleIdentifier": "com.ea.rtcuser",
-      "buildNumber": "55",
+      "buildNumber": "1",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
