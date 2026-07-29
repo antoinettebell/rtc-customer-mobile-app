@@ -130,7 +130,35 @@ const getRequiredCount = (configuredCount, optionsCount) => {
   return Math.min(numericCount, optionsCount);
 };
 
-const getItemId = (item) => item?._id || item?.menuItem?._id || item?.itemId?._id || "";
+const getItemId = (item) =>
+  item?.comboMenuItemId ||
+  item?.menuItemId ||
+  item?.menuItem?._id ||
+  (item?.menuItem && typeof item.menuItem !== "object" ? item.menuItem : "") ||
+  item?.itemId?._id ||
+  (item?.itemId && typeof item.itemId !== "object" ? item.itemId : "") ||
+  item?._id ||
+  "";
+
+const getNestedMenuItem = (item) => item?.menuItem || item?.itemId || item;
+
+const hasIncompleteOptionSelection = (requiredCount, selectedOptions) => {
+  if (requiredCount <= 0) return false;
+  const selectedCount = Array.isArray(selectedOptions)
+    ? selectedOptions.length
+    : 0;
+  return selectedCount < 1 || selectedCount > requiredCount;
+};
+
+const hasMissingConfiguredChildren = (configuredItems, selectedItems) =>
+  (Array.isArray(configuredItems) ? configuredItems : []).some(
+    (configuredItem) => {
+      const childId = getItemId(configuredItem);
+      return !(Array.isArray(selectedItems) ? selectedItems : []).some(
+        (selection) => String(getItemId(selection)) === String(childId)
+      );
+    },
+  );
 
 const buildComboItemPayload = (subItem, parentQuantity) => {
   const payload = {
