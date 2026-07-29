@@ -159,7 +159,7 @@ const hasMissingConfiguredChildren = (configuredItems, selectedItems) =>
 
 const buildComboItemPayload = (subItem, parentQuantity) => {
   const payload = {
-    comboMenuItemId: getItemId(subItem),
+    comboMenuItemId: subItem?.comboMenuItemId || getItemId(subItem),
     qty: parentQuantity,
   };
 
