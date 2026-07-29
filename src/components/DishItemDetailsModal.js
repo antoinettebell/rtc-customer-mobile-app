@@ -153,6 +153,79 @@ const getMenuItemId = (item) =>
 
 const getComboChildItem = (item) => item?.menuItem || item?.itemId || item;
 
+const getDiscountRequirementSource = (item) => {
+  const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
+  const sameItemReward = bogoItems.find((reward) => reward?.isSameItem);
+  const differentItemReward = bogoItems.find((reward) => !reward?.isSameItem);
+
+  if (sameItemReward || (!bogoItems.length && item?.discountRules?.discount > 0)) {
+    return item;
+  }
+
+  return differentItemReward ? getComboChildItem(differentItemReward) : null;
+};
+
+const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
+  (Array.isArray(configuredItems) ? configuredItems : [])
+    .map((configuredItem) => {
+      const child = getComboChildItem(configuredItem);
+      if (!child?._id) {
+        return null;
+      }
+      const saved = (Array.isArray(savedSelections) ? savedSelections : []).find(
+        (selection) =>
+          String(getMenuItemId(selection)) === String(child._id)
+      );
+      return {
+        ...child,
+        ...(saved || {}),
+        comboMenuItemId: child._id,
+        qty: configuredItem?.qty || saved?.qty || 1,
+        selectedFlavors: saved?.selectedFlavors || [],
+        selectedToppings: saved?.selectedToppings || [],
+        selectedComboSides: saved?.selectedComboSides || [],
+        customizationInput: saved?.customizationInput || "",
+      };
+    })
+    .filter(Boolean);
+
+const hasEveryConfiguredChild = (configuredItems, selectedItems) =>
+  (Array.isArray(configuredItems) ? configuredItems : []).every(
+    (configuredItem) => {
+      const childId = getMenuItemId(configuredItem);
+      return (Array.isArray(selectedItems) ? selectedItems : []).some(
+        (selection) => String(getMenuItemId(selection)) === String(childId)
+      );
+    }
+  );
+
+const RequirementSectionToggle = memo(
+  ({ title, complete, expanded, onPress }) => (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      onPress={onPress}
+      style={styles.requirementToggle}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.requirementToggleTitle}>{title}</Text>
+        <Text
+          style={[
+            styles.requirementToggleStatus,
+            complete && styles.requirementToggleStatusComplete,
+          ]}
+        >
+          {complete ? "Complete" : "Required — complete before checkout"}
+        </Text>
+      </View>
+      <MaterialIcons
+        name={expanded ? "expand-less" : "expand-more"}
+        size={26}
+        color={AppColor.primary}
+      />
+    </TouchableOpacity>
+  )
+);
+
 const getSelectionLimit = (configuredLimit, optionsLength) => {
   const numericLimit = Number(configuredLimit);
   if (!Number.isFinite(numericLimit) || numericLimit <= 0) {
