@@ -46,7 +46,7 @@ apiClient.interceptors.response.use(
   },
   function (error) {
     // Handle 401 Forbidden (session expired)
-    if (error?.response?.status === 401) {
+    if (error?.response?.status === 401 && !error?.config?.skipToken) {
       // Perform action for 401 code [accestoken expire, unauthorised]
       store.dispatch(clearUserSlice());
       store.dispatch(onSignOut());
