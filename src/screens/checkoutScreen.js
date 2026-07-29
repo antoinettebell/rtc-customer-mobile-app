@@ -130,6 +130,8 @@ const getRequiredCount = (configuredCount, optionsCount) => {
 };
 
 const getItemId = (item) =>
+  item?.comboMenuItemId ||
+  item?.menuItemId ||
   item?.menuItem?._id ||
   (item?.menuItem && typeof item.menuItem !== "object" ? item.menuItem : "") ||
   item?.itemId?._id ||
