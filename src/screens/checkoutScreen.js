@@ -134,7 +134,7 @@ const getItemId = (item) => item?._id || item?.menuItem?._id || item?.itemId?._i
 
 const buildComboItemPayload = (subItem, parentQuantity) => {
   const payload = {
-    comboMenuItemId: getItemId(subItem),
+    comboMenuItemId: subItem?.comboMenuItemId || getItemId(subItem),
     qty: parentQuantity,
   };
 
