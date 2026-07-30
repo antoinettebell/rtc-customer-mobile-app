@@ -9,7 +9,8 @@
     "start": "react-native start --reset-cache",
     "bootsplash": "react-native-bootsplash generate src/assets/branding/bootsplash-logo.png --platforms=android,ios --background=FFFFFF --logo-width=150 --assets-output=src/assets/bootsplash",
     "postinstall": "patch-package",
-    "eas-build-pre-install": "node scripts/write-eas-env.js"
+    "eas-build-pre-install": "node scripts/write-eas-env.js",
+    "test:discounts": "node src/helpers/discount.helper.test.mjs"
   },
   "dependencies": {
     "@d11/react-native-fast-image": "8.11.1",
