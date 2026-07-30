@@ -192,6 +192,7 @@ const orderSlice = createSlice({
             "selectedDiscountToppings",
             "selectedDiscountComboSides",
             "selectedDiscountSubItems",
+            "selectedSubItems",
           ].includes(keyName)
         ) {
           state.currentOrder.subtotal = state.currentOrder.items.reduce(

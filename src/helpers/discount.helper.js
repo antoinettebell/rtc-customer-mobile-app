@@ -100,7 +100,20 @@ export const calculateNestedSelectedOptionCost = (selectedItems = []) =>
   (Array.isArray(selectedItems) ? selectedItems : []).reduce(
     (sum, selectedItem) => {
       const quantity = Math.max(1, Number(selectedItem?.qty) || 1);
-      const directOptionCost = calculateSelectedOptionCost(selectedItem);
+      const optionSourceItem =
+        (selectedItem?.menuItem && typeof selectedItem.menuItem === "object"
+          ? selectedItem.menuItem
+          : null) ||
+        (selectedItem?.itemId && typeof selectedItem.itemId === "object"
+          ? selectedItem.itemId
+          : null) ||
+        selectedItem;
+      const directOptionCost = calculateSelectedOptionCost(
+        selectedItem,
+        "selectedFlavors",
+        "selectedToppings",
+        optionSourceItem
+      );
       const nestedOptionCost = calculateNestedSelectedOptionCost(
         selectedItem?.selectedSubItems
       );
