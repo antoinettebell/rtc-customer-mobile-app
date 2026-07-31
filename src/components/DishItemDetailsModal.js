@@ -60,22 +60,24 @@ const isOptionSelectionComplete = (hasChoices, selectedOptions, maxCount) => {
  * Optimized Sub-Item Row
  * Memoized to prevent re-rendering all items when one is toggled.
  */
-const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
+const SubItemRow = memo(({ subItem, isSelected, onToggle }) => {
+  const childItem = getComboChildItem(subItem);
+  return (
   <TouchableOpacity
     style={styles.subItemRowContainer}
     activeOpacity={0.7}
-    onPress={() => onToggle(subItem?.menuItem)}
+    onPress={() => onToggle(childItem)}
   >
     <AppImage
-      uri={subItem?.menuItem?.imgUrls?.[0]}
+      uri={childItem?.imgUrls?.[0]}
       containerStyle={styles.subItemImage}
     />
     <View style={{ gap: 2, flex: 1 }}>
       <Text numberOfLines={1} style={styles.subItemName}>
-        {subItem?.menuItem?.name}
+        {childItem?.name}
       </Text>
       <Text numberOfLines={1} style={styles.subItemDescription}>
-        {subItem?.menuItem?.description}
+        {childItem?.description}
       </Text>
     </View>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -97,7 +99,8 @@ const SubItemRow = memo(({ subItem, isSelected, onToggle }) => (
       </View>
     </View>
   </TouchableOpacity>
-));
+  );
+});
 
 const OptionRow = memo(({ option, isSelected, onToggle }) => (
   <View style={styles.flavorRow}>
@@ -149,9 +152,26 @@ const PlainSplitToggle = memo(({ enabled, onToggle }) => (
 ));
 
 const getMenuItemId = (item) =>
-  item?._id || item?.menuItem?._id || item?.itemId?._id || item?.itemId || "";
+  item?.menuItem?._id ||
+  (item?.menuItem && typeof item.menuItem !== "object" ? item.menuItem : "") ||
+  item?.itemId?._id ||
+  (item?.itemId && typeof item.itemId !== "object" ? item.itemId : "") ||
+  item?.comboMenuItemId?._id ||
+  (item?.comboMenuItemId && typeof item.comboMenuItemId !== "object"
+    ? item.comboMenuItemId
+    : "") ||
+  item?._id ||
+  "";
 
-const getComboChildItem = (item) => item?.menuItem || item?.itemId || item;
+const getComboChildItem = (item) =>
+  (item?.menuItem && typeof item.menuItem === "object"
+    ? item.menuItem
+    : null) ||
+  (item?.itemId && typeof item.itemId === "object" ? item.itemId : null) ||
+  (item?.comboMenuItemId && typeof item.comboMenuItemId === "object"
+    ? item.comboMenuItemId
+    : null) ||
+  item;
 
 const getDiscountRequirementSource = (item) => {
   const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
@@ -169,13 +189,12 @@ const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
   (Array.isArray(configuredItems) ? configuredItems : [])
     .map((configuredItem) => {
       const child = getComboChildItem(configuredItem);
-      if (!child?._id) {
-        return null;
-      }
+      if (!child?._id) return null;
+
       const saved = (Array.isArray(savedSelections) ? savedSelections : []).find(
-        (selection) =>
-          String(getMenuItemId(selection)) === String(child._id)
+        (selection) => String(getMenuItemId(selection)) === String(child._id)
       );
+
       return {
         ...child,
         ...(saved || {}),
@@ -345,10 +364,26 @@ const DishItemDetailsModal = ({
   const [splitPlainTopping, setSplitPlainTopping] = useState(false);
   const [splitPlainDiscountFlavor, setSplitPlainDiscountFlavor] = useState(false);
   const [splitPlainDiscountTopping, setSplitPlainDiscountTopping] = useState(false);
+  const [expandedRequirementSections, setExpandedRequirementSections] = useState({});
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
-    setSelectedSubItems(selectedMenuItem?.selectedSubItems || []);
+    const savedSubItems = selectedMenuItem?.selectedSubItems || [];
+    const requiredSubItems =
+      selectedMenuItem?.itemType === foodTypeStrings.combo
+        ? buildRequiredChildSelections(selectedMenuItem?.subItem, savedSubItems)
+        : savedSubItems;
+    const discountSource = getDiscountRequirementSource(selectedMenuItem);
+    const savedDiscountSubItems = selectedMenuItem?.selectedDiscountSubItems || [];
+    const requiredDiscountSubItems =
+      discountSource?.itemType === foodTypeStrings.combo
+        ? buildRequiredChildSelections(
+            discountSource?.subItem,
+            savedDiscountSubItems
+          )
+        : savedDiscountSubItems;
+
+    setSelectedSubItems(requiredSubItems);
     setCustomizationInput(selectedMenuItem?.customizationInput || "");
     setSelectedFlavors(selectedMenuItem?.selectedFlavors || []);
     setSelectedToppings(selectedMenuItem?.selectedToppings || []);
@@ -361,7 +396,8 @@ const DishItemDetailsModal = ({
       selectedMenuItem?.selectedDiscountComboSides || []
     );
     setSelectedComboSides(selectedMenuItem?.selectedComboSides || []);
-    setSelectedDiscountSubItems(selectedMenuItem?.selectedDiscountSubItems || []);
+    setSelectedDiscountSubItems(requiredDiscountSubItems);
+    setExpandedRequirementSections({});
     setSplitPlainFlavor(
       (selectedMenuItem?.selectedFlavors || []).some(isPlainOption) &&
         (selectedMenuItem?.selectedFlavors || []).length > 1
@@ -392,32 +428,6 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.selectedDiscountSubItems,
   ]);
 
-  // Clear subitems when main item quantity becomes 0
-  useEffect(() => {
-    const mainItemId = selectedMenuItem?._id;
-
-    if (!mainItemId || !getItemQuantity) {
-      return;
-    }
-
-    const quantity = getItemQuantity(mainItemId);
-
-    if (!quantity && selectedSubItems.length) {
-      setSelectedSubItems([]);
-
-      if (onSelectedSubItemsChange) {
-        requestAnimationFrame(() => {
-          onSelectedSubItemsChange([]);
-        });
-      }
-    }
-  }, [
-    selectedMenuItem?._id,
-    getItemQuantity,
-    selectedSubItems.length,
-    onSelectedSubItemsChange,
-  ]);
-
   const flavorOptions = ensurePlainOption(
     normalizeMenuOptions(selectedMenuItem, "flavor")
   );
@@ -435,22 +445,7 @@ const DishItemDetailsModal = ({
   const hasFlavorChoices = selectedMenuItem?.hasFlavors && flavorOptions.length > 0;
   const hasToppingChoices =
     selectedMenuItem?.hasToppings && toppingOptions.length > 0;
-  const discountSourceItem = (() => {
-    const bogoItems = Array.isArray(selectedMenuItem?.bogoItems)
-      ? selectedMenuItem.bogoItems
-      : [];
-    const sameItemReward = bogoItems.find((item) => item?.isSameItem);
-    const differentItemReward = bogoItems.find((item) => !item?.isSameItem);
-
-    if (
-      sameItemReward ||
-      (!bogoItems.length && selectedMenuItem?.discountRules?.discount > 0)
-    ) {
-      return selectedMenuItem;
-    }
-
-    return differentItemReward || null;
-  })();
+  const discountSourceItem = getDiscountRequirementSource(selectedMenuItem);
   const discountFlavorOptions = ensurePlainOption(
     normalizeMenuOptions(discountSourceItem, "flavor")
   );
@@ -511,6 +506,57 @@ const DishItemDetailsModal = ({
   const hasComboSideChoices =
     selectedMenuItem?.itemType === foodTypeStrings.combo &&
     comboSideOptions.length > 0;
+  const configuredComboItems =
+    selectedMenuItem?.itemType === foodTypeStrings.combo
+      ? selectedMenuItem?.subItem || []
+      : [];
+  const configuredDiscountComboItems =
+    hasDiscountOffer && discountSourceItem?.itemType === foodTypeStrings.combo
+      ? discountSourceItem?.subItem || []
+      : [];
+  const hasAllRequiredComboItems = hasEveryConfiguredChild(
+    configuredComboItems,
+    selectedSubItems
+  );
+  const hasAllRequiredDiscountComboItems = hasEveryConfiguredChild(
+    configuredDiscountComboItems,
+    selectedDiscountSubItems
+  );
+  const discountRequirementsComplete =
+    (!hasDiscountFlavorChoices ||
+      isOptionSelectionComplete(
+        hasDiscountFlavorChoices,
+        selectedDiscountFlavors,
+        discountFlavorsMaxCount
+      )) &&
+    (!hasDiscountToppingChoices ||
+      isOptionSelectionComplete(
+        hasDiscountToppingChoices,
+        selectedDiscountToppings,
+        discountToppingsMaxCount
+      )) &&
+    (!hasDiscountComboSideChoices ||
+      selectedDiscountComboSides.length === discountComboSidesRequiredCount) &&
+    hasAllRequiredDiscountComboItems &&
+    selectedDiscountSubItems.every(isChildSelectionComplete);
+  const hasDiscountRequirements =
+    hasDiscountFlavorChoices ||
+    hasDiscountToppingChoices ||
+    hasDiscountComboSideChoices ||
+    hasDiscountCustomization ||
+    configuredDiscountComboItems.length > 0;
+
+  const isRequirementExpanded = useCallback(
+    (key) => expandedRequirementSections[key] !== false,
+    [expandedRequirementSections]
+  );
+
+  const toggleRequirementSection = useCallback((key) => {
+    setExpandedRequirementSections((current) => ({
+      ...current,
+      [key]: current[key] === false,
+    }));
+  }, []);
 
   const toggleOptionSelection = useCallback(
     (optionName, setter, currentOptions, limit, label, splitPlain = false) => {
@@ -629,6 +675,22 @@ const DishItemDetailsModal = ({
   );
 
   const validateSelections = useCallback(() => {
+    if (!hasAllRequiredComboItems) {
+      Alert.alert(
+        "Combo Items Required",
+        "Please complete every included combo item before adding this item to your order."
+      );
+      return false;
+    }
+
+    if (!hasAllRequiredDiscountComboItems) {
+      Alert.alert(
+        "Discount Combo Items Required",
+        "Please complete every included discount combo item before adding this item to your order."
+      );
+      return false;
+    }
+
     const invalidComboChild = selectedSubItems.find(
       (item) => !isChildSelectionComplete(item)
     );
@@ -714,6 +776,8 @@ const DishItemDetailsModal = ({
     hasDiscountFlavorChoices,
     hasDiscountToppingChoices,
     hasFlavorChoices,
+    hasAllRequiredComboItems,
+    hasAllRequiredDiscountComboItems,
     hasToppingChoices,
     selectedComboSides,
     selectedDiscountComboSides,
@@ -748,6 +812,11 @@ const DishItemDetailsModal = ({
       )) &&
     selectedSubItems.every(isChildSelectionComplete) &&
     selectedDiscountSubItems.every(isChildSelectionComplete);
+
+  const allSelectionsComplete =
+    selectionsComplete &&
+    hasAllRequiredComboItems &&
+    hasAllRequiredDiscountComboItems;
 
   const handleUpdateOrder = useCallback(() => {
     if (!validateSelections()) {
@@ -846,122 +915,6 @@ const DishItemDetailsModal = ({
       )
     );
   }, []);
-
-  // Optimized toggle function
-  const toggleSubItemSelection = useCallback(
-    (menuItem) => {
-      const mainItemId = selectedMenuItem?._id;
-      const mainItemQuantity =
-        mainItemId && getItemQuantity ? getItemQuantity(mainItemId) : 0;
-
-      if (!menuItem?._id) {
-        return;
-      }
-
-      if (!mainItemQuantity) {
-        handleAddItem({
-          ...selectedMenuItem,
-          selectedSubItems: [],
-          customizationInput,
-          selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
-          selectedToppings: hasToppingChoices ? selectedToppings : [],
-          selectedComboSides: hasComboSideChoices ? selectedComboSides : [],
-          selectedDiscountFlavors: hasDiscountFlavorChoices
-            ? selectedDiscountFlavors
-            : [],
-          selectedDiscountToppings: hasDiscountToppingChoices
-            ? selectedDiscountToppings
-            : [],
-          selectedDiscountCustomizationInput: hasDiscountCustomization
-            ? selectedDiscountCustomizationInput
-            : "",
-          selectedDiscountComboSides: hasDiscountComboSideChoices
-            ? selectedDiscountComboSides
-            : [],
-          selectedDiscountSubItems,
-        });
-      }
-
-      setSelectedSubItems((prevItems) => {
-        const isSelected = prevItems.some(
-          (item) => String(getMenuItemId(item)) === String(menuItem._id)
-        );
-        const newSelectedItems = isSelected
-          ? prevItems.filter(
-              (item) => String(getMenuItemId(item)) !== String(menuItem._id)
-            )
-          : [
-              ...prevItems,
-              {
-                ...menuItem,
-                selectedFlavors: [],
-                selectedToppings: [],
-                selectedComboSides: [],
-                customizationInput: "",
-              },
-            ];
-
-        if (onSelectedSubItemsChange) {
-          requestAnimationFrame(() => {
-            onSelectedSubItemsChange(newSelectedItems);
-          });
-        }
-
-        return newSelectedItems;
-      });
-    },
-    [
-      customizationInput,
-      getItemQuantity,
-      handleAddItem,
-      hasComboSideChoices,
-      hasDiscountComboSideChoices,
-      hasDiscountCustomization,
-      hasDiscountFlavorChoices,
-      hasDiscountToppingChoices,
-      hasFlavorChoices,
-      hasToppingChoices,
-      onSelectedSubItemsChange,
-      selectedComboSides,
-      selectedDiscountComboSides,
-      selectedDiscountCustomizationInput,
-      selectedDiscountFlavors,
-      selectedDiscountSubItems,
-      selectedDiscountToppings,
-      selectedFlavors,
-      selectedMenuItem,
-      selectedToppings,
-    ]
-  );
-
-  const toggleDiscountSubItemSelection = useCallback(
-    (menuItem) => {
-      if (!menuItem?._id) {
-        return;
-      }
-
-      setSelectedDiscountSubItems((prevItems) => {
-        const isSelected = prevItems.some(
-          (item) => String(getMenuItemId(item)) === String(menuItem._id)
-        );
-        return isSelected
-          ? prevItems.filter(
-              (item) => String(getMenuItemId(item)) !== String(menuItem._id)
-            )
-          : [
-              ...prevItems,
-              {
-                ...menuItem,
-                selectedFlavors: [],
-                selectedToppings: [],
-                selectedComboSides: [],
-                customizationInput: "",
-              },
-            ];
-      });
-    },
-    []
-  );
 
   const renderChildCustomizationFields = (
     item,
@@ -1421,21 +1374,44 @@ const DishItemDetailsModal = ({
             {/* Combo Items */}
             {selectedMenuItem.subItem?.length > 0 && (
               <View style={styles.actionSheetSection}>
-                <Text style={styles.sectionTitle}>Combo Items:</Text>
+                <Text style={styles.sectionTitle}>Included Combo Items:</Text>
                 {selectedMenuItem.subItem.map((subItem) => {
-                  const childItem = subItem?.menuItem;
+                  const childItem = getComboChildItem(subItem);
                   const selectedChild = selectedSubItems.find(
                     (item) =>
                       String(getMenuItemId(item)) === String(childItem?._id)
                   );
+                  const requirementState = getChildRequirementState(
+                    selectedChild || childItem
+                  );
+                  const hasRequirements =
+                    requirementState.hasFlavorChoices ||
+                    requirementState.hasToppingChoices ||
+                    requirementState.hasComboSideChoices ||
+                    requirementState.hasCustomization;
+                  const sectionKey = `combo-${childItem?._id}`;
+                  const sectionExpanded = isRequirementExpanded(sectionKey);
+                  const sectionComplete = selectedChild
+                    ? isChildSelectionComplete(selectedChild)
+                    : false;
                   return (
                     <View key={subItem?._id || childItem?._id}>
                       <SubItemRow
                         subItem={subItem}
-                        isSelected={!!selectedChild}
-                        onToggle={toggleSubItemSelection}
+                        isSelected={true}
+                        onToggle={() =>
+                          hasRequirements && toggleRequirementSection(sectionKey)
+                        }
                       />
-                      {selectedChild
+                      {hasRequirements ? (
+                        <RequirementSectionToggle
+                          title={`Choose options for ${childItem?.name || "combo item"}`}
+                          complete={sectionComplete}
+                          expanded={sectionExpanded}
+                          onPress={() => toggleRequirementSection(sectionKey)}
+                        />
+                      ) : null}
+                      {selectedChild && hasRequirements && sectionExpanded
                         ? renderChildCustomizationFields(
                             selectedChild,
                             setSelectedSubItems,
@@ -1451,7 +1427,7 @@ const DishItemDetailsModal = ({
             {hasFlavorChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose Plain or up to ${flavorsMaxCount} Flavor${
+                  {`${selectedMenuItem?.name || "Item"}: choose Plain or up to ${flavorsMaxCount} Flavor${
                     flavorsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
@@ -1493,7 +1469,7 @@ const DishItemDetailsModal = ({
             {hasToppingChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose Plain or up to ${toppingsMaxCount} Topping${
+                  {`${selectedMenuItem?.name || "Item"}: choose Plain or up to ${toppingsMaxCount} Topping${
                     toppingsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
@@ -1558,7 +1534,43 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {hasDiscountFlavorChoices && (
+            {selectedMenuItem?.allowCustomize && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  Primary Item Customizations
+                </Text>
+                <TextInput
+                  dense
+                  value={customizationInput}
+                  onChangeText={setCustomizationInput}
+                  style={{ backgroundColor: AppColor.white, marginTop: 8 }}
+                  contentStyle={{
+                    minHeight: 100,
+                    fontFamily: Mulish400,
+                    fontSize: 15,
+                  }}
+                  placeholder="Enter special instructions"
+                  placeholderTextColor={AppColor.textPlaceholder}
+                  mode="outlined"
+                  multiline={true}
+                  outlineColor={AppColor.border}
+                  activeOutlineColor={AppColor.primary}
+                  outlineStyle={{ borderRadius: 8 }}
+                  autoCapitalize="sentences"
+                />
+              </View>
+            )}
+
+            {hasDiscountRequirements ? (
+              <RequirementSectionToggle
+                title={`Choose options for ${discountSourceItem?.name || "discount item"}`}
+                complete={discountRequirementsComplete}
+                expanded={isRequirementExpanded("discount-reward")}
+                onPress={() => toggleRequirementSection("discount-reward")}
+              />
+            ) : null}
+
+            {isRequirementExpanded("discount-reward") && hasDiscountFlavorChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
                   {`Discount item: choose Plain or up to ${discountFlavorsMaxCount} Flavor${
@@ -1600,7 +1612,7 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {hasDiscountToppingChoices && (
+            {isRequirementExpanded("discount-reward") && hasDiscountToppingChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
                   {`Discount item: choose Plain or up to ${discountToppingsMaxCount} Topping${
@@ -1642,7 +1654,7 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {hasDiscountComboSideChoices && (
+            {isRequirementExpanded("discount-reward") && hasDiscountComboSideChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
                   {`Discount item: choose exactly ${discountComboSidesRequiredCount} Side${
@@ -1668,25 +1680,49 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {hasDiscountOffer &&
+            {isRequirementExpanded("discount-reward") &&
+              hasDiscountOffer &&
               discountSourceItem?.itemType === foodTypeStrings.combo &&
               discountSourceItem?.subItem?.length > 0 && (
                 <View style={styles.actionSheetSection}>
-                  <Text style={styles.sectionTitle}>Discount combo items:</Text>
+                  <Text style={styles.sectionTitle}>Included discount combo items:</Text>
                   {discountSourceItem.subItem.map((subItem) => {
-                    const childItem = subItem?.menuItem;
+                    const childItem = getComboChildItem(subItem);
                     const selectedChild = selectedDiscountSubItems.find(
                       (item) =>
                         String(getMenuItemId(item)) === String(childItem?._id)
                     );
+                    const requirementState = getChildRequirementState(
+                      selectedChild || childItem
+                    );
+                    const hasRequirements =
+                      requirementState.hasFlavorChoices ||
+                      requirementState.hasToppingChoices ||
+                      requirementState.hasComboSideChoices ||
+                      requirementState.hasCustomization;
+                    const sectionKey = `discount-combo-${childItem?._id}`;
+                    const sectionExpanded = isRequirementExpanded(sectionKey);
+                    const sectionComplete = selectedChild
+                      ? isChildSelectionComplete(selectedChild)
+                      : false;
                     return (
                       <View key={`discount-${subItem?._id || childItem?._id}`}>
                         <SubItemRow
                           subItem={subItem}
-                          isSelected={!!selectedChild}
-                          onToggle={toggleDiscountSubItemSelection}
+                          isSelected={true}
+                          onToggle={() =>
+                            hasRequirements && toggleRequirementSection(sectionKey)
+                          }
                         />
-                        {selectedChild
+                        {hasRequirements ? (
+                          <RequirementSectionToggle
+                            title={`Choose options for ${childItem?.name || "discount combo item"}`}
+                            complete={sectionComplete}
+                            expanded={sectionExpanded}
+                            onPress={() => toggleRequirementSection(sectionKey)}
+                          />
+                        ) : null}
+                        {selectedChild && hasRequirements && sectionExpanded
                           ? renderChildCustomizationFields(
                               selectedChild,
                               setSelectedDiscountSubItems,
@@ -1699,41 +1735,15 @@ const DishItemDetailsModal = ({
                 </View>
               )}
 
-            {hasDiscountCustomization && (
+            {isRequirementExpanded("discount-reward") && hasDiscountCustomization && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  Discount item customization:
+                  Discount Item Customization
                 </Text>
                 <TextInput
                   dense
                   value={selectedDiscountCustomizationInput}
                   onChangeText={setSelectedDiscountCustomizationInput}
-                  style={{ backgroundColor: AppColor.white, marginTop: 8 }}
-                  contentStyle={{
-                    minHeight: 100,
-                    fontFamily: Mulish400,
-                    fontSize: 15,
-                  }}
-                  placeholder="Enter special instructions"
-                  placeholderTextColor={AppColor.textPlaceholder}
-                  mode="outlined"
-                  multiline={true}
-                  outlineColor={AppColor.border}
-                  activeOutlineColor={AppColor.primary}
-                  outlineStyle={{ borderRadius: 8 }}
-                  autoCapitalize="sentences"
-                />
-              </View>
-            )}
-
-            {/* Customization Button */}
-            {selectedMenuItem?.allowCustomize && (
-              <View style={styles.actionSheetSection}>
-                <Text style={styles.sectionTitle}>Customization:</Text>
-                <TextInput
-                  dense
-                  value={customizationInput}
-                  onChangeText={setCustomizationInput}
                   style={{ backgroundColor: AppColor.white, marginTop: 8 }}
                   contentStyle={{
                     minHeight: 100,
@@ -1827,11 +1837,11 @@ const DishItemDetailsModal = ({
             <TouchableOpacity
               style={[
                 styles.addButton,
-                (!selectedMenuItem.available || !selectionsComplete) &&
+                (!selectedMenuItem.available || !allSelectionsComplete) &&
                   styles.addButtonDisabled,
               ]}
               onPress={handleUpdateOrder}
-              disabled={!selectedMenuItem.available || !selectionsComplete}
+              disabled={!selectedMenuItem.available || !allSelectionsComplete}
             >
               <Text style={styles.addButtonText}>
                 {getItemQuantity(selectedMenuItem._id) === 0
@@ -2147,6 +2157,32 @@ const styles = StyleSheet.create({
     borderLeftColor: AppColor.primary,
     backgroundColor: "#F8FAFC",
     borderRadius: 8,
+  },
+  requirementToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+  },
+  requirementToggleTitle: {
+    fontFamily: Mulish700,
+    fontSize: 14,
+    color: AppColor.text,
+  },
+  requirementToggleStatus: {
+    marginTop: 2,
+    fontFamily: Mulish600,
+    fontSize: 12,
+    color: "#B42318",
+  },
+  requirementToggleStatusComplete: {
+    color: AppColor.primary,
   },
   childOptionGroup: {
     marginBottom: 8,
