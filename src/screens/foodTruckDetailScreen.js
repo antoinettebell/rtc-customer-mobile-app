@@ -52,6 +52,7 @@ import { onGuest, onSignOut } from "../redux/slices/authSlice";
 import { clearUserSlice } from "../redux/slices/userSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 import { clearLocationSlice } from "../redux/slices/locationSlice";
+import { formatVendorRating } from "../helpers/rating.helper";
 
 const socialMediaIcons = {
   FACEBOOK: facebookIcon,
@@ -766,7 +767,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   />
                   <Text
                     style={styles.ratingText}
-                  >{` ${foodTruckDetail?.avgRate || 0} (${foodTruckDetail?.totalReviews || 0} reviews)`}</Text>
+                  >{` ${formatVendorRating(foodTruckDetail)}`}</Text>
                   <Text style={styles.dot}>|</Text>
                   <Text style={styles.cuisineText}>
                     {formatCuisines(foodTruckDetail?.cuisine)}

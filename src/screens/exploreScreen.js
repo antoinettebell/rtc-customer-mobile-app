@@ -54,6 +54,7 @@ import AppImage from "../components/AppImage";
 import { onGuest, onSignOut } from "../redux/slices/authSlice";
 import { clearUserSlice } from "../redux/slices/userSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
+import { formatVendorRating } from "../helpers/rating.helper";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -615,7 +616,7 @@ const ExploreScreen = (props) => {
                 title={item.name}
                 uri={item.logo}
                 foodTruckId={item._id}
-                reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                reviews={formatVendorRating(item)}
                 showLikeButton={isSignedIn}
                 showDistance={false}
                 onContainerPress={() =>
@@ -684,7 +685,7 @@ const ExploreScreen = (props) => {
                     uris={item.logo}
                     showLikeButton={isSignedIn}
                     foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    reviews={formatVendorRating(item)}
                     distance={item.distanceInMeters}
                     onContainerPress={() =>
                       navigation.navigate("foodTruckDetailScreen", { item })
@@ -777,7 +778,7 @@ const ExploreScreen = (props) => {
                     uris={item.logo}
                     showLikeButton={isSignedIn}
                     foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    reviews={formatVendorRating(item)}
                     distance={item.distanceInMeters}
                     onContainerPress={() =>
                       navigation.navigate("foodTruckDetailScreen", { item })
@@ -873,7 +874,7 @@ const ExploreScreen = (props) => {
                     uris={item.logo}
                     showLikeButton={isSignedIn}
                     foodTruckId={item._id}
-                    reviews={`${item.avgRate} (${item.totalReviews} reviews)`}
+                    reviews={formatVendorRating(item)}
                     distance={item.distanceInMeters}
                     onContainerPress={() =>
                       navigation.navigate("foodTruckDetailScreen", { item })

@@ -27,6 +27,7 @@ import AppImage from "../components/AppImage";
 import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
+import { formatVendorRating } from "../helpers/rating.helper";
 
 const { width, height } = Dimensions.get("window");
 const EVENT_MARKETPLACE_ENABLED = false;
@@ -298,7 +299,7 @@ const NearMeScreen = ({ navigation }) => {
                 <MaterialIcons name="star" size={16} color={AppColor.text} />
                 <Text
                   style={styles.horizontalRatingText}
-                >{`${item.raw?.avgRate || 0} (${item.raw?.totalReviews || 0} reviews)`}</Text>
+                >{formatVendorRating(item.raw)}</Text>
               </View>
               <Text style={styles.horizontalDistanceText}>
                 {formatCuisineNames(item?.raw?.cuisine)}
