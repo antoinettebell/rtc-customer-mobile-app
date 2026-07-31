@@ -156,10 +156,22 @@ const getMenuItemId = (item) =>
   (item?.menuItem && typeof item.menuItem !== "object" ? item.menuItem : "") ||
   item?.itemId?._id ||
   (item?.itemId && typeof item.itemId !== "object" ? item.itemId : "") ||
+  item?.comboMenuItemId?._id ||
+  (item?.comboMenuItemId && typeof item.comboMenuItemId !== "object"
+    ? item.comboMenuItemId
+    : "") ||
   item?._id ||
   "";
 
-const getComboChildItem = (item) => item?.menuItem || item?.itemId || item;
+const getComboChildItem = (item) =>
+  (item?.menuItem && typeof item.menuItem === "object"
+    ? item.menuItem
+    : null) ||
+  (item?.itemId && typeof item.itemId === "object" ? item.itemId : null) ||
+  (item?.comboMenuItemId && typeof item.comboMenuItemId === "object"
+    ? item.comboMenuItemId
+    : null) ||
+  item;
 
 const getDiscountRequirementSource = (item) => {
   const bogoItems = Array.isArray(item?.bogoItems) ? item.bogoItems : [];
@@ -177,13 +189,12 @@ const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
   (Array.isArray(configuredItems) ? configuredItems : [])
     .map((configuredItem) => {
       const child = getComboChildItem(configuredItem);
-      if (!child?._id) {
-        return null;
-      }
+      if (!child?._id) return null;
+
       const saved = (Array.isArray(savedSelections) ? savedSelections : []).find(
-        (selection) =>
-          String(getMenuItemId(selection)) === String(child._id)
+        (selection) => String(getMenuItemId(selection)) === String(child._id)
       );
+
       return {
         ...child,
         ...(saved || {}),
@@ -1416,7 +1427,7 @@ const DishItemDetailsModal = ({
             {hasFlavorChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose Plain or up to ${flavorsMaxCount} Flavor${
+                  {`${selectedMenuItem?.name || "Item"}: choose Plain or up to ${flavorsMaxCount} Flavor${
                     flavorsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
@@ -1458,7 +1469,7 @@ const DishItemDetailsModal = ({
             {hasToppingChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  {`Choose Plain or up to ${toppingsMaxCount} Topping${
+                  {`${selectedMenuItem?.name || "Item"}: choose Plain or up to ${toppingsMaxCount} Topping${
                     toppingsMaxCount === 1 ? "" : "s"
                   }:`}
                 </Text>
@@ -1520,6 +1531,33 @@ const DishItemDetailsModal = ({
                     }
                   />
                 ))}
+              </View>
+            )}
+
+            {selectedMenuItem?.allowCustomize && (
+              <View style={styles.actionSheetSection}>
+                <Text style={styles.sectionTitle}>
+                  Primary Item Customizations
+                </Text>
+                <TextInput
+                  dense
+                  value={customizationInput}
+                  onChangeText={setCustomizationInput}
+                  style={{ backgroundColor: AppColor.white, marginTop: 8 }}
+                  contentStyle={{
+                    minHeight: 100,
+                    fontFamily: Mulish400,
+                    fontSize: 15,
+                  }}
+                  placeholder="Enter special instructions"
+                  placeholderTextColor={AppColor.textPlaceholder}
+                  mode="outlined"
+                  multiline={true}
+                  outlineColor={AppColor.border}
+                  activeOutlineColor={AppColor.primary}
+                  outlineStyle={{ borderRadius: 8 }}
+                  autoCapitalize="sentences"
+                />
               </View>
             )}
 
@@ -1700,38 +1738,12 @@ const DishItemDetailsModal = ({
             {isRequirementExpanded("discount-reward") && hasDiscountCustomization && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
-                  Discount item customization:
+                  Discount Item Customization
                 </Text>
                 <TextInput
                   dense
                   value={selectedDiscountCustomizationInput}
                   onChangeText={setSelectedDiscountCustomizationInput}
-                  style={{ backgroundColor: AppColor.white, marginTop: 8 }}
-                  contentStyle={{
-                    minHeight: 100,
-                    fontFamily: Mulish400,
-                    fontSize: 15,
-                  }}
-                  placeholder="Enter special instructions"
-                  placeholderTextColor={AppColor.textPlaceholder}
-                  mode="outlined"
-                  multiline={true}
-                  outlineColor={AppColor.border}
-                  activeOutlineColor={AppColor.primary}
-                  outlineStyle={{ borderRadius: 8 }}
-                  autoCapitalize="sentences"
-                />
-              </View>
-            )}
-
-            {/* Customization Button */}
-            {selectedMenuItem?.allowCustomize && (
-              <View style={styles.actionSheetSection}>
-                <Text style={styles.sectionTitle}>Customization:</Text>
-                <TextInput
-                  dense
-                  value={customizationInput}
-                  onChangeText={setCustomizationInput}
                   style={{ backgroundColor: AppColor.white, marginTop: 8 }}
                   contentStyle={{
                     minHeight: 100,
