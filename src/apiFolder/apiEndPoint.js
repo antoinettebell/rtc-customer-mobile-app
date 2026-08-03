@@ -135,6 +135,17 @@ export const MARKETPLACE_AWARD_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/award`;
 export const MARKETPLACE_EVENT_FINAL_PAYMENT = (event_id) =>
   `/marketplace/events/${event_id}/final-payment`;
+export const MARKETPLACE_TICKET_CHECKOUT = (event_id) =>
+  `/marketplace/events/${event_id}/tickets/checkout`;
+export const MARKETPLACE_TICKET_QUOTE = (event_id) =>
+  `/marketplace/events/${event_id}/tickets/quote`;
+export const MARKETPLACE_SCANNER_SESSION = (event_id) =>
+  `/marketplace/events/${event_id}/tickets/scanner-session`;
+export const MARKETPLACE_CLOSE_SCANNER = (event_id) =>
+  `/marketplace/events/${event_id}/tickets/close-scanner`;
+export const MARKETPLACE_MY_TICKETS = "/marketplace/tickets/my";
+export const MARKETPLACE_TAX_EXEMPTION_CERTIFICATE = (event_id) =>
+  `/marketplace/events/${event_id}/tax-exemption-certificate`;
 export const MARKETPLACE_PAYMENT_BY_ID = (payment_id) =>
   `/marketplace/payments/${payment_id}`;
 export const MARKETPLACE_PAYMENT_CHECKOUT = (payment_id) =>

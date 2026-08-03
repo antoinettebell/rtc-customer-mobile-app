@@ -26,6 +26,7 @@ import {
   closeMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
+  createMarketplaceScannerSession_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
@@ -472,6 +473,28 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     });
   };
 
+  const handleBuyTickets = () => {
+    if (!isSignedIn) {
+      showGuestSignupRequired(navigation);
+      return;
+    }
+    navigation.navigate("marketplaceTicketCheckoutScreen", { event });
+  };
+
+  const handleOpenScanner = async () => {
+    try {
+      const response = await createMarketplaceScannerSession_API(eventId);
+      const scannerUrl = response?.data?.scanner_url;
+      if (!scannerUrl) throw new Error("Scanner link unavailable.");
+      navigation.navigate("marketplaceTicketWebViewScreen", {
+        url: scannerUrl,
+        title: `${event?.event_name || "Event"} Check-In`,
+      });
+    } catch (error) {
+      Alert.alert("Ticket Scanner", error?.message || "Scanner opens at 6:00 a.m. on the event day.");
+    }
+  };
+
   const openImagePreview = (image) => {
     const url =
       typeof image === "string"
@@ -913,6 +936,15 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     if (isPublished || isClosed) {
       return (
         <View style={{ gap: 12 }}>
+          {ticketSalesEnabled ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.button}
+              onPress={handleOpenScanner}
+            >
+              <Text style={styles.buttonText}>Scan Event Tickets</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.button}
@@ -951,6 +983,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       );
     }
 
+	    if (isAwarded && ticketSalesEnabled) {
+      return (
+        <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
+          <Text style={styles.buttonText}>Scan Event Tickets</Text>
+        </TouchableOpacity>
+      );
+    }
+
 	    if (isAwarded) return null;
 
     return null;
@@ -983,13 +1023,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               <Text style={safeStyles.ticketText}>
                 {ticketAvailabilityMessage}
               </Text>
-              {ticketSalesEnabled && ticketUrl ? (
+              {ticketSalesEnabled ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={[styles.button, safeStyles.ticketButton]}
-                  onPress={handleCustomerEventImagePress}
+                  onPress={handleBuyTickets}
                 >
-                  <Text style={styles.buttonText}>View Tickets</Text>
+                  <Text style={styles.buttonText}>Buy Tickets</Text>
                 </TouchableOpacity>
               ) : null}
             </View>

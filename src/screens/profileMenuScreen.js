@@ -340,6 +340,13 @@ const ProfileMenuScreen = ({ navigation }) => {
             />
             <HR />
             <CustomProfileItem
+              imageUri={require("../assets/images/ordersMenuInactive.png")}
+              label="My Tickets"
+              rightIcon={true}
+              onPress={() => navigation.navigate("marketplaceMyTicketsScreen")}
+            />
+            <HR />
+            <CustomProfileItem
               imageUri={require("../assets/images/diet.png")}
               label="Diet Restriction"
               rightIcon={true}

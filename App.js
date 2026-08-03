@@ -70,6 +70,8 @@ import MarketplaceEventMessagesScreen from "./src/screens/marketplaceEventMessag
 import MarketplaceSubmissionDetailsScreen from "./src/screens/marketplaceSubmissionDetailsScreen";
 import MarketplaceNotificationsScreen from "./src/screens/marketplaceNotificationsScreen";
 import MarketplaceTicketWebViewScreen from "./src/screens/marketplaceTicketWebViewScreen";
+import MarketplaceTicketCheckoutScreen from "./src/screens/marketplaceTicketCheckoutScreen";
+import MarketplaceMyTicketsScreen from "./src/screens/marketplaceMyTicketsScreen";
 import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
 import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
 import GlobalSnackbar from "./src/components/GlobalSnackbar";
@@ -321,6 +323,14 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
     <Stack.Screen
       name="marketplaceTicketWebViewScreen"
       component={MarketplaceTicketWebViewScreen}
+    />
+    <Stack.Screen
+      name="marketplaceTicketCheckoutScreen"
+      component={MarketplaceTicketCheckoutScreen}
+    />
+    <Stack.Screen
+      name="marketplaceMyTicketsScreen"
+      component={MarketplaceMyTicketsScreen}
     />
     <Stack.Screen
       name="marketplaceAwardBidsScreen"

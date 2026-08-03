@@ -10,6 +10,9 @@ export const EVENT_TYPES = [
   "Conference",
   "Market",
   "Concert",
+  "Sporting Events",
+  "Theaters / Plays",
+  "Amusement / Attractions",
   "Other",
 ];
 

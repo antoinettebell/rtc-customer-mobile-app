@@ -64,6 +64,12 @@ import {
   MARKETPLACE_PAYMENT_BY_ID,
   MARKETPLACE_PAYMENT_CHECKOUT,
   MARKETPLACE_PAYMENT_CALL,
+  MARKETPLACE_TICKET_CHECKOUT,
+  MARKETPLACE_TICKET_QUOTE,
+  MARKETPLACE_SCANNER_SESSION,
+  MARKETPLACE_CLOSE_SCANNER,
+  MARKETPLACE_MY_TICKETS,
+  MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
 } from "./apiEndPoint";
 import apiClient from "./apiClient";
 import { store } from "../redux/store";
@@ -772,6 +778,12 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "event_description",
   "ticket_sales_enabled",
   "ticket_url",
+  "ga_ticket_quantity",
+  "ga_ticket_price",
+  "vip_ticket_quantity",
+  "vip_ticket_price",
+  "charitable_event",
+  "religious_organization",
   "event_type",
   "event_type_other",
   "event_visibility",
@@ -1119,6 +1131,82 @@ export const callMarketplacePayment_API = async (paymentId) => {
       MARKETPLACE_PAYMENT_CALL(paymentId),
       {},
       { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const checkoutMarketplaceTickets_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_TICKET_CHECKOUT(eventId),
+      payload,
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const quoteMarketplaceTickets_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_TICKET_QUOTE(eventId),
+      payload,
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const createMarketplaceScannerSession_API = async (eventId) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_SCANNER_SESSION(eventId),
+      {},
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const closeMarketplaceScanner_API = async (eventId) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_CLOSE_SCANNER(eventId),
+      {},
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getMarketplaceMyTickets_API = async () => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_MY_TICKETS, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const uploadMarketplaceTaxExemptionCertificate_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_TAX_EXEMPTION_CERTIFICATE(eventId),
+      payload,
+      { formData: true, skipToken: false }
     );
     return response?.data;
   } catch (error) {

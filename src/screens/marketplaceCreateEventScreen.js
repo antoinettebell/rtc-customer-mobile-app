@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import ImagePicker from "react-native-image-crop-picker";
+import { pick, types } from "@react-native-documents/picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -39,6 +40,7 @@ import {
   reopenMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   uploadMarketplaceEventImage_API,
+  uploadMarketplaceTaxExemptionCertificate_API,
 } from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
@@ -52,8 +54,6 @@ import {
   PERMIT_OPTIONS,
   POWER_OPTIONS,
   SERVICE_TYPES,
-  isValidExternalUrl,
-  normalizeExternalUrl,
   styles,
   toggleListValue,
 } from "./marketplaceShared";
@@ -63,6 +63,12 @@ const initialForm = {
   event_description: "",
   ticket_sales_enabled: false,
   ticket_url: "",
+  ga_ticket_quantity: "",
+  ga_ticket_price: "",
+  vip_ticket_quantity: "",
+  vip_ticket_price: "",
+  charitable_event: false,
+  religious_organization: false,
   event_type: "",
   event_visibility: "PRIVATE",
   event_style: "",
@@ -272,9 +278,7 @@ const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
 const getBudgetGuestCount = (form) =>
   Number(form.number_of_guests || 0) +
-  (form.catered_vip_section_enabled
-    ? Number(form.vip_guest_count || 0)
-    : 0);
+  (form.catered_vip_section_enabled ? 0 : Number(form.vip_guest_count || 0));
 const getAutoFoodTruckVendorCount = (form) =>
   Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
 const getAllowedFoodTruckVendorCount = (form) => {
@@ -1339,6 +1343,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const vendorNeedsYRef = useRef(0);
 	  const [form, setForm] = useState(initialForm);
 	  const [eventImages, setEventImages] = useState([]);
+  const [exemptionCertificate, setExemptionCertificate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
@@ -1358,9 +1363,69 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
   );
+  const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(
+    permission.camera
+  );
   const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
     permission.location
   );
+
+  const setCertificateFromImage = (image) => {
+    setExemptionCertificate({
+      uri: image?.path || image?.sourceURL,
+      name: image?.filename || `tax-exemption-${Date.now()}.jpg`,
+      type: image?.mime || "image/jpeg",
+    });
+  };
+
+  const chooseExemptionCertificate = () => {
+    Alert.alert("Add exemption certificate", "Choose a PDF, image, or take a photo.", [
+      {
+        text: "File",
+        onPress: async () => {
+          try {
+            const [document] = await pick({ type: [types.pdf, types.images] });
+            setExemptionCertificate({
+              uri: document.uri,
+              name: document.name || `tax-exemption-${Date.now()}`,
+              type: document.type || "application/octet-stream",
+            });
+          } catch (error) {
+            if (!String(error?.message || "").toLowerCase().includes("cancel")) {
+              setSnackbar({ visible: true, message: "Unable to select the certificate.", type: "error" });
+            }
+          }
+        },
+      },
+      {
+        text: "Camera",
+        onPress: async () => {
+          try {
+            if ((await cameraPermissionStatus()) !== RESULTS.GRANTED) return;
+            setCertificateFromImage(await ImagePicker.openCamera({ mediaType: "photo" }));
+          } catch (error) {
+            if (error?.code !== "E_PICKER_CANCELLED") {
+              setSnackbar({ visible: true, message: "Unable to take the certificate photo.", type: "error" });
+            }
+          }
+        },
+      },
+      {
+        text: "Photo",
+        onPress: async () => {
+          try {
+            if ((await photosPermissionStatus()) !== RESULTS.GRANTED) return;
+            setCertificateFromImage(await ImagePicker.openPicker({ mediaType: "photo" }));
+          } catch (error) {
+            if (error?.code !== "E_PICKER_CANCELLED") {
+              setSnackbar({ visible: true, message: "Unable to select the certificate photo.", type: "error" });
+            }
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
 	  const foodTruckSelected = isFoodTruckService(form);
 	  const savedEventLocationLocked = !!editingEventId && !isReopenMode;
 
@@ -1841,11 +1906,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
-    if (!isValidExternalUrl(form.ticket_url)) {
-      setSnackbar({
-        visible: true,
-        message: "Please enter a valid ticket sales link.",
-      });
+    if (form.ticket_sales_enabled) {
+      const gaQuantity = Number(form.ga_ticket_quantity || 0);
+      const vipQuantity = Number(form.vip_ticket_quantity || 0);
+      if (gaQuantity + vipQuantity < 1) {
+        setSnackbar({ visible: true, message: "Enter at least one GA or VIP ticket." });
+        return false;
+      }
+      if (gaQuantity > Number(form.number_of_guests || 0)) {
+        setSnackbar({ visible: true, message: "GA tickets cannot exceed the number of guests." });
+        return false;
+      }
+      if (vipQuantity > Number(form.vip_guest_count || 0)) {
+        setSnackbar({ visible: true, message: "VIP tickets cannot exceed the number of VIP guests." });
+        return false;
+      }
+    }
+    if ((form.charitable_event || form.religious_organization) && !exemptionCertificate && !form.tax_exemption_certificate_url) {
+      setSnackbar({ visible: true, message: "Upload the State Sales Tax Exemption Certificate." });
       return false;
     }
     if (Number(form.number_of_vendors_needed || 0) < 1) {
@@ -1967,9 +2045,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         form.primary_service_style || form.service_styles[0] || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
       catered_vip_section_enabled: !!form.catered_vip_section_enabled,
-      vip_guest_count: form.catered_vip_section_enabled
-        ? Number(form.vip_guest_count || 0)
-        : 0,
+      vip_guest_count: Number(form.vip_guest_count || 0),
       number_of_vendors_needed:
         isFoodTruckService(form)
           ? getAllowedFoodTruckVendorCount(form)
@@ -1989,7 +2065,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ? 0
           : Number(form.budgeted_amount || 0),
       ticket_sales_enabled: !!form.ticket_sales_enabled,
-      ticket_url: normalizeExternalUrl(form.ticket_url),
+      ticket_url: "",
+      ga_ticket_quantity: form.ticket_sales_enabled ? Number(form.ga_ticket_quantity || 0) : 0,
+      ga_ticket_price: form.ticket_sales_enabled ? Number(form.ga_ticket_price || 0) : 0,
+      vip_ticket_quantity: form.ticket_sales_enabled ? Number(form.vip_ticket_quantity || 0) : 0,
+      vip_ticket_price: form.ticket_sales_enabled ? Number(form.vip_ticket_price || 0) : 0,
+      charitable_event: !!form.charitable_event,
+      religious_organization: !!form.religious_organization,
 	      free_food_provider:
 	        form.free_food_offered === true ? form.free_food_provider.trim() : "",
       vendors_required_to_giveaway_food:
@@ -2039,7 +2121,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
 	      const imagesToUpload = eventImages.filter((image) => !image.uploaded);
 	      const shouldUploadImages = status !== "DRAFT" && eventId && imagesToUpload.length;
-	      if (shouldUploadImages) {
+      if (shouldUploadImages) {
 	        const { failedUploads, uploadedImages } = await uploadEventImagesForEvent(
 	          eventId,
 	          imagesToUpload
@@ -2061,6 +2143,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             ...normalizeExistingEventImages({ images: uploadedImages }),
           ]);
         }
+      }
+      if (status !== "DRAFT" && eventId && exemptionCertificate) {
+        const certificateData = new FormData();
+        certificateData.append("file", exemptionCertificate);
+        await uploadMarketplaceTaxExemptionCertificate_API({
+          eventId,
+          payload: certificateData,
+        });
+        setExemptionCertificate(null);
       }
       const refreshedEventResponse = eventId
         ? await getMarketplaceEventById_API(eventId).catch((error) => {
@@ -3357,13 +3448,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           Is there a catered VIP Section paid for by Coordinator?
         </Text>
       </TouchableOpacity>
-      {form.catered_vip_section_enabled
-        ? renderInput("# of VIP Guests", "vip_guest_count", {
+      {renderInput("# of VIP Guests", "vip_guest_count", {
             keyboardType: "number-pad",
             onChangeText: (value) =>
               updateField("vip_guest_count", value.replace(/\D/g, "")),
-          })
-        : null}
+          })}
     </View>
   );
 
@@ -3415,7 +3504,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           setForm((prev) => ({
             ...prev,
             ticket_sales_enabled: !prev.ticket_sales_enabled,
-            ticket_url: !prev.ticket_sales_enabled ? prev.ticket_url : "",
           }))
         }
       >
@@ -3434,11 +3522,51 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </Text>
       </TouchableOpacity>
 
-      {form.ticket_sales_enabled &&
-        renderInput("Ticket Sales Link", "ticket_url", {
-          placeholder: "example.com/tickets",
-          keyboardType: "url",
-        })}
+      {form.ticket_sales_enabled ? (
+        <>
+          <View style={localStyles.sideBySide}>
+            <View style={localStyles.sideField}>{renderInput("GA Ticket Qty", "ga_ticket_quantity", { keyboardType: "number-pad" })}</View>
+            <View style={localStyles.sideField}>{renderInput("GA Ticket Price", "ga_ticket_price", { keyboardType: "decimal-pad" })}</View>
+          </View>
+          <View style={localStyles.sideBySide}>
+            <View style={localStyles.sideField}>{renderInput("VIP Ticket Qty", "vip_ticket_quantity", { keyboardType: "number-pad" })}</View>
+            <View style={localStyles.sideField}>{renderInput("VIP Ticket Price", "vip_ticket_price", { keyboardType: "decimal-pad" })}</View>
+          </View>
+          <Text style={styles.meta}>Ticket sales remain inside Round Da&apos; Corner. GA and VIP sales cannot exceed their configured guest limits.</Text>
+        </>
+      ) : null}
+
+      <Text style={[styles.label, { marginTop: 18 }]}>Sales Tax Exemption</Text>
+      {[
+        ["charitable_event", "Is this a Charitable Event?"],
+        ["religious_organization", "Is this a Religious Organization?"],
+      ].map(([field, label]) => (
+        <TouchableOpacity
+          key={field}
+          activeOpacity={0.7}
+          style={localStyles.checkboxRow}
+          onPress={() => setForm((previous) => ({
+            ...previous,
+            charitable_event: field === "charitable_event" ? !previous.charitable_event : false,
+            religious_organization: field === "religious_organization" ? !previous.religious_organization : false,
+          }))}
+        >
+          <View style={[localStyles.checkbox, form[field] && localStyles.checkboxActive]}>
+            {form[field] ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}
+          </View>
+          <Text style={localStyles.checkboxLabel}>{label}</Text>
+        </TouchableOpacity>
+      ))}
+      {form.charitable_event || form.religious_organization ? (
+        <>
+          <Text style={styles.meta}>A State Sales Tax Exemption Certificate is required. The event remains hidden until an administrator approves it.</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={chooseExemptionCertificate}>
+            <Text style={styles.secondaryButtonText}>
+              {exemptionCertificate || form.tax_exemption_certificate_url ? "Certificate Selected" : "Add Certificate (File, Camera, or Photo)"}
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : null}
     </View>
   );
 
