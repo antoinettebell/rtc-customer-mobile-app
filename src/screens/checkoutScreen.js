@@ -504,7 +504,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   };
 
   const handleRemove = (item) => {
-    dispatch(removeItemFromOrder({ itemId: item._id }));
+    dispatch(removeItemFromOrder({ itemId: item._cartLineId || item._id }));
   };
 
   const handleConfirmOrder = async () => {
@@ -1111,7 +1111,7 @@ const CheckoutScreen = ({ navigation, route }) => {
               <FlatList
                 scrollEnabled={false}
                 data={order.items}
-                keyExtractor={(item) => item._id}
+                keyExtractor={(item) => item._cartLineId || item._id}
                 contentContainerStyle={styles.screenGenericCard}
                 renderItem={renderItem}
                 ItemSeparatorComponent={() => <Divider />}

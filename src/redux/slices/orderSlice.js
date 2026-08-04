@@ -60,15 +60,21 @@ const orderSlice = createSlice({
         };
       }
 
-      // Check if item already exists in order
-      const existingItemIndex = state.currentOrder.items.findIndex(
-        (i) => i._id === item._id
-      );
+      const forceNewLine = item._forceNewLine === true;
+      const cleanItem = { ...item };
+      delete cleanItem._forceNewLine;
+      const existingItemIndex = forceNewLine
+        ? -1
+        : state.currentOrder.items.findIndex((i) =>
+            cleanItem._cartLineId
+              ? (i._cartLineId || i._id) === cleanItem._cartLineId
+              : i._id === cleanItem._id
+          );
 
       if (existingItemIndex === -1) {
         // Add new item
         state.currentOrder.items.push({
-          ...item,
+          ...cleanItem,
           quantity: 1, // Always start with 1, UI handles minQty check before adding
         });
       } else {
@@ -92,7 +98,8 @@ const orderSlice = createSlice({
     removeItemFromOrder: (state, { payload }) => {
       const { itemId } = payload;
       const itemIndex = state.currentOrder.items.findIndex(
-        (item) => item._id === itemId
+        (item) =>
+          (item._cartLineId || item._id) === itemId || item._id === itemId
       );
 
       if (itemIndex !== -1) {

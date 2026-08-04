@@ -739,8 +739,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const getItemQuantity = (itemId) => {
     if (!isCurrentOrderContext) return 0;
 
-    const orderItem = currentOrder.items.find((item) => item._id === itemId);
-    return orderItem ? orderItem.quantity : 0;
+    return currentOrder.items
+      .filter((item) => item._id === itemId)
+      .reduce((total, item) => total + item.quantity, 0);
   };
 
   const truckLocation = selectedLocation
