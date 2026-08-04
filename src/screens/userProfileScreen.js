@@ -48,10 +48,10 @@ import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const COORDINATOR_PAYMENT_OPTIONS = [
   { label: "Cash App", value: "CASHAPP" },
-  { label: "Zelle", value: "ZELLE" },
   { label: "PayPal", value: "PAYPAL" },
   { label: "Venmo", value: "VENMO" },
-  { label: "Direct Deposit", value: "DIRECT_DEPOSIT" },
+  { label: "ACH", value: "ACH" },
+  { label: "Check", value: "CHECK" },
 ];
 
 const trimAddressValue = (value) => String(value || "").trim();
@@ -208,6 +208,12 @@ const UserProfileScreen = ({ navigation }) => {
     eventCoordinatorDirectDepositAccountNumber,
     setEventCoordinatorDirectDepositAccountNumber,
   ] = useState(user?.eventCoordinatorDirectDepositAccountNumberMasked || "");
+  const [eventCoordinatorBankName, setEventCoordinatorBankName] = useState(user?.eventCoordinatorBankName || "");
+  const [eventCoordinatorBankAddressLine1, setEventCoordinatorBankAddressLine1] = useState(user?.eventCoordinatorBankAddressLine1 || "");
+  const [eventCoordinatorBankAddressLine2, setEventCoordinatorBankAddressLine2] = useState(user?.eventCoordinatorBankAddressLine2 || "");
+  const [eventCoordinatorBankCity, setEventCoordinatorBankCity] = useState(user?.eventCoordinatorBankCity || "");
+  const [eventCoordinatorBankState, setEventCoordinatorBankState] = useState(user?.eventCoordinatorBankState || "");
+  const [eventCoordinatorBankPostal, setEventCoordinatorBankPostal] = useState(user?.eventCoordinatorBankPostal || "");
   const [uploadingCoordinatorQr, setUploadingCoordinatorQr] = useState(false);
   const [coordinatorLoading, setCoordinatorLoading] = useState(false);
   const [coordinatorError, setCoordinatorError] = useState("");
@@ -257,6 +263,12 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorDirectDepositAccountNumber(
         user.eventCoordinatorDirectDepositAccountNumberMasked || ""
       );
+      setEventCoordinatorBankName(user.eventCoordinatorBankName || "");
+      setEventCoordinatorBankAddressLine1(user.eventCoordinatorBankAddressLine1 || "");
+      setEventCoordinatorBankAddressLine2(user.eventCoordinatorBankAddressLine2 || "");
+      setEventCoordinatorBankCity(user.eventCoordinatorBankCity || "");
+      setEventCoordinatorBankState(user.eventCoordinatorBankState || "");
+      setEventCoordinatorBankPostal(user.eventCoordinatorBankPostal || "");
       setIsCoordinatorProfileEditing(false);
       coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
@@ -327,6 +339,12 @@ const UserProfileScreen = ({ navigation }) => {
     setEventCoordinatorDirectDepositAccountNumber(
       user?.eventCoordinatorDirectDepositAccountNumberMasked || ""
     );
+    setEventCoordinatorBankName(user?.eventCoordinatorBankName || "");
+    setEventCoordinatorBankAddressLine1(user?.eventCoordinatorBankAddressLine1 || "");
+    setEventCoordinatorBankAddressLine2(user?.eventCoordinatorBankAddressLine2 || "");
+    setEventCoordinatorBankCity(user?.eventCoordinatorBankCity || "");
+    setEventCoordinatorBankState(user?.eventCoordinatorBankState || "");
+    setEventCoordinatorBankPostal(user?.eventCoordinatorBankPostal || "");
     setCoordinatorError("");
     setIsCoordinatorProfileEditing(false);
   };
@@ -368,13 +386,17 @@ const UserProfileScreen = ({ navigation }) => {
         setCoordinatorError("Select a coordinator payout method");
         return;
       }
-      if (eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT") {
+      if (["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)) {
         if (!eventCoordinatorDirectDepositRoutingNumber.trim()) {
-          setCoordinatorError("Routing number is required for direct deposit");
+          setCoordinatorError("Routing number is required for ACH or check payments");
           return;
         }
         if (!eventCoordinatorDirectDepositAccountNumber.trim()) {
-          setCoordinatorError("Account number is required for direct deposit");
+          setCoordinatorError("Account number is required for ACH or check payments");
+          return;
+        }
+        if (!eventCoordinatorBankName.trim() || !eventCoordinatorBankAddressLine1.trim() || !eventCoordinatorBankCity.trim() || !eventCoordinatorBankState.trim() || !eventCoordinatorBankPostal.trim()) {
+          setCoordinatorError("Complete bank name and address are required");
           return;
         }
       } else if (
@@ -420,19 +442,25 @@ const UserProfileScreen = ({ navigation }) => {
             eventCoordinatorPaymentPreference || null,
           eventCoordinatorPaymentHandle:
             eventCoordinatorPaymentPreference &&
-            eventCoordinatorPaymentPreference !== "DIRECT_DEPOSIT"
+            !["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)
               ? eventCoordinatorPaymentHandle.trim() || null
               : null,
           eventCoordinatorPaymentQrCodeUrl:
             eventCoordinatorPaymentPreference &&
-            eventCoordinatorPaymentPreference !== "DIRECT_DEPOSIT"
+            !["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)
               ? eventCoordinatorPaymentQrCodeUrl || null
               : null,
           eventCoordinatorDirectDepositRoutingNumber:
-            eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT"
+            ["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)
               ? eventCoordinatorDirectDepositRoutingNumber.trim()
               : null,
-          ...(eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT" &&
+          eventCoordinatorBankName,
+          eventCoordinatorBankAddressLine1,
+          eventCoordinatorBankAddressLine2,
+          eventCoordinatorBankCity,
+          eventCoordinatorBankState,
+          eventCoordinatorBankPostal,
+          ...(["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference) &&
           !isMaskedAccountNumber(eventCoordinatorDirectDepositAccountNumber)
             ? {
                 eventCoordinatorDirectDepositAccountNumber:
@@ -1175,8 +1203,11 @@ const UserProfileScreen = ({ navigation }) => {
                       ]}
                       disabled={disabled}
                       onPress={() => {
+                        if (eventCoordinatorPaymentPreference !== option.value) {
+                          setEventCoordinatorPaymentQrCodeUrl("");
+                        }
                         setEventCoordinatorPaymentPreference(option.value);
-                        if (option.value === "DIRECT_DEPOSIT") {
+                        if (["ACH", "CHECK"].includes(option.value)) {
                           setEventCoordinatorPaymentHandle("");
                           setEventCoordinatorPaymentQrCodeUrl("");
                         } else {
@@ -1197,8 +1228,16 @@ const UserProfileScreen = ({ navigation }) => {
                   );
                 })}
               </View>
-              {eventCoordinatorPaymentPreference === "DIRECT_DEPOSIT" ? (
+              {["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference) ? (
                 <>
+                  <TextInput
+                    value={eventCoordinatorBankName}
+                    editable={isCoordinatorProfileEditing}
+                    onChangeText={setEventCoordinatorBankName}
+                    placeholder="Bank Name *"
+                    placeholderTextColor={AppColor.placeholderTextColor}
+                    style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]}
+                  />
                   <TextInput
                     value={eventCoordinatorDirectDepositRoutingNumber}
                     editable={isCoordinatorProfileEditing}
@@ -1252,6 +1291,11 @@ const UserProfileScreen = ({ navigation }) => {
                       {eventCoordinatorDirectDepositAccountNumber.slice(-4)}
                     </Text>
                   ) : null}
+                  <TextInput value={eventCoordinatorBankAddressLine1} editable={isCoordinatorProfileEditing} onChangeText={setEventCoordinatorBankAddressLine1} placeholder="Bank Address *" placeholderTextColor={AppColor.placeholderTextColor} style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]} />
+                  <TextInput value={eventCoordinatorBankAddressLine2} editable={isCoordinatorProfileEditing} onChangeText={setEventCoordinatorBankAddressLine2} placeholder="Bank Address Line 2" placeholderTextColor={AppColor.placeholderTextColor} style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]} />
+                  <TextInput value={eventCoordinatorBankCity} editable={isCoordinatorProfileEditing} onChangeText={setEventCoordinatorBankCity} placeholder="Bank City *" placeholderTextColor={AppColor.placeholderTextColor} style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]} />
+                  <TextInput value={eventCoordinatorBankState} editable={isCoordinatorProfileEditing} onChangeText={setEventCoordinatorBankState} placeholder="Bank State *" placeholderTextColor={AppColor.placeholderTextColor} style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]} />
+                  <TextInput value={eventCoordinatorBankPostal} editable={isCoordinatorProfileEditing} onChangeText={setEventCoordinatorBankPostal} placeholder="Bank Postal Code *" placeholderTextColor={AppColor.placeholderTextColor} style={[styles.coordinatorInput, !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly]} />
                 </>
               ) : eventCoordinatorPaymentPreference ? (
                 <>
