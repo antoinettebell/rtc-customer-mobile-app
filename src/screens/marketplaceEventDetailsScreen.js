@@ -7,6 +7,7 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
+  Share,
   Text,
   TextInput,
   TouchableOpacity,
@@ -27,6 +28,12 @@ import {
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
   createMarketplaceScannerSession_API,
+  closeMarketplaceScanner_API,
+  closeMarketplaceTicketSales_API,
+  createMarketplaceTicketShareLink_API,
+  getMarketplaceTicketSummary_API,
+  cancelMarketplaceTicketedEvent_API,
+  getMarketplaceTicketInvitation_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
@@ -353,13 +360,15 @@ const safeStyles = StyleSheet.create({
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSelector((state) => state.authReducer);
-  const { eventId, customerSafe = false, initialEvent = null } = route.params || {};
+  const { eventId, shareToken, customerSafe = false, initialEvent = null } = route.params || {};
+  const customerView = customerSafe || !!shareToken;
   const [event, setEvent] = useState(initialEvent);
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
+  const [ticketSummary, setTicketSummary] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
@@ -370,7 +379,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   });
 
   const loadQuestions = async () => {
-    if (!eventId || customerSafe) return;
+    if (!eventId || customerView) return;
     try {
       const response = await getMarketplaceEventQuestions_API(eventId);
       if (response?.success) {
@@ -384,13 +393,19 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const loadEvent = async () => {
     setLoading(true);
     try {
-      const response = customerSafe
-        ? await getPublicMarketplaceEventById_API(eventId)
-        : await getMarketplaceEventById_API(eventId);
+      const response = shareToken
+        ? await getMarketplaceTicketInvitation_API(shareToken)
+        : customerSafe
+          ? await getPublicMarketplaceEventById_API(eventId)
+          : await getMarketplaceEventById_API(eventId);
       if (response?.success) {
         setEvent(response.data?.marketplaceEvent);
       }
       await loadQuestions();
+      if (!customerView && eventId) {
+        const summaryResponse = await getMarketplaceTicketSummary_API(eventId).catch(() => null);
+        setTicketSummary(summaryResponse?.data || null);
+      }
     } catch (error) {
       Alert.alert("Event", error?.message || "Failed to load event.");
     } finally {
@@ -401,7 +416,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       loadEvent();
-    }, [eventId, customerSafe])
+    }, [eventId, customerSafe, shareToken])
   );
 
   const imageUrls = getEventImageUrls(event);
@@ -436,13 +451,12 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
     "Ticket availability details are not available in the app yet.";
-  if (ticketSalesEnabled && ticketUrl) {
+  if (ticketSalesEnabled && !event?.ticket_sales_closed_at) {
     ticketAvailabilityMessage = imageUrls.length
-      ? "Tap an event image to preview it, or View Tickets to open tickets."
-      : "Tap View Tickets to open tickets.";
+      ? "Tap an event image to preview it, or select Buy Tickets below."
+      : "Select Buy Tickets below to choose GA or VIP tickets.";
   } else if (ticketSalesEnabled) {
-    ticketAvailabilityMessage =
-      "Tickets are not being sold through the app at this time.";
+    ticketAvailabilityMessage = "Ticket sales are closed for this event.";
   }
 
   const handleCustomerEventImagePress = async () => {
@@ -453,24 +467,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (!ticketUrl) {
-      Alert.alert(
-        "Tickets",
-        "Tickets are not being sold through the app at this time."
-      );
-      return;
-    }
-
     try {
       await trackPublicMarketplaceTicketClick_API(eventId);
     } catch (error) {
       console.log("Marketplace ticket click tracking error", error);
     }
 
-    navigation.navigate("marketplaceTicketWebViewScreen", {
-      url: ticketUrl,
-      title: event?.event_name || "Tickets",
-    });
+    navigation.navigate("marketplaceTicketCheckoutScreen", { event });
   };
 
   const handleBuyTickets = () => {
@@ -494,6 +497,64 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       Alert.alert("Ticket Scanner", error?.message || "Scanner opens at 6:00 a.m. on the event day.");
     }
   };
+
+  const handleShareTickets = async () => {
+    try {
+      const response = await createMarketplaceTicketShareLink_API(event.event_id);
+      const url = response?.data?.share_url;
+      if (!url) throw new Error("Invitation link unavailable.");
+      await Share.share({
+        title: event.event_name,
+        message: `You're invited to ${event.event_name}. Create or sign in to your Round Da' Corner customer profile, then purchase tickets: ${url}`,
+        url,
+      });
+    } catch (error) {
+      Alert.alert("Share Tickets", error?.message || "Unable to create the ticket invitation.");
+    }
+  };
+
+  const handleCloseTicketSales = () => Alert.alert(
+    "Close Ticket Sales",
+    "Customers will no longer be able to purchase tickets. Ticket scanning will remain available until you close check-in.",
+    [
+      { text: "Keep Open", style: "cancel" },
+      { text: "Close Sales", style: "destructive", onPress: async () => {
+        try {
+          const response = await closeMarketplaceTicketSales_API(event.event_id);
+          setEvent(response?.data?.marketplaceEvent || event);
+        } catch (error) { Alert.alert("Close Ticket Sales", error?.message || "Unable to close ticket sales."); }
+      } },
+    ]
+  );
+
+  const handleCancelTicketedEvent = () => Alert.alert(
+    "Cancel Event",
+    "Refunds are due immediately upon cancellation. All ticket buyers will be notified by text and email. Events must be cancelled at least 72 hours before they begin.",
+    [
+      { text: "Do Not Cancel", style: "cancel" },
+      { text: "Cancel & Refund", style: "destructive", onPress: async () => {
+        try {
+          const response = await cancelMarketplaceTicketedEvent_API(event.event_id);
+          setEvent(response?.data?.marketplaceEvent || event);
+          Alert.alert("Event Cancelled", `${response?.data?.refunded_count || 0} refunds issued. ${response?.data?.failed_count || 0} require manual review.`);
+        } catch (error) { Alert.alert("Cancel Event", error?.message || "Unable to cancel the event."); }
+      } },
+    ]
+  );
+
+  const handleCloseCheckIn = () => Alert.alert(
+    "Close Ticket Check-In",
+    "This permanently stops ticket scanning for this event.",
+    [
+      { text: "Keep Open", style: "cancel" },
+      { text: "Close Check-In", style: "destructive", onPress: async () => {
+        try {
+          const response = await closeMarketplaceScanner_API(event.event_id);
+          setEvent(response?.data?.marketplaceEvent || event);
+        } catch (error) { Alert.alert("Close Check-In", error?.message || "Unable to close ticket scanning."); }
+      } },
+    ]
+  );
 
   const openImagePreview = (image) => {
     const url =
@@ -600,7 +661,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </ScrollView>
           </ScrollView>
 
-          {ticketSalesEnabled && ticketUrl ? (
+          {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
             <View
               style={[
                 safeStyles.imagePreviewFooter,
@@ -618,7 +679,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   color={AppColor.white}
                 />
                 <Text style={safeStyles.imagePreviewTicketText}>
-                  View Tickets
+                  Buy Tickets
                 </Text>
               </TouchableOpacity>
             </View>
@@ -937,13 +998,33 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       return (
         <View style={{ gap: 12 }}>
           {ticketSalesEnabled ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.button}
-              onPress={handleOpenScanner}
-            >
-              <Text style={styles.buttonText}>Scan Event Tickets</Text>
-            </TouchableOpacity>
+            <>
+              {!event?.ticket_scanning_closed_at ? (
+                <>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
+                    <Text style={styles.buttonText}>Scan Event Tickets</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseCheckIn}>
+                    <Text style={styles.secondaryButtonText}>Close Ticket Check-In</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {!event?.ticket_sales_closed_at && eventStatus !== "CANCELLED" ? (
+                <>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                    <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
+                    <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {eventStatus !== "CANCELLED" ? (
+                <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
+                  <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>Cancel Event & Refund Tickets</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
           ) : null}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -985,9 +1066,33 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
 	    if (isAwarded && ticketSalesEnabled) {
       return (
-        <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
-          <Text style={styles.buttonText}>Scan Event Tickets</Text>
-        </TouchableOpacity>
+        <View style={{ gap: 12 }}>
+          {!event?.ticket_scanning_closed_at ? (
+            <>
+              <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
+                <Text style={styles.buttonText}>Scan Event Tickets</Text>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseCheckIn}>
+                <Text style={styles.secondaryButtonText}>Close Ticket Check-In</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
+          {!event?.ticket_sales_closed_at ? (
+            <>
+              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
+                <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
+          {eventStatus !== "CANCELLED" ? (
+            <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
+              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>Cancel Event & Refund Tickets</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       );
     }
 
@@ -996,7 +1101,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     return null;
   };
 
-  if (customerSafe) {
+  if (customerView) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBarManager />
@@ -1023,7 +1128,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               <Text style={safeStyles.ticketText}>
                 {ticketAvailabilityMessage}
               </Text>
-              {ticketSalesEnabled ? (
+              {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={[styles.button, safeStyles.ticketButton]}
@@ -1181,6 +1286,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Budgeted Amount"
               value={formatMoney(event?.budgeted_amount)}
             />
+            {ticketSalesEnabled && ticketSummary?.summary ? (
+              <>
+                <DetailRow label="Tickets Sold" value={String(ticketSummary.summary.tickets || 0)} />
+                <DetailRow label="Gross Ticket Sales" value={formatMoney(ticketSummary.summary.gross_ticket_sales)} />
+                <DetailRow label="RTC Ticket Fee (1.5% + $1/ticket)" value={formatMoney(ticketSummary.summary.rtc_processing_fee)} />
+                <DetailRow label="Collected Sales Tax" value={formatMoney(ticketSummary.summary.collected_sales_tax)} />
+                <DetailRow label="Estimated Net Payout" value={formatMoney(ticketSummary.summary.estimated_net_payout)} />
+                <Text style={[styles.meta, { marginTop: 12 }]}>{ticketSummary.payout_notice}</Text>
+              </>
+            ) : null}
             <DetailRow
               label="Catered VIP Section"
               value={event?.catered_vip_section_enabled ? "Yes" : "No"}

@@ -61,6 +61,8 @@ import {
 const initialForm = {
   event_name: "",
   event_description: "",
+  event_vendor_needs: [],
+  event_vendor_electricity_fee: "",
   ticket_sales_enabled: false,
   ticket_url: "",
   ga_ticket_quantity: "",
@@ -324,6 +326,12 @@ const normalizeEventForForm = (event = {}) => ({
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
   equipment_needed: normalizeOptionList(event.equipment_needed),
+  event_vendor_needs: Array.isArray(event.event_vendor_needs)
+    ? event.event_vendor_needs.map((need) => ({ ...need, quantity: String(need.quantity || ""), fee: String(need.fee ?? "") }))
+    : [],
+  event_vendor_electricity_fee: event.event_vendor_electricity_fee != null
+    ? String(event.event_vendor_electricity_fee)
+    : "",
   free_food_offered:
     event.free_food_offered === true || event.free_food_offered === false
       ? event.free_food_offered
@@ -2046,6 +2054,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
       catered_vip_section_enabled: !!form.catered_vip_section_enabled,
       vip_guest_count: Number(form.vip_guest_count || 0),
+      event_vendor_needs: form.event_vendor_needs.map((need) => ({
+        vendor_type: need.vendor_type,
+        quantity: Number(need.quantity || 0),
+        fee: Number(need.fee || 0),
+      })),
+      event_vendor_electricity_fee: Number(form.event_vendor_electricity_fee || 0),
       number_of_vendors_needed:
         isFoodTruckService(form)
           ? getAllowedFoodTruckVendorCount(form)
@@ -3456,6 +3470,25 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const renderEventVendorNeeds = () => {
+    const types = ["MERCHANDISE", "SERVICE", "OTHER"];
+    const updateNeed = (type, field, value) => setForm((current) => {
+      const existing = current.event_vendor_needs.find((need) => need.vendor_type === type);
+      const remaining = current.event_vendor_needs.filter((need) => need.vendor_type !== type);
+      return { ...current, event_vendor_needs: existing ? [...remaining, { ...existing, [field]: value }] : [...remaining, { vendor_type: type, quantity: field === "quantity" ? value : "1", fee: field === "fee" ? value : "0" }] };
+    });
+    const toggle = (type) => setForm((current) => ({ ...current, event_vendor_needs: current.event_vendor_needs.some((need) => need.vendor_type === type) ? current.event_vendor_needs.filter((need) => need.vendor_type !== type) : [...current.event_vendor_needs, { vendor_type: type, quantity: "1", fee: "0" }] }));
+    return <View style={localStyles.fieldGroup}>
+      <Text style={styles.label}>Merchandise / Service / Other Vendors</Text>
+      <Text style={styles.meta}>Select each vendor type needed and enter its independent quantity and event fee.</Text>
+      {types.map((type) => { const need = form.event_vendor_needs.find((item) => item.vendor_type === type); return <View key={type} style={{ marginTop: 12 }}>
+        <TouchableOpacity style={localStyles.checkboxRow} onPress={() => toggle(type)}><View style={[localStyles.checkbox, need && localStyles.checkboxActive]}>{need ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}</View><Text style={localStyles.checkboxLabel}>{type[0] + type.slice(1).toLowerCase()}</Text></TouchableOpacity>
+        {need ? <View style={localStyles.sideBySide}><View style={localStyles.sideField}>{renderInput(`${type} Qty`, `event_vendor_${type}_qty`, { value: need.quantity, keyboardType: "number-pad", onChangeText: (value) => updateNeed(type, "quantity", value.replace(/\D/g, "")) })}</View><View style={localStyles.sideField}>{renderInput(`${type} Fee`, `event_vendor_${type}_fee`, { value: need.fee, keyboardType: "decimal-pad", onChangeText: (value) => updateNeed(type, "fee", value.replace(/[^0-9.]/g, "")) })}</View></View> : null}
+      </View>; })}
+      {form.event_vendor_needs.length ? renderInput("Electricity Hookup Fee", "event_vendor_electricity_fee", { keyboardType: "decimal-pad" }) : null}
+    </View>;
+  };
+
   const renderVisibilityToggle = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Public / Private")}
@@ -3831,6 +3864,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           <View style={localStyles.card}>
             {renderSectionHeader("Vendor Needs", "groups")}
             {renderVendorCountFields()}
+            {renderEventVendorNeeds()}
             {renderFreeFoodQuestions()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}

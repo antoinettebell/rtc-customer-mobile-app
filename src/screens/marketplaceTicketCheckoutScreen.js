@@ -44,7 +44,7 @@ const walletMethod = Platform.OS === "ios"
       supportedMethods: PaymentMethodNameEnum.AndroidPay,
       data: {
         supportedNetworks: [SupportedNetworkEnum.Visa, SupportedNetworkEnum.Mastercard],
-        environment: EnvironmentEnum.PRODUCTION,
+        environment: __DEV__ ? EnvironmentEnum.TEST : EnvironmentEnum.PRODUCTION,
         countryCode: Config.PAYMENT_COUNTRY_CODE,
         currencyCode: Config.PAYMENT_CURRENCY_CODE,
         requestBillingAddress: false,

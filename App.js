@@ -84,6 +84,7 @@ const linking = {
   config: {
     screens: {
       rateTruckScreen: "review",
+      marketplaceEventDetailsScreen: "invite/:shareToken",
     },
   },
 };

@@ -18,6 +18,8 @@ import {
   awardMarketplaceBids_API,
   getMarketplaceEventBids_API,
   getMarketplaceEventById_API,
+  getEventVendorEventApplications_API,
+  awardEventVendorApplication_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 
@@ -46,6 +48,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const [event, setEvent] = useState(null);
   const [bids, setBids] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [eventVendorApplications, setEventVendorApplications] = useState([]);
   const [selectedBidIds, setSelectedBidIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [awarding, setAwarding] = useState(false);
@@ -54,12 +57,16 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [eventRes, bidsRes] = await Promise.all([
+      const [eventRes, bidsRes, eventVendorRes] = await Promise.all([
         getMarketplaceEventById_API(eventId),
         getMarketplaceEventBids_API(eventId),
+        getEventVendorEventApplications_API(eventId),
       ]);
       if (eventRes?.success) {
         setEvent(eventRes.data?.marketplaceEvent);
+      }
+      if (eventVendorRes?.success) {
+        setEventVendorApplications(eventVendorRes.data?.applicationList || []);
       }
       if (bidsRes?.success) {
         const nextBids = bidsRes.data?.marketplaceBidList || [];
@@ -342,6 +349,18 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     event?.status
   );
 
+  const awardEventVendor = (application) => Alert.alert(
+    "Award Marketplace Vendor",
+    `Award ${application.business_name}? The vendor will pay the category/electricity subtotal plus a 3.5% checkout fee.`,
+    [
+      { text: "Cancel", style: "cancel" },
+      { text: "Award", onPress: async () => {
+        try { await awardEventVendorApplication_API(application.application_id); await loadData(); }
+        catch (error) { setSnackbar({ visible: true, message: error?.message || "Unable to award Marketplace Vendor." }); }
+      } },
+    ]
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
@@ -391,6 +410,25 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                       Vendor Applications
                     </Text>
                     {applications.map(renderApplication)}
+                  </View>
+                ) : null}
+                {eventVendorApplications.length ? (
+                  <View>
+                    <Text style={[styles.title, { marginBottom: 10 }]}>Merchandise / Service / Other Applications</Text>
+                    {eventVendorApplications.map((application) => (
+                      <View key={application.application_id} style={styles.card}>
+                        <Text style={styles.title}>{application.business_name}</Text>
+                        <Text style={styles.meta}>{application.vendor_types.join(", ")}</Text>
+                        <Text style={styles.meta}>Offerings: {(application.offering_bullets || []).join(" • ")}</Text>
+                        <Text style={styles.meta}>Category fee: {formatMoney(application.category_fee)} · Electricity: {formatMoney(application.electricity_fee)}</Text>
+                        <Text style={styles.meta}>Photos: {(application.photos || []).length} · Status: {application.status}</Text>
+                        {["SUBMITTED", "UNDER_REVIEW"].includes(application.status) ? (
+                          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => awardEventVendor(application)}>
+                            <Text style={styles.secondaryButtonText}>Award Marketplace Vendor</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    ))}
                   </View>
                 ) : null}
                 <TouchableOpacity

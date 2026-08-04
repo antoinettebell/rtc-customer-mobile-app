@@ -68,6 +68,13 @@ import {
   MARKETPLACE_TICKET_QUOTE,
   MARKETPLACE_SCANNER_SESSION,
   MARKETPLACE_CLOSE_SCANNER,
+  MARKETPLACE_CLOSE_TICKET_SALES,
+  MARKETPLACE_TICKET_SHARE_LINK,
+  MARKETPLACE_TICKET_SUMMARY,
+  MARKETPLACE_CANCEL_TICKETED_EVENT,
+  EVENT_VENDOR_EVENT_APPLICATIONS,
+  EVENT_VENDOR_AWARD_APPLICATION,
+  MARKETPLACE_TICKET_INVITATION,
   MARKETPLACE_MY_TICKETS,
   MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
 } from "./apiEndPoint";
@@ -776,6 +783,8 @@ export const updateDietRestrictList_API = async (payload) => {
 const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "event_name",
   "event_description",
+  "event_vendor_needs",
+  "event_vendor_electricity_fee",
   "ticket_sales_enabled",
   "ticket_url",
   "ga_ticket_quantity",
@@ -1188,6 +1197,53 @@ export const closeMarketplaceScanner_API = async (eventId) => {
   } catch (error) {
     throw error?.response?.data || error;
   }
+};
+
+export const closeMarketplaceTicketSales_API = async (eventId) => {
+  try {
+    const response = await apiClient.post(MARKETPLACE_CLOSE_TICKET_SALES(eventId), {}, { skipToken: false });
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+
+export const createMarketplaceTicketShareLink_API = async (eventId) => {
+  try {
+    const response = await apiClient.post(MARKETPLACE_TICKET_SHARE_LINK(eventId), {}, { skipToken: false });
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+
+export const getMarketplaceTicketSummary_API = async (eventId) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_TICKET_SUMMARY(eventId), { skipToken: false });
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+
+export const cancelMarketplaceTicketedEvent_API = async (eventId) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_CANCEL_TICKETED_EVENT(eventId),
+      { confirm_cancellation: true },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+
+export const getMarketplaceTicketInvitation_API = async (shareToken) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_TICKET_INVITATION(shareToken), { skipToken: false });
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+export const getEventVendorEventApplications_API = async (eventId) => {
+  try { return (await apiClient.get(EVENT_VENDOR_EVENT_APPLICATIONS(eventId), { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const awardEventVendorApplication_API = async (applicationId) => {
+  try { return (await apiClient.post(EVENT_VENDOR_AWARD_APPLICATION(applicationId), {}, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
 };
 
 export const getMarketplaceMyTickets_API = async () => {
