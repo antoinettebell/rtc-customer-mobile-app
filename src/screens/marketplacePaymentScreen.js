@@ -5,6 +5,7 @@ import {
   Linking,
   Platform,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -24,6 +25,7 @@ import {
   callMarketplacePayment_API,
   checkoutMarketplacePayment_API,
   getMarketplacePaymentById_API,
+  updateMarketplaceFinalPaymentTip_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 
@@ -83,6 +85,9 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
   const [payment, setPayment] = useState(route?.params?.payment || null);
   const [loading, setLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(null);
+  const [tipAmount, setTipAmount] = useState(
+    String(route?.params?.payment?.tip_amount || "")
+  );
   const paymentId = route?.params?.paymentId || payment?.payment_id;
   const returnScreen = route?.params?.returnScreen;
   const returnParams = route?.params?.returnParams || {};
@@ -95,6 +100,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
       if (response?.success) {
         const nextPayment = response.data?.marketplacePayment;
         setPayment(nextPayment);
+        setTipAmount(nextPayment?.tip_amount ? String(nextPayment.tip_amount) : "");
         if (nextPayment?.payment_status === "PAID" && returnScreen) {
           navigation.replace(returnScreen, returnParams);
         }
@@ -118,7 +124,21 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
     let paymentRequest;
     let paymentResponse;
     try {
-      const amount = toAmount(payment.total_amount);
+      let checkoutPayment = payment;
+      if (payment.payment_type === "FINAL_EVENT_PAYMENT") {
+        const normalizedTip = Number(tipAmount || 0);
+        if (!Number.isFinite(normalizedTip) || normalizedTip < 0) {
+          Alert.alert("Tip", "Enter a valid tip amount.");
+          return;
+        }
+        const tipResponse = await updateMarketplaceFinalPaymentTip_API({
+          paymentId: payment.payment_id,
+          tipAmount: normalizedTip,
+        });
+        checkoutPayment = tipResponse?.data?.marketplacePayment || payment;
+        setPayment(checkoutPayment);
+      }
+      const amount = toAmount(checkoutPayment.total_amount);
       paymentRequest = new PaymentRequest(
         [Platform.OS === "ios" ? APPLE_PAY_METHOD_DATA : ANDROID_PAY_METHOD_DATA],
         {
@@ -152,6 +172,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
         payload: {
           payment_method: method === "googlePay" ? "GOOGLE_PAY" : "APPLE_PAY",
           payment_data: paymentRawToken,
+          expected_total: Number(checkoutPayment.total_amount || 0),
         },
       });
 
@@ -199,6 +220,8 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
   };
 
   const paid = payment?.payment_status === "PAID";
+  const processing = payment?.payment_status === "PROCESSING";
+  const isFinalEventPayment = payment?.payment_type === "FINAL_EVENT_PAYMENT";
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -221,8 +244,27 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
 
         {loading ? <ActivityIndicator color={AppColor.primary} /> : null}
 
-        {!paid ? (
+        {processing ? (
+          <Text style={[styles.meta, { marginTop: 12 }]}>
+            Payment is processing. Refresh to see the completed status.
+          </Text>
+        ) : null}
+
+        {!paid && !processing ? (
           <>
+            {isFinalEventPayment ? (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={styles.label}>Optional tip</Text>
+                <TextInput
+                  value={tipAmount}
+                  onChangeText={setTipAmount}
+                  editable={!paymentLoading}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  style={styles.input}
+                />
+              </View>
+            ) : null}
             {Platform.OS === "ios" ? (
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -247,15 +289,17 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.secondaryButton}
-              onPress={callRtc}
-            >
-              <Text style={styles.secondaryButtonText}>
-                Call RTC to Complete Payment
-              </Text>
-            </TouchableOpacity>
+            {!isFinalEventPayment ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.secondaryButton}
+                onPress={callRtc}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Call RTC to Complete Payment
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </>
         ) : null}
 

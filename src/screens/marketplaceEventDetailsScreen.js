@@ -34,6 +34,7 @@ import {
   getMarketplaceTicketSummary_API,
   cancelMarketplaceTicketedEvent_API,
   getMarketplaceTicketInvitation_API,
+  createMarketplaceFinalPayment_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
@@ -368,6 +369,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
+  const [finalPaymentLoadingId, setFinalPaymentLoadingId] = useState(null);
   const [ticketSummary, setTicketSummary] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
@@ -937,6 +939,41 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	            record.bid_id || record.application_id || `${record.event_id}-${index}`;
 	          const finalPaymentStatus = record.final_payment_status || "NOT_STARTED";
 	          const awardAmount = getAwardAmount(record, event);
+	          const paymentActionId = record.bid_id || record.application_id;
+	          const eventEndAt = event?.final_payment_timing?.event_end_at
+	            ? new Date(event.final_payment_timing.event_end_at).getTime()
+	            : null;
+	          const eventHasEnded =
+	            Number.isFinite(eventEndAt) && Date.now() >= eventEndAt;
+	          const openFinalPayment = async () => {
+	            setFinalPaymentLoadingId(paymentActionId);
+	            try {
+	              let paymentId = record.final_payment_id;
+	              let payment = null;
+	              if (!paymentId) {
+	                const response = await createMarketplaceFinalPayment_API({
+	                  eventId,
+	                  bidId: record.bid_id,
+	                });
+	                payment = response?.data?.marketplacePayment;
+	                paymentId = payment?.payment_id;
+	              }
+	              if (!paymentId) throw new Error("Final payment was not created.");
+	              navigation.navigate("marketplacePaymentScreen", {
+	                payment,
+	                paymentId,
+	                returnScreen: "marketplaceEventDetailsScreen",
+	                returnParams: { eventId },
+	              });
+	            } catch (error) {
+	              Alert.alert(
+	                "Event Payment",
+	                error?.message || "Unable to open final event payment.",
+	              );
+	            } finally {
+	              setFinalPaymentLoadingId(null);
+	            }
+	          };
 	          return (
 	            <View key={key} style={{ marginTop: 14 }}>
 	              <Text style={styles.label}>{getVendorName(record)}</Text>
@@ -964,6 +1001,26 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	                <Text style={[styles.meta, { marginTop: 8 }]}>
 	                  Final payment has been completed for this award.
 	                </Text>
+	              ) : record.bid_id ? (
+	                <TouchableOpacity
+	                  activeOpacity={0.7}
+	                  onPress={openFinalPayment}
+	                  disabled={!!finalPaymentLoadingId || !eventHasEnded}
+	                  style={[
+	                    styles.button,
+	                    { marginTop: 10, opacity: eventHasEnded ? 1 : 0.5 },
+	                  ]}
+	                >
+	                  {finalPaymentLoadingId === paymentActionId ? (
+	                    <ActivityIndicator color={AppColor.white} />
+	                  ) : (
+	                    <Text style={styles.buttonText}>
+	                      {record.final_payment_id
+	                        ? "Checkout Payment"
+	                        : "Close Event for Payment"}
+	                    </Text>
+	                  )}
+	                </TouchableOpacity>
 	              ) : null}
 	            </View>
 	          );

@@ -164,5 +164,7 @@ export const MARKETPLACE_PAYMENT_BY_ID = (payment_id) =>
   `/marketplace/payments/${payment_id}`;
 export const MARKETPLACE_PAYMENT_CHECKOUT = (payment_id) =>
   `/marketplace/payments/${payment_id}/checkout`;
+export const MARKETPLACE_PAYMENT_TIP = (payment_id) =>
+  `/marketplace/payments/${payment_id}/tip`;
 export const MARKETPLACE_PAYMENT_CALL = (payment_id) =>
   `/marketplace/payments/${payment_id}/call`;
