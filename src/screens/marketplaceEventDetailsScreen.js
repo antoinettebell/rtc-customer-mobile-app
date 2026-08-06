@@ -1357,10 +1357,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Catered VIP Section"
               value={event?.catered_vip_section_enabled ? "Yes" : "No"}
             />
+            <DetailRow
+              label="# of VIP Guests"
+              value={String(event?.vip_guest_count || 0)}
+            />
             {event?.catered_vip_section_enabled ? (
               <DetailRow
-                label="# of VIP Guests"
-                value={String(event?.vip_guest_count || 0)}
+                label="Separate VIP Vendor"
+                value={event?.separate_vip_vendor_required ? "Yes" : "No"}
               />
             ) : null}
             <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />

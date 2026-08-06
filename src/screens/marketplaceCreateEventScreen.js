@@ -112,6 +112,7 @@ const initialForm = {
   free_food_provider: "",
   vendors_required_to_giveaway_food: null,
   catered_vip_section_enabled: false,
+  separate_vip_vendor_required: false,
   vip_guest_count: "",
   cuisine_preferences: [],
   dietary_restrictions: [],
@@ -280,15 +281,21 @@ const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
 const getBudgetGuestCount = (form) =>
   Number(form.number_of_guests || 0) +
-  (form.catered_vip_section_enabled ? 0 : Number(form.vip_guest_count || 0));
-const getAutoFoodTruckVendorCount = (form) =>
+  Number(form.vip_guest_count || 0);
+const getBaseFoodTruckVendorCount = (form) =>
   Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
+const getMinimumFoodTruckVendorCount = (form) =>
+  form.separate_vip_vendor_required ? 2 : 1;
+const getAutoFoodTruckVendorCount = (form) =>
+  getBaseFoodTruckVendorCount(form) +
+  (form.separate_vip_vendor_required ? 1 : 0);
 const getAllowedFoodTruckVendorCount = (form) => {
-  const calculatedCount = getAutoFoodTruckVendorCount(form);
+  const maximumCount = getAutoFoodTruckVendorCount(form);
+  const minimumCount = getMinimumFoodTruckVendorCount(form);
   const requestedCount = Number(form.number_of_vendors_needed);
   return Number.isFinite(requestedCount) && requestedCount >= 1
-    ? Math.min(Math.floor(requestedCount), calculatedCount)
-    : calculatedCount;
+    ? Math.max(minimumCount, Math.min(Math.floor(requestedCount), maximumCount))
+    : maximumCount;
 };
 const getMinimumBudget = (form) => getBudgetGuestCount(form) * 25;
 const normalizeOptionList = (value) => {
@@ -322,6 +329,7 @@ const normalizeEventForForm = (event = {}) => ({
   power_required: normalizeOptionList(event.power_required),
   permits_required: normalizeOptionList(event.permits_required),
   catered_vip_section_enabled: !!event.catered_vip_section_enabled,
+  separate_vip_vendor_required: !!event.separate_vip_vendor_required,
   vip_guest_count: event.vip_guest_count ? String(event.vip_guest_count) : "",
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
@@ -363,6 +371,9 @@ const normalizeEventForForm = (event = {}) => ({
   number_of_vendors_needed: event.number_of_vendors_needed
     ? String(event.number_of_vendors_needed)
     : "",
+	  payment_responsibility: event.catered_vip_section_enabled
+	    ? "BOTH"
+	    : event.payment_responsibility || "COORDINATOR",
 		  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
 		  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
 			});
@@ -1536,9 +1547,20 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
+      if (key === "ga_ticket_quantity" && prev.ticket_sales_enabled) {
+        next.number_of_guests = value;
+      }
+      if (key === "vip_ticket_quantity" && prev.ticket_sales_enabled) {
+        next.vip_guest_count = value;
+      }
       if (
         isFoodTruckService(next) &&
-        ["number_of_guests", "vip_guest_count"].includes(key)
+        [
+          "number_of_guests",
+          "vip_guest_count",
+          "ga_ticket_quantity",
+          "vip_ticket_quantity",
+        ].includes(key)
       ) {
         next.number_of_vendors_needed = String(
           getAutoFoodTruckVendorCount(next)
@@ -2048,6 +2070,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         form.primary_service_style || form.service_styles[0] || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
       catered_vip_section_enabled: !!form.catered_vip_section_enabled,
+      separate_vip_vendor_required:
+        !!form.catered_vip_section_enabled &&
+        !!form.separate_vip_vendor_required,
       vip_guest_count: Number(form.vip_guest_count || 0),
       event_vendor_needs: form.event_vendor_needs.map((need) => ({
         vendor_type: need.vendor_type,
@@ -3284,6 +3309,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             <TouchableOpacity
               key={value}
               activeOpacity={0.7}
+              disabled={form.catered_vip_section_enabled}
               onPress={() => updateField("payment_responsibility", value)}
               style={[styles.chip, active && styles.chipActive]}
             >
@@ -3294,6 +3320,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           );
         })}
       </View>
+      {form.catered_vip_section_enabled ? (
+        <Text style={styles.meta}>
+          Both is required while the coordinator is paying for a catered VIP section.
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -3422,17 +3453,27 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           )}
         </>
       ) : null}
+    </View>
+  );
+
+  const renderVipNeeds = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("VIP Needs")}
       <TouchableOpacity
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
         onPress={() =>
           setForm((prev) => {
+            const enabled = !prev.catered_vip_section_enabled;
             const next = {
               ...prev,
-              catered_vip_section_enabled: !prev.catered_vip_section_enabled,
-              vip_guest_count: !prev.catered_vip_section_enabled
-                ? prev.vip_guest_count
-                : "",
+              catered_vip_section_enabled: enabled,
+              payment_responsibility: enabled
+                ? "BOTH"
+                : prev.payment_responsibility,
+              separate_vip_vendor_required: enabled
+                ? prev.separate_vip_vendor_required
+                : false,
             };
             if (isFoodTruckService(next)) {
               next.number_of_vendors_needed = String(
@@ -3454,14 +3495,54 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           )}
         </View>
         <Text style={localStyles.checkboxLabel}>
-          Is there a catered VIP Section paid for by Coordinator?
+          Is there a catered VIP section paid for by the coordinator?
         </Text>
       </TouchableOpacity>
       {renderInput("# of VIP Guests", "vip_guest_count", {
-            keyboardType: "number-pad",
-            onChangeText: (value) =>
-              updateField("vip_guest_count", value.replace(/\D/g, "")),
-          })}
+        editable: !form.ticket_sales_enabled,
+        keyboardType: "number-pad",
+        onChangeText: (value) =>
+          updateField("vip_guest_count", value.replace(/\D/g, "")),
+      })}
+      {form.catered_vip_section_enabled ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={localStyles.checkboxRow}
+          onPress={() =>
+            setForm((prev) => {
+              const required = !prev.separate_vip_vendor_required;
+              const currentCount = Number(prev.number_of_vendors_needed || 1);
+              const next = {
+                ...prev,
+                separate_vip_vendor_required: required,
+                number_of_vendors_needed: String(
+                  Math.max(1, currentCount + (required ? 1 : -1))
+                ),
+              };
+              if (isFoodTruckService(next)) {
+                next.number_of_vendors_needed = String(
+                  getAllowedFoodTruckVendorCount(next)
+                );
+              }
+              return next;
+            })
+          }
+        >
+          <View
+            style={[
+              localStyles.checkbox,
+              form.separate_vip_vendor_required && localStyles.checkboxActive,
+            ]}
+          >
+            {form.separate_vip_vendor_required ? (
+              <MaterialIcons name="check" size={16} color={AppColor.white} />
+            ) : null}
+          </View>
+          <Text style={localStyles.checkboxLabel}>
+            Do you need a separate vendor for the catered VIP section?
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -3532,6 +3613,22 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           setForm((prev) => ({
             ...prev,
             ticket_sales_enabled: !prev.ticket_sales_enabled,
+            number_of_guests: prev.ticket_sales_enabled
+              ? prev.ga_ticket_quantity
+              : "",
+            vip_guest_count: prev.ticket_sales_enabled
+              ? prev.vip_ticket_quantity
+              : "",
+            ga_ticket_quantity: prev.ticket_sales_enabled
+              ? ""
+              : prev.ga_ticket_quantity,
+            ga_ticket_price: prev.ticket_sales_enabled ? "" : prev.ga_ticket_price,
+            vip_ticket_quantity: prev.ticket_sales_enabled
+              ? ""
+              : prev.vip_ticket_quantity,
+            vip_ticket_price: prev.ticket_sales_enabled
+              ? ""
+              : prev.vip_ticket_price,
           }))
         }
       >
@@ -3553,11 +3650,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       {form.ticket_sales_enabled ? (
         <>
           <View style={localStyles.sideBySide}>
-            <View style={localStyles.sideField}>{renderInput("GA Ticket Qty", "ga_ticket_quantity", { keyboardType: "number-pad" })}</View>
+            <View style={localStyles.sideField}>{renderInput("GA Ticket Qty", "ga_ticket_quantity", { keyboardType: "number-pad", onChangeText: (value) => updateField("ga_ticket_quantity", value.replace(/\D/g, "")) })}</View>
             <View style={localStyles.sideField}>{renderInput("GA Ticket Price", "ga_ticket_price", { keyboardType: "decimal-pad" })}</View>
           </View>
           <View style={localStyles.sideBySide}>
-            <View style={localStyles.sideField}>{renderInput("VIP Ticket Qty", "vip_ticket_quantity", { keyboardType: "number-pad" })}</View>
+            <View style={localStyles.sideField}>{renderInput("VIP Ticket Qty", "vip_ticket_quantity", { keyboardType: "number-pad", onChangeText: (value) => updateField("vip_ticket_quantity", value.replace(/\D/g, "")) })}</View>
             <View style={localStyles.sideField}>{renderInput("VIP Ticket Price", "vip_ticket_price", { keyboardType: "decimal-pad" })}</View>
           </View>
           <Text style={styles.meta}>Ticket sales remain inside Round Da&apos; Corner. GA and VIP sales cannot exceed their configured guest limits.</Text>
@@ -3732,6 +3829,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     <View style={localStyles.sideBySide}>
       <View style={localStyles.sideField}>
         {renderInput("Guests *", "number_of_guests", {
+          editable: !form.ticket_sales_enabled,
           keyboardType: "number-pad",
         })}
       </View>
@@ -3747,9 +3845,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             updateField(
               "number_of_vendors_needed",
               String(
-                Math.min(
-                  Number(digits),
-                  getAutoFoodTruckVendorCount(form)
+                Math.max(
+                  getMinimumFoodTruckVendorCount(form),
+                  Math.min(
+                    Number(digits),
+                    getAutoFoodTruckVendorCount(form)
+                  )
                 )
               )
             );
@@ -3757,7 +3858,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
-            Vendors needed is calculated automatically at one vendor per 100 guests.
+            Vendors needed is limited to one per 100 combined regular and VIP guests
+            {form.separate_vip_vendor_required
+              ? ", plus the dedicated VIP vendor."
+              : "."}
           </Text>
         ) : (
           <Text style={styles.meta}>
@@ -3861,6 +3965,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {renderVendorCountFields()}
             {renderEventVendorNeeds()}
             {renderFreeFoodQuestions()}
+            {renderVipNeeds()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
             {renderBoolean("Alcohol Required", "alcohol_required")}
@@ -3891,7 +3996,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	              <Text style={styles.meta}>
 	                Minimum budget for this paid guest count is $
 	                {getMinimumBudget(form).toFixed(2)}
-                  {form.catered_vip_section_enabled
+                  {Number(form.vip_guest_count || 0) > 0
                     ? " based on regular and VIP guests."
                     : "."}
 	              </Text>
