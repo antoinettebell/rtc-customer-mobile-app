@@ -131,10 +131,10 @@ const AuthRequiredScreen = ({ title }) => {
   );
 };
 
-const AuthNavigator = () => (
+const AuthNavigator = ({ initialRouteName = "splash" }) => (
   <Stack.Navigator
     screenOptions={{ headerShown: false }}
-    initialRouteName="splash"
+    initialRouteName={initialRouteName}
   >
     <Stack.Screen name="splash" component={SplashScreen} />
     <Stack.Screen name="authIntro" component={AuthIntroScreen} />
@@ -353,13 +353,15 @@ const configureNotification = async () => {
 
 const App = () => {
   const insets = useSafeAreaInsets();
-  const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
+  const { isSignedIn, isGuest, authReturnRoute } = useSelector(
+    (state) => state.authReducer
+  );
   const { allLocations } = useSelector((state) => state.locationReducer);
   const navigationSessionKey = isSignedIn
     ? "signed-in"
     : isGuest
       ? "guest"
-      : "authentication";
+      : `authentication-${authReturnRoute || "splash"}`;
 
   useEffect(() => {
     configureNotification();
@@ -383,7 +385,7 @@ const App = () => {
           }
         />
       ) : (
-        <AuthNavigator />
+        <AuthNavigator initialRouteName={authReturnRoute || "splash"} />
       )}
     </NavigationContainer>
   );
