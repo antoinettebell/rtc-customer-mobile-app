@@ -416,6 +416,7 @@ export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
     const URL = GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
     const response = await apiClient.get(URL, {
       skipToken: !isSignedIn,
+      params: { refreshedAt: Date.now() },
     });
     return response?.data;
   } catch (error) {

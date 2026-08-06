@@ -169,19 +169,19 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const isFavoriteToggleLoading =
     favoritesActionLoading[foodTruckDetail?._id] || false;
 
-  useEffect(() => {
-    if (item?._id) {
-      fetchFoodTruckDetails();
-      fetchMenuDetails();
-    }
-  }, [item?._id]); // Re-fetch when item changes
-
   useFocusEffect(
     useCallback(() => {
+      if (!item?._id) return undefined;
+      fetchFoodTruckDetails();
+      fetchMenuDetails();
       if (isSignedIn) {
         dispatch(fetchFavorites());
-      } // Fetch favorites whenever the screen is focused
-    }, [dispatch])
+      }
+      const menuRefreshInterval = setInterval(() => {
+        fetchMenuDetails(false);
+      }, 15000);
+      return () => clearInterval(menuRefreshInterval);
+    }, [dispatch, isSignedIn, item?._id])
   );
 
   const fetchFoodTruckDetails = async () => {
@@ -199,8 +199,8 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  const fetchMenuDetails = async () => {
-    setMenuLoading(true);
+  const fetchMenuDetails = async (showLoading = true) => {
+    if (showLoading) setMenuLoading(true);
     try {
       const response = await getFoodTruckMenuDetailById_API(item?._id);
       console.log("response => ", response);
@@ -211,11 +211,18 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
           (a, b) => (b.popularDish ? 1 : 0) - (a.popularDish ? 1 : 0)
         );
         processMenuItems(menuItems);
+        setSelectedMenuItem((current) => {
+          if (!current?._id) return current;
+          const refreshedItem = menuItems.find(
+            (menuItem) => menuItem._id === current._id
+          );
+          return refreshedItem ? { ...current, ...refreshedItem } : current;
+        });
       }
     } catch (error) {
       console.error("Error fetching menu details:", error);
     } finally {
-      setMenuLoading(false);
+      if (showLoading) setMenuLoading(false);
     }
   };
 
