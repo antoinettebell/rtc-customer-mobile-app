@@ -1089,6 +1089,42 @@ const UserProfileScreen = ({ navigation }) => {
                   placeholderTextColor={AppColor.placeholderTextColor}
                   style={[styles.coordinatorInput, styles.coordinatorInputReadOnly]}
                 />
+              ) : eventCoordinatorAddressLine1 &&
+                (eventCoordinatorFormattedAddress ||
+                  eventCoordinatorAddressCity ||
+                  eventCoordinatorAddressState ||
+                  eventCoordinatorAddressZip) ? (
+                <View style={styles.coordinatorAddressSelection}>
+                  <View style={styles.coordinatorAddressSelectionCopy}>
+                    <Text style={styles.coordinatorAddressSelectionLabel}>Selected address</Text>
+                    <Text style={styles.coordinatorAddressSelectionText}>
+                      {eventCoordinatorFormattedAddress ||
+                        [
+                          eventCoordinatorAddressLine1,
+                          eventCoordinatorAddressLine2,
+                          eventCoordinatorAddressCity,
+                          eventCoordinatorAddressState,
+                          eventCoordinatorAddressZip,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEventCoordinatorAddressLine1("");
+                      setEventCoordinatorAddressLine2("");
+                      setEventCoordinatorAddressCity("");
+                      setEventCoordinatorAddressState("");
+                      setEventCoordinatorAddressZip("");
+                      setEventCoordinatorFormattedAddress("");
+                      setEventCoordinatorPlaceId("");
+                    }}
+                    style={styles.coordinatorAddressChangeButton}
+                  >
+                    <Text style={styles.coordinatorAddressChangeText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.placesWrapper}>
                   <GooglePlacesAutocomplete
@@ -1102,15 +1138,17 @@ const UserProfileScreen = ({ navigation }) => {
                     minLength={2}
                     timeout={20000}
                     onPress={(data, details) => {
-                      if (!details) return;
-                      const address = parseUsAddressFromGooglePlace({ data, details });
+                      const address = parseUsAddressFromGooglePlace({
+                        data,
+                        details,
+                        fallbackAddress: data?.description,
+                      });
                       setEventCoordinatorAddressLine1(address.line1);
                       setEventCoordinatorAddressCity(address.city);
                       setEventCoordinatorAddressState(address.state);
                       setEventCoordinatorAddressZip(address.zip);
                       setEventCoordinatorFormattedAddress(address.formattedAddress);
                       setEventCoordinatorPlaceId(address.placeId);
-                      coordinatorAddressRef.current?.setAddressText(address.line1);
                     }}
                     onFail={(error) => {
                       console.log("Google Places coordinator profile address error", error);
@@ -1122,7 +1160,6 @@ const UserProfileScreen = ({ navigation }) => {
                       components: "country:us",
                     }}
                     textInputProps={{
-                      value: eventCoordinatorAddressLine1,
                       placeholderTextColor: AppColor.placeholderTextColor,
                       returnKeyType: "search",
                       onChangeText: (value) => {
@@ -1643,6 +1680,39 @@ const styles = StyleSheet.create({
   },
   coordinatorInputReadOnly: {
     backgroundColor: AppColor.screenBg,
+  },
+  coordinatorAddressSelection: {
+    alignItems: "center",
+    backgroundColor: AppColor.screenBg,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    minHeight: 58,
+    padding: 10,
+  },
+  coordinatorAddressSelectionCopy: {
+    flex: 1,
+  },
+  coordinatorAddressSelectionLabel: {
+    color: AppColor.subText,
+    fontFamily: Mulish600,
+    fontSize: 11,
+  },
+  coordinatorAddressSelectionText: {
+    color: AppColor.text,
+    fontFamily: Mulish400,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  coordinatorAddressChangeButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  coordinatorAddressChangeText: {
+    color: AppColor.primary,
+    fontFamily: Mulish700,
+    fontSize: 13,
   },
   coordinatorControlReadOnly: {
     opacity: 0.7,
