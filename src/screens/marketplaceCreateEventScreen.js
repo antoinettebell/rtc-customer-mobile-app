@@ -335,7 +335,7 @@ const normalizeEventForForm = (event = {}) => ({
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
   equipment_needed: normalizeOptionList(event.equipment_needed),
   event_vendor_needs: Array.isArray(event.event_vendor_needs)
-    ? event.event_vendor_needs.map((need) => ({ ...need, quantity: String(need.quantity || ""), fee: String(need.fee ?? "") }))
+    ? event.event_vendor_needs.map((need) => ({ ...need, type_description: need.type_description || "", quantity: String(need.quantity || ""), fee: String(need.fee ?? "") }))
     : [],
   event_vendor_electricity_fee: event.event_vendor_electricity_fee != null
     ? String(event.event_vendor_electricity_fee)
@@ -1958,6 +1958,20 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
+    if (status !== "DRAFT") {
+      const missingVendorDescription = form.event_vendor_needs.find(
+        (need) =>
+          ["SERVICE", "OTHER"].includes(need.vendor_type) &&
+          !String(need.type_description || "").trim(),
+      );
+      if (missingVendorDescription) {
+        setSnackbar({
+          visible: true,
+          message: `Please specify the ${missingVendorDescription.vendor_type.toLowerCase()} vendor type.`,
+        });
+        return false;
+      }
+    }
     const eventDateTime = combineFormDateTime(form.event_date, form.event_time, true);
     const closeDateTime = combineFormDateTime(
       form.event_close_date,
@@ -2076,6 +2090,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       vip_guest_count: Number(form.vip_guest_count || 0),
       event_vendor_needs: form.event_vendor_needs.map((need) => ({
         vendor_type: need.vendor_type,
+        type_description: ["SERVICE", "OTHER"].includes(need.vendor_type)
+          ? String(need.type_description || "").trim()
+          : null,
         quantity: Number(need.quantity || 0),
         fee: Number(need.fee || 0),
       })),
@@ -3551,14 +3568,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     const updateNeed = (type, field, value) => setForm((current) => {
       const existing = current.event_vendor_needs.find((need) => need.vendor_type === type);
       const remaining = current.event_vendor_needs.filter((need) => need.vendor_type !== type);
-      return { ...current, event_vendor_needs: existing ? [...remaining, { ...existing, [field]: value }] : [...remaining, { vendor_type: type, quantity: field === "quantity" ? value : "1", fee: field === "fee" ? value : "0" }] };
+      return { ...current, event_vendor_needs: existing ? [...remaining, { ...existing, [field]: value }] : [...remaining, { vendor_type: type, type_description: field === "type_description" ? value : "", quantity: field === "quantity" ? value : "1", fee: field === "fee" ? value : "0" }] };
     });
-    const toggle = (type) => setForm((current) => ({ ...current, event_vendor_needs: current.event_vendor_needs.some((need) => need.vendor_type === type) ? current.event_vendor_needs.filter((need) => need.vendor_type !== type) : [...current.event_vendor_needs, { vendor_type: type, quantity: "1", fee: "0" }] }));
+    const toggle = (type) => setForm((current) => ({ ...current, event_vendor_needs: current.event_vendor_needs.some((need) => need.vendor_type === type) ? current.event_vendor_needs.filter((need) => need.vendor_type !== type) : [...current.event_vendor_needs, { vendor_type: type, type_description: "", quantity: "1", fee: "0" }] }));
     return <View style={localStyles.fieldGroup}>
       <Text style={styles.label}>Merchandise / Service / Other Vendors</Text>
       <Text style={styles.meta}>Select each vendor type needed and enter its independent quantity and event fee.</Text>
       {types.map((type) => { const need = form.event_vendor_needs.find((item) => item.vendor_type === type); return <View key={type} style={{ marginTop: 12 }}>
         <TouchableOpacity style={localStyles.checkboxRow} onPress={() => toggle(type)}><View style={[localStyles.checkbox, need && localStyles.checkboxActive]}>{need ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}</View><Text style={localStyles.checkboxLabel}>{type[0] + type.slice(1).toLowerCase()}</Text></TouchableOpacity>
+        {need && ["SERVICE", "OTHER"].includes(type) ? renderInput(`Specify ${type === "SERVICE" ? "Service" : "Other Vendor"} Type *`, `event_vendor_${type}_description`, { value: need.type_description || "", maxLength: 250, placeholder: type === "SERVICE" ? "Example: Attorneys or insurance company" : "Describe the vendor type", onChangeText: (value) => updateNeed(type, "type_description", value) }) : null}
         {need ? <View style={localStyles.sideBySide}><View style={localStyles.sideField}>{renderInput(`${type} Qty`, `event_vendor_${type}_qty`, { value: need.quantity, keyboardType: "number-pad", onChangeText: (value) => updateNeed(type, "quantity", value.replace(/\D/g, "")) })}</View><View style={localStyles.sideField}>{renderInput(`${type} Fee`, `event_vendor_${type}_fee`, { value: need.fee, keyboardType: "decimal-pad", onChangeText: (value) => updateNeed(type, "fee", value.replace(/[^0-9.]/g, "")) })}</View></View> : null}
       </View>; })}
       {form.event_vendor_needs.length ? renderInput("Electricity Hookup Fee", "event_vendor_electricity_fee", { keyboardType: "decimal-pad" }) : null}

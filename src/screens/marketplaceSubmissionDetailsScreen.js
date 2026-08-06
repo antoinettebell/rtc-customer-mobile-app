@@ -161,6 +161,18 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             label="Proposal Bid Amount"
             value={formatMoney(submission.full_bid_amount || submission.vendor_fee_amount)}
           />
+          {submission.guest_coverage ? (
+            <DetailRow
+              label="Guest Coverage"
+              value={submission.guest_coverage === "VIP" ? "VIP Guests" : submission.guest_coverage === "BOTH" ? "Regular & VIP Guests" : "Regular Guests"}
+            />
+          ) : null}
+          {submission.guest_coverage === "BOTH" ? (
+            <>
+              <DetailRow label="Regular Guests Amount" value={formatMoney(submission.regular_guest_amount)} />
+              <DetailRow label="VIP Catering Amount" value={formatMoney(submission.vip_catering_amount)} />
+            </>
+          ) : null}
           <DetailRow
             label="Price Per Guest"
             value={

@@ -128,6 +128,19 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       });
       return;
     }
+    const selectedBids = bids.filter((bid) => selectedBidIds.includes(bid.bid_id));
+    const requiredCount = Math.max(1, Number(event?.number_of_vendors_needed || 1));
+    const minimumCount = Math.max(
+      1,
+      requiredCount - (selectedBids.some((bid) => bid.guest_coverage === "BOTH") ? 1 : 0),
+    );
+    if (selectedBidIds.length < minimumCount) {
+      setSnackbar({
+        visible: true,
+        message: `Select at least ${minimumCount} vendor(s). One fewer is allowed only when a selected bid covers Both Regular and VIP Guests.`,
+      });
+      return;
+    }
 
     Alert.alert(
       "Award Vendors",
@@ -206,6 +219,16 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.title}>{getVendorName(item)}</Text>
             <Text style={styles.meta}>Bid {formatMoney(item.full_bid_amount)}</Text>
+            {event?.catered_vip_section_enabled ? (
+              <Text style={styles.meta}>
+                Coverage: {item.guest_coverage === "VIP" ? "VIP Guests" : item.guest_coverage === "BOTH" ? "Regular & VIP Guests" : "Regular Guests"}
+              </Text>
+            ) : null}
+            {item.guest_coverage === "BOTH" ? (
+              <Text style={styles.meta}>
+                Regular: {formatMoney(item.regular_guest_amount)} · VIP Catering: {formatMoney(item.vip_catering_amount)}
+              </Text>
+            ) : null}
             <Text style={styles.meta}>
               Round {item.submission_round || 1}
               {item.archived_at ? " • Previous submission" : ""}
