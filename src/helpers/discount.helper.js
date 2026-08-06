@@ -260,6 +260,14 @@ export const calculateItemTotalWithDiscount = (item) => {
   return roundCurrency(total);
 };
 
+export const calculateOrderSubtotal = (items = []) =>
+  roundCurrency(
+    (Array.isArray(items) ? items : []).reduce(
+      (sum, item) => sum + calculateItemTotalWithDiscount(item),
+      0
+    )
+  );
+
 export const getRewardItemsDisplay = (item, quantityToUseArg) => {
   const safeItem = item || {};
   const quantityToUse =

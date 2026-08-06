@@ -18,11 +18,7 @@ const initialState = {
   orderHistory: [],
 };
 
-import { calculateItemTotalWithDiscount } from "../../helpers/discount.helper";
-
-const calculateItemTotal = (item) => {
-  return calculateItemTotalWithDiscount(item);
-};
+import { calculateOrderSubtotal } from "../../helpers/discount.helper";
 
 const orderSlice = createSlice({
   name: "order",
@@ -87,9 +83,8 @@ const orderSlice = createSlice({
         (sum, orderItem) => sum + (Number(orderItem.quantity) || 0),
         0
       );
-      state.currentOrder.subtotal = state.currentOrder.items.reduce(
-        (sum, item) => sum + calculateItemTotal(item),
-        0
+      state.currentOrder.subtotal = calculateOrderSubtotal(
+        state.currentOrder.items
       );
       state.currentOrder.lastUpdate = new Date().toISOString();
     },
@@ -116,9 +111,8 @@ const orderSlice = createSlice({
           (sum, item) => sum + item.quantity,
           0
         );
-        state.currentOrder.subtotal = state.currentOrder.items.reduce(
-          (sum, item) => sum + calculateItemTotal(item),
-          0
+        state.currentOrder.subtotal = calculateOrderSubtotal(
+          state.currentOrder.items
         );
 
         // If no items left, reset the order
@@ -183,10 +177,7 @@ const orderSlice = createSlice({
         (sum, item) => sum + (Number(item.quantity) || 0),
         0
       );
-      state.currentOrder.subtotal = updatedItems.reduce(
-        (sum, item) => sum + calculateItemTotal(item),
-        0
-      );
+      state.currentOrder.subtotal = calculateOrderSubtotal(updatedItems);
     },
 
     updateItemProperty: (state, { payload }) => {
@@ -220,9 +211,8 @@ const orderSlice = createSlice({
             "selectedSubItems",
           ].includes(keyName)
         ) {
-          state.currentOrder.subtotal = state.currentOrder.items.reduce(
-            (sum, item) => sum + calculateItemTotal(item),
-            0
+          state.currentOrder.subtotal = calculateOrderSubtotal(
+            state.currentOrder.items
           );
         }
         state.currentOrder.lastUpdate = new Date().toISOString();

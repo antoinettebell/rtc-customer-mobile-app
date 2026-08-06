@@ -46,6 +46,7 @@ import { updateOrderItems } from "../helpers/order.helper";
 import {
   getRewardItemsDisplay,
   calculateItemTotalWithDiscount,
+  calculateOrderSubtotal,
   calculateSelectedOptionCost,
 } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
@@ -354,7 +355,10 @@ const CheckoutScreen = ({ navigation, route }) => {
   const [preventAPI, setPreventAPI] = useState(false);
   const [driverTip, setDriverTip] = useState(0);
 
-  const subtotal = useMemo(() => order.subtotal, [order.subtotal]);
+  const subtotal = useMemo(
+    () => calculateOrderSubtotal(order.items),
+    [order.items],
+  );
   const debouncedSubtotal = useDebounce(subtotal, 1000);
   const isDelivery = pickupSource === "delivery";
   const fulfillmentType = isDelivery ? "DELIVERY" : "PICKUP";
