@@ -2336,14 +2336,27 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           return;
         }
         if (options.navigateToDetails && eventId) {
-          if (options.replaceDetails) {
-            navigation.replace("marketplaceEventDetailsScreen", { eventId });
-            return;
-          }
-          navigation.navigate("marketplaceEventDetailsScreen", { eventId });
+          navigation.reset({
+            index: 1,
+            routes: [
+              {
+                name: "bottomRoot",
+                params: { screen: "marketplaceMyEventsTab" },
+              },
+              { name: "marketplaceEventDetailsScreen", params: { eventId } },
+            ],
+          });
           return;
         }
-        navigation.navigate("marketplaceMyEventsScreen");
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: "bottomRoot",
+              params: { screen: "marketplaceMyEventsTab" },
+            },
+          ],
+        });
       }, 600);
       return true;
     } catch (error) {
