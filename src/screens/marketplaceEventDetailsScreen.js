@@ -85,6 +85,29 @@ const listValue = (value) =>
 const boolValue = (value) =>
   value === true ? "Yes" : value === false ? "No" : "Not answered";
 
+const formatStatusLabel = (value, fallback = "Not set") => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return fallback;
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+const getAwardedVendorPaymentLabel = (event, status) => {
+  const rawStatus = status || "NOT_REQUIRED";
+  const coordinatorPays = ["COORDINATOR", "BOTH"].includes(
+    event?.payment_responsibility
+  );
+  if (
+    coordinatorPays &&
+    ["NOT_REQUIRED", "NOT_STARTED"].includes(rawStatus)
+  ) {
+    return "Pending Event Closing";
+  }
+  return formatStatusLabel(rawStatus);
+};
+
 const normalizeEventImageUrls = (images) => {
   const list = Array.isArray(images) ? images : images ? [images] : [];
   return list
@@ -981,7 +1004,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	                Award Amount: {formatMoney(awardAmount)}
 	              </Text>
 	              <Text style={styles.meta}>
-	                Final Payment: {finalPaymentStatus}
+	                Final Payment: {getAwardedVendorPaymentLabel(event, finalPaymentStatus)}
 	              </Text>
 	              {documents.length ? (
 	                documents.map((document) => (
@@ -1338,7 +1361,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           {renderCollapsibleSection("budget", "Budget", (
             <>
             <DetailRow label="Vendor Fee" value={formatMoney(event?.vendor_fee)} />
-            <DetailRow label="Who Pays" value={event?.payment_responsibility || "Not set"} />
+            <DetailRow
+              label="Who Pays"
+              value={formatStatusLabel(event?.payment_responsibility)}
+            />
             <DetailRow
               label="Budgeted Amount"
               value={formatMoney(event?.budgeted_amount)}
@@ -1389,12 +1415,15 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             />
 	            <DetailRow
 	              label="Awarded Vendor Payment"
-	              value={event?.final_payment_status || "NOT_REQUIRED"}
+	              value={getAwardedVendorPaymentLabel(
+	                event,
+	                event?.final_payment_status
+	              )}
 	            />
 	            {event?.agreement_status && event.agreement_status !== "NOT_REQUIRED" ? (
 	              <DetailRow
 	                label="Agreement"
-	                value={event.agreement_status}
+	                value={formatStatusLabel(event.agreement_status)}
 	              />
 	            ) : null}
             </>

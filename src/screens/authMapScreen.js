@@ -40,6 +40,7 @@ import {
   setAllLocations,
   setDefaultLocation,
 } from "../redux/slices/locationSlice";
+import { onGuest } from "../redux/slices/authSlice";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 
@@ -88,7 +89,7 @@ const AuthMapScreen = ({ navigation, route }) => {
   const searchTxtRef = useRef(null);
   const mapRef = useRef(null); // Ref for the MapView
 
-  const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
   const { selectedLocations } = useSelector(
     (state) => state.foodTruckProfileReducer
   );
@@ -108,6 +109,29 @@ const AuthMapScreen = ({ navigation, route }) => {
   const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
     permission.location
   );
+
+  const returnFromLocation = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.replace("bottomRoot");
+  };
+
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    if (isGuest) {
+      dispatch(onGuest(false));
+      return;
+    }
+
+    navigation.replace("bottomRoot");
+  };
 
   const onSearchPress = () => {
     if (searchTxtRef?.current) {
@@ -348,7 +372,7 @@ const AuthMapScreen = ({ navigation, route }) => {
           if (hideBackBtn) {
             navigation.replace("bottomRoot");
           } else {
-            navigation.goBack();
+            returnFromLocation();
           }
         }
       } catch (error) {
@@ -369,7 +393,7 @@ const AuthMapScreen = ({ navigation, route }) => {
       if (hideBackBtn) {
         navigation.replace("bottomRoot");
       } else {
-        navigation.goBack();
+        returnFromLocation();
       }
     }
   };
@@ -447,7 +471,7 @@ const AuthMapScreen = ({ navigation, route }) => {
             icon="arrow-left"
             iconColor={AppColor.black}
             size={24}
-            onPress={() => navigation.goBack()}
+            onPress={handleBackPress}
           />
         )}
         <Text style={styles.headerTitle}>{"Select Location"}</Text>

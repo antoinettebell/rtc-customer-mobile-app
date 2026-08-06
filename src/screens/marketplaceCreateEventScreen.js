@@ -19,7 +19,7 @@ import ImagePicker from "react-native-image-crop-picker";
 import { pick, types } from "@react-native-documents/picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { UNSTABLE_usePreventRemove as usePreventRemove } from "@react-navigation/native";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -131,6 +131,15 @@ const initialEventAddressRegion = {
   latitudeDelta: 0.015,
   longitudeDelta: 0.0121,
 };
+
+const EVENT_FORM_STEPS = [
+  "Event Details",
+  "Guests & VIP",
+  "Free Food",
+  "Vendor Needs",
+  "Budget & Documents",
+  "Review & Submit",
+];
 
 const PRIMARY_SERVICE_STYLES = [
   {
@@ -282,8 +291,14 @@ const isCoordinatorBudgetRequired = (form) =>
 const getBudgetGuestCount = (form) =>
   Number(form.number_of_guests || 0) +
   Number(form.vip_guest_count || 0);
-const getBaseFoodTruckVendorCount = (form) =>
-  Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
+const getBaseFoodTruckVendorCount = (form) => {
+  const generalGuestCount =
+    Number(form.number_of_guests || 0) +
+    (form.separate_vip_vendor_required
+      ? 0
+      : Number(form.vip_guest_count || 0));
+  return Math.max(1, Math.ceil(generalGuestCount / 100));
+};
 const getMinimumFoodTruckVendorCount = (form) =>
   form.separate_vip_vendor_required ? 2 : 1;
 const getAutoFoodTruckVendorCount = (form) =>
@@ -520,6 +535,50 @@ const localStyles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F6F7F9",
+  },
+  clearEventButton: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: AppColor.snackbarError,
+    borderRadius: 9,
+  },
+  clearEventText: {
+    color: AppColor.snackbarError,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  stepProgress: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    backgroundColor: AppColor.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E7EAF0",
+  },
+  stepProgressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  stepProgressTitle: {
+    color: AppColor.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  stepTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+    backgroundColor: "#E7EAF0",
+  },
+  stepFill: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: AppColor.primary,
   },
   body: {
     flexGrow: 1,
@@ -1316,12 +1375,28 @@ const localStyles = StyleSheet.create({
     marginTop: 6,
     alignItems: "center",
   },
+  reviewRow: {
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E7EAF0",
+  },
+  reviewLabel: {
+    color: AppColor.text,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  reviewValue: {
+    color: AppColor.textHighlighter,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   submitFooter: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 14,
     backgroundColor: AppColor.white,
@@ -1333,10 +1408,15 @@ const localStyles = StyleSheet.create({
   },
   footerRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 6,
   },
   footerButton: {
     flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 6,
+  },
+  footerButtonText: {
+    fontSize: 13,
   },
   deleteFooterButton: {
     borderColor: AppColor.snackbarError,
@@ -1361,7 +1441,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const formScrollRef = useRef(null);
   const vendorNeedsYRef = useRef(0);
 	  const [form, setForm] = useState(initialForm);
-	  const [eventImages, setEventImages] = useState([]);
+  const [eventImages, setEventImages] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [allowBackNavigation, setAllowBackNavigation] = useState(false);
   const [exemptionCertificate, setExemptionCertificate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
@@ -1378,7 +1460,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   });
   const [showTermsConfirmation, setShowTermsConfirmation] = useState(false);
   const autoFoodTruckStyleRef = useRef(false);
-  const allowBackNavigationRef = useRef(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
   );
@@ -1573,6 +1654,25 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!isFoodTruckService(form)) return;
+    const calculatedCount = String(getAutoFoodTruckVendorCount(form));
+    if (form.number_of_vendors_needed === calculatedCount) return;
+    setForm((previous) => ({
+      ...previous,
+      number_of_vendors_needed: String(getAutoFoodTruckVendorCount(previous)),
+    }));
+  }, [
+    form.number_of_guests,
+    form.vip_guest_count,
+    form.ga_ticket_quantity,
+    form.vip_ticket_quantity,
+    form.ticket_sales_enabled,
+    form.separate_vip_vendor_required,
+    form.catered_vip_section_enabled,
+    form.service_types,
+  ]);
 
   const updateListField = (key, option) => {
     setForm((prev) => {
@@ -1872,6 +1972,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       geocoding_provider: "",
       geocoded_at: "",
     }));
+  };
+
+  const handleClearEvent = () => {
+    Alert.alert(
+      "Clear Event?",
+      "This removes all information entered on every step. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear Event",
+          style: "destructive",
+          onPress: () => {
+            setForm({ ...initialForm });
+            setEventImages([]);
+            setExemptionCertificate(null);
+            setEventAddressRegion(initialEventAddressRegion);
+            eventAddressSearchRef.current?.clear();
+            eventAddressSearchRef.current?.setAddressText("");
+            setCurrentStep(0);
+            formScrollRef.current?.scrollTo({ y: 0, animated: false });
+            setSnackbar({
+              visible: true,
+              message: "Event cleared.",
+              type: "success",
+            });
+          },
+        },
+      ]
+    );
   };
 
   const validate = (status = "OPEN") => {
@@ -2226,19 +2355,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	                : "Your event is open for vendor bids.",
         type: "success",
       });
+      if (status !== "DRAFT") {
+        setAllowBackNavigation(true);
+      }
       setTimeout(() => {
         if (options.skipNavigation) {
           return;
         }
         if (options.navigateToDetails && eventId) {
-          if (options.replaceDetails) {
-            navigation.replace("marketplaceEventDetailsScreen", { eventId });
-            return;
-          }
-          navigation.navigate("marketplaceEventDetailsScreen", { eventId });
+          navigation.reset({
+            index: 1,
+            routes: [
+              {
+                name: "bottomRoot",
+                params: { screen: "marketplaceMyEventsTab" },
+              },
+              { name: "marketplaceEventDetailsScreen", params: { eventId } },
+            ],
+          });
           return;
         }
-        navigation.navigate("marketplaceMyEventsScreen");
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: "bottomRoot",
+              params: { screen: "marketplaceMyEventsTab" },
+            },
+          ],
+        });
       }, 600);
       return true;
     } catch (error) {
@@ -2256,58 +2401,51 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      const unsubscribe = navigation.addListener("beforeRemove", (event) => {
-	        if (
-	          isEditingSubmittedEvent ||
-	          allowBackNavigationRef.current ||
-	          loading ||
-	          !hasDraftableEventChanges()
-	        ) {
-          return;
-        }
-
-        event.preventDefault();
-        Alert.alert(
-          "Save your event?",
-          "Do you want to save your event before leaving?",
-          [
-            {
-              text: "No",
-              style: "destructive",
-              onPress: () => {
-                allowBackNavigationRef.current = true;
-                navigation.dispatch(event.data.action);
-              },
+  usePreventRemove(
+    !isEditingSubmittedEvent &&
+      !allowBackNavigation &&
+      !loading &&
+      hasDraftableEventChanges(),
+    ({ data }) => {
+      Alert.alert(
+        "Save your event?",
+        "Do you want to save your event before leaving?",
+        [
+          {
+            text: "No",
+            style: "destructive",
+            onPress: () => {
+              setAllowBackNavigation(true);
+              setTimeout(() => navigation.dispatch(data.action), 0);
             },
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Yes",
-              onPress: async () => {
-                const saved = await handleSubmit("DRAFT", {
-                  skipNavigation: true,
-                  successMessage: "Your draft has been saved.",
-                });
-                if (saved) {
-                  allowBackNavigationRef.current = true;
-                  navigation.dispatch(event.data.action);
-                }
-              },
+          },
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Yes",
+            onPress: async () => {
+              const saved = await handleSubmit("DRAFT", {
+                skipNavigation: true,
+                successMessage: "Your draft has been saved.",
+              });
+              if (saved) {
+                setAllowBackNavigation(true);
+                setTimeout(() => navigation.dispatch(data.action), 0);
+              }
             },
-          ]
-        );
-      });
-
-      return unsubscribe;
-	    }, [hasDraftableEventChanges, isEditingSubmittedEvent, loading, navigation])
+          },
+        ]
+      );
+    }
   );
 
   const scrollToVendorNeeds = () => {
-    formScrollRef.current?.scrollTo({
-      y: Math.max(0, vendorNeedsYRef.current - 20),
-      animated: true,
-    });
+    setCurrentStep(3);
+    setTimeout(() => {
+      formScrollRef.current?.scrollTo({
+        y: Math.max(0, vendorNeedsYRef.current - 20),
+        animated: true,
+      });
+    }, 0);
   };
 
   const continueSubmitConfirmation = () => {
@@ -2424,13 +2562,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             try {
               const response = await deleteMarketplaceEvent_API(editingEventId);
               if (response?.success) {
+                setAllowBackNavigation(true);
                 setSnackbar({
                   visible: true,
                   message: "Draft deleted.",
                   type: "success",
                 });
                 setTimeout(() => {
-                  navigation.navigate("marketplaceMyEventsScreen");
+                  navigation.replace("marketplaceMyEventsScreen");
                 }, 500);
               }
             } catch (error) {
@@ -3320,7 +3459,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     <View style={localStyles.fieldGroup}>
       {renderLabel("Who is paying? *")}
       <View style={styles.chipWrap}>
-        {PAYMENT_RESPONSIBILITY_OPTIONS.map(([label, value]) => {
+        {PAYMENT_RESPONSIBILITY_OPTIONS.filter(([, value]) =>
+          form.catered_vip_section_enabled ? value === "BOTH" : value !== "BOTH"
+        ).map(([label, value]) => {
           const active = form.payment_responsibility === value;
           return (
             <TouchableOpacity
@@ -3487,7 +3628,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               catered_vip_section_enabled: enabled,
               payment_responsibility: enabled
                 ? "BOTH"
-                : prev.payment_responsibility,
+                : prev.payment_responsibility === "BOTH"
+                  ? "COORDINATOR"
+                  : prev.payment_responsibility,
               separate_vip_vendor_required: enabled
                 ? prev.separate_vip_vendor_required
                 : false,
@@ -3844,14 +3987,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
 
   const renderVendorCountFields = () => (
-    <View style={localStyles.sideBySide}>
-      <View style={localStyles.sideField}>
-        {renderInput("Guests *", "number_of_guests", {
-          editable: !form.ticket_sales_enabled,
-          keyboardType: "number-pad",
-        })}
-      </View>
-      <View style={localStyles.sideField}>
+    <View style={localStyles.fieldGroup}>
         {renderInput("Vendors Needed *", "number_of_vendors_needed", {
           keyboardType: "number-pad",
           onChangeText: (value) => {
@@ -3876,16 +4012,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
-            Vendors needed is limited to one per 100 combined regular and VIP guests
             {form.separate_vip_vendor_required
-              ? ", plus the dedicated VIP vendor."
-              : "."}
+              ? "Vendors needed is calculated at one per 100 regular guests, plus one dedicated VIP vendor."
+              : "Vendors needed is calculated at one per 100 combined regular and VIP guests."}
           </Text>
         ) : (
           <Text style={styles.meta}>
             Vendors needed defaults to one and can be updated before submission.
           </Text>
         )}
+    </View>
+  );
+
+  const renderStepProgress = () => (
+    <View style={localStyles.stepProgress}>
+      <View style={localStyles.stepProgressHeader}>
+        <Text style={localStyles.stepProgressTitle}>
+          {EVENT_FORM_STEPS[currentStep]}
+        </Text>
+        <Text style={styles.meta}>
+          {currentStep + 1} of {EVENT_FORM_STEPS.length}
+        </Text>
+      </View>
+      <View style={localStyles.stepTrack}>
+        <View
+          style={[
+            localStyles.stepFill,
+            { width: `${((currentStep + 1) / EVENT_FORM_STEPS.length) * 100}%` },
+          ]}
+        />
       </View>
     </View>
   );
@@ -3903,7 +4058,27 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               ? "Edit Draft"
               : "Create Event"
         }
-      />
+        rightSide
+      >
+        {!editingEventId && !isReopenMode ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={localStyles.clearEventButton}
+            onPress={handleClearEvent}
+            disabled={loading}
+          >
+            <MaterialIcons
+              name="delete-sweep"
+              size={19}
+              color={AppColor.snackbarError}
+            />
+            <Text style={localStyles.clearEventText}>Clear Event</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
+      </AppHeader>
+      {renderStepProgress()}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -3913,20 +4088,18 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           contentContainerStyle={localStyles.body}
           keyboardShouldPersistTaps="handled"
         >
+          {currentStep === 0 ? (
+          <>
           <View style={localStyles.card}>
-            {renderSectionHeader("Event Basics", "event")}
+            {renderSectionHeader("Event Details", "event")}
             <Text style={styles.meta}>
               Event Name and Description cannot contain names, locations, or proper nouns. Violators may be blocked.
             </Text>
             {renderInput("Event Name *", "event_name")}
             {renderInput("Description", "event_description", { multiline: true })}
-            {renderTicketSalesFields()}
             {renderEventTypeCards()}
             {renderVisibilityToggle()}
             {renderEventToneSelect()}
-            {renderChips("Service Type *", "service_types", SERVICE_TYPES)}
-            {renderPrimaryServiceStyle()}
-            {renderServiceSpecificDetails()}
             <View style={localStyles.sideBySide}>
               <View style={localStyles.sideField}>
                 {renderDateTimePicker("Event Date *", "event_date", "date")}
@@ -3977,13 +4150,43 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	              editable: !savedEventLocationLocked,
 	            })}
           </View>
+          </>
+          ) : null}
 
+          {currentStep === 1 ? (
           <View style={localStyles.card}>
+            {renderSectionHeader("Guests & VIP", "people")}
+            {renderTicketSalesFields()}
+            {renderInput("Regular Guests *", "number_of_guests", {
+              editable: !form.ticket_sales_enabled,
+              keyboardType: "number-pad",
+              onChangeText: (value) =>
+                updateField("number_of_guests", value.replace(/\D/g, "")),
+            })}
+            {renderVipNeeds()}
+          </View>
+          ) : null}
+
+          {currentStep === 2 ? (
+          <View style={localStyles.card}>
+            {renderSectionHeader("Free Food", "restaurant")}
+            {renderFreeFoodQuestions()}
+          </View>
+          ) : null}
+
+          {currentStep === 3 ? (
+          <View
+            style={localStyles.card}
+            onLayout={(event) => {
+              vendorNeedsYRef.current = event.nativeEvent.layout.y;
+            }}
+          >
             {renderSectionHeader("Vendor Needs", "groups")}
+            {renderChips("Service Type *", "service_types", SERVICE_TYPES)}
+            {renderPrimaryServiceStyle()}
+            {renderServiceSpecificDetails()}
             {renderVendorCountFields()}
             {renderEventVendorNeeds()}
-            {renderFreeFoodQuestions()}
-            {renderVipNeeds()}
             {renderChips("Power Requirements", "power_required", POWER_OPTIONS)}
             {renderChips("Permits Required", "permits_required", PERMIT_OPTIONS)}
             {renderBoolean("Alcohol Required", "alcohol_required")}
@@ -3992,7 +4195,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {renderChips("Dietary Restrictions", "dietary_restrictions", DIETARY_OPTIONS)}
             {renderChips("Equipment Needs", "equipment_needed", EQUIPMENT_OPTIONS)}
           </View>
+          ) : null}
 
+          {currentStep === 4 ? (
+          <>
           <View style={localStyles.card}>
             {renderSectionHeader("Budget", "payments")}
             {renderPaymentResponsibility()}
@@ -4012,17 +4218,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             </View>
 	            {isCoordinatorBudgetRequired(form) ? (
 	              <Text style={styles.meta}>
-	                Minimum budget for this paid guest count is $
-	                {getMinimumBudget(form).toFixed(2)}
+	                Minimum budget: {Number(form.number_of_guests || 0)} regular
                   {Number(form.vip_guest_count || 0) > 0
-                    ? " based on regular and VIP guests."
-                    : "."}
+                    ? ` + ${Number(form.vip_guest_count || 0)} VIP`
+                    : ""} guests x $25 = ${getMinimumBudget(form).toFixed(2)}.
 	              </Text>
 	            ) : null}
 	          </View>
 
           <View style={localStyles.card}>
-            {renderSectionHeader("Event Images", "image")}
+            {renderSectionHeader("Documents & Event Images", "image")}
             <View style={localStyles.uploadCard}>
               <Text style={styles.meta}>
                 Upload JPG, PNG, or HEIC images. Maximum file size is 10 MB.
@@ -4069,6 +4274,32 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </View>
+          </>
+          ) : null}
+
+          {currentStep === 5 ? (
+          <View style={localStyles.card}>
+            {renderSectionHeader("Review & Submit", "fact-check")}
+            <Text style={styles.meta}>
+              Review these details with your team before submitting. Use Back to make changes.
+            </Text>
+            {[
+              ["Event", `${form.event_name || "Not entered"} · ${form.event_type || "Type not selected"}`],
+              ["Date & Location", `${form.event_date || "Date not entered"} · ${form.event_city || "City not entered"}, ${form.event_state || "State"}`],
+              ["Guests", `${form.number_of_guests || 0} regular · ${form.vip_guest_count || 0} VIP`],
+              ["Free Food", form.free_food_offered === true ? `Yes · ${form.free_food_provider || "Provider required"}` : form.free_food_offered === false ? "No" : "Not answered"],
+              ["Food Vendors", `${form.number_of_vendors_needed || 0} needed`],
+              ["Additional Vendors", form.event_vendor_needs.length ? form.event_vendor_needs.map((need) => `${need.quantity || 0} ${need.vendor_type.toLowerCase()}`).join(" · ") : "None"],
+              ["Payment", `${form.payment_responsibility || "Not selected"} · Budget $${Number(form.budgeted_amount || 0).toFixed(2)}`],
+              ["Images", `${eventImages.length} selected`],
+            ].map(([label, value]) => (
+              <View key={label} style={localStyles.reviewRow}>
+                <Text style={localStyles.reviewLabel}>{label}</Text>
+                <Text style={localStyles.reviewValue}>{value}</Text>
+              </View>
+            ))}
+          </View>
+          ) : null}
         </ScrollView>
         <View
           style={[
@@ -4077,6 +4308,46 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ]}
         >
           <View style={localStyles.footerRow}>
+            {currentStep > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.secondaryButton, localStyles.footerButton]}
+                onPress={() => {
+                  setCurrentStep((step) => Math.max(0, step - 1));
+                  formScrollRef.current?.scrollTo({ y: 0, animated: false });
+                }}
+                disabled={loading}
+              >
+                <Text
+                  style={[styles.secondaryButtonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Back
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {currentStep < EVENT_FORM_STEPS.length - 1 ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.button, localStyles.footerButton]}
+                onPress={() => {
+                  setCurrentStep((step) =>
+                    Math.min(EVENT_FORM_STEPS.length - 1, step + 1)
+                  );
+                  formScrollRef.current?.scrollTo({ y: 0, animated: false });
+                }}
+                disabled={loading}
+              >
+                <Text
+                  style={[styles.buttonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Next
+                </Text>
+              </TouchableOpacity>
+            ) : (
             <TouchableOpacity
               activeOpacity={0.7}
               style={[
@@ -4091,11 +4362,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {loading && submitMode === "OPEN" ? (
                 <ActivityIndicator color={AppColor.white} />
               ) : (
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[styles.buttonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {isReopenMode ? "Reopen Event" : "Submit"}
                 </Text>
               )}
             </TouchableOpacity>
+            )}
             {!isEditingSubmittedEvent && !isReopenMode ? (
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -4119,11 +4395,20 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 {loading && submitMode === "DRAFT" ? (
                   <ActivityIndicator color={AppColor.primary} />
                 ) : (
-                  <Text style={styles.secondaryButtonText}>Save</Text>
+                  <Text
+                    style={[styles.secondaryButtonText, localStyles.footerButtonText]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    Save
+                  </Text>
                 )}
               </TouchableOpacity>
             ) : null}
-            {editingEventId && !isEditingSubmittedEvent && !isReopenMode ? (
+            {currentStep === EVENT_FORM_STEPS.length - 1 &&
+            editingEventId &&
+            !isEditingSubmittedEvent &&
+            !isReopenMode ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={[
@@ -4142,8 +4427,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   <Text
                     style={[
                       styles.secondaryButtonText,
+                      localStyles.footerButtonText,
                       localStyles.deleteFooterText,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
                   >
                     Delete
                   </Text>

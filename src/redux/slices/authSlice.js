@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   isSignedIn: false,
   isGuest: false,
+  authReturnRoute: null,
 };
 
 const authSlice = createSlice({
@@ -14,6 +15,9 @@ const authSlice = createSlice({
     },
     onGuest: (state, { payload }) => {
       state.isGuest = payload;
+      if (payload) {
+        state.authReturnRoute = "signin";
+      }
     },
     onSignOut: () => initialState,
   },
