@@ -1852,11 +1852,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }));
   };
 
-  useEffect(() => {
-    if (draftEvent?.event_address || draftEvent?.formatted_address) return;
-    centerEventAddressOnCurrentLocation();
-  }, [draftEvent]);
-
   const validate = (status = "OPEN") => {
     if (status === "DRAFT") {
       if (!form.event_name.trim() || !form.event_type.trim() || !form.event_visibility) {
