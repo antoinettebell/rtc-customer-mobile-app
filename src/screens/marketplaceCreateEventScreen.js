@@ -291,8 +291,14 @@ const isCoordinatorBudgetRequired = (form) =>
 const getBudgetGuestCount = (form) =>
   Number(form.number_of_guests || 0) +
   Number(form.vip_guest_count || 0);
-const getBaseFoodTruckVendorCount = (form) =>
-  Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
+const getBaseFoodTruckVendorCount = (form) => {
+  const generalGuestCount =
+    Number(form.number_of_guests || 0) +
+    (form.separate_vip_vendor_required
+      ? 0
+      : Number(form.vip_guest_count || 0));
+  return Math.max(1, Math.ceil(generalGuestCount / 100));
+};
 const getMinimumFoodTruckVendorCount = (form) =>
   form.separate_vip_vendor_required ? 2 : 1;
 const getAutoFoodTruckVendorCount = (form) =>
@@ -3962,10 +3968,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         })}
         {foodTruckSelected ? (
           <Text style={styles.meta}>
-            Vendors needed is limited to one per 100 combined regular and VIP guests
             {form.separate_vip_vendor_required
-              ? ", plus the dedicated VIP vendor."
-              : "."}
+              ? "Vendors needed is calculated at one per 100 regular guests, plus one dedicated VIP vendor."
+              : "Vendors needed is calculated at one per 100 combined regular and VIP guests."}
           </Text>
         ) : (
           <Text style={styles.meta}>
