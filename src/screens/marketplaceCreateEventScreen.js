@@ -1396,7 +1396,7 @@ const localStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 14,
     backgroundColor: AppColor.white,
@@ -1408,10 +1408,15 @@ const localStyles = StyleSheet.create({
   },
   footerRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 6,
   },
   footerButton: {
     flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 6,
+  },
+  footerButtonText: {
+    fontSize: 13,
   },
   deleteFooterButton: {
     borderColor: AppColor.snackbarError,
@@ -4288,7 +4293,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 }}
                 disabled={loading}
               >
-                <Text style={styles.secondaryButtonText}>Back</Text>
+                <Text
+                  style={[styles.secondaryButtonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Back
+                </Text>
               </TouchableOpacity>
             ) : null}
             {currentStep < EVENT_FORM_STEPS.length - 1 ? (
@@ -4303,7 +4314,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 }}
                 disabled={loading}
               >
-                <Text style={styles.buttonText}>Next</Text>
+                <Text
+                  style={[styles.buttonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Next
+                </Text>
               </TouchableOpacity>
             ) : (
             <TouchableOpacity
@@ -4320,7 +4337,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {loading && submitMode === "OPEN" ? (
                 <ActivityIndicator color={AppColor.white} />
               ) : (
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[styles.buttonText, localStyles.footerButtonText]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {isReopenMode ? "Reopen Event" : "Submit"}
                 </Text>
               )}
@@ -4349,7 +4370,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 {loading && submitMode === "DRAFT" ? (
                   <ActivityIndicator color={AppColor.primary} />
                 ) : (
-                  <Text style={styles.secondaryButtonText}>Save</Text>
+                  <Text
+                    style={[styles.secondaryButtonText, localStyles.footerButtonText]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    Save
+                  </Text>
                 )}
               </TouchableOpacity>
             ) : null}
@@ -4375,8 +4402,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   <Text
                     style={[
                       styles.secondaryButtonText,
+                      localStyles.footerButtonText,
                       localStyles.deleteFooterText,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
                   >
                     Delete
                   </Text>
