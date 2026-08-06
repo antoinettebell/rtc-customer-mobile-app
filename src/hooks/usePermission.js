@@ -10,13 +10,6 @@ const usePermission = (permissionType) => {
     checkPermissionStatus();
   }, [checkPermissionStatus]);
 
-  //handling block status
-  useEffect(() => {
-    if (permissionStatus === RESULTS.BLOCKED) {
-      handleBlockedPermission();
-    }
-  }, [permissionStatus]);
-
   const checkPermissionStatus = useCallback(async () => {
     try {
       const status = await check(permissionType);
@@ -28,11 +21,21 @@ const usePermission = (permissionType) => {
 
   const checkAndRequestPermission = async () => {
     try {
-      if (permissionStatus === RESULTS.GRANTED) {
-        return permissionStatus;
+      const currentStatus = await check(permissionType);
+      if (currentStatus === RESULTS.GRANTED) {
+        setPermissionStatus(currentStatus);
+        return currentStatus;
+      }
+      if (currentStatus === RESULTS.BLOCKED) {
+        setPermissionStatus(currentStatus);
+        handleBlockedPermission();
+        return currentStatus;
       }
       const status = await request(permissionType);
       setPermissionStatus(status);
+      if (status === RESULTS.BLOCKED) {
+        handleBlockedPermission();
+      }
       return status;
     } catch (error) {
       console.error("Error requesting permission:", error);
@@ -40,9 +43,17 @@ const usePermission = (permissionType) => {
   };
 
   const handleBlockedPermission = () => {
+    const normalizedPermission = String(permissionType || "").toLowerCase();
+    const permissionName = normalizedPermission.includes("camera")
+      ? "Camera"
+      : normalizedPermission.includes("photo") || normalizedPermission.includes("media")
+        ? "Photos"
+        : normalizedPermission.includes("location")
+          ? "Location"
+          : "This permission";
     Alert.alert(
-      "Permission Blocked",
-      "You have blocked this permission. Please go to settings and enable it to use this feature.",
+      `${permissionName} Permission Blocked`,
+      `${permissionName} access is disabled. Open Settings to enable it for Round Da'Corner.`,
       [
         {
           text: "Cancel",
