@@ -1655,6 +1655,25 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     });
   };
 
+  useEffect(() => {
+    if (!isFoodTruckService(form)) return;
+    const calculatedCount = String(getAutoFoodTruckVendorCount(form));
+    if (form.number_of_vendors_needed === calculatedCount) return;
+    setForm((previous) => ({
+      ...previous,
+      number_of_vendors_needed: String(getAutoFoodTruckVendorCount(previous)),
+    }));
+  }, [
+    form.number_of_guests,
+    form.vip_guest_count,
+    form.ga_ticket_quantity,
+    form.vip_ticket_quantity,
+    form.ticket_sales_enabled,
+    form.separate_vip_vendor_required,
+    form.catered_vip_section_enabled,
+    form.service_types,
+  ]);
+
   const updateListField = (key, option) => {
     setForm((prev) => {
       let nextList = toggleListValue(prev[key] || [], option);
@@ -2336,6 +2355,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 	                : "Your event is open for vendor bids.",
         type: "success",
       });
+      if (status !== "DRAFT") {
+        setAllowBackNavigation(true);
+      }
       setTimeout(() => {
         if (options.skipNavigation) {
           return;
@@ -3437,7 +3459,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     <View style={localStyles.fieldGroup}>
       {renderLabel("Who is paying? *")}
       <View style={styles.chipWrap}>
-        {PAYMENT_RESPONSIBILITY_OPTIONS.map(([label, value]) => {
+        {PAYMENT_RESPONSIBILITY_OPTIONS.filter(([, value]) =>
+          form.catered_vip_section_enabled ? value === "BOTH" : value !== "BOTH"
+        ).map(([label, value]) => {
           const active = form.payment_responsibility === value;
           return (
             <TouchableOpacity
@@ -3604,7 +3628,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               catered_vip_section_enabled: enabled,
               payment_responsibility: enabled
                 ? "BOTH"
-                : prev.payment_responsibility,
+                : prev.payment_responsibility === "BOTH"
+                  ? "COORDINATOR"
+                  : prev.payment_responsibility,
               separate_vip_vendor_required: enabled
                 ? prev.separate_vip_vendor_required
                 : false,
@@ -4130,6 +4156,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           {currentStep === 1 ? (
           <View style={localStyles.card}>
             {renderSectionHeader("Guests & VIP", "people")}
+            {renderTicketSalesFields()}
             {renderInput("Regular Guests *", "number_of_guests", {
               editable: !form.ticket_sales_enabled,
               keyboardType: "number-pad",
@@ -4137,7 +4164,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 updateField("number_of_guests", value.replace(/\D/g, "")),
             })}
             {renderVipNeeds()}
-            {renderTicketSalesFields()}
           </View>
           ) : null}
 
@@ -4192,11 +4218,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             </View>
 	            {isCoordinatorBudgetRequired(form) ? (
 	              <Text style={styles.meta}>
-	                Minimum budget for this paid guest count is $
-	                {getMinimumBudget(form).toFixed(2)}
+	                Minimum budget: {Number(form.number_of_guests || 0)} regular
                   {Number(form.vip_guest_count || 0) > 0
-                    ? " based on regular and VIP guests."
-                    : "."}
+                    ? ` + ${Number(form.vip_guest_count || 0)} VIP`
+                    : ""} guests x $25 = ${getMinimumBudget(form).toFixed(2)}.
 	              </Text>
 	            ) : null}
 	          </View>
