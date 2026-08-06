@@ -493,6 +493,23 @@ const CheckoutScreen = ({ navigation, route }) => {
       return;
     }
 
+    const additionalItem = {
+      ...item,
+      _forceNewLine: true,
+      _cartLineId: `${item._id}-${Date.now()}-checkout`,
+      quantity: 1,
+      customizationInput: "",
+      selectedFlavors: [],
+      selectedToppings: [],
+      selectedComboSides: [],
+      selectedSubItems: [],
+      selectedDiscountFlavors: [],
+      selectedDiscountToppings: [],
+      selectedDiscountCustomizationInput: "",
+      selectedDiscountComboSides: [],
+      selectedDiscountSubItems: [],
+    };
+
     dispatch(
       addItemToOrder({
         foodTruckId: order.foodTruckId,
@@ -500,9 +517,16 @@ const CheckoutScreen = ({ navigation, route }) => {
         foodTruckLogo: order.foodTruckLogo,
         truckUnitId: order.truckUnitId,
         locationId: order.locationId,
-        item: { ...item },
+        item: additionalItem,
       }),
     );
+    if (foodTruckDetail) {
+      navigation.navigate("foodTruckDetailScreen", {
+        item: foodTruckDetail,
+        editItemId: item._id,
+        editCartLineId: additionalItem._cartLineId,
+      });
+    }
   };
 
   const handleRemove = (item) => {
@@ -681,18 +705,12 @@ const CheckoutScreen = ({ navigation, route }) => {
     navigation.navigate("foodTruckDetailScreen", {
       item: foodTruckDetail,
       editItemId: itemToEdit?._id,
+      editCartLineId: itemToEdit?._cartLineId,
     });
   };
 
   const renderItem = ({ item }) => {
-    const effectiveMinQty = item.minQty !== undefined ? item.minQty : 1;
     const effectiveMaxQty = item.maxQty !== undefined ? item.maxQty : 100;
-
-    const isDecrementDisabled =
-      item.quantity <= effectiveMinQty &&
-      effectiveMinQty > 0 &&
-      item.quantity === effectiveMinQty &&
-      effectiveMinQty > 1;
 
     const isIncrementDisabled = item.quantity >= effectiveMaxQty;
 
@@ -711,7 +729,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         : "Included selections";
 
     return (
-      <View key={item?._id} style={styles.orderLineOuter}>
+      <View key={item?._cartLineId || item?._id} style={styles.orderLineOuter}>
         <TouchableOpacity
           activeOpacity={0.75}
           style={styles.itemRow}
@@ -740,21 +758,14 @@ const CheckoutScreen = ({ navigation, route }) => {
           <View style={styles.qtyBox}>
             <TouchableOpacity
               activeOpacity={0.7}
-              style={[
-                styles.qtyBtnBox,
-                isDecrementDisabled && styles.disabledQtyBtn,
-              ]}
+              style={styles.qtyBtnBox}
               onPress={() => handleRemove(item)}
-              disabled={isDecrementDisabled}
             >
-              <Text
-                style={[
-                  styles.qtyBtnText,
-                  isDecrementDisabled && styles.disabledQtyBtnText,
-                ]}
-              >
-                -
-              </Text>
+              <Icon
+                name="trash"
+                size={15}
+                color={AppColor.black}
+              />
             </TouchableOpacity>
             <Text style={styles.qtyText}>{item.quantity}</Text>
             <TouchableOpacity

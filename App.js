@@ -355,13 +355,23 @@ const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
   const { allLocations } = useSelector((state) => state.locationReducer);
+  const navigationSessionKey = isSignedIn
+    ? "signed-in"
+    : isGuest
+      ? "guest"
+      : "authentication";
 
   useEffect(() => {
     configureNotification();
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={DefaultTheme} linking={linking}>
+    <NavigationContainer
+      key={navigationSessionKey}
+      ref={navigationRef}
+      theme={DefaultTheme}
+      linking={linking}
+    >
       <GlobalSnackbar />
       {isSignedIn ? (
         <AppNavigator insets={insets} />

@@ -192,7 +192,8 @@ const orderSlice = createSlice({
 
       // Find the item index
       const itemIndex = state.currentOrder.items.findIndex(
-        (item) => item._id === itemId
+        (item) =>
+          (item._cartLineId || item._id) === itemId || item._id === itemId
       );
 
       if (itemIndex !== -1) {

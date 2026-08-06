@@ -354,6 +354,7 @@ const DishItemDetailsModal = ({
   onSelectedDiscountComboSidesChange,
   onSelectedDiscountSubItemsChange,
   onSelectedComboSidesChange,
+  onAdditionalItemCreated,
 }) => {
   const [selectedSubItems, setSelectedSubItems] = useState(
     selectedMenuItem?.selectedSubItems || []
@@ -447,6 +448,7 @@ const DishItemDetailsModal = ({
     );
   }, [
     selectedMenuItem?._id,
+    selectedMenuItem?._cartLineId,
     selectedMenuItem?.selectedSubItems,
     selectedMenuItem?.customizationInput,
     selectedMenuItem?.selectedFlavors,
@@ -1032,26 +1034,36 @@ const DishItemDetailsModal = ({
       handleAddItem(buildItemWithCurrentOptions());
     };
 
-    const addWithCurrentOptions = () => {
-      if (!validateSelections()) return;
-      saveInitialDraftIfNeeded();
-      handleAddItem(buildItemWithCurrentOptions());
-    };
-
     const addSeparately = () => {
       if (!validateSelections()) return;
       saveInitialDraftIfNeeded();
+      const discountSource = getDiscountRequirementSource(selectedMenuItem);
+      const additionalItem = {
+        ...selectedMenuItem,
+        _forceNewLine: true,
+        _cartLineId: `${selectedMenuItem._id}-${Date.now()}-custom`,
+        selectedSubItems:
+          selectedMenuItem?.itemType === foodTypeStrings.combo
+            ? buildRequiredChildSelections(selectedMenuItem?.subItem, [])
+            : [],
+        customizationInput: "",
+        selectedFlavors: [],
+        selectedToppings: [],
+        selectedComboSides: [],
+        selectedDiscountFlavors: [],
+        selectedDiscountToppings: [],
+        selectedDiscountCustomizationInput: "",
+        selectedDiscountComboSides: [],
+        selectedDiscountSubItems:
+          discountSource?.itemType === foodTypeStrings.combo
+            ? buildRequiredChildSelections(discountSource?.subItem, [])
+            : [],
+      };
+      handleAddItem(additionalItem);
+      onAdditionalItemCreated?.(additionalItem);
       beginAdditionalCustomization();
     };
-
-    Alert.alert(
-      "Use the same options?",
-      "Should the additional item use all the same options?",
-      [
-        { text: "No", onPress: addSeparately },
-        { text: "Yes", onPress: addWithCurrentOptions },
-      ]
-    );
+    addSeparately();
   }, [
     beginAdditionalCustomization,
     customizationInput,
@@ -1064,6 +1076,7 @@ const DishItemDetailsModal = ({
     hasDiscountToppingChoices,
     hasFlavorChoices,
     hasToppingChoices,
+    onAdditionalItemCreated,
     selectedComboSides,
     selectedDiscountComboSides,
     selectedDiscountCustomizationInput,
@@ -2044,6 +2057,7 @@ DishItemDetailsModal.propTypes = {
   onSelectedDiscountComboSidesChange: PropTypes.func,
   onSelectedDiscountSubItemsChange: PropTypes.func,
   onSelectedComboSidesChange: PropTypes.func,
+  onAdditionalItemCreated: PropTypes.func,
 };
 
 const styles = StyleSheet.create({

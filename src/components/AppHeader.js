@@ -14,7 +14,13 @@ const AppHeader = (props) => {
       {canGoBack && (
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+            navigation.navigate("bottomRoot", { screen: "nearMeScreen" });
+          }}
           style={styles.backBtn}
         >
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
