@@ -135,7 +135,8 @@ const orderSlice = createSlice({
       // Create maps of existing item data for quick lookup
       const existingItemData = {};
       state.currentOrder.items.forEach((item) => {
-        existingItemData[item._id] = {
+        const cartLineKey = item._cartLineId || item._id;
+        existingItemData[cartLineKey] = {
           quantity: item.quantity || 1,
           customizationInput: item.customizationInput || "",
           selectedFlavors: item.selectedFlavors || [],
@@ -153,7 +154,8 @@ const orderSlice = createSlice({
 
       // Map new items while preserving existing data
       const updatedItems = newItems.map((newItem) => {
-        const existingData = existingItemData[newItem._id] || {};
+        const cartLineKey = newItem._cartLineId || newItem._id;
+        const existingData = existingItemData[cartLineKey] || {};
         return {
           ...newItem,
           quantity: existingData.quantity || 1, // default to 1 if not found
