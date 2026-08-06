@@ -83,11 +83,10 @@ const orderSlice = createSlice({
       }
 
       // Update order totals
-      state.currentOrder.totalItems = state.currentOrder.items.length;
-      // state.currentOrder.totalItems = state.currentOrder.items.reduce(
-      //   (sum, item) => sum + item.quantity,
-      //   0
-      // );
+      state.currentOrder.totalItems = state.currentOrder.items.reduce(
+        (sum, orderItem) => sum + (Number(orderItem.quantity) || 0),
+        0
+      );
       state.currentOrder.subtotal = state.currentOrder.items.reduce(
         (sum, item) => sum + calculateItemTotal(item),
         0
@@ -178,7 +177,10 @@ const orderSlice = createSlice({
       state.currentOrder.items = updatedItems;
 
       // Recalculate totals
-      state.currentOrder.totalItems = updatedItems.length;
+      state.currentOrder.totalItems = updatedItems.reduce(
+        (sum, item) => sum + (Number(item.quantity) || 0),
+        0
+      );
       state.currentOrder.subtotal = updatedItems.reduce(
         (sum, item) => sum + calculateItemTotal(item),
         0

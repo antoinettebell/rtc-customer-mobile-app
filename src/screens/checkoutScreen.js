@@ -498,6 +498,8 @@ const CheckoutScreen = ({ navigation, route }) => {
         foodTruckId: order.foodTruckId,
         foodTruckName: order.foodTruckName,
         foodTruckLogo: order.foodTruckLogo,
+        truckUnitId: order.truckUnitId,
+        locationId: order.locationId,
         item: { ...item },
       }),
     );

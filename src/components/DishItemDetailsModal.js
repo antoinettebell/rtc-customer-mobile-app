@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -988,6 +988,20 @@ const DishItemDetailsModal = ({
     setIsAddingSeparateItem(true);
   }, [selectedMenuItem]);
 
+  const existingOptionsSummary = useMemo(() => {
+    const parts = [];
+    if (selectedMenuItem?.selectedFlavors?.length) {
+      parts.push(`Flavors: ${selectedMenuItem.selectedFlavors.join(", ")}`);
+    }
+    if (selectedMenuItem?.selectedToppings?.length) {
+      parts.push(`Toppings: ${selectedMenuItem.selectedToppings.join(", ")}`);
+    }
+    if (selectedMenuItem?.customizationInput) {
+      parts.push(`Instructions: ${selectedMenuItem.customizationInput}`);
+    }
+    return parts.join(" · ") || "The original item's selections are unchanged.";
+  }, [selectedMenuItem]);
+
   const handleIncreaseQuantity = useCallback(() => {
     const addWithCurrentOptions = () => {
       if (!validateSelections()) return;
@@ -1912,8 +1926,21 @@ const DishItemDetailsModal = ({
             )}
           </ScrollView>
 
+          {isAddingSeparateItem ? (
+            <View style={styles.separateItemNotice}>
+              <Text style={styles.separateItemTitle}>Configuring one additional item</Text>
+              <Text style={styles.separateItemText}>{existingOptionsSummary}</Text>
+            </View>
+          ) : null}
+
           {/* Footer Quantity Controls */}
           <View style={styles.footer}>
+            {isAddingSeparateItem ? (
+              <View style={styles.pendingQuantity}>
+                <Text style={styles.pendingQuantityLabel}>Total after adding</Text>
+                <Text style={styles.qtyText}>{getItemQuantity(selectedMenuItem._id) + 1}</Text>
+              </View>
+            ) : (
             <View style={styles.qtySelector}>
               <TouchableOpacity
                 style={styles.qtyBtn}
@@ -1955,6 +1982,7 @@ const DishItemDetailsModal = ({
                 </Text>
               </TouchableOpacity>
             </View>
+            )}
 
             <TouchableOpacity
               style={[
@@ -2400,12 +2428,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
+  separateItemNotice: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 10,
+  },
+  separateItemTitle: {
+    color: AppColor.text,
+    fontFamily: Mulish700,
+    fontSize: 14,
+  },
+  separateItemText: {
+    color: AppColor.text,
+    fontFamily: Mulish400,
+    fontSize: 12,
+    marginTop: 3,
+  },
   qtySelector: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: AppColor.primary,
+  },
+  pendingQuantity: {
+    alignItems: "center",
+    borderColor: AppColor.primary,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  pendingQuantityLabel: {
+    color: AppColor.text,
+    fontFamily: Mulish600,
+    fontSize: 12,
   },
   qtyBtn: {
     paddingVertical: 8,
