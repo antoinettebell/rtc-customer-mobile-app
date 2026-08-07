@@ -192,10 +192,13 @@ const OtpVerificationScreen = ({ route }) => {
         setResendTimer(60); // Reset timer
         inputRefs.current[0]?.focus();
 
-        setParams({
-          ...params,
-          otpVerificationToken: resendResponse?.data?.otpVerificationToken,
-        });
+        setParams((current) => ({
+          ...current,
+          data: {
+            ...current?.data,
+            otpVerificationToken: resendResponse?.data?.otpVerificationToken,
+          },
+        }));
 
         setSnackbar({
           visible: true,
