@@ -39,6 +39,8 @@ import {
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
 import { showGuestSignupRequired } from "../helpers/guestAction.helper";
+import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
+import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import {
   formatDate,
   formatEventTime,
@@ -501,6 +503,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleShareTickets = async () => {
+    if (event?.event_visibility !== "PRIVATE") {
+      Alert.alert("Share Event", "Ticket invitations are available for private events.");
+      return;
+    }
     try {
       const response = await createMarketplaceTicketShareLink_API(event.event_id);
       const url = response?.data?.share_url;
@@ -981,7 +987,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	                Award Amount: {formatMoney(awardAmount)}
 	              </Text>
 	              <Text style={styles.meta}>
-	                Final Payment: {finalPaymentStatus}
+	                Final Payment: {formatMarketplaceStatus(finalPaymentStatus, { coordinatorPaid: true })}
 	              </Text>
 	              {documents.length ? (
 	                documents.map((document) => (
@@ -1068,9 +1074,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ) : null}
               {!event?.ticket_sales_closed_at && eventStatus !== "CANCELLED" ? (
                 <>
-                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                    <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
-                  </TouchableOpacity>
+                  {event?.event_visibility === "PRIVATE" ? (
+                    <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                      <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
+                    </TouchableOpacity>
+                  ) : null}
                   <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                     <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
                   </TouchableOpacity>
@@ -1136,9 +1144,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           ) : null}
           {!event?.ticket_sales_closed_at ? (
             <>
-              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
-              </TouchableOpacity>
+              {event?.event_visibility === "PRIVATE" ? (
+                <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                  <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                 <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
               </TouchableOpacity>
@@ -1297,7 +1307,19 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             {getServiceSpecificRows(event).map(([label, value]) => (
               <DetailRow key={label} label={label} value={String(value || "Not set")} />
             ))}
-            <DetailRow label="Guests" value={String(event?.number_of_guests || 0)} />
+            <DetailRow label="Expected GA Guests" value={String(event?.number_of_guests || 0)} />
+            <DetailRow label="Expected VIP Guests" value={String(event?.vip_section_enabled ? event?.vip_guest_count || 0 : 0)} />
+            <DetailRow label="VIP Section Details" value={event?.vip_section_details || "Not set"} />
+            {ticketSalesEnabled ? (
+              <>
+                <DetailRow label="GA Ticket Capacity" value={String(getTicketInventory(event, "ga").capacity)} />
+                <DetailRow label="GA Tickets Sold" value={String(getTicketInventory(event, "ga").sold)} />
+                <DetailRow label="GA Tickets Remaining" value={String(getTicketInventory(event, "ga").remaining)} />
+                <DetailRow label="VIP Ticket Capacity" value={String(getTicketInventory(event, "vip").capacity)} />
+                <DetailRow label="VIP Tickets Sold" value={String(getTicketInventory(event, "vip").sold)} />
+                <DetailRow label="VIP Tickets Remaining" value={String(getTicketInventory(event, "vip").remaining)} />
+              </>
+            ) : null}
             <DetailRow
               label="Vendors Needed"
               value={String(event?.number_of_vendors_needed || 0)}
@@ -1391,7 +1413,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             />
             {event?.catered_vip_section_enabled ? (
               <DetailRow
-                label="Separate VIP Vendor"
+                label="Additional VIP Catering Service Slot"
                 value={event?.separate_vip_vendor_required ? "Yes" : "No"}
               />
             ) : null}
@@ -1417,7 +1439,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             />
 	            <DetailRow
 	              label="Awarded Vendor Payment"
-	              value={event?.final_payment_status || "NOT_REQUIRED"}
+	              value={formatMarketplaceStatus(event?.final_payment_status, {
+                  coordinatorPaid: ["COORDINATOR", "BOTH"].includes(event?.payment_responsibility),
+                })}
 	            />
 	            {event?.agreement_status && event.agreement_status !== "NOT_REQUIRED" ? (
 	              <DetailRow

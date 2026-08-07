@@ -16,6 +16,7 @@ import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
+import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
@@ -99,9 +100,9 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
       <View key={bid.bid_id} style={{ marginTop: 12 }}>
         <Text style={styles.label}>{getVendorName(bid)}</Text>
         <Text style={styles.meta}>Awarded Amount: {formatMoney(bid.full_bid_amount)}</Text>
-        <Text style={styles.meta}>Vendor Payment: {bid.payment_status || "NOT_REQUIRED"}</Text>
+        <Text style={styles.meta}>Vendor Payment: {formatMarketplaceStatus(bid.payment_status)}</Text>
         <Text style={styles.meta}>
-          Agreement / Signing: {bid.agreement_status || "NOT_REQUIRED"}
+          Agreement / Signing: {formatMarketplaceStatus(bid.agreement_status)}
         </Text>
         {documents.length ? (
           <View style={{ marginTop: 6 }}>
@@ -145,7 +146,9 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
           .join(", ")}
       </Text>
       <Text style={styles.meta}>
-        RTC Processing Fee: {item.award_payment_status || "NOT_REQUIRED"}
+        RTC Processing Fee: {formatMarketplaceStatus(item.award_payment_status, {
+          coordinatorPaid: ["COORDINATOR", "BOTH"].includes(item.payment_responsibility),
+        })}
       </Text>
       {item.agreement_status && item.agreement_status !== "NOT_REQUIRED" ? (
         <Text style={styles.meta}>

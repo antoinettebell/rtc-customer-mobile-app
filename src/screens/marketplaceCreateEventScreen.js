@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -19,7 +20,7 @@ import ImagePicker from "react-native-image-crop-picker";
 import { pick, types } from "@react-native-documents/picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { UNSTABLE_usePreventRemove as usePreventRemove } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -32,6 +33,15 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
+import { getMarketplaceExitMode } from "../helpers/marketplaceDraftNavigation.helper";
+import { buildMarketplaceDraftSnapshot } from "../helpers/marketplaceDraftState.helper";
+import {
+  getMarketplaceBudget,
+  getMarketplaceFilledSlotSummary,
+  getMarketplaceServiceRequirements,
+  getMarketplaceVendorCapacity,
+  getVendorReductionProtection,
+} from "../helpers/marketplaceParticipation.helper";
 import {
   createMarketplaceEvent_API,
   deleteMarketplaceEvent_API,
@@ -112,6 +122,8 @@ const initialForm = {
   free_food_provider: "",
   vendors_required_to_giveaway_food: null,
   catered_vip_section_enabled: false,
+  vip_section_enabled: false,
+  vip_section_details: "",
   fully_catered_event: false,
   ga_food_sales_allowed: null,
   waive_vendor_fee_for_combined_award: null,
@@ -123,7 +135,7 @@ const initialForm = {
   equipment_needed: [],
   vendor_fee: "",
   budgeted_amount: "",
-  payment_responsibility: "COORDINATOR",
+  payment_responsibility: "VENDOR",
   event_close_date: "",
   event_close_time: "",
 };
@@ -305,19 +317,10 @@ const hasServiceStyle = (form, style) =>
   form.primary_service_style === style;
 const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
-const getBudgetGuestCount = (form) =>
-  form.fully_catered_event
-    ? Number(form.number_of_guests || 0) + Number(form.vip_guest_count || 0)
-    : form.catered_vip_section_enabled
-      ? Number(form.vip_guest_count || 0)
-      : Number(form.number_of_guests || 0);
-const getBaseFoodTruckVendorCount = (form) =>
-  Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
-const getMinimumFoodTruckVendorCount = (form) =>
-  form.separate_vip_vendor_required ? 2 : 1;
+const getBudgetGuestCount = (form) => getMarketplaceBudget(form).cateredGuests;
+const getMinimumFoodTruckVendorCount = () => 1;
 const getAutoFoodTruckVendorCount = (form) =>
-  getBaseFoodTruckVendorCount(form) +
-  (form.separate_vip_vendor_required ? 1 : 0);
+  getMarketplaceVendorCapacity(form).calculatedMaximum;
 const getAllowedFoodTruckVendorCount = (form) => {
   const maximumCount = getAutoFoodTruckVendorCount(form);
   const minimumCount = getMinimumFoodTruckVendorCount(form);
@@ -358,6 +361,8 @@ const normalizeEventForForm = (event = {}) => ({
   power_required: normalizeOptionList(event.power_required),
   permits_required: normalizeOptionList(event.permits_required),
   catered_vip_section_enabled: !!event.catered_vip_section_enabled,
+  vip_section_enabled: !!event.vip_section_enabled,
+  vip_section_details: event.vip_section_details || "",
   fully_catered_event: !!event.fully_catered_event,
   ga_food_sales_allowed: !!event.ga_food_sales_allowed,
   waive_vendor_fee_for_combined_award:
@@ -419,7 +424,7 @@ const normalizeEventForForm = (event = {}) => ({
       ? event.ga_food_sales_allowed
         ? "BOTH"
         : "COORDINATOR"
-      : event.payment_responsibility || "COORDINATOR",
+      : "VENDOR",
   vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
   budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
 });
@@ -1482,8 +1487,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const [form, setForm] = useState(initialForm);
   const [eventImages, setEventImages] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
-  const [allowBackNavigation, setAllowBackNavigation] = useState(false);
   const [exemptionCertificate, setExemptionCertificate] = useState(null);
+  const cleanDraftSnapshotRef = useRef(
+    buildMarketplaceDraftSnapshot({ form: initialForm }),
+  );
+  const deletingDraftRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [submitMode, setSubmitMode] = useState(null);
   const [pickerState, setPickerState] = useState(null);
@@ -1593,30 +1601,36 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
   const foodTruckSelected = isFoodTruckService(form);
   const savedEventLocationLocked = !!editingEventId && !isReopenMode;
+  const budgetSummary = getMarketplaceBudget(form);
+  const capacitySummary = getMarketplaceVendorCapacity(form);
+  const selectedVendorRequirement = Number(form.number_of_vendors_needed || 0);
+  const {
+    gaRequirement: selectedGaRequirement,
+    vipRequirement: selectedVipRequirement,
+  } = getMarketplaceServiceRequirements(form, selectedVendorRequirement);
+  const filledSummary = getMarketplaceFilledSlotSummary({
+    gaSlotsFilled: form.marketplace_metrics?.vendor_ga_slots_filled,
+    vipSlotsFilled: form.marketplace_metrics?.vip_vendors_selected,
+    combinedVendors: form.marketplace_metrics?.combined_vendors_selected,
+    separateVipVendorRequired: form.separate_vip_vendor_required,
+    gaRequirement: selectedGaRequirement,
+    vipRequirement: selectedVipRequirement,
+  });
+  const filledVendorMinimum = filledSummary.minimumUniqueVendors;
 
-  const hasDraftableEventChanges = useCallback(() => {
-    return (
-      [
-        "event_name",
-        "event_description",
-        "event_type",
-        "event_address",
-        "event_city",
-        "event_state",
-        "event_zip",
-        "number_of_guests",
-        "budgeted_amount",
-        "vendor_fee",
-      ].some((key) => String(form[key] || "").trim()) ||
-      form.service_types.length > 0
-    );
-  }, [form]);
-
-  const hydrateEventForEditing = useCallback((event) => {
+  const hydrateEventForEditing = useCallback((event, retainedAttachments = {}) => {
     if (!event) return;
     const nextForm = normalizeEventForForm(event);
+    const nextImages = retainedAttachments.eventImages ?? normalizeExistingEventImages(event);
+    const nextCertificate = retainedAttachments.exemptionCertificate ?? null;
     setForm(nextForm);
-    setEventImages(normalizeExistingEventImages(event));
+    setEventImages(nextImages);
+    setExemptionCertificate(nextCertificate);
+    cleanDraftSnapshotRef.current = buildMarketplaceDraftSnapshot({
+      form: nextForm,
+      eventImages: nextImages,
+      exemptionCertificate: nextCertificate,
+    });
     if (nextForm.latitude && nextForm.longitude) {
       const region = {
         latitude: Number(nextForm.latitude),
@@ -1698,19 +1712,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
-      if (key === "ga_ticket_quantity" && prev.ticket_sales_enabled) {
-        next.number_of_guests = value;
-      }
-      if (key === "vip_ticket_quantity" && prev.ticket_sales_enabled) {
-        next.vip_guest_count = value;
-      }
       if (
         isFoodTruckService(next) &&
         [
           "number_of_guests",
           "vip_guest_count",
-          "ga_ticket_quantity",
-          "vip_ticket_quantity",
+          "vip_section_enabled",
+          "ga_food_sales_allowed",
+          "fully_catered_event",
+          "catered_vip_section_enabled",
+          "separate_vip_vendor_required",
         ].includes(key)
       ) {
         next.number_of_vendors_needed = String(
@@ -1744,13 +1755,33 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   }, [
     form.number_of_guests,
     form.vip_guest_count,
-    form.ga_ticket_quantity,
-    form.vip_ticket_quantity,
-    form.ticket_sales_enabled,
+    form.vip_section_enabled,
+    form.ga_food_sales_allowed,
     form.separate_vip_vendor_required,
     form.catered_vip_section_enabled,
     form.fully_catered_event,
     form.service_types,
+  ]);
+
+  useEffect(() => {
+    const derived = form.fully_catered_event
+      ? "COORDINATOR"
+      : form.catered_vip_section_enabled
+        ? form.ga_food_sales_allowed
+          ? "BOTH"
+          : "COORDINATOR"
+        : "VENDOR";
+    if (form.payment_responsibility !== derived) {
+      setForm((previous) => ({
+        ...previous,
+        payment_responsibility: derived,
+      }));
+    }
+  }, [
+    form.fully_catered_event,
+    form.catered_vip_section_enabled,
+    form.ga_food_sales_allowed,
+    form.payment_responsibility,
   ]);
 
   const updateListField = (key, option) => {
@@ -2178,17 +2209,30 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         });
         return false;
       }
-      if (gaQuantity > Number(form.number_of_guests || 0)) {
+      const gaCommitted =
+        Number(form.ga_tickets_sold || 0) +
+        Number(form.ga_tickets_reserved || 0);
+      const vipCommitted =
+        Number(form.vip_tickets_sold || 0) +
+        Number(form.vip_tickets_reserved || 0);
+      if (gaQuantity < gaCommitted) {
         setSnackbar({
           visible: true,
-          message: "GA tickets cannot exceed the number of guests.",
+          message: `GA Ticket Capacity cannot be lower than ${gaCommitted} sold or reserved ticket(s).`,
         });
         return false;
       }
-      if (vipQuantity > Number(form.vip_guest_count || 0)) {
+      if (vipQuantity < vipCommitted) {
         setSnackbar({
           visible: true,
-          message: "VIP tickets cannot exceed the number of VIP guests.",
+          message: `VIP Ticket Capacity cannot be lower than ${vipCommitted} sold or reserved ticket(s).`,
+        });
+        return false;
+      }
+      if (!form.vip_section_enabled && vipQuantity > 0) {
+        setSnackbar({
+          visible: true,
+          message: "Enable the VIP section before offering VIP tickets.",
         });
         return false;
       }
@@ -2404,6 +2448,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         ? Number(form.number_of_guests)
         : null,
       catered_vip_section_enabled: !!form.catered_vip_section_enabled,
+      vip_section_enabled: !!form.vip_section_enabled,
+      vip_section_details: form.vip_section_enabled
+        ? String(form.vip_section_details || "").trim()
+        : null,
       fully_catered_event: !!form.fully_catered_event,
       ga_food_sales_allowed:
         !!form.catered_vip_section_enabled && !!form.ga_food_sales_allowed,
@@ -2419,7 +2467,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       separate_vip_vendor_required:
         !!form.catered_vip_section_enabled &&
         !!form.separate_vip_vendor_required,
-      vip_guest_count: Number(form.vip_guest_count || 0),
+      vip_guest_count: form.vip_section_enabled
+        ? Number(form.vip_guest_count || 0)
+        : 0,
       event_vendor_needs: form.event_vendor_needs.map((need) => ({
         vendor_type: need.vendor_type,
         type_description: ["SERVICE", "OTHER"].includes(need.vendor_type)
@@ -2450,16 +2500,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           : Number(form.budgeted_amount || 0),
       ticket_sales_enabled: !!form.ticket_sales_enabled,
       ticket_url: "",
-      ga_ticket_quantity: form.ticket_sales_enabled
-        ? Number(form.ga_ticket_quantity || 0)
-        : 0,
-      ga_ticket_price: form.ticket_sales_enabled
-        ? Number(form.ga_ticket_price || 0)
-        : 0,
-      vip_ticket_quantity: form.ticket_sales_enabled
+      ga_ticket_quantity: Number(form.ga_ticket_quantity || 0),
+      ga_ticket_price: Number(form.ga_ticket_price || 0),
+      vip_ticket_quantity: form.vip_section_enabled
         ? Number(form.vip_ticket_quantity || 0)
         : 0,
-      vip_ticket_price: form.ticket_sales_enabled
+      vip_ticket_price: form.vip_section_enabled
         ? Number(form.vip_ticket_price || 0)
         : 0,
       charitable_event: !!form.charitable_event,
@@ -2558,7 +2604,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         : null;
       const refreshedEvent = refreshedEventResponse?.data?.marketplaceEvent;
       if (refreshedEvent) {
-        hydrateEventForEditing(refreshedEvent);
+        hydrateEventForEditing(
+          refreshedEvent,
+          status === "DRAFT" ? { eventImages, exemptionCertificate } : {},
+        );
+      } else if (status === "DRAFT") {
+        cleanDraftSnapshotRef.current = buildMarketplaceDraftSnapshot({
+          form,
+          eventImages,
+          exemptionCertificate,
+        });
       }
       setSnackbar({
         visible: true,
@@ -2571,9 +2626,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               : "Your event is open for vendor bids.",
         type: "success",
       });
-      if (status !== "DRAFT") {
-        setAllowBackNavigation(true);
-      }
       setTimeout(() => {
         if (options.skipNavigation) {
           return;
@@ -2619,41 +2671,70 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }
   };
 
-  usePreventRemove(
-    !isEditingSubmittedEvent &&
-      !allowBackNavigation &&
-      !loading &&
-      hasDraftableEventChanges(),
-    ({ data }) => {
-      Alert.alert(
-        "Save your event?",
-        "Do you want to save your event before leaving?",
-        [
-          {
-            text: "No",
-            style: "destructive",
-            onPress: () => {
-              setAllowBackNavigation(true);
-              setTimeout(() => navigation.dispatch(data.action), 0);
-            },
-          },
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Yes",
-            onPress: async () => {
-              const saved = await handleSubmit("DRAFT", {
-                skipNavigation: true,
-                successMessage: "Your draft has been saved.",
-              });
-              if (saved) {
-                setAllowBackNavigation(true);
-                setTimeout(() => navigation.dispatch(data.action), 0);
-              }
-            },
-          },
-        ],
+  const hasDraftableEventChanges = useCallback(
+    () =>
+      buildMarketplaceDraftSnapshot({
+        form,
+        eventImages,
+        exemptionCertificate,
+      }) !== cleanDraftSnapshotRef.current,
+    [eventImages, exemptionCertificate, form],
+  );
+
+  const exitToPreviousScreen = useCallback(() => {
+    if (isEditingSubmittedEvent) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "bottomRoot", params: { screen: "marketplaceMyEventsTab" } }],
+      });
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "bottomRoot", params: { screen: "marketplaceMyEventsTab" } }],
+      });
+    }
+  }, [isEditingSubmittedEvent, navigation]);
+
+  const handleExitRequest = useCallback(() => {
+    if (deletingDraftRef.current) return;
+    const exitMode = getMarketplaceExitMode({
+      submitted: isEditingSubmittedEvent,
+      hasChanges: hasDraftableEventChanges(),
+    });
+    if (exitMode !== "PROMPT_TO_SAVE") {
+      exitToPreviousScreen();
+      return;
+    }
+    Alert.alert("Save your event?", "Do you want to save your event before leaving?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Don't Save", style: "destructive", onPress: exitToPreviousScreen },
+      {
+        text: "Save",
+        onPress: async () => {
+          const saved = await handleSubmit("DRAFT", {
+            skipNavigation: true,
+            successMessage: "Your draft has been saved.",
+          });
+          if (saved) exitToPreviousScreen();
+        },
+      },
+    ]);
+  }, [exitToPreviousScreen, hasDraftableEventChanges, isEditingSubmittedEvent]);
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({ gestureEnabled: false });
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          handleExitRequest();
+          return true;
+        },
       );
-    },
+      return () => subscription.remove();
+    }, [handleExitRequest, navigation]),
   );
 
   const scrollToVendorNeeds = () => {
@@ -2777,7 +2858,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           try {
             const response = await deleteMarketplaceEvent_API(editingEventId);
             if (response?.success) {
-              setAllowBackNavigation(true);
+              deletingDraftRef.current = true;
               setSnackbar({
                 visible: true,
                 message: "Draft deleted.",
@@ -3720,33 +3801,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
   const renderPaymentResponsibility = () => (
     <View style={localStyles.fieldGroup}>
-      {renderLabel("Who is paying? *")}
-      <View style={styles.chipWrap}>
-        {PAYMENT_RESPONSIBILITY_OPTIONS.map(([label, value]) => {
-          const active = form.payment_responsibility === value;
-          return (
-            <TouchableOpacity
-              key={value}
-              activeOpacity={0.7}
-              disabled={
-                form.catered_vip_section_enabled || form.fully_catered_event
-              }
-              onPress={() => updateField("payment_responsibility", value)}
-              style={[styles.chip, active && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {form.catered_vip_section_enabled || form.fully_catered_event ? (
-        <Text style={styles.meta}>
-          Who Pays is set automatically from the catering and GA-sales answers
-          above.
+      {renderLabel("Who Pays")}
+      <View
+        style={[styles.chip, styles.chipActive, { alignSelf: "flex-start" }]}
+      >
+        <Text style={[styles.chipText, styles.chipTextActive]}>
+          {form.payment_responsibility === "COORDINATOR"
+            ? "Coordinator"
+            : form.payment_responsibility === "BOTH"
+              ? "Both"
+              : "Vendor"}
         </Text>
-      ) : null}
+      </View>
+      <Text style={styles.meta}>
+        This value is derived from the catering and GA-sales arrangement.
+      </Text>
     </View>
   );
 
@@ -3882,72 +3951,113 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderVipNeeds = () => (
-    <View style={localStyles.fieldGroup}>
-      {renderLabel("Catering & Guest Sales")}
-      <TouchableOpacity
-        activeOpacity={0.7}
-        style={localStyles.checkboxRow}
-        onPress={() =>
-          setForm((prev) => {
-            const enabled = !prev.fully_catered_event;
-            return {
-              ...prev,
-              fully_catered_event: enabled,
-              catered_vip_section_enabled: false,
-              ga_food_sales_allowed: null,
-              waive_vendor_fee_for_combined_award: null,
-              separate_vip_vendor_required: false,
-              payment_responsibility: enabled
-                ? "COORDINATOR"
-                : prev.payment_responsibility,
-              vendor_fee: enabled ? "" : prev.vendor_fee,
-            };
-          })
-        }
-      >
-        <View
-          style={[
-            localStyles.checkbox,
-            form.fully_catered_event && localStyles.checkboxActive,
-          ]}
-        >
-          {form.fully_catered_event ? (
-            <MaterialIcons name="check" size={16} color={AppColor.white} />
-          ) : null}
-        </View>
-        <Text style={localStyles.checkboxLabel}>
-          Is this a fully catered event?
-        </Text>
-      </TouchableOpacity>
-      <Text style={styles.meta}>
-        A fully catered event budgets for all GA and VIP guests. Otherwise, a
-        catered VIP section budgets only for VIP guests.
-      </Text>
-      {!form.fully_catered_event ? (
+  const renderVipNeeds = () => {
+    const vipCommitted =
+      Number(form.vip_tickets_sold || 0) +
+      Number(form.vip_tickets_reserved || 0);
+    const marketplaceActivity =
+      Number(form.application_count || 0) +
+      Number(form.submission_count || form.final_submission_count || 0);
+    const disableVip = () => {
+      if (
+        vipCommitted > 0 ||
+        marketplaceActivity > 0 ||
+        form.status === "AWARDED"
+      ) {
+        Alert.alert(
+          "VIP Section In Use",
+          "VIP configuration cannot be removed after tickets or marketplace activity exist. Contact support at 800-410-7053.",
+        );
+        return;
+      }
+      setForm((previous) => ({
+        ...previous,
+        vip_section_enabled: false,
+        vip_section_details: "",
+        vip_guest_count: "",
+        vip_ticket_quantity: "",
+        vip_ticket_price: "",
+        catered_vip_section_enabled: false,
+        ga_food_sales_allowed: null,
+        waive_vendor_fee_for_combined_award: null,
+        separate_vip_vendor_required: false,
+      }));
+    };
+
+    return (
+      <View style={localStyles.fieldGroup}>
         <TouchableOpacity
           activeOpacity={0.7}
           style={localStyles.checkboxRow}
           onPress={() =>
-            setForm((prev) => {
-              const enabled = !prev.catered_vip_section_enabled;
+            form.vip_section_enabled
+              ? disableVip()
+              : updateField("vip_section_enabled", true)
+          }
+        >
+          <View
+            style={[
+              localStyles.checkbox,
+              form.vip_section_enabled && localStyles.checkboxActive,
+            ]}
+          >
+            {form.vip_section_enabled ? (
+              <MaterialIcons name="check" size={16} color={AppColor.white} />
+            ) : null}
+          </View>
+          <Text style={localStyles.checkboxLabel}>Is there a VIP section?</Text>
+        </TouchableOpacity>
+
+        {form.vip_section_enabled ? (
+          <>
+            {renderInput("Expected VIP Guests *", "vip_guest_count", {
+              keyboardType: "number-pad",
+              onChangeText: (value) =>
+                updateField("vip_guest_count", value.replace(/\D/g, "")),
+            })}
+            {form.ticket_sales_enabled ? (
+              <View style={localStyles.sideBySide}>
+                <View style={localStyles.sideField}>
+                  {renderInput("VIP Ticket Capacity", "vip_ticket_quantity", {
+                    keyboardType: "number-pad",
+                    onChangeText: (value) =>
+                      updateField(
+                        "vip_ticket_quantity",
+                        value.replace(/\D/g, ""),
+                      ),
+                  })}
+                </View>
+                <View style={localStyles.sideField}>
+                  {renderInput("VIP Ticket Price", "vip_ticket_price", {
+                    keyboardType: "decimal-pad",
+                  })}
+                </View>
+              </View>
+            ) : null}
+            {renderInput("VIP Section Details", "vip_section_details", {
+              multiline: true,
+            })}
+          </>
+        ) : null}
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={localStyles.checkboxRow}
+          onPress={() =>
+            setForm((previous) => {
+              const enabled = !previous.fully_catered_event;
               const next = {
-                ...prev,
-                catered_vip_section_enabled: enabled,
-                payment_responsibility: enabled
-                  ? "COORDINATOR"
-                  : prev.payment_responsibility,
-                ga_food_sales_allowed: enabled ? null : false,
-                waive_vendor_fee_for_combined_award: enabled ? null : false,
-                separate_vip_vendor_required: enabled
-                  ? prev.separate_vip_vendor_required
-                  : false,
+                ...previous,
+                fully_catered_event: enabled,
+                catered_vip_section_enabled: false,
+                ga_food_sales_allowed: null,
+                waive_vendor_fee_for_combined_award: null,
+                separate_vip_vendor_required: false,
+                payment_responsibility: enabled ? "COORDINATOR" : "VENDOR",
               };
-              if (isFoodTruckService(next)) {
-                next.number_of_vendors_needed = String(
-                  getAutoFoodTruckVendorCount(next),
-                );
-              }
+              next.number_of_vendors_needed = String(
+                getAutoFoodTruckVendorCount(next),
+              );
               return next;
             })
           }
@@ -3955,78 +4065,100 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           <View
             style={[
               localStyles.checkbox,
-              form.catered_vip_section_enabled && localStyles.checkboxActive,
+              form.fully_catered_event && localStyles.checkboxActive,
             ]}
           >
-            {form.catered_vip_section_enabled && (
+            {form.fully_catered_event ? (
               <MaterialIcons name="check" size={16} color={AppColor.white} />
-            )}
+            ) : null}
           </View>
           <Text style={localStyles.checkboxLabel}>
-            Is there a catered VIP section paid for by the coordinator?
+            Is this a fully catered event?
           </Text>
         </TouchableOpacity>
-      ) : null}
-      {renderInput("# of VIP Guests", "vip_guest_count", {
-        editable: !form.ticket_sales_enabled,
-        keyboardType: "number-pad",
-        onChangeText: (value) =>
-          updateField("vip_guest_count", value.replace(/\D/g, "")),
-      })}
-      {form.catered_vip_section_enabled ? (
-        <>
-          {renderRequiredYesNo(
-            "Do you want vendors to be able to sell food to GA guests, or cater only? Select Yes to allow GA food sales.",
-            "ga_food_sales_allowed",
-          )}
-          {form.ga_food_sales_allowed
-            ? renderRequiredYesNo(
-                "If a vendor is awarded both VIP catering and GA services, do you agree to waive the vendor fee?",
-                "waive_vendor_fee_for_combined_award",
-              )
-            : null}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={localStyles.checkboxRow}
-            onPress={() =>
-              setForm((prev) => {
-                const required = !prev.separate_vip_vendor_required;
-                const currentCount = Number(prev.number_of_vendors_needed || 1);
-                const next = {
-                  ...prev,
-                  separate_vip_vendor_required: required,
-                  number_of_vendors_needed: String(
-                    Math.max(1, currentCount + (required ? 1 : -1)),
-                  ),
-                };
-                if (isFoodTruckService(next)) {
-                  next.number_of_vendors_needed = String(
-                    getAllowedFoodTruckVendorCount(next),
-                  );
-                }
-                return next;
-              })
-            }
-          >
-            <View
-              style={[
-                localStyles.checkbox,
-                form.separate_vip_vendor_required && localStyles.checkboxActive,
-              ]}
-            >
-              {form.separate_vip_vendor_required ? (
-                <MaterialIcons name="check" size={16} color={AppColor.white} />
-              ) : null}
-            </View>
-            <Text style={localStyles.checkboxLabel}>
-              Do you need a separate vendor for the catered VIP section?
-            </Text>
-          </TouchableOpacity>
-        </>
-      ) : null}
-    </View>
-  );
 
+        {form.vip_section_enabled && !form.fully_catered_event ? (
+          <>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={localStyles.checkboxRow}
+              onPress={() => {
+                const enabled = !form.catered_vip_section_enabled;
+                updateField("catered_vip_section_enabled", enabled);
+                if (!enabled) updateField("ga_food_sales_allowed", false);
+              }}
+            >
+              <View
+                style={[
+                  localStyles.checkbox,
+                  form.catered_vip_section_enabled &&
+                    localStyles.checkboxActive,
+                ]}
+              >
+                {form.catered_vip_section_enabled ? (
+                  <MaterialIcons
+                    name="check"
+                    size={16}
+                    color={AppColor.white}
+                  />
+                ) : null}
+              </View>
+              <Text style={localStyles.checkboxLabel}>
+                Is VIP catering required?
+              </Text>
+            </TouchableOpacity>
+            {form.catered_vip_section_enabled ? (
+              <>
+                {renderRequiredYesNo(
+                  "Are vendors allowed to sell food to GA guests?",
+                  "ga_food_sales_allowed",
+                )}
+                {form.ga_food_sales_allowed
+                  ? renderRequiredYesNo(
+                      "If one vendor receives both awards, waive the vendor fee?",
+                      "waive_vendor_fee_for_combined_award",
+                    )
+                  : null}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={localStyles.checkboxRow}
+                  onPress={() =>
+                    updateField(
+                      "separate_vip_vendor_required",
+                      !form.separate_vip_vendor_required,
+                    )
+                  }
+                >
+                  <View
+                    style={[
+                      localStyles.checkbox,
+                      form.separate_vip_vendor_required &&
+                        localStyles.checkboxActive,
+                    ]}
+                  >
+                    {form.separate_vip_vendor_required ? (
+                      <MaterialIcons
+                        name="check"
+                        size={16}
+                        color={AppColor.white}
+                      />
+                    ) : null}
+                  </View>
+                  <Text style={localStyles.checkboxLabel}>
+                    Do you need an additional VIP catering service slot?
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.meta}>
+                  This adds a VIP catering requirement to the event. A qualified
+                  vendor may still offer both VIP Catering and GA Sales.
+                </Text>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </View>
+    );
+  };
   const renderEventVendorNeeds = () => {
     const types = ["MERCHANDISE", "SERVICE", "OTHER"];
     const updateNeed = (type, field, value) =>
@@ -4201,27 +4333,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
         onPress={() =>
-          setForm((prev) => ({
-            ...prev,
-            ticket_sales_enabled: !prev.ticket_sales_enabled,
-            number_of_guests: prev.ticket_sales_enabled
-              ? prev.ga_ticket_quantity
-              : "",
-            vip_guest_count: prev.ticket_sales_enabled
-              ? prev.vip_ticket_quantity
-              : "",
-            ga_ticket_quantity: prev.ticket_sales_enabled
-              ? ""
-              : prev.ga_ticket_quantity,
-            ga_ticket_price: prev.ticket_sales_enabled
-              ? ""
-              : prev.ga_ticket_price,
-            vip_ticket_quantity: prev.ticket_sales_enabled
-              ? ""
-              : prev.vip_ticket_quantity,
-            vip_ticket_price: prev.ticket_sales_enabled
-              ? ""
-              : prev.vip_ticket_price,
+          setForm((previous) => ({
+            ...previous,
+            ticket_sales_enabled: !previous.ticket_sales_enabled,
           }))
         }
       >
@@ -4231,53 +4345,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             form.ticket_sales_enabled && localStyles.checkboxActive,
           ]}
         >
-          {form.ticket_sales_enabled && (
+          {form.ticket_sales_enabled ? (
             <MaterialIcons name="check" size={16} color={AppColor.white} />
-          )}
+          ) : null}
         </View>
         <Text style={localStyles.checkboxLabel}>
           Will tickets be sold online for this event?
         </Text>
       </TouchableOpacity>
+      <Text style={styles.meta}>
+        Expected attendance and online ticket capacity are separate. Ticket
+        sales never change catering budgets or vendor capacity.
+      </Text>
+    </View>
+  );
 
-      {form.ticket_sales_enabled ? (
-        <>
-          <View style={localStyles.sideBySide}>
-            <View style={localStyles.sideField}>
-              {renderInput("GA Ticket Qty", "ga_ticket_quantity", {
-                keyboardType: "number-pad",
-                onChangeText: (value) =>
-                  updateField("ga_ticket_quantity", value.replace(/\D/g, "")),
-              })}
-            </View>
-            <View style={localStyles.sideField}>
-              {renderInput("GA Ticket Price", "ga_ticket_price", {
-                keyboardType: "decimal-pad",
-              })}
-            </View>
-          </View>
-          <View style={localStyles.sideBySide}>
-            <View style={localStyles.sideField}>
-              {renderInput("VIP Ticket Qty", "vip_ticket_quantity", {
-                keyboardType: "number-pad",
-                onChangeText: (value) =>
-                  updateField("vip_ticket_quantity", value.replace(/\D/g, "")),
-              })}
-            </View>
-            <View style={localStyles.sideField}>
-              {renderInput("VIP Ticket Price", "vip_ticket_price", {
-                keyboardType: "decimal-pad",
-              })}
-            </View>
-          </View>
-          <Text style={styles.meta}>
-            Ticket sales remain inside Round Da&apos; Corner. GA and VIP sales
-            cannot exceed their configured guest limits.
-          </Text>
-        </>
-      ) : null}
-
-      <Text style={[styles.label, { marginTop: 18 }]}>Sales Tax Exemption</Text>
+  const renderTaxExemptionFields = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Sales Tax Exemption")}
       {[
         ["charitable_event", "Is this a Charitable Event?"],
         ["religious_organization", "Is this a Religious Organization?"],
@@ -4333,7 +4418,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       ) : null}
     </View>
   );
-
   const renderPrimaryServiceStyle = () => (
     <View style={localStyles.fieldGroup}>
       {renderLabel("Primary Service Style *")}
@@ -4513,11 +4597,26 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             updateField("number_of_vendors_needed", digits);
             return;
           }
+          if (
+            getVendorReductionProtection({
+              requested: Number(digits),
+              filledMinimum: filledVendorMinimum,
+              ...getMarketplaceServiceRequirements(form, Number(digits)),
+              gaFilled: filledSummary.gaSlotsFilled,
+              vipFilled: filledSummary.vipSlotsFilled,
+            }).blocked
+          ) {
+            Alert.alert(
+              "Vendor Requirement Cannot Be Reduced",
+              "By decreasing vendors, you will be required to refund vendor fees. Please contact support to refund vendors that are no longer needed for the event: 800-410-7053.",
+            );
+          }
           updateField(
             "number_of_vendors_needed",
             String(
               Math.max(
                 getMinimumFoodTruckVendorCount(form),
+                filledVendorMinimum,
                 Math.min(Number(digits), getAutoFoodTruckVendorCount(form)),
               ),
             ),
@@ -4527,7 +4626,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       {foodTruckSelected ? (
         <Text style={styles.meta}>
           {form.separate_vip_vendor_required
-            ? "Vendors needed is calculated at one per 100 regular guests, plus one dedicated VIP vendor."
+            ? "The service requirement includes GA capacity plus an additional VIP catering slot. A qualified vendor may fill both categories."
             : "Vendors needed is calculated at one per 100 combined regular and VIP guests."}
         </Text>
       ) : (
@@ -4577,6 +4676,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 : "Create Event"
         }
         rightSide
+        onBackPress={handleExitRequest}
       >
         {!editingEventId && !isReopenMode ? (
           <TouchableOpacity
@@ -4690,13 +4790,34 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             <View style={localStyles.card}>
               {renderSectionHeader("Guests & VIP", "people")}
               {renderTicketSalesFields()}
-              {renderInput("Regular Guests *", "number_of_guests", {
-                editable: !form.ticket_sales_enabled,
+              {renderLabel("GA Attendance")}
+              {renderInput("Expected GA Guests *", "number_of_guests", {
                 keyboardType: "number-pad",
                 onChangeText: (value) =>
                   updateField("number_of_guests", value.replace(/\D/g, "")),
               })}
+              {form.ticket_sales_enabled ? (
+                <View style={localStyles.sideBySide}>
+                  <View style={localStyles.sideField}>
+                    {renderInput("GA Ticket Capacity", "ga_ticket_quantity", {
+                      keyboardType: "number-pad",
+                      onChangeText: (value) =>
+                        updateField(
+                          "ga_ticket_quantity",
+                          value.replace(/\D/g, ""),
+                        ),
+                    })}
+                  </View>
+                  <View style={localStyles.sideField}>
+                    {renderInput("GA Ticket Price", "ga_ticket_price", {
+                      keyboardType: "decimal-pad",
+                    })}
+                  </View>
+                </View>
+              ) : null}
+              {renderLabel("VIP Attendance")}
               {renderVipNeeds()}
+              {renderTaxExemptionFields()}
             </View>
           ) : null}
 
@@ -4719,6 +4840,43 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {renderPrimaryServiceStyle()}
               {renderServiceSpecificDetails()}
               {renderVendorCountFields()}
+              <View style={localStyles.reviewRow}>
+                <Text style={localStyles.reviewLabel}>Vendor Capacity</Text>
+                <Text style={localStyles.reviewValue}>
+                  Calculated Unique-Vendor Maximum: {capacitySummary.calculatedMaximum}
+                  {"\n"}
+                  GA Service Slots Required: {selectedGaRequirement}
+                  {"\n"}
+                  GA Service Slots Filled: {filledSummary.gaSlotsFilled}
+                  {"\n"}
+                  VIP Catering Slots Required: {selectedVipRequirement}
+                  {"\n"}
+                  VIP Catering Slots Filled: {filledSummary.vipSlotsFilled}
+                  {"\n"}
+                  Total Service Slots Required: {filledSummary.totalServiceSlotsRequired}
+                  {"\n"}
+                  Total Service Slots Filled: {filledSummary.totalServiceSlotsFilled}
+                  {"\n"}
+                  Combined Vendors Filling Both: {filledSummary.combinedVendors}
+                  {"\n"}
+                  Unique Vendors Selected: {filledSummary.minimumUniqueVendors}
+                  {"\n"}
+                  Remaining GA Slots: {filledSummary.remainingGaSlots}
+                  {"\n"}
+                  Remaining VIP Slots: {filledSummary.remainingVipSlots}
+                  {"\n"}
+                  Remaining Total Service Slots: {filledSummary.remainingTotalServiceSlots}
+                  {"\n"}
+                  Remaining Unique-Vendor Need: {filledSummary.remainingUniqueVendors}
+                </Text>
+                {form.catered_vip_section_enabled &&
+                form.ga_food_sales_allowed ? (
+                  <Text style={styles.meta}>
+                    A qualifying combined vendor fills one VIP catering position
+                    and one GA sales slot while remaining one unique vendor.
+                  </Text>
+                ) : null}
+              </View>
               {renderEventVendorNeeds()}
               {renderChips(
                 "Power Requirements",
@@ -4771,6 +4929,32 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     "Amount available when coordinator pays vendors.",
                     form.payment_responsibility === "VENDOR",
                   )}
+                </View>
+                <View style={localStyles.reviewRow}>
+                  <Text style={localStyles.reviewLabel}>
+                    Budget Calculation
+                  </Text>
+                  <Text style={localStyles.reviewValue}>
+                    Expected GA Guests: {budgetSummary.gaGuests}
+                    {"\n"}
+                    Expected VIP Guests: {budgetSummary.vipGuests}
+                    {"\n"}
+                    Catered Guests: {budgetSummary.cateredGuests}
+                    {"\n"}
+                    Calculation: {budgetSummary.cateredGuests} × $25{"\n"}
+                    Calculated Minimum: $
+                    {budgetSummary.minimumBudget.toFixed(2)}
+                    {"\n"}
+                    Coordinator-Entered Budget: $
+                    {Number(form.budgeted_amount || 0).toFixed(2)}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {form.fully_catered_event
+                      ? "GA and VIP attendance are included because the full event is catered."
+                      : form.catered_vip_section_enabled
+                        ? "Only VIP attendance is included because GA guests purchase from vendors."
+                        : "No coordinator catering budget applies to a vendor-paid GA event."}
+                  </Text>
                 </View>
                 {["VENDOR", "BOTH"].includes(form.payment_responsibility)
                   ? renderDateTimePicker(
@@ -4864,28 +5048,36 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               </Text>
               {[
                 [
-                  "Event",
-                  `${form.event_name || "Not entered"} · ${form.event_type || "Type not selected"}`,
+                  "Event Details",
+                  `${form.event_name || "Not entered"} · ${form.event_type || "Type not selected"} · ${form.event_visibility || "Not selected"}\n${form.event_description || "No description"}`,
                 ],
                 [
-                  "Date & Location",
-                  `${form.event_date || "Date not entered"} · ${form.event_city || "City not entered"}, ${form.event_state || "State"}`,
+                  "Date, Time & Location",
+                  `${formatDateForDisplay(form.event_date) || "Date not entered"} · ${form.event_time || "Time not entered"} · ${form.event_duration_total_minutes || 0} minutes\n${form.event_address || "Address not entered"}, ${form.event_city || "City"}, ${form.event_state || "State"} ${form.event_zip || ""}`,
                 ],
                 [
-                  "Guests",
-                  `${form.number_of_guests || 0} regular · ${form.vip_guest_count || 0} VIP`,
+                  "GA Attendance & Tickets",
+                  `Expected GA Guests: ${form.number_of_guests || 0}\nOnline Sales: ${form.ticket_sales_enabled ? "Yes" : "No"}\nGA Ticket Capacity: ${form.ticket_sales_enabled ? form.ga_ticket_quantity || 0 : "Not offered"}\nGA Ticket Price: ${form.ticket_sales_enabled ? `$${Number(form.ga_ticket_price || 0).toFixed(2)}` : "Not offered"}`,
+                ],
+                [
+                  "VIP Attendance & Tickets",
+                  `VIP Section: ${form.vip_section_enabled ? "Yes" : "No"}\nExpected VIP Guests: ${form.vip_section_enabled ? form.vip_guest_count || 0 : 0}\nVIP Ticket Capacity: ${form.ticket_sales_enabled && form.vip_section_enabled ? form.vip_ticket_quantity || 0 : "Not offered"}\nVIP Ticket Price: ${form.ticket_sales_enabled && form.vip_section_enabled ? `$${Number(form.vip_ticket_price || 0).toFixed(2)}` : "Not offered"}\nDetails: ${form.vip_section_details || "None"}`,
+                ],
+                [
+                  "Catering Arrangement",
+                  `Fully Catered: ${form.fully_catered_event ? "Yes" : "No"}\nVIP Catering: ${form.catered_vip_section_enabled ? "Yes" : "No"}\nGA Food Sales: ${form.ga_food_sales_allowed ? "Allowed" : "Not allowed"}\nAdditional VIP Catering Service Slot: ${form.separate_vip_vendor_required ? "Yes" : "No"}`,
                 ],
                 [
                   "Free Food",
                   form.free_food_offered === true
-                    ? `Yes · ${form.free_food_provider || "Provider required"}`
+                    ? `Yes · Provider: ${form.free_food_provider || "Required"} · Vendors give away food: ${form.vendors_required_to_giveaway_food ? "Yes" : "No"}`
                     : form.free_food_offered === false
                       ? "No"
                       : "Not answered",
                 ],
                 [
-                  "Food Vendors",
-                  `${form.number_of_vendors_needed || 0} needed`,
+                  "Vendor Capacity",
+                  `Calculated Maximum: ${capacitySummary.calculatedMaximum}\nSelected Requirement: ${form.number_of_vendors_needed || 0}\nGA Slots Filled: ${filledSummary.gaSlotsFilled}\nVIP Slots Filled: ${filledSummary.vipSlotsFilled}\nCombined Vendors: ${filledSummary.combinedVendors}\nMinimum Unique Vendors: ${filledSummary.minimumUniqueVendors}\nRemaining GA Slots: ${filledSummary.remainingGaSlots}\nRemaining VIP Slots: ${filledSummary.remainingVipSlots}\nRemaining Unique Need: ${filledSummary.remainingUniqueVendors}`,
                 ],
                 [
                   "Additional Vendors",
@@ -4899,8 +5091,16 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     : "None",
                 ],
                 [
-                  "Payment",
-                  `${form.payment_responsibility || "Not selected"} · Budget $${Number(form.budgeted_amount || 0).toFixed(2)}`,
+                  "Payment & Budget",
+                  `Who Pays: ${form.payment_responsibility}\nExpected GA: ${budgetSummary.gaGuests} · Expected VIP: ${budgetSummary.vipGuests}\nCatered Guests: ${budgetSummary.cateredGuests} × $25 = $${budgetSummary.minimumBudget.toFixed(2)}\nEntered Budget: $${Number(form.budgeted_amount || 0).toFixed(2)}\nVendor Fee: $${Number(form.vendor_fee || 0).toFixed(2)}\nCombined Fee Waived: ${form.waive_vendor_fee_for_combined_award ? "Yes" : "No"}\nPayment Deadline: ${formatDateForDisplay(form.vendor_fee_payment_deadline) || "Not applicable"}`,
+                ],
+                [
+                  "Requirements",
+                  `Services: ${form.service_types.join(", ") || "None"}\nStyles: ${form.service_styles.join(", ") || "None"}\nPower: ${form.power_required.join(", ") || "None"}\nPermits: ${form.permits_required.join(", ") || "None"}\nInsurance: ${form.insurance_required ? "Yes" : "No"} · Alcohol: ${form.alcohol_required ? "Yes" : "No"}\nCuisine: ${form.cuisine_preferences.join(", ") || "None"}\nDietary: ${form.dietary_restrictions.join(", ") || "None"}\nEquipment: ${form.equipment_needed.join(", ") || "None"}`,
+                ],
+                [
+                  "Tax Exemption & Documents",
+                  `Charitable: ${form.charitable_event ? "Yes" : "No"} · Religious: ${form.religious_organization ? "Yes" : "No"}\nCertificate: ${exemptionCertificate || form.tax_exemption_certificate_url ? "Selected" : "Not selected"}`,
                 ],
                 ["Images", `${eventImages.length} selected`],
               ].map(([label, value]) => (

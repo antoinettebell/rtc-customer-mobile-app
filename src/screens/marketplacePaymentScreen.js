@@ -28,6 +28,7 @@ import {
   updateMarketplaceFinalPaymentTip_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
+import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 
 const RTC_PHONE = "800-410-7053";
 
@@ -238,7 +239,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
           <Text style={styles.meta}>
             Type: {payment?.payment_type?.replaceAll("_", " ") || "Marketplace Payment"}
           </Text>
-          <Text style={styles.meta}>Status: {payment?.payment_status || "PENDING"}</Text>
+          <Text style={styles.meta}>Status: {formatMarketplaceStatus(payment?.payment_status)}</Text>
           <Text style={styles.meta}>{getPaymentHelpText(payment)}</Text>
         </View>
 

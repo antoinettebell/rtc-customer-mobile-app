@@ -11,10 +11,10 @@ const AppHeader = (props) => {
 
   return (
     <View style={styles.headerWrap}>
-      {canGoBack && (
+      {(canGoBack || props.onBackPress) && (
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => navigation.goBack()}
+          onPress={props.onBackPress || (() => navigation.goBack())}
           style={styles.backBtn}
         >
           <MaterialIcons name="arrow-back" size={28} color={AppColor.text} />
@@ -30,6 +30,7 @@ AppHeader.propTypes = {
   headerTitle: PropTypes.string,
   rightSide: PropTypes.bool,
   children: PropTypes.node,
+  onBackPress: PropTypes.func,
 };
 
 AppHeader.defaultProps = {
