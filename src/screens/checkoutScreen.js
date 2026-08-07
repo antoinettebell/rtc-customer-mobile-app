@@ -758,6 +758,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     navigation.navigate("foodTruckDetailScreen", {
       item: foodTruckDetail,
       editItemId: itemToEdit?._id,
+      editCartLineId: itemToEdit?._cartLineId,
     });
   };
 
@@ -790,7 +791,7 @@ const CheckoutScreen = ({ navigation, route }) => {
         : "Included selections";
 
     return (
-      <View key={item?._id} style={styles.orderLineOuter}>
+      <View key={item?._cartLineId || item?._id} style={styles.orderLineOuter}>
         <TouchableOpacity
           activeOpacity={0.75}
           style={styles.itemRow}
