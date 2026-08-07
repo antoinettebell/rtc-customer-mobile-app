@@ -47,6 +47,7 @@ import { updateOrderItems } from "../helpers/order.helper";
 import {
   getRewardItemsDisplay,
   calculateItemTotalWithDiscount,
+  calculateSelectedComboSideCost,
   calculateSelectedOptionCost,
 } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
@@ -772,7 +773,9 @@ const CheckoutScreen = ({ navigation, route }) => {
     );
     const hasRewardNested = rewardItems.length > 0;
     const primaryDisplayTotal = hasRewardNested
-      ? (Number(item.price) || 0) + calculateSelectedOptionCost(item)
+      ? (Number(item.price) || 0) +
+        calculateSelectedOptionCost(item) +
+        calculateSelectedComboSideCost(item)
       : calculateItemTotalWithDiscount({ ...item, quantity: 1 });
     const hasComboNested = (item?.selectedSubItems?.length ?? 0) > 0;
     const comboNestedLabel =
