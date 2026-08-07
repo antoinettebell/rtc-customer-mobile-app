@@ -151,15 +151,11 @@ const hasIncompleteOptionSelection = (requiredCount, selectedOptions) => {
   return selectedCount < 1 || selectedCount > requiredCount;
 };
 
-const hasMissingConfiguredChildren = (configuredItems, selectedItems) =>
-  (Array.isArray(configuredItems) ? configuredItems : []).some(
-    (configuredItem) => {
-      const childId = getItemId(configuredItem);
-      return !(Array.isArray(selectedItems) ? selectedItems : []).some(
-        (selection) => String(getItemId(selection)) === String(childId)
-      );
-    },
-  );
+const hasMissingConfiguredChildren = (configuredItems, selectedItems, limit) => {
+  const configuredCount = Array.isArray(configuredItems) ? configuredItems.length : 0;
+  const requiredCount = getRequiredCount(limit, configuredCount);
+  return (Array.isArray(selectedItems) ? selectedItems : []).length !== requiredCount;
+};
 
 const buildComboItemPayload = (subItem, fallbackQty = 1) => {
   const menuItem = subItem?.menuItem || subItem;
@@ -291,6 +287,16 @@ const hasIncompleteRequiredSelections = (item) => {
     (requiredDiscountComboSides > 0 &&
       (item?.selectedDiscountComboSides || []).length !==
         requiredDiscountComboSides) ||
+    hasMissingConfiguredChildren(
+      configuredComboItems,
+      item?.selectedSubItems,
+      item?.comboSidesPerOrder,
+    ) ||
+    hasMissingConfiguredChildren(
+      configuredDiscountComboItems,
+      item?.selectedDiscountSubItems,
+      discountSourceItem?.comboSidesPerOrder,
+    ) ||
     (item?.selectedSubItems || []).some(hasIncompleteRequiredSelections) ||
     (item?.selectedDiscountSubItems || []).some(hasIncompleteRequiredSelections)
   );

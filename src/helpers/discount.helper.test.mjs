@@ -90,4 +90,34 @@ assert.equal(
   16
 );
 
+assert.equal(
+  calculateItemTotalWithDiscount({
+    price: 12,
+    quantity: 1,
+    itemType: "COMBO",
+    selectedSubItems: [
+      { name: "Fries", hasAdditionalCost: false, additionalCost: 0 },
+      { name: "Okra", hasAdditionalCost: true, additionalCost: 2 },
+    ],
+  }),
+  14
+);
+
+assert.equal(
+  calculateItemTotalWithDiscount({
+    price: 12,
+    quantity: 1,
+    itemType: "COMBO",
+    selectedSubItems: [
+      {
+        name: "Fries",
+        hasAdditionalCost: false,
+        toppingOptions: [{ name: "Cheese", hasCost: true, cost: 1.5 }],
+        selectedToppings: ["Cheese"],
+      },
+    ],
+  }),
+  13.5
+);
+
 console.log("discount helper tests passed");
