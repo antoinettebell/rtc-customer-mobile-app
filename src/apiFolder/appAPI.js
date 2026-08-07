@@ -61,6 +61,7 @@ import {
   MARKETPLACE_EVENT_QUESTION_ANSWER,
   MARKETPLACE_AWARD_BIDS,
   MARKETPLACE_ACCEPT_APPLICATION,
+  MARKETPLACE_REVOKE_AWARD,
   MARKETPLACE_EVENT_FINAL_PAYMENT,
   MARKETPLACE_PAYMENT_BY_ID,
   MARKETPLACE_PAYMENT_CHECKOUT,
@@ -1105,6 +1106,19 @@ export const acceptMarketplaceApplication_API = async ({ eventId, applicationId 
     const response = await apiClient.post(
       MARKETPLACE_ACCEPT_APPLICATION(eventId, applicationId),
       {},
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const revokeMarketplaceAward_API = async ({ eventId, bidId, reason = "" }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_REVOKE_AWARD(eventId, bidId),
+      { reason },
       { skipToken: false }
     );
     return response?.data;

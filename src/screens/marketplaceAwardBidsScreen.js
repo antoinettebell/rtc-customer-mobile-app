@@ -17,6 +17,7 @@ import { AppColor } from "../utils/theme";
 import {
   awardMarketplaceBids_API,
   acceptMarketplaceApplication_API,
+  revokeMarketplaceAward_API,
   getMarketplaceEventBids_API,
   getMarketplaceEventById_API,
   getEventVendorEventApplications_API,
@@ -322,6 +323,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           </>
         ) : (
+          <>
           <Text style={[styles.meta, { marginTop: 10 }]}>
             {item.bid_status === "AWARDED"
               ? "Awarded"
@@ -329,6 +331,33 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 ? "Withdrawn by vendor"
                 : "Not selected"}
           </Text>
+          {item.bid_status === "AWARDED" ? (
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginTop: 10, borderColor: "#B42318" }]}
+              onPress={() => Alert.alert(
+                "Revoke Vendor Award",
+                "Revoke this award and reopen the remaining proposals? If the vendor already paid a fee, support must process the change.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Revoke",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await revokeMarketplaceAward_API({ eventId, bidId: item.bid_id });
+                        await loadData();
+                      } catch (error) {
+                        setSnackbar({ visible: true, message: error?.message || "Unable to revoke this award." });
+                      }
+                    },
+                  },
+                ]
+              )}
+            >
+              <Text style={[styles.secondaryButtonText, { color: "#B42318" }]}>Revoke Award</Text>
+            </TouchableOpacity>
+          ) : null}
+          </>
         )}
         <Text style={styles.meta}>Menu: {item.menu_description || "Not provided"}</Text>
         {item.menu_pdf_url ? (

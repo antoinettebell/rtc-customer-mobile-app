@@ -135,6 +135,8 @@ export const MARKETPLACE_AWARD_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/award`;
 export const MARKETPLACE_ACCEPT_APPLICATION = (event_id, application_id) =>
   `/marketplace/events/${event_id}/applications/${application_id}/accept`;
+export const MARKETPLACE_REVOKE_AWARD = (event_id, bid_id) =>
+  `/marketplace/events/${event_id}/awards/${bid_id}/revoke`;
 export const MARKETPLACE_EVENT_FINAL_PAYMENT = (event_id) =>
   `/marketplace/events/${event_id}/final-payment`;
 export const MARKETPLACE_TICKET_CHECKOUT = (event_id) =>
