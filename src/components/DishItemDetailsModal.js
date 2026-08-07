@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -89,7 +89,9 @@ const SubItemRow = memo(({ subItem, isSelected, onToggle }) => {
     </View>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Text style={styles.subItemPrice}>
-        {`x${subItem?.qty}`}
+        {subItem?.hasAdditionalCost
+          ? `+$${Number(subItem?.additionalCost || 0).toFixed(2)}`
+          : `x${subItem?.qty}`}
         {/* {`$${(subItem?.menuItem?.price || 0).toFixed(2)}`} */}
       </Text>
       <View
@@ -228,11 +230,14 @@ const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
         (selection) => String(getMenuItemId(selection)) === String(child._id)
       );
 
+      if (!saved) return null;
       return {
         ...child,
-        ...(saved || {}),
+        ...saved,
         comboMenuItemId: child._id,
         qty: configuredItem?.qty || saved?.qty || 1,
+        hasAdditionalCost: !!configuredItem?.hasAdditionalCost,
+        additionalCost: Number(configuredItem?.additionalCost) || 0,
         selectedFlavors: saved?.selectedFlavors || [],
         selectedToppings: saved?.selectedToppings || [],
         selectedComboSides: saved?.selectedComboSides || [],
@@ -241,15 +246,11 @@ const buildRequiredChildSelections = (configuredItems, savedSelections = []) =>
     })
     .filter(Boolean);
 
-const hasEveryConfiguredChild = (configuredItems, selectedItems) =>
-  (Array.isArray(configuredItems) ? configuredItems : []).every(
-    (configuredItem) => {
-      const childId = getMenuItemId(configuredItem);
-      return (Array.isArray(selectedItems) ? selectedItems : []).some(
-        (selection) => String(getMenuItemId(selection)) === String(childId)
-      );
-    }
-  );
+const hasEveryConfiguredChild = (configuredItems, selectedItems, configuredLimit) => {
+  const available = Array.isArray(configuredItems) ? configuredItems.length : 0;
+  const required = getSelectionLimit(configuredLimit, available);
+  return (Array.isArray(selectedItems) ? selectedItems : []).length === required;
+};
 
 const RequirementSectionToggle = memo(
   ({ title, complete, expanded, onPress }) => (
@@ -436,7 +437,7 @@ const DishItemDetailsModal = ({
       "primary-item": false,
       "discount-reward": false,
     });
-    setIsAddingSeparateItem(false);
+    setIsAddingSeparateItem(selectedMenuItem?._startAdditionalItem === true);
     setSplitPlainFlavor(
       (selectedMenuItem?.selectedFlavors || []).some(isPlainOption) &&
         (selectedMenuItem?.selectedFlavors || []).length > 1
@@ -455,6 +456,7 @@ const DishItemDetailsModal = ({
     );
   }, [
     selectedMenuItem?._id,
+    selectedMenuItem?._startAdditionalItem,
     selectedMenuItem?.selectedSubItems,
     selectedMenuItem?.customizationInput,
     selectedMenuItem?.selectedFlavors,
@@ -555,7 +557,8 @@ const DishItemDetailsModal = ({
       : [];
   const hasAllRequiredComboItems = hasEveryConfiguredChild(
     configuredComboItems,
-    selectedSubItems
+    selectedSubItems,
+    selectedMenuItem?.comboSidesPerOrder
   );
   const hasAllRequiredDiscountComboItems = hasEveryConfiguredChild(
     configuredDiscountComboItems,
@@ -740,7 +743,7 @@ const DishItemDetailsModal = ({
     if (!hasAllRequiredComboItems) {
       Alert.alert(
         "Combo Items Required",
-        "Please complete every included combo item before adding this item to your order."
+        `Please select exactly ${getSelectionLimit(selectedMenuItem?.comboSidesPerOrder, configuredComboItems.length)} combo item${getSelectionLimit(selectedMenuItem?.comboSidesPerOrder, configuredComboItems.length) === 1 ? "" : "s"} before adding this item to your order.`
       );
       return false;
     }
@@ -998,91 +1001,20 @@ const DishItemDetailsModal = ({
     setIsAddingSeparateItem(true);
   }, [selectedMenuItem]);
 
-  const existingOptionsSummary = useMemo(() => {
-    const parts = [];
-    if (selectedMenuItem?.selectedFlavors?.length) {
-      parts.push(`Flavors: ${selectedMenuItem.selectedFlavors.join(", ")}`);
-    }
-    if (selectedMenuItem?.selectedToppings?.length) {
-      parts.push(`Toppings: ${selectedMenuItem.selectedToppings.join(", ")}`);
-    }
-    if (selectedMenuItem?.customizationInput) {
-      parts.push(`Instructions: ${selectedMenuItem.customizationInput}`);
-    }
-    return parts.join(" · ") || "The original item's selections are unchanged.";
-  }, [selectedMenuItem]);
-
   const handleIncreaseQuantity = useCallback(() => {
-    const buildItemWithCurrentOptions = () => ({
-      ...selectedMenuItem,
-      selectedSubItems,
-      customizationInput,
-      selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
-      selectedToppings: hasToppingChoices ? selectedToppings : [],
-      selectedComboSides: hasComboSideChoices ? selectedComboSides : [],
-      selectedDiscountFlavors: hasDiscountFlavorChoices
-        ? selectedDiscountFlavors
-        : [],
-      selectedDiscountToppings: hasDiscountToppingChoices
-        ? selectedDiscountToppings
-        : [],
-      selectedDiscountCustomizationInput: hasDiscountCustomization
-        ? selectedDiscountCustomizationInput
-        : "",
-      selectedDiscountComboSides: hasDiscountComboSideChoices
-        ? selectedDiscountComboSides
-        : [],
-      selectedDiscountSubItems,
-    });
+    if (getItemQuantity(selectedMenuItem._id) === 0) {
+      Alert.alert(
+        "Add Item First",
+        "Please tap Add to Order before increasing the quantity."
+      );
+      return;
+    }
 
-    const saveInitialDraftIfNeeded = () => {
-      if (getItemQuantity(selectedMenuItem._id) > 0) return;
-      handleAddItem(buildItemWithCurrentOptions());
-    };
-
-    const addWithCurrentOptions = () => {
-      if (!validateSelections()) return;
-      saveInitialDraftIfNeeded();
-      handleAddItem(buildItemWithCurrentOptions());
-    };
-
-    const addSeparately = () => {
-      if (!validateSelections()) return;
-      saveInitialDraftIfNeeded();
-      beginAdditionalCustomization();
-    };
-
-    Alert.alert(
-      "Use the same options?",
-      "Should the additional item use all the same options?",
-      [
-        { text: "No", onPress: addSeparately },
-        { text: "Yes", onPress: addWithCurrentOptions },
-      ]
-    );
+    beginAdditionalCustomization();
   }, [
     beginAdditionalCustomization,
-    customizationInput,
     getItemQuantity,
-    handleAddItem,
-    hasComboSideChoices,
-    hasDiscountComboSideChoices,
-    hasDiscountCustomization,
-    hasDiscountFlavorChoices,
-    hasDiscountToppingChoices,
-    hasFlavorChoices,
-    hasToppingChoices,
-    selectedComboSides,
-    selectedDiscountComboSides,
-    selectedDiscountCustomizationInput,
-    selectedDiscountFlavors,
-    selectedDiscountSubItems,
-    selectedDiscountToppings,
-    selectedFlavors,
     selectedMenuItem,
-    selectedSubItems,
-    selectedToppings,
-    validateSelections,
   ]);
 
   const updateSelectedChildItem = useCallback((setter, childId, updates) => {
@@ -1566,7 +1498,7 @@ const DishItemDetailsModal = ({
             {/* Combo Items */}
             {isRequirementExpanded("primary-item") && selectedMenuItem.subItem?.length > 0 && (
               <View style={styles.actionSheetSection}>
-                <Text style={styles.sectionTitle}>Included Combo Items:</Text>
+                <Text style={styles.sectionTitle}>{`Choose exactly ${getSelectionLimit(selectedMenuItem?.comboSidesPerOrder, selectedMenuItem.subItem.length)} Combo Items:`}</Text>
                 {selectedMenuItem.subItem.map((subItem) => {
                   const childItem = getComboChildItem(subItem);
                   const selectedChild = selectedSubItems.find(
@@ -1590,10 +1522,27 @@ const DishItemDetailsModal = ({
                     <View key={subItem?._id || childItem?._id}>
                       <SubItemRow
                         subItem={subItem}
-                        isSelected={true}
-                        onToggle={() =>
-                          hasRequirements && toggleRequirementSection(sectionKey)
-                        }
+                        isSelected={!!selectedChild}
+                        onToggle={() => {
+                          if (selectedChild) {
+                            setSelectedSubItems((current) => current.filter((entry) => String(getMenuItemId(entry)) !== String(childItem?._id)));
+                            return;
+                          }
+                          const limit = getSelectionLimit(selectedMenuItem?.comboSidesPerOrder, selectedMenuItem.subItem.length);
+                          if (selectedSubItems.length >= limit) {
+                            Alert.alert("Selection limit", `Choose up to ${limit}.`);
+                            return;
+                          }
+                          setSelectedSubItems((current) => [...current, {
+                            ...childItem,
+                            comboMenuItemId: childItem?._id,
+                            qty: subItem?.qty || 1,
+                            hasAdditionalCost: !!subItem?.hasAdditionalCost,
+                            additionalCost: Number(subItem?.additionalCost) || 0,
+                            selectedFlavors: [], selectedToppings: [], selectedComboSides: [], customizationInput: "",
+                          }]);
+                          if (hasRequirements) toggleRequirementSection(sectionKey);
+                        }}
                       />
                       {hasRequirements ? (
                         <RequirementSectionToggle
@@ -1955,21 +1904,8 @@ const DishItemDetailsModal = ({
             )}
           </ScrollView>
 
-          {isAddingSeparateItem ? (
-            <View style={styles.separateItemNotice}>
-              <Text style={styles.separateItemTitle}>Configuring one additional item</Text>
-              <Text style={styles.separateItemText}>{existingOptionsSummary}</Text>
-            </View>
-          ) : null}
-
           {/* Footer Quantity Controls */}
           <View style={styles.footer}>
-            {isAddingSeparateItem ? (
-              <View style={styles.pendingQuantity}>
-                <Text style={styles.pendingQuantityLabel}>Total after adding</Text>
-                <Text style={styles.qtyText}>{getItemQuantity(selectedMenuItem._id) + 1}</Text>
-              </View>
-            ) : (
             <View style={styles.qtySelector}>
               <TouchableOpacity
                 style={styles.qtyBtn}
@@ -1988,7 +1924,11 @@ const DishItemDetailsModal = ({
                 </Text>
               </TouchableOpacity>
               <Text style={styles.qtyText}>
-                {getItemQuantity(selectedMenuItem._id)}
+                {Math.max(
+                  1,
+                  getItemQuantity(selectedMenuItem._id) +
+                    (isAddingSeparateItem ? 1 : 0)
+                )}
               </Text>
               <TouchableOpacity
                 style={styles.qtyBtn}
@@ -2011,7 +1951,6 @@ const DishItemDetailsModal = ({
                 </Text>
               </TouchableOpacity>
             </View>
-            )}
 
             <TouchableOpacity
               style={[
@@ -2026,8 +1965,8 @@ const DishItemDetailsModal = ({
                 {getItemQuantity(selectedMenuItem._id) === 0
                   ? "Add to Order"
                   : isAddingSeparateItem
-                    ? "Add Customized Item"
-                  : "Update Order"}
+                    ? "Update Order"
+                    : "Update Order"}
               </Text>
             </TouchableOpacity>
           </View>
