@@ -16,9 +16,11 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { check, request, RESULTS } from "react-native-permissions";
 
 import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
+import { permission } from "./src/helpers/permission.helper";
 import {
   createAndroidChannel,
   requestNotificationPermission,
@@ -351,6 +353,13 @@ const configureNotification = async () => {
   }
 };
 
+const configureLocationPermission = async () => {
+  const status = await check(permission.location);
+  if (status === RESULTS.DENIED) {
+    await request(permission.location);
+  }
+};
+
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
@@ -358,6 +367,9 @@ const App = () => {
 
   useEffect(() => {
     configureNotification();
+    configureLocationPermission().catch((error) =>
+      console.log("Location permission setup error", error),
+    );
   }, []);
 
   return (
