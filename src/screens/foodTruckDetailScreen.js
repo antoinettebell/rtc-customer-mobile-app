@@ -419,15 +419,19 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     );
   };
 
-  const openMenuItemOptions = (menuItem) => {
+  const openMenuItemOptions = (menuItem, cartLineId = null) => {
     const existingOrderItem = currentOrder.items.find(
-      (orderItem) => orderItem._id === menuItem._id
+      (orderItem) =>
+        cartLineId
+          ? orderItem._cartLineId === cartLineId
+          : orderItem._id === menuItem._id
     );
 
     setSelectedMenuItem(
       existingOrderItem
         ? {
             ...menuItem,
+            _cartLineId: existingOrderItem._cartLineId,
             selectedSubItems: existingOrderItem.selectedSubItems || [],
             customizationInput: existingOrderItem.customizationInput || "",
             selectedFlavors: existingOrderItem.selectedFlavors || [],
@@ -465,6 +469,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     const editItemId = route.params?.editItemId;
+    const editCartLineId = route.params?.editCartLineId;
     if (!editItemId || menuTabs.length === 0) {
       return;
     }
@@ -481,9 +486,17 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     );
     setSelectedTab(tabIndex);
     tabContentRef.current?.scrollToIndex({ index: tabIndex, animated: false });
-    openMenuItemOptions(menuItem);
-    navigation.setParams({ editItemId: undefined });
-  }, [menuTabs, navigation, route.params?.editItemId]);
+    openMenuItemOptions(menuItem, editCartLineId);
+    navigation.setParams({
+      editItemId: undefined,
+      editCartLineId: undefined,
+    });
+  }, [
+    menuTabs,
+    navigation,
+    route.params?.editCartLineId,
+    route.params?.editItemId,
+  ]);
 
   const handleSelectedSubItemsChange = useCallback(
     (selectedSubItems) => {
@@ -492,7 +505,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -501,7 +516,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedSubItems",
           value: selectedSubItems,
         })
@@ -517,7 +532,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -526,7 +543,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "customizationInput",
           value: customizationInput,
         })
@@ -542,7 +559,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -551,7 +570,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedFlavors",
           value: selectedFlavors,
         })
@@ -567,7 +586,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -576,7 +597,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedToppings",
           value: selectedToppings,
         })
@@ -592,7 +613,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -601,7 +624,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedDiscountFlavors",
           value: selectedDiscountFlavors,
         })
@@ -617,7 +640,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -626,7 +651,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedDiscountToppings",
           value: selectedDiscountToppings,
         })
@@ -642,7 +667,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -651,7 +678,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedDiscountCustomizationInput",
           value: selectedDiscountCustomizationInput,
         })
@@ -667,7 +694,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -676,7 +705,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedDiscountComboSides",
           value: selectedDiscountComboSides,
         })
@@ -692,7 +721,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -701,7 +732,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedDiscountSubItems",
           value: selectedDiscountSubItems,
         })
@@ -717,7 +748,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       }
 
       const existingItem = currentOrder.items.find(
-        (orderItem) => orderItem._id === selectedMenuItem._id
+        (orderItem) =>
+          (orderItem._cartLineId || orderItem._id) ===
+          (selectedMenuItem._cartLineId || selectedMenuItem._id)
       );
 
       if (!existingItem) {
@@ -726,7 +759,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
       dispatch(
         updateItemProperty({
-          itemId: selectedMenuItem._id,
+          itemId: selectedMenuItem._cartLineId || selectedMenuItem._id,
           keyName: "selectedComboSides",
           value: selectedComboSides,
         })
@@ -738,7 +771,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const handleRemoveItem = (menuItem) => {
     dispatch(
       removeItemFromOrder({
-        itemId: menuItem._id,
+        itemId: menuItem._cartLineId || menuItem._id,
       })
     );
   };

@@ -132,44 +132,44 @@ const orderSlice = createSlice({
     updateAllItemsOfOrder: (state, { payload }) => {
       const newItems = payload;
 
-      // Create maps of existing item data for quick lookup
-      const existingItemData = {};
+      // Customized copies of the same menu item are separate cart lines. Match
+      // those lines by their stable cart ID so one copy's selections cannot be
+      // applied to every copy during the checkout menu-data refresh.
+      const existingItemsByLineId = new Map();
+      const existingItemsByMenuId = new Map();
       state.currentOrder.items.forEach((item) => {
-        existingItemData[item._id] = {
-          quantity: item.quantity || 1,
-          customizationInput: item.customizationInput || "",
-          selectedFlavors: item.selectedFlavors || [],
-          selectedToppings: item.selectedToppings || [],
-          selectedDiscountFlavors: item.selectedDiscountFlavors || [],
-          selectedDiscountToppings: item.selectedDiscountToppings || [],
-          selectedDiscountCustomizationInput:
-            item.selectedDiscountCustomizationInput || "",
-          selectedDiscountComboSides: item.selectedDiscountComboSides || [],
-          selectedDiscountSubItems: item.selectedDiscountSubItems || [],
-          selectedComboSides: item.selectedComboSides || [],
-          selectedSubItems: item.selectedSubItems || [],
-        };
+        if (item._cartLineId) {
+          existingItemsByLineId.set(item._cartLineId, item);
+        }
+        const menuId = item._id;
+        const matchingItems = existingItemsByMenuId.get(menuId) || [];
+        matchingItems.push(item);
+        existingItemsByMenuId.set(menuId, matchingItems);
       });
 
       // Map new items while preserving existing data
       const updatedItems = newItems.map((newItem) => {
-        const existingData = existingItemData[newItem._id] || {};
+        const fallbackItems = existingItemsByMenuId.get(newItem._id) || [];
+        const existingData = newItem._cartLineId
+          ? existingItemsByLineId.get(newItem._cartLineId)
+          : fallbackItems.shift();
+        const preserved = existingData || {};
         return {
           ...newItem,
-          quantity: existingData.quantity || 1, // default to 1 if not found
-          customizationInput: existingData.customizationInput || "", // default to empty string
-          selectedFlavors: existingData.selectedFlavors || [],
-          selectedToppings: existingData.selectedToppings || [],
-          selectedDiscountFlavors: existingData.selectedDiscountFlavors || [],
-          selectedDiscountToppings: existingData.selectedDiscountToppings || [],
+          quantity: preserved.quantity || 1,
+          customizationInput: preserved.customizationInput || "",
+          selectedFlavors: preserved.selectedFlavors || [],
+          selectedToppings: preserved.selectedToppings || [],
+          selectedDiscountFlavors: preserved.selectedDiscountFlavors || [],
+          selectedDiscountToppings: preserved.selectedDiscountToppings || [],
           selectedDiscountCustomizationInput:
-            existingData.selectedDiscountCustomizationInput || "",
+            preserved.selectedDiscountCustomizationInput || "",
           selectedDiscountComboSides:
-            existingData.selectedDiscountComboSides || [],
+            preserved.selectedDiscountComboSides || [],
           selectedDiscountSubItems:
-            existingData.selectedDiscountSubItems || [],
-          selectedComboSides: existingData.selectedComboSides || [],
-          selectedSubItems: existingData.selectedSubItems || [],
+            preserved.selectedDiscountSubItems || [],
+          selectedComboSides: preserved.selectedComboSides || [],
+          selectedSubItems: preserved.selectedSubItems || [],
         };
       });
 
@@ -192,7 +192,7 @@ const orderSlice = createSlice({
 
       // Find the item index
       const itemIndex = state.currentOrder.items.findIndex(
-        (item) => item._id === itemId
+        (item) => (item._cartLineId || item._id) === itemId
       );
 
       if (itemIndex !== -1) {
