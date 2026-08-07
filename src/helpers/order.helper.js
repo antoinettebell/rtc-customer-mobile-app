@@ -62,7 +62,7 @@ export const extractAdvanceOrderLocationAndTime = (order) => {
           "HH:mm"
         ).format("hh:mm A");
 
-        advanceTime = `${moment(order.deliveryDate).format("DD-MMM")}, ${day} - ${moment(order.deliveryTime, "HH:mm").format("hh:mm A")}`;
+        advanceTime = `${moment(order.deliveryDate).format("MM/DD/YYYY")}, ${day} - ${moment(order.deliveryTime, "HH:mm").format("h:mm A")}`;
         // advanceTime = `${day}, ${formattedStartTime}-${formattedEndTime}`;
       }
     }

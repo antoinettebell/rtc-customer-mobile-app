@@ -86,8 +86,8 @@ export const formatDate = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     year: "numeric",
   });
 };
@@ -209,6 +209,12 @@ const parseEventTimeParts = (value) => {
 
 export const formatEventTime = (timeValue, event = {}) => {
   if (!timeValue) return "Not set";
+  const rangeParts = String(timeValue)
+    .split(/\s*(?:-|–|—|to)\s*/i)
+    .filter(Boolean);
+  if (rangeParts.length > 1) {
+    return rangeParts.map((part) => formatEventTime(part, event)).join(" - ");
+  }
   const parts = parseEventTimeParts(timeValue);
   if (!parts) return timeValue;
 
