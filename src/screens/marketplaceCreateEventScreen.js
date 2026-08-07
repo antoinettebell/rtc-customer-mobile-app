@@ -112,6 +112,10 @@ const initialForm = {
   free_food_provider: "",
   vendors_required_to_giveaway_food: null,
   catered_vip_section_enabled: false,
+  fully_catered_event: false,
+  ga_food_sales_allowed: null,
+  waive_vendor_fee_for_combined_award: null,
+  vendor_fee_payment_deadline: "",
   separate_vip_vendor_required: false,
   vip_guest_count: "",
   cuisine_preferences: [],
@@ -280,8 +284,11 @@ const hasServiceStyle = (form, style) =>
 const isCoordinatorBudgetRequired = (form) =>
   ["COORDINATOR", "BOTH"].includes(form.payment_responsibility);
 const getBudgetGuestCount = (form) =>
-  Number(form.number_of_guests || 0) +
-  Number(form.vip_guest_count || 0);
+  form.fully_catered_event
+    ? Number(form.number_of_guests || 0) + Number(form.vip_guest_count || 0)
+    : form.catered_vip_section_enabled
+      ? Number(form.vip_guest_count || 0)
+      : Number(form.number_of_guests || 0);
 const getBaseFoodTruckVendorCount = (form) =>
   Math.max(1, Math.ceil(getBudgetGuestCount(form) / 100));
 const getMinimumFoodTruckVendorCount = (form) =>
@@ -329,6 +336,13 @@ const normalizeEventForForm = (event = {}) => ({
   power_required: normalizeOptionList(event.power_required),
   permits_required: normalizeOptionList(event.permits_required),
   catered_vip_section_enabled: !!event.catered_vip_section_enabled,
+  fully_catered_event: !!event.fully_catered_event,
+  ga_food_sales_allowed: !!event.ga_food_sales_allowed,
+  waive_vendor_fee_for_combined_award:
+    !!event.waive_vendor_fee_for_combined_award,
+  vendor_fee_payment_deadline: event.vendor_fee_payment_deadline
+    ? formatDateForPayload(event.vendor_fee_payment_deadline)
+    : "",
   separate_vip_vendor_required: !!event.separate_vip_vendor_required,
   vip_guest_count: event.vip_guest_count ? String(event.vip_guest_count) : "",
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
@@ -371,8 +385,10 @@ const normalizeEventForForm = (event = {}) => ({
   number_of_vendors_needed: event.number_of_vendors_needed
     ? String(event.number_of_vendors_needed)
     : "",
-	  payment_responsibility: event.catered_vip_section_enabled
-	    ? "BOTH"
+	  payment_responsibility: event.fully_catered_event
+	    ? "COORDINATOR"
+	    : event.catered_vip_section_enabled
+	      ? event.ga_food_sales_allowed ? "BOTH" : "COORDINATOR"
 	    : event.payment_responsibility || "COORDINATOR",
 		  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
 		  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
@@ -1570,6 +1586,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         next.free_food_provider = "";
         next.vendors_required_to_giveaway_food = null;
       }
+      if (key === "ga_food_sales_allowed") {
+        next.payment_responsibility = value ? "BOTH" : "COORDINATOR";
+        if (!value) {
+          next.waive_vendor_fee_for_combined_award = false;
+          next.vendor_fee = "";
+          next.vendor_fee_payment_deadline = "";
+        }
+      }
       return next;
     });
   };
@@ -2043,6 +2067,59 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return false;
     }
     if (
+      form.catered_vip_section_enabled &&
+      form.ga_food_sales_allowed !== true &&
+      form.ga_food_sales_allowed !== false
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Please answer whether vendors may sell food to GA guests.",
+      });
+      return false;
+    }
+    if (
+      form.ga_food_sales_allowed === true &&
+      form.waive_vendor_fee_for_combined_award !== true &&
+      form.waive_vendor_fee_for_combined_award !== false
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Please answer whether the combined-award vendor fee is waived.",
+      });
+      return false;
+    }
+    if (
+      ["VENDOR", "BOTH"].includes(form.payment_responsibility) &&
+      !form.vendor_fee_payment_deadline
+    ) {
+      setSnackbar({
+        visible: true,
+        message: "Select the Last Date to Accept Payments.",
+      });
+      return false;
+    }
+    if (["VENDOR", "BOTH"].includes(form.payment_responsibility)) {
+      const paymentDeadline = combineFormDateTime(
+        form.vendor_fee_payment_deadline,
+        "11:59 PM",
+        true
+      );
+      if (!paymentDeadline || paymentDeadline <= closeDateTime) {
+        setSnackbar({
+          visible: true,
+          message: "Last Date to Accept Payments must be after the application/bid deadline.",
+        });
+        return false;
+      }
+      if (paymentDeadline >= eventDateTime) {
+        setSnackbar({
+          visible: true,
+          message: "Last Date to Accept Payments must be before the event date.",
+        });
+        return false;
+      }
+    }
+    if (
       form.payment_responsibility === "BOTH" &&
       form.catered_vip_section_enabled &&
       Number(form.vip_guest_count || 0) < 1
@@ -2084,6 +2161,17 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         form.primary_service_style || form.service_styles[0] || "",
       number_of_guests: form.number_of_guests ? Number(form.number_of_guests) : null,
       catered_vip_section_enabled: !!form.catered_vip_section_enabled,
+      fully_catered_event: !!form.fully_catered_event,
+      ga_food_sales_allowed:
+        !!form.catered_vip_section_enabled && !!form.ga_food_sales_allowed,
+      waive_vendor_fee_for_combined_award:
+        !!form.catered_vip_section_enabled &&
+        !!form.ga_food_sales_allowed &&
+        !!form.waive_vendor_fee_for_combined_award,
+      vendor_fee_payment_deadline:
+        ["VENDOR", "BOTH"].includes(form.payment_responsibility)
+          ? form.vendor_fee_payment_deadline
+          : null,
       separate_vip_vendor_required:
         !!form.catered_vip_section_enabled &&
         !!form.separate_vip_vendor_required,
@@ -3326,7 +3414,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             <TouchableOpacity
               key={value}
               activeOpacity={0.7}
-              disabled={form.catered_vip_section_enabled}
+              disabled={form.catered_vip_section_enabled || form.fully_catered_event}
               onPress={() => updateField("payment_responsibility", value)}
               style={[styles.chip, active && styles.chipActive]}
             >
@@ -3337,9 +3425,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           );
         })}
       </View>
-      {form.catered_vip_section_enabled ? (
+      {form.catered_vip_section_enabled || form.fully_catered_event ? (
         <Text style={styles.meta}>
-          Both is required while the coordinator is paying for a catered VIP section.
+          Who Pays is set automatically from the catering and GA-sales answers above.
         </Text>
       ) : null}
     </View>
@@ -3475,7 +3563,44 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
   const renderVipNeeds = () => (
     <View style={localStyles.fieldGroup}>
-      {renderLabel("VIP Needs")}
+      {renderLabel("Catering & Guest Sales")}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={localStyles.checkboxRow}
+        onPress={() =>
+          setForm((prev) => {
+            const enabled = !prev.fully_catered_event;
+            return {
+              ...prev,
+              fully_catered_event: enabled,
+              catered_vip_section_enabled: false,
+              ga_food_sales_allowed: null,
+              waive_vendor_fee_for_combined_award: null,
+              separate_vip_vendor_required: false,
+              payment_responsibility: enabled
+                ? "COORDINATOR"
+                : prev.payment_responsibility,
+              vendor_fee: enabled ? "" : prev.vendor_fee,
+            };
+          })
+        }
+      >
+        <View style={[
+          localStyles.checkbox,
+          form.fully_catered_event && localStyles.checkboxActive,
+        ]}>
+          {form.fully_catered_event ? (
+            <MaterialIcons name="check" size={16} color={AppColor.white} />
+          ) : null}
+        </View>
+        <Text style={localStyles.checkboxLabel}>
+          Is this a fully catered event?
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.meta}>
+        A fully catered event budgets for all GA and VIP guests. Otherwise, a catered VIP section budgets only for VIP guests.
+      </Text>
+      {!form.fully_catered_event ? (
       <TouchableOpacity
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
@@ -3486,8 +3611,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               ...prev,
               catered_vip_section_enabled: enabled,
               payment_responsibility: enabled
-                ? "BOTH"
+                ? "COORDINATOR"
                 : prev.payment_responsibility,
+              ga_food_sales_allowed: enabled ? null : false,
+              waive_vendor_fee_for_combined_award: enabled ? null : false,
               separate_vip_vendor_required: enabled
                 ? prev.separate_vip_vendor_required
                 : false,
@@ -3515,6 +3642,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           Is there a catered VIP section paid for by the coordinator?
         </Text>
       </TouchableOpacity>
+      ) : null}
       {renderInput("# of VIP Guests", "vip_guest_count", {
         editable: !form.ticket_sales_enabled,
         keyboardType: "number-pad",
@@ -3522,6 +3650,17 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           updateField("vip_guest_count", value.replace(/\D/g, "")),
       })}
       {form.catered_vip_section_enabled ? (
+        <>
+        {renderRequiredYesNo(
+          "Do you want vendors to be able to sell food to GA guests, or cater only? Select Yes to allow GA food sales.",
+          "ga_food_sales_allowed"
+        )}
+        {form.ga_food_sales_allowed ? (
+          renderRequiredYesNo(
+            "If a vendor is awarded both VIP catering and GA services, do you agree to waive the vendor fee?",
+            "waive_vendor_fee_for_combined_award"
+          )
+        ) : null}
         <TouchableOpacity
           activeOpacity={0.7}
           style={localStyles.checkboxRow}
@@ -3559,6 +3698,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             Do you need a separate vendor for the catered VIP section?
           </Text>
         </TouchableOpacity>
+        </>
       ) : null}
     </View>
   );
@@ -4004,19 +4144,30 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 form.payment_responsibility === "COORDINATOR",
               )}
               {renderMoneyInput(
-                "Budget Amount",
+                form.catered_vip_section_enabled && !form.fully_catered_event
+                  ? "Coordinator VIP Catering Budget"
+                  : "Coordinator Event Budget",
                 "budgeted_amount",
                 "Amount available when coordinator pays vendors.",
                 form.payment_responsibility === "VENDOR",
               )}
             </View>
+	            {["VENDOR", "BOTH"].includes(form.payment_responsibility) ? (
+	              renderDateTimePicker(
+	                "Last Date to Accept Payments *",
+	                "vendor_fee_payment_deadline",
+	                "date"
+	              )
+	            ) : null}
 	            {isCoordinatorBudgetRequired(form) ? (
 	              <Text style={styles.meta}>
 	                Minimum budget for this paid guest count is $
 	                {getMinimumBudget(form).toFixed(2)}
-                  {Number(form.vip_guest_count || 0) > 0
-                    ? " based on regular and VIP guests."
-                    : "."}
+                  {form.fully_catered_event
+                    ? " based on all GA and VIP guests."
+                    : form.catered_vip_section_enabled
+                      ? " based on VIP guests only."
+                      : " based on GA guests."}
 	              </Text>
 	            ) : null}
 	          </View>

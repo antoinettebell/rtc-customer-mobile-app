@@ -16,6 +16,7 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import {
   awardMarketplaceBids_API,
+  acceptMarketplaceApplication_API,
   getMarketplaceEventBids_API,
   getMarketplaceEventById_API,
   getEventVendorEventApplications_API,
@@ -50,6 +51,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const [applications, setApplications] = useState([]);
   const [eventVendorApplications, setEventVendorApplications] = useState([]);
   const [selectedBidIds, setSelectedBidIds] = useState([]);
+  const [awardCoverageByBidId, setAwardCoverageByBidId] = useState({});
   const [loading, setLoading] = useState(false);
   const [awarding, setAwarding] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
@@ -72,6 +74,12 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
         const nextBids = bidsRes.data?.marketplaceBidList || [];
         setApplications(bidsRes.data?.marketplaceApplicationList || []);
         setBids(nextBids);
+        setAwardCoverageByBidId(
+          nextBids.reduce((result, bid) => ({
+            ...result,
+            [bid.bid_id]: bid.awarded_coverage || bid.guest_coverage || "REGULAR",
+          }), {})
+        );
         setSelectedBidIds(
           nextBids
             .filter((bid) => bid.bid_status === "AWARDED")
@@ -129,10 +137,14 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       return;
     }
     const selectedBids = bids.filter((bid) => selectedBidIds.includes(bid.bid_id));
+    const awardSelections = selectedBids.map((bid) => ({
+      bid_id: bid.bid_id,
+      award_coverage: awardCoverageByBidId[bid.bid_id] || bid.guest_coverage,
+    }));
     const requiredCount = Math.max(1, Number(event?.number_of_vendors_needed || 1));
     const minimumCount = Math.max(
       1,
-      requiredCount - (selectedBids.some((bid) => bid.guest_coverage === "BOTH") ? 1 : 0),
+      requiredCount - (awardSelections.some((item) => item.award_coverage === "BOTH") ? 1 : 0),
     );
     if (selectedBidIds.length < minimumCount) {
       setSnackbar({
@@ -155,6 +167,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               const response = await awardMarketplaceBids_API({
                 eventId,
                 bidIds: selectedBidIds,
+                awardSelections,
               });
               if (response?.success) {
                 const marketplacePayment = response.data?.marketplacePayment;
@@ -189,6 +202,12 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     const locked = ["AWARDED", "NOT_AWARDED", "WITHDRAWN"].includes(
       item.bid_status
     ) || !!item.archived_at;
+    const offeredCoverage = item.guest_coverage || "REGULAR";
+    const awardCoverageOptions = offeredCoverage === "BOTH"
+      ? event?.fully_catered_event
+        ? [["REGULAR", "GA Catering"], ["VIP", "VIP Catering"], ["BOTH", "Both"]]
+        : [["VIP", "VIP Catering"], ["BOTH", "VIP Catering + GA Sales"]]
+      : [[offeredCoverage, offeredCoverage === "VIP" ? "VIP Catering" : "GA / Event Catering"]];
 
     return (
       <TouchableOpacity
@@ -245,6 +264,32 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             : formatMoney(item.price_per_guest)}
         </Text>
         {!locked ? (
+          <>
+          {selected && awardCoverageOptions.length > 1 ? (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.label}>Award Type</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                {awardCoverageOptions.map(([value, label]) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[
+                      styles.chip,
+                      awardCoverageByBidId[item.bid_id] === value && styles.chipActive,
+                    ]}
+                    onPress={() => setAwardCoverageByBidId((current) => ({
+                      ...current,
+                      [item.bid_id]: value,
+                    }))}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      awardCoverageByBidId[item.bid_id] === value && styles.chipTextActive,
+                    ]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ) : null}
           <TouchableOpacity
             activeOpacity={0.7}
             style={[
@@ -275,6 +320,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               {selected ? "Selected to Award" : "Select to Award"}
             </Text>
           </TouchableOpacity>
+          </>
         ) : (
           <Text style={[styles.meta, { marginTop: 10 }]}>
             {item.bid_status === "AWARDED"
@@ -357,9 +403,39 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           This application was withdrawn by the vendor and cannot be selected.
         </Text>
       ) : (
-        <Text style={[styles.meta, { marginTop: 8 }]}>
-          Review this application before accepting or declining it.
-        </Text>
+        <>
+          <Text style={[styles.meta, { marginTop: 8 }]}>
+            Review this application before accepting it.
+          </Text>
+          {["SUBMITTED", "UNDER_REVIEW"].includes(item.application_status) ? (
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginTop: 10 }]}
+              onPress={() => Alert.alert(
+                "Accept Vendor Application",
+                `Accept ${getVendorName(item)}? ${event?.vendor_fee > 0 ? `They must pay ${formatMoney(event.vendor_fee)} by the configured payment deadline.` : "No vendor fee is due."}`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Accept",
+                    onPress: async () => {
+                      try {
+                        await acceptMarketplaceApplication_API({
+                          eventId,
+                          applicationId: item.application_id,
+                        });
+                        await loadData();
+                      } catch (error) {
+                        setSnackbar({ visible: true, message: error?.message || "Unable to accept vendor application." });
+                      }
+                    },
+                  },
+                ]
+              )}
+            >
+              <Text style={styles.secondaryButtonText}>Accept Vendor Application</Text>
+            </TouchableOpacity>
+          ) : null}
+        </>
       )}
       <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>
         Review full application

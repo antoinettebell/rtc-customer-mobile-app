@@ -1249,6 +1249,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
+          <View style={styles.card}>
+            <Text style={styles.title}>Event Activity</Text>
+            <Text style={styles.label}>Views: {event?.marketplace_metrics?.views ?? event?.event_impression_count ?? 0}</Text>
+            <Text style={styles.label}>Ticket Checkout Clicks: {event?.marketplace_metrics?.ticket_checkout_clicks ?? event?.ticket_click_count ?? 0}</Text>
+            <Text style={styles.label}>Tickets Sold: {event?.marketplace_metrics?.tickets_sold ?? 0}</Text>
+            <Text style={styles.label}>VIP Vendors Selected: {event?.marketplace_metrics?.vip_vendors_selected ?? 0}</Text>
+            <Text style={styles.label}>Vendor GA Slots Filled: {event?.marketplace_metrics?.vendor_ga_slots_filled ?? 0}</Text>
+          </View>
           {renderMessagesEntry()}
           {renderSectionControls()}
           {renderCollapsibleSection("overview", "Event Details", (
@@ -1357,6 +1365,26 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               label="Catered VIP Section"
               value={event?.catered_vip_section_enabled ? "Yes" : "No"}
             />
+            <DetailRow
+              label="Fully Catered Event"
+              value={event?.fully_catered_event ? "Yes" : "No"}
+            />
+            <DetailRow
+              label="GA Food Sales Allowed"
+              value={event?.ga_food_sales_allowed ? "Yes" : "No"}
+            />
+            {event?.ga_food_sales_allowed ? (
+              <DetailRow
+                label="Combined Award Vendor Fee"
+                value={event?.waive_vendor_fee_for_combined_award ? "Waived" : "Required"}
+              />
+            ) : null}
+            {event?.vendor_fee_payment_deadline ? (
+              <DetailRow
+                label="Last Date to Accept Payments"
+                value={formatDate(event.vendor_fee_payment_deadline)}
+              />
+            ) : null}
             <DetailRow
               label="# of VIP Guests"
               value={String(event?.vip_guest_count || 0)}

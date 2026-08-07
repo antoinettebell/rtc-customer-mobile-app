@@ -60,6 +60,7 @@ import {
   MARKETPLACE_EVENT_QUESTIONS,
   MARKETPLACE_EVENT_QUESTION_ANSWER,
   MARKETPLACE_AWARD_BIDS,
+  MARKETPLACE_ACCEPT_APPLICATION,
   MARKETPLACE_EVENT_FINAL_PAYMENT,
   MARKETPLACE_PAYMENT_BY_ID,
   MARKETPLACE_PAYMENT_CHECKOUT,
@@ -843,6 +844,11 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "free_food_provider",
   "vendors_required_to_giveaway_food",
   "catered_vip_section_enabled",
+  "fully_catered_event",
+  "ga_food_sales_allowed",
+  "waive_vendor_fee_for_combined_award",
+  "vendor_fee_payment_deadline",
+  "separate_vip_vendor_required",
   "vip_guest_count",
   "cuisine_preferences",
   "dietary_restrictions",
@@ -1081,11 +1087,24 @@ export const uploadMarketplaceEventImage_API = async ({ eventId, payload }) => {
   }
 };
 
-export const awardMarketplaceBids_API = async ({ eventId, bidIds }) => {
+export const awardMarketplaceBids_API = async ({ eventId, bidIds, awardSelections = [] }) => {
   try {
     const response = await apiClient.post(
       MARKETPLACE_AWARD_BIDS(eventId),
-      { bid_ids: bidIds },
+      { bid_ids: bidIds, award_selections: awardSelections },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const acceptMarketplaceApplication_API = async ({ eventId, applicationId }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_ACCEPT_APPLICATION(eventId, applicationId),
+      {},
       { skipToken: false }
     );
     return response?.data;
