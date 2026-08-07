@@ -399,6 +399,7 @@ const DishItemDetailsModal = ({
   const [splitPlainDiscountFlavor, setSplitPlainDiscountFlavor] = useState(false);
   const [splitPlainDiscountTopping, setSplitPlainDiscountTopping] = useState(false);
   const [expandedRequirementSections, setExpandedRequirementSections] = useState({});
+  const [isAddingSeparateItem, setIsAddingSeparateItem] = useState(false);
 
   // Sync selection with existing order item or reset when menu item changes
   useEffect(() => {
@@ -435,6 +436,7 @@ const DishItemDetailsModal = ({
       "primary-item": false,
       "discount-reward": false,
     });
+    setIsAddingSeparateItem(false);
     setSplitPlainFlavor(
       (selectedMenuItem?.selectedFlavors || []).some(isPlainOption) &&
         (selectedMenuItem?.selectedFlavors || []).length > 1
@@ -901,9 +903,15 @@ const DishItemDetailsModal = ({
         ? selectedDiscountComboSides
         : [],
       selectedDiscountSubItems,
+      ...(isAddingSeparateItem
+        ? {
+            _forceNewLine: true,
+            _cartLineId: `${selectedMenuItem._id}-${Date.now()}`,
+          }
+        : {}),
     };
 
-    if (getItemQuantity(selectedMenuItem._id) === 0) {
+    if (getItemQuantity(selectedMenuItem._id) === 0 || isAddingSeparateItem) {
       handleAddItem(itemWithSelections);
     } else if (onSelectedFlavorsChange) {
       onCustomizationInputChange?.(itemWithSelections.customizationInput);
@@ -936,6 +944,7 @@ const DishItemDetailsModal = ({
     handleAddItem,
     hasComboSideChoices,
     hasDiscountComboSideChoices,
+    isAddingSeparateItem,
     hasDiscountCustomization,
     hasDiscountFlavorChoices,
     hasDiscountToppingChoices,
@@ -963,6 +972,41 @@ const DishItemDetailsModal = ({
     selectedToppings,
     validateSelections,
   ]);
+
+  const beginAdditionalCustomization = useCallback(() => {
+    const discountSource = getDiscountRequirementSource(selectedMenuItem);
+    setSelectedSubItems(
+      selectedMenuItem?.itemType === foodTypeStrings.combo
+        ? buildRequiredChildSelections(selectedMenuItem?.subItem, [])
+        : []
+    );
+    setCustomizationInput("");
+    setSelectedFlavors([]);
+    setSelectedToppings([]);
+    setSelectedComboSides([]);
+    setSelectedDiscountFlavors([]);
+    setSelectedDiscountToppings([]);
+    setSelectedDiscountCustomizationInput("");
+    setSelectedDiscountComboSides([]);
+    setSelectedDiscountSubItems(
+      discountSource?.itemType === foodTypeStrings.combo
+        ? buildRequiredChildSelections(discountSource?.subItem, [])
+        : []
+    );
+    setIsAddingSeparateItem(true);
+  }, [selectedMenuItem]);
+
+  const handleIncreaseQuantity = useCallback(() => {
+    if (getItemQuantity(selectedMenuItem._id) === 0) {
+      Alert.alert(
+        "Add Item First",
+        "Please tap Add to Order before increasing the quantity."
+      );
+      return;
+    }
+
+    beginAdditionalCustomization();
+  }, [beginAdditionalCustomization, getItemQuantity, selectedMenuItem]);
 
   const updateSelectedChildItem = useCallback((setter, childId, updates) => {
     setter((prevItems) =>
@@ -1854,38 +1898,15 @@ const DishItemDetailsModal = ({
                 </Text>
               </TouchableOpacity>
               <Text style={styles.qtyText}>
-                {getItemQuantity(selectedMenuItem._id)}
+                {Math.max(
+                  1,
+                  getItemQuantity(selectedMenuItem._id) +
+                    (isAddingSeparateItem ? 1 : 0)
+                )}
               </Text>
               <TouchableOpacity
                 style={styles.qtyBtn}
-                onPress={() => {
-                  if (!validateSelections()) {
-                    return;
-                  }
-                  handleAddItem({
-                    ...selectedMenuItem,
-                    selectedSubItems,
-                    customizationInput,
-                    selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
-                    selectedToppings: hasToppingChoices ? selectedToppings : [],
-                    selectedComboSides: hasComboSideChoices
-                      ? selectedComboSides
-                      : [],
-                    selectedDiscountFlavors: hasDiscountFlavorChoices
-                      ? selectedDiscountFlavors
-                      : [],
-                    selectedDiscountToppings: hasDiscountToppingChoices
-                      ? selectedDiscountToppings
-                      : [],
-                    selectedDiscountCustomizationInput: hasDiscountCustomization
-                      ? selectedDiscountCustomizationInput
-                      : "",
-                    selectedDiscountComboSides: hasDiscountComboSideChoices
-                      ? selectedDiscountComboSides
-                      : [],
-                    selectedDiscountSubItems,
-                  });
-                }}
+                onPress={handleIncreaseQuantity}
                 disabled={
                   getItemQuantity(selectedMenuItem._id) >=
                   (selectedMenuItem.maxQty || 10)
