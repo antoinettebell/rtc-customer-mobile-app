@@ -48,8 +48,6 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>This permission allows you to upload photos from your camera, such as updating your profile picture or for uploading images for your truck.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to show nearby places even when the app is in background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby places.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -16,11 +16,9 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import { check, request, RESULTS } from "react-native-permissions";
 
 import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
-import { permission } from "./src/helpers/permission.helper";
 import {
   createAndroidChannel,
   requestNotificationPermission,
@@ -261,6 +259,15 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
     initialRouteName={initialRouteName}
   >
     <Stack.Screen name="splash" component={SplashScreen} />
+    <Stack.Screen name="authIntro" component={AuthIntroScreen} />
+    <Stack.Screen name="signin" component={SigninScreen} />
+    <Stack.Screen name="signup" component={SignupScreen} />
+    <Stack.Screen name="oneTapSignin" component={OneTapSignInScreen} />
+    <Stack.Screen name="otpVerification" component={OtpVerificationScreen} />
+    <Stack.Screen name="resetPassword" component={ResetPasswordScreen} />
+    <Stack.Screen name="forgetPassword" component={ForgetPasswordScreen} />
+    <Stack.Screen name="termsOfService" component={TermsOfServiceScreen} />
+    <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="authMapScreen" component={AuthMapScreen} />
     <Stack.Screen name="bottomRoot">
       {() => <BottomNavigator insets={insets} />}
@@ -353,39 +360,37 @@ const configureNotification = async () => {
   }
 };
 
-const configureLocationPermission = async () => {
-  const status = await check(permission.location);
-  if (status === RESULTS.DENIED) {
-    await request(permission.location);
-  }
-};
-
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
-  const { allLocations } = useSelector((state) => state.locationReducer);
+  const navigationMode = isSignedIn
+    ? "signed-in"
+    : isGuest
+      ? "guest"
+      : "signed-out";
 
   useEffect(() => {
     configureNotification();
-    configureLocationPermission().catch((error) =>
-      console.log("Location permission setup error", error),
-    );
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={DefaultTheme} linking={linking}>
+    <NavigationContainer
+      key={navigationMode}
+      ref={navigationRef}
+      theme={DefaultTheme}
+      linking={linking}
+    >
       <GlobalSnackbar />
       {isSignedIn ? (
-        <AppNavigator insets={insets} />
+        <AppNavigator key="signed-in" insets={insets} />
       ) : isGuest ? (
         <AppNavigator
+          key="guest"
           insets={insets}
-          initialRouteName={
-            allLocations?.length > 0 ? "bottomRoot" : "authMapScreen"
-          }
+          initialRouteName="bottomRoot"
         />
       ) : (
-        <AuthNavigator />
+        <AuthNavigator key="signed-out" />
       )}
     </NavigationContainer>
   );

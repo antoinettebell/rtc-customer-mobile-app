@@ -42,6 +42,7 @@ import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
+import { initializeAddressEdit } from "../helpers/customerRegression.helper";
 import { getStateCode } from "../utils/usStates";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 
@@ -219,6 +220,7 @@ const UserProfileScreen = ({ navigation }) => {
   const [coordinatorError, setCoordinatorError] = useState("");
   const [isCoordinatorProfileEditing, setIsCoordinatorProfileEditing] =
     useState(false);
+  const [isCoordinatorAddressEditing, setIsCoordinatorAddressEditing] = useState(false);
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -1001,6 +1003,7 @@ const UserProfileScreen = ({ navigation }) => {
                     cancelCoordinatorProfileEdit();
                   } else {
                     setCoordinatorError("");
+                    setIsCoordinatorAddressEditing(false);
                     setIsCoordinatorProfileEditing(true);
                   }
                 }}
@@ -1089,7 +1092,7 @@ const UserProfileScreen = ({ navigation }) => {
                   placeholderTextColor={AppColor.placeholderTextColor}
                   style={[styles.coordinatorInput, styles.coordinatorInputReadOnly]}
                 />
-              ) : eventCoordinatorAddressLine1 &&
+              ) : !isCoordinatorAddressEditing && eventCoordinatorAddressLine1 &&
                 (eventCoordinatorFormattedAddress ||
                   eventCoordinatorAddressCity ||
                   eventCoordinatorAddressState ||
@@ -1112,13 +1115,17 @@ const UserProfileScreen = ({ navigation }) => {
                   </View>
                   <TouchableOpacity
                     onPress={() => {
-                      setEventCoordinatorAddressLine1("");
-                      setEventCoordinatorAddressLine2("");
-                      setEventCoordinatorAddressCity("");
-                      setEventCoordinatorAddressState("");
-                      setEventCoordinatorAddressZip("");
-                      setEventCoordinatorFormattedAddress("");
-                      setEventCoordinatorPlaceId("");
+                      const preservedAddress = initializeAddressEdit({
+                        line1: eventCoordinatorAddressLine1,
+                        formattedAddress: eventCoordinatorFormattedAddress,
+                      });
+                      setIsCoordinatorAddressEditing(true);
+                      requestAnimationFrame(() => {
+                        coordinatorAddressRef.current?.setAddressText(
+                          preservedAddress.formattedAddress || preservedAddress.line1,
+                        );
+                        coordinatorAddressRef.current?.focus();
+                      });
                     }}
                     style={styles.coordinatorAddressChangeButton}
                   >
@@ -1149,6 +1156,7 @@ const UserProfileScreen = ({ navigation }) => {
                       setEventCoordinatorAddressZip(address.zip);
                       setEventCoordinatorFormattedAddress(address.formattedAddress);
                       setEventCoordinatorPlaceId(address.placeId);
+                      setIsCoordinatorAddressEditing(false);
                     }}
                     onFail={(error) => {
                       console.log("Google Places coordinator profile address error", error);

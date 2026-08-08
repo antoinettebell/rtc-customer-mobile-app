@@ -120,29 +120,35 @@ const NearMeScreen = ({ navigation }) => {
   const isEventCoordinator = !!user?.isEventCoordinator;
 
   const fetchNearMeResults = async () => {
-    if (!defaultLocation) {
-      setIsLoading(false);
-      return;
-    }
     try {
       setIsLoading(true);
       setFetchError("");
 
-      setRegion({
-        latitude: parseFloat(defaultLocation.lat),
-        longitude: parseFloat(defaultLocation.long),
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      });
+      const hasSelectedLocation =
+        Number.isFinite(Number(defaultLocation?.lat)) &&
+        Number.isFinite(Number(defaultLocation?.long));
+
+      if (hasSelectedLocation) {
+        setRegion({
+          latitude: parseFloat(defaultLocation.lat),
+          longitude: parseFloat(defaultLocation.long),
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
+      }
 
       const params = {
         page: 1,
         limit: 100,
-        distanceInMeters: 32186.9, // 20 miles in meters
-        userLat: defaultLocation?.lat || 0,
-        userLong: defaultLocation?.long || 0,
+        distanceInMeters: hasSelectedLocation ? 32186.9 : undefined,
+        userLat: hasSelectedLocation ? defaultLocation.lat : 0,
+        userLong: hasSelectedLocation ? defaultLocation.long : 0,
         search: debouncedQuery,
-        type: getResultTypeForFilter(selectedFilter),
+        // Guests without a selected location can still browse every public
+        // event. Food remains location-dependent.
+        type: hasSelectedLocation
+          ? getResultTypeForFilter(selectedFilter)
+          : "EVENT",
         cuisineIds: selectedFilter === "cuisine" ? selectedCuisineIds : [],
         eventTypes: selectedFilter === "events" ? selectedEventTypes : [],
         eventVisibility: "PUBLIC",

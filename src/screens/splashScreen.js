@@ -12,33 +12,21 @@ const SplashScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
-  const { allLocations } = useSelector((state) => state.locationReducer);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      const paramsPayload = {};
-      if ((isSignedIn || isGuest) && !(allLocations?.length > 0)) {
-        paramsPayload.mode = "add";
-        paramsPayload.hideBackBtn = true;
-      }
-
       // Navigation function
       navigation.replace(
         isSignedIn
-          ? allLocations?.length > 0
-            ? "bottomRoot" // home screen
-            : "authMapScreen" // map screen
+          ? "bottomRoot" // location is selected only when a location-dependent action needs it
           : isGuest
-            ? allLocations?.length > 0
-              ? "bottomRoot" // home screen with guest mode
-              : "authMapScreen" // map screen
-            : "authIntro",
-        paramsPayload
+            ? "bottomRoot" // guests can browse without granting location
+            : "authIntro"
       ); // navigate to AuthIntroScreen after splash
     }, 1500); // 3000ms = 3 seconds
 
     return () => clearTimeout(timeout);
-  }, [navigation]);
+  }, [isGuest, isSignedIn, navigation]);
 
   useEffect(() => {
     const hideSplash = async () => {

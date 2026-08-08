@@ -30,7 +30,6 @@ setup_permissions([
   # 'Contacts',
   # 'FaceID',
   'LocationAccuracy',
-  'LocationAlways',
   'LocationWhenInUse',
   # 'MediaLibrary',
   # 'Microphone',

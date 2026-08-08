@@ -34,6 +34,7 @@ import {
   getAddress_API,
 } from "../apiFolder/appAPI";
 import { RESULTS } from "react-native-permissions";
+import { leaveWithFallback } from "../helpers/customerRegression.helper";
 import { useDispatch, useSelector } from "react-redux";
 import StatusBarManager from "../components/StatusBarManager";
 import {
@@ -108,6 +109,23 @@ const AuthMapScreen = ({ navigation, route }) => {
   const { checkAndRequestPermission: locationPermissionStatus } = usePermission(
     permission.location
   );
+  const hasRequestedLocationPermissionRef = useRef(false);
+
+  useEffect(() => {
+    if (hasRequestedLocationPermissionRef.current) return undefined;
+    hasRequestedLocationPermissionRef.current = true;
+    const permissionTimer = setTimeout(() => {
+      locationPermissionStatus().catch((error) => {
+        console.log("Location permission request error", error);
+      });
+    }, 750);
+
+    return () => clearTimeout(permissionTimer);
+  }, [locationPermissionStatus]);
+
+  const leaveLocationScreen = () => {
+    leaveWithFallback(navigation, isSignedIn ? "bottomRoot" : "signin");
+  };
 
   const onSearchPress = () => {
     if (searchTxtRef?.current) {
@@ -348,7 +366,7 @@ const AuthMapScreen = ({ navigation, route }) => {
           if (hideBackBtn) {
             navigation.replace("bottomRoot");
           } else {
-            navigation.goBack();
+            leaveLocationScreen();
           }
         }
       } catch (error) {
@@ -369,7 +387,7 @@ const AuthMapScreen = ({ navigation, route }) => {
       if (hideBackBtn) {
         navigation.replace("bottomRoot");
       } else {
-        navigation.goBack();
+        leaveLocationScreen();
       }
     }
   };
@@ -447,7 +465,7 @@ const AuthMapScreen = ({ navigation, route }) => {
             icon="arrow-left"
             iconColor={AppColor.black}
             size={24}
-            onPress={() => navigation.goBack()}
+            onPress={leaveLocationScreen}
           />
         )}
         <Text style={styles.headerTitle}>{"Select Location"}</Text>

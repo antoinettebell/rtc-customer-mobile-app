@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   StyleSheet,
   ScrollView,
   Share,
@@ -39,6 +41,7 @@ import {
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
 import { showGuestSignupRequired } from "../helpers/guestAction.helper";
+import { canCancelCoordinatorEvent } from "../helpers/customerRegression.helper";
 import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import {
@@ -251,6 +254,10 @@ const safeStyles = StyleSheet.create({
     borderTopRightRadius: 18,
     padding: 18,
   },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
+  },
   closeCommentInput: {
     minHeight: 140,
     marginTop: 12,
@@ -442,6 +449,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isClosed = event?.status === "CLOSED";
   const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
+  const canCancelEvent = canCancelCoordinatorEvent({ status: eventStatus });
   const canEditEvent = isPublished;
   const submissionCount = Number(
     event?.submission_count ?? event?.final_submission_count ?? 0
@@ -537,14 +545,21 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleCancelTicketedEvent = () => Alert.alert(
     "Cancel Event",
-    "Refunds are due immediately upon cancellation. All ticket buyers will be notified by text and email. Events must be cancelled at least 72 hours before they begin.",
+    ticketSalesEnabled
+      ? "Refunds are due immediately upon cancellation. All ticket buyers will be notified by text and email. Events must be cancelled at least 72 hours before they begin."
+      : "This event will be cancelled and affected vendors will be notified. Events must be cancelled at least 72 hours before they begin.",
     [
       { text: "Do Not Cancel", style: "cancel" },
-      { text: "Cancel & Refund", style: "destructive", onPress: async () => {
+      { text: ticketSalesEnabled ? "Cancel & Refund" : "Cancel Event", style: "destructive", onPress: async () => {
         try {
           const response = await cancelMarketplaceTicketedEvent_API(event.event_id);
           setEvent(response?.data?.marketplaceEvent || event);
-          Alert.alert("Event Cancelled", `${response?.data?.refunded_count || 0} refunds issued. ${response?.data?.failed_count || 0} require manual review.`);
+          Alert.alert(
+            "Event Cancelled",
+            ticketSalesEnabled
+              ? `${response?.data?.refunded_count || 0} refunds issued. ${response?.data?.failed_count || 0} require manual review.`
+              : "The event was cancelled and affected vendors will be notified.",
+          );
         } catch (error) { Alert.alert("Cancel Event", error?.message || "Unable to cancel the event."); }
       } },
     ]
@@ -1084,12 +1099,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                   </TouchableOpacity>
                 </>
               ) : null}
-              {eventStatus !== "CANCELLED" ? (
-                <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
-                  <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>Cancel Event & Refund Tickets</Text>
-                </TouchableOpacity>
-              ) : null}
             </>
+          ) : null}
+          {canCancelEvent ? (
+            <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
+              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
+                {ticketSalesEnabled ? "Cancel Event & Refund Tickets" : "Cancel Event"}
+              </Text>
+            </TouchableOpacity>
           ) : null}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -1129,10 +1146,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       );
     }
 
-	    if (isAwarded && ticketSalesEnabled) {
+	    if (isAwarded) {
       return (
         <View style={{ gap: 12 }}>
-          {!event?.ticket_scanning_closed_at ? (
+          {ticketSalesEnabled && !event?.ticket_scanning_closed_at ? (
             <>
               <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
                 <Text style={styles.buttonText}>Scan Event Tickets</Text>
@@ -1142,7 +1159,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </>
           ) : null}
-          {!event?.ticket_sales_closed_at ? (
+          {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
             <>
               {event?.event_visibility === "PRIVATE" ? (
                 <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
@@ -1154,16 +1171,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </>
           ) : null}
-          {eventStatus !== "CANCELLED" ? (
+          {canCancelEvent ? (
             <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
-              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>Cancel Event & Refund Tickets</Text>
+              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
+                {ticketSalesEnabled ? "Cancel Event & Refund Tickets" : "Cancel Event"}
+              </Text>
             </TouchableOpacity>
           ) : null}
         </View>
       );
     }
-
-	    if (isAwarded) return null;
 
     return null;
   };
@@ -1488,7 +1505,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         visible={closeModalVisible}
         onRequestClose={() => setCloseModalVisible(false)}
       >
-        <View style={safeStyles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={safeStyles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={safeStyles.modalScrollContent}
+          >
           <View style={[safeStyles.modalSheet, { paddingBottom: Math.max(insets.bottom, 18) }]}>
             <Text style={styles.title}>Close Event</Text>
             <Text style={styles.meta}>
@@ -1538,7 +1562,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
       {renderImagePreviewModal()}
     </View>

@@ -56,6 +56,11 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 import {
+  getTicketAttendancePatch,
+  normalizeCurrencyOnBlur,
+  sanitizeCurrencyInput,
+} from "../helpers/customerRegression.helper";
+import {
   CUISINE_OPTIONS,
   DIETARY_OPTIONS,
   EQUIPMENT_OPTIONS,
@@ -726,6 +731,12 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    width: "100%",
+    minWidth: 0,
+  },
+  labelActionCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   infoIconButton: {
     width: 30,
@@ -734,6 +745,7 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFF1E6",
+    flexShrink: 0,
   },
   input: {
     minHeight: 48,
@@ -890,9 +902,13 @@ const localStyles = StyleSheet.create({
   sideBySide: {
     flexDirection: "row",
     gap: 10,
+    alignItems: "flex-start",
+    width: "100%",
   },
   sideField: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
   },
   eventLocationPicker: {
     marginTop: 8,
@@ -1712,6 +1728,15 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
+      if (key === "ticket_sales_enabled" && value) {
+        Object.assign(next, getTicketAttendancePatch(next));
+      }
+      if (key === "ga_ticket_quantity" && prev.ticket_sales_enabled) {
+        next.number_of_guests = value;
+      }
+      if (key === "vip_ticket_quantity" && prev.ticket_sales_enabled) {
+        next.vip_guest_count = value;
+      }
       if (
         isFoodTruckService(next) &&
         [
@@ -1761,6 +1786,28 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     form.catered_vip_section_enabled,
     form.fully_catered_event,
     form.service_types,
+  ]);
+
+  useEffect(() => {
+    if (!form.ticket_sales_enabled) return;
+    const attendancePatch = getTicketAttendancePatch(form);
+    const gaGuests = attendancePatch.number_of_guests;
+    const vipGuests = attendancePatch.vip_guest_count;
+    if (
+      form.number_of_guests === gaGuests &&
+      form.vip_guest_count === vipGuests
+    ) return;
+    setForm((previous) => ({
+      ...previous,
+      ...getTicketAttendancePatch(previous),
+    }));
+  }, [
+    form.ticket_sales_enabled,
+    form.ga_ticket_quantity,
+    form.vip_ticket_quantity,
+    form.vip_section_enabled,
+    form.number_of_guests,
+    form.vip_guest_count,
   ]);
 
   useEffect(() => {
@@ -2994,6 +3041,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         keyboardType={props.keyboardType}
         multiline={props.multiline}
         editable={props.editable}
+        onBlur={props.onBlur}
         style={[
           styles.input,
           localStyles.input,
@@ -3075,7 +3123,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       <View style={[localStyles.fieldGroup, localStyles.sideField]}>
         {isBudgetAmount ? (
           <View style={localStyles.labelWithAction}>
-            {renderLabel(label)}
+            <View style={localStyles.labelActionCopy}>{renderLabel(label)}</View>
             <TouchableOpacity
               accessibilityRole="button"
               activeOpacity={0.7}
@@ -3134,6 +3182,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       </View>
     );
   };
+
+  const renderTicketPriceInput = (label, key) => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel(label)}
+      <View style={localStyles.moneyBox}>
+        <Text style={localStyles.moneyPrefix}>$</Text>
+        <TextInput
+          value={form[key]}
+          onChangeText={(value) => updateField(key, sanitizeCurrencyInput(value))}
+          onBlur={() => updateField(key, normalizeCurrencyOnBlur(form[key]))}
+          placeholder="0.00"
+          placeholderTextColor={AppColor.textPlaceholder}
+          keyboardType="decimal-pad"
+          style={localStyles.moneyInput}
+        />
+      </View>
+    </View>
+  );
 
   const getFieldDateTimeValue = (key, mode) => {
     const value = form[key];
@@ -4012,6 +4078,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           <>
             {renderInput("Expected VIP Guests *", "vip_guest_count", {
               keyboardType: "number-pad",
+              editable: !form.ticket_sales_enabled,
               onChangeText: (value) =>
                 updateField("vip_guest_count", value.replace(/\D/g, "")),
             })}
@@ -4028,9 +4095,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   })}
                 </View>
                 <View style={localStyles.sideField}>
-                  {renderInput("VIP Ticket Price", "vip_ticket_price", {
-                    keyboardType: "decimal-pad",
-                  })}
+                  {renderTicketPriceInput("VIP Ticket Price", "vip_ticket_price")}
                 </View>
               </View>
             ) : null}
@@ -4333,10 +4398,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         activeOpacity={0.7}
         style={localStyles.checkboxRow}
         onPress={() =>
-          setForm((previous) => ({
-            ...previous,
-            ticket_sales_enabled: !previous.ticket_sales_enabled,
-          }))
+          updateField("ticket_sales_enabled", !form.ticket_sales_enabled)
         }
       >
         <View
@@ -4354,8 +4416,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         </Text>
       </TouchableOpacity>
       <Text style={styles.meta}>
-        Expected attendance and online ticket capacity are separate. Ticket
-        sales never change catering budgets or vendor capacity.
+        When tickets are sold online, expected attendance matches configured
+        ticket capacity. Sales never reduce that original capacity.
       </Text>
     </View>
   );
@@ -4793,6 +4855,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {renderLabel("GA Attendance")}
               {renderInput("Expected GA Guests *", "number_of_guests", {
                 keyboardType: "number-pad",
+                editable: !form.ticket_sales_enabled,
                 onChangeText: (value) =>
                   updateField("number_of_guests", value.replace(/\D/g, "")),
               })}
@@ -4809,9 +4872,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     })}
                   </View>
                   <View style={localStyles.sideField}>
-                    {renderInput("GA Ticket Price", "ga_ticket_price", {
-                      keyboardType: "decimal-pad",
-                    })}
+                    {renderTicketPriceInput("GA Ticket Price", "ga_ticket_price")}
                   </View>
                 </View>
               ) : null}
@@ -4840,43 +4901,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               {renderPrimaryServiceStyle()}
               {renderServiceSpecificDetails()}
               {renderVendorCountFields()}
-              <View style={localStyles.reviewRow}>
-                <Text style={localStyles.reviewLabel}>Vendor Capacity</Text>
-                <Text style={localStyles.reviewValue}>
-                  Calculated Unique-Vendor Maximum: {capacitySummary.calculatedMaximum}
-                  {"\n"}
-                  GA Service Slots Required: {selectedGaRequirement}
-                  {"\n"}
-                  GA Service Slots Filled: {filledSummary.gaSlotsFilled}
-                  {"\n"}
-                  VIP Catering Slots Required: {selectedVipRequirement}
-                  {"\n"}
-                  VIP Catering Slots Filled: {filledSummary.vipSlotsFilled}
-                  {"\n"}
-                  Total Service Slots Required: {filledSummary.totalServiceSlotsRequired}
-                  {"\n"}
-                  Total Service Slots Filled: {filledSummary.totalServiceSlotsFilled}
-                  {"\n"}
-                  Combined Vendors Filling Both: {filledSummary.combinedVendors}
-                  {"\n"}
-                  Unique Vendors Selected: {filledSummary.minimumUniqueVendors}
-                  {"\n"}
-                  Remaining GA Slots: {filledSummary.remainingGaSlots}
-                  {"\n"}
-                  Remaining VIP Slots: {filledSummary.remainingVipSlots}
-                  {"\n"}
-                  Remaining Total Service Slots: {filledSummary.remainingTotalServiceSlots}
-                  {"\n"}
-                  Remaining Unique-Vendor Need: {filledSummary.remainingUniqueVendors}
-                </Text>
-                {form.catered_vip_section_enabled &&
-                form.ga_food_sales_allowed ? (
-                  <Text style={styles.meta}>
-                    A qualifying combined vendor fills one VIP catering position
-                    and one GA sales slot while remaining one unique vendor.
-                  </Text>
-                ) : null}
-              </View>
               {renderEventVendorNeeds()}
               {renderChips(
                 "Power Requirements",
@@ -4915,7 +4939,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 {renderPaymentResponsibility()}
                 <View style={localStyles.sideBySide}>
                   {renderMoneyInput(
-                    "Vendor Fee",
+                    "Food Vendor Fee",
                     "vendor_fee",
                     "Fee vendors pay if this event requires attendance payment.",
                     form.payment_responsibility === "COORDINATOR",
@@ -4929,32 +4953,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     "Amount available when coordinator pays vendors.",
                     form.payment_responsibility === "VENDOR",
                   )}
-                </View>
-                <View style={localStyles.reviewRow}>
-                  <Text style={localStyles.reviewLabel}>
-                    Budget Calculation
-                  </Text>
-                  <Text style={localStyles.reviewValue}>
-                    Expected GA Guests: {budgetSummary.gaGuests}
-                    {"\n"}
-                    Expected VIP Guests: {budgetSummary.vipGuests}
-                    {"\n"}
-                    Catered Guests: {budgetSummary.cateredGuests}
-                    {"\n"}
-                    Calculation: {budgetSummary.cateredGuests} × $25{"\n"}
-                    Calculated Minimum: $
-                    {budgetSummary.minimumBudget.toFixed(2)}
-                    {"\n"}
-                    Coordinator-Entered Budget: $
-                    {Number(form.budgeted_amount || 0).toFixed(2)}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {form.fully_catered_event
-                      ? "GA and VIP attendance are included because the full event is catered."
-                      : form.catered_vip_section_enabled
-                        ? "Only VIP attendance is included because GA guests purchase from vendors."
-                        : "No coordinator catering budget applies to a vendor-paid GA event."}
-                  </Text>
                 </View>
                 {["VENDOR", "BOTH"].includes(form.payment_responsibility)
                   ? renderDateTimePicker(
