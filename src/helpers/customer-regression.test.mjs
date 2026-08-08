@@ -8,6 +8,7 @@ import {
   leaveWithFallback,
   normalizeCurrencyOnBlur,
   sanitizeCurrencyInput,
+  toFormString,
 } from "./customerRegression.helper.js";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
@@ -27,6 +28,8 @@ assert.match(details, /ticketSalesEnabled \? "Cancel Event & Refund Tickets" : "
 assert.match(details, /ticketSalesEnabled\s*\? "Refunds are due immediately upon cancellation/);
 assert.match(details, /: "This event will be cancelled and affected vendors will be notified/);
 assert.match(details, /text: ticketSalesEnabled \? "Cancel & Refund" : "Cancel Event"/);
+assert.equal((details.match(/>Share Event<\/Text>/g) || []).length, 2);
+assert.doesNotMatch(details, /Ticket invitations are available for private events/);
 
 assert.equal(sanitizeCurrencyInput(""), "");
 assert.equal(normalizeCurrencyOnBlur(""), "");
@@ -36,6 +39,10 @@ assert.equal(normalizeCurrencyOnBlur("12.34"), "12.34");
 assert.equal(normalizeCurrencyOnBlur("12..3x4"), "12.34");
 assert.equal(normalizeCurrencyOnBlur("$1,234.567"), "1234.56");
 assert.notEqual(normalizeCurrencyOnBlur("..."), "NaN");
+assert.equal(toFormString(150), "150");
+assert.equal(toFormString(0), "0");
+assert.equal(toFormString(null), "");
+assert.equal(toFormString(undefined), "");
 
 const ticketed = {
   ticket_sales_enabled: true,
@@ -76,6 +83,8 @@ assert.equal((createEvent.match(/Vendor Capacity/g) || []).length, 1);
 assert.equal((createEvent.match(/Payment & Budget/g) || []).length, 1);
 assert.match(createEvent, /Food Vendor Fee/);
 assert.match(createEvent, /editable: !form\.ticket_sales_enabled/);
+assert.match(createEvent, /number_of_guests: toFormString\(event\.number_of_guests\)/);
+assert.match(createEvent, /ga_ticket_quantity: toFormString\(event\.ga_ticket_quantity\)/);
 assert.match(createEvent, /flexBasis: 0/);
 assert.match(createEvent, /minWidth: 0/);
 assert.match(createEvent, /Budgeted amount is based on average price per plate/);

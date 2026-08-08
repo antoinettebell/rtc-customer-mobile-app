@@ -48,6 +48,7 @@ import {
   calculateItemTotalWithDiscount,
   calculateSelectedComboSideCost,
   calculateSelectedOptionCost,
+  formatSelectedComboSides,
 } from "../helpers/discount.helper";
 import { foodTypeStrings } from "../utils/constants";
 
@@ -738,6 +739,11 @@ const CheckoutScreen = ({ navigation, route }) => {
             {item.selectedToppings?.length > 0 ? (
               <Text style={styles.itemDesc} numberOfLines={2}>
                 {`Toppings: ${item.selectedToppings.join(", ")}`}
+              </Text>
+            ) : null}
+            {item.selectedComboSides?.length > 0 ? (
+              <Text style={styles.itemDesc} numberOfLines={3}>
+                {`Sides: ${formatSelectedComboSides(item).join(", ")}`}
               </Text>
             ) : null}
           </View>

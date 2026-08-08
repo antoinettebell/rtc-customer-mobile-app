@@ -23,6 +23,9 @@ export const normalizeCurrencyOnBlur = (value) => {
   return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "";
 };
 
+export const toFormString = (value) =>
+  value === null || value === undefined ? "" : String(value);
+
 export const getTicketAttendancePatch = (form) => {
   if (!form?.ticket_sales_enabled) return {};
   return {

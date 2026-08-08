@@ -8,7 +8,9 @@ const helperSource = await readFile(
 const helperModuleUrl = `data:text/javascript;base64,${Buffer.from(
   helperSource
 ).toString("base64")}`;
-const { calculateItemTotalWithDiscount } = await import(helperModuleUrl);
+const { calculateItemTotalWithDiscount, formatSelectedComboSides } = await import(
+  helperModuleUrl
+);
 
 assert.equal(
   calculateItemTotalWithDiscount({
@@ -88,6 +90,17 @@ assert.equal(
     ],
   }),
   16
+);
+
+assert.deepEqual(
+  formatSelectedComboSides({
+    selectedComboSides: ["Vegetable Egg Roll", "Crab Rangoon"],
+    comboSideOptionCosts: [
+      { name: "Vegetable Egg Roll", hasCost: false, cost: 0 },
+      { name: "Crab Rangoon", hasCost: true, cost: 2 },
+    ],
+  }),
+  ["Vegetable Egg Roll", "Crab Rangoon (+$2.00)"],
 );
 
 assert.equal(

@@ -511,21 +511,17 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleShareTickets = async () => {
-    if (event?.event_visibility !== "PRIVATE") {
-      Alert.alert("Share Event", "Ticket invitations are available for private events.");
-      return;
-    }
     try {
       const response = await createMarketplaceTicketShareLink_API(event.event_id);
       const url = response?.data?.share_url;
-      if (!url) throw new Error("Invitation link unavailable.");
+      if (!url) throw new Error("Event link unavailable.");
       await Share.share({
         title: event.event_name,
-        message: `You're invited to ${event.event_name}. Create or sign in to your Round Da' Corner customer profile, then purchase tickets: ${url}`,
+        message: `Check out ${event.event_name}. Create or sign in to your Round Da' Corner customer profile, then purchase tickets: ${url}`,
         url,
       });
     } catch (error) {
-      Alert.alert("Share Tickets", error?.message || "Unable to create the ticket invitation.");
+      Alert.alert("Share Event", error?.message || "Unable to create the event link.");
     }
   };
 
@@ -1089,11 +1085,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ) : null}
               {!event?.ticket_sales_closed_at && eventStatus !== "CANCELLED" ? (
                 <>
-                  {event?.event_visibility === "PRIVATE" ? (
-                    <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                      <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                    <Text style={styles.secondaryButtonText}>Share Event</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                     <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
                   </TouchableOpacity>
@@ -1161,11 +1155,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           ) : null}
           {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
             <>
-              {event?.event_visibility === "PRIVATE" ? (
-                <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                  <Text style={styles.secondaryButtonText}>Share Ticket Invitation</Text>
-                </TouchableOpacity>
-              ) : null}
+              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
+                <Text style={styles.secondaryButtonText}>Share Event</Text>
+              </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                 <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
               </TouchableOpacity>

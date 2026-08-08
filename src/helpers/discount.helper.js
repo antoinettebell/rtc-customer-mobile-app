@@ -116,6 +116,45 @@ export const calculateSelectedComboSideCost = (
   }, 0);
 };
 
+export const formatSelectedComboSides = (
+  item,
+  selectedKey = "selectedComboSides",
+  optionSourceItem = item,
+) => {
+  const selected = Array.isArray(item?.[selectedKey]) ? item[selectedKey] : [];
+  const pricedOptions = Array.isArray(optionSourceItem?.comboSideOptionCosts)
+    ? optionSourceItem.comboSideOptionCosts
+    : [];
+
+  return selected.map((selectedSide) => {
+    const selectedName =
+      typeof selectedSide === "string"
+        ? selectedSide
+        : selectedSide?.name || selectedSide?.label || "";
+    const normalizedName = String(selectedName).trim().toLowerCase();
+    const configuredOption = pricedOptions.find(
+      (candidate) =>
+        String(candidate?.name || "").trim().toLowerCase() === normalizedName,
+    );
+    const selectedCost =
+      typeof selectedSide === "object" && selectedSide?.hasCost !== false
+        ? Number(
+            selectedSide?.cost ??
+              selectedSide?.price ??
+              selectedSide?.additionalCost ??
+              0,
+          ) || 0
+        : 0;
+    const cost = configuredOption?.hasCost
+      ? Number(configuredOption.cost) || 0
+      : selectedCost;
+
+    return cost > 0
+      ? `${selectedName} (+$${cost.toFixed(2)})`
+      : selectedName;
+  });
+};
+
 export const calculateNestedSelectedOptionCost = (selectedItems = []) =>
   (Array.isArray(selectedItems) ? selectedItems : []).reduce(
     (sum, selectedItem) => {

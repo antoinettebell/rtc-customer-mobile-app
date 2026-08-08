@@ -59,6 +59,7 @@ import {
   getTicketAttendancePatch,
   normalizeCurrencyOnBlur,
   sanitizeCurrencyInput,
+  toFormString,
 } from "../helpers/customerRegression.helper";
 import {
   CUISINE_OPTIONS,
@@ -376,7 +377,7 @@ const normalizeEventForForm = (event = {}) => ({
     ? formatDateForPayload(event.vendor_fee_payment_deadline)
     : "",
   separate_vip_vendor_required: !!event.separate_vip_vendor_required,
-  vip_guest_count: event.vip_guest_count ? String(event.vip_guest_count) : "",
+  vip_guest_count: toFormString(event.vip_guest_count),
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
   equipment_needed: normalizeOptionList(event.equipment_needed),
@@ -388,10 +389,13 @@ const normalizeEventForForm = (event = {}) => ({
         fee: String(need.fee ?? ""),
       }))
     : [],
-  event_vendor_electricity_fee:
-    event.event_vendor_electricity_fee != null
-      ? String(event.event_vendor_electricity_fee)
-      : "",
+  event_vendor_electricity_fee: toFormString(
+    event.event_vendor_electricity_fee,
+  ),
+  ga_ticket_quantity: toFormString(event.ga_ticket_quantity),
+  ga_ticket_price: toFormString(event.ga_ticket_price),
+  vip_ticket_quantity: toFormString(event.vip_ticket_quantity),
+  vip_ticket_price: toFormString(event.vip_ticket_price),
   free_food_offered:
     event.free_food_offered === true || event.free_food_offered === false
       ? event.free_food_offered
@@ -417,12 +421,9 @@ const normalizeEventForForm = (event = {}) => ({
   event_close_date: event.event_close_date
     ? formatDateForPayload(event.event_close_date)
     : "",
-  number_of_guests: event.number_of_guests
-    ? String(event.number_of_guests)
-    : "",
-  number_of_vendors_needed: event.number_of_vendors_needed
-    ? String(event.number_of_vendors_needed)
-    : "",
+  number_of_guests: toFormString(event.number_of_guests),
+  number_of_vendors_needed: toFormString(event.number_of_vendors_needed),
+  plated_number_of_courses: toFormString(event.plated_number_of_courses),
   payment_responsibility: event.fully_catered_event
     ? "COORDINATOR"
     : event.catered_vip_section_enabled
@@ -430,8 +431,8 @@ const normalizeEventForForm = (event = {}) => ({
         ? "BOTH"
         : "COORDINATOR"
       : "VENDOR",
-  vendor_fee: event.vendor_fee ? String(event.vendor_fee) : "",
-  budgeted_amount: event.budgeted_amount ? String(event.budgeted_amount) : "",
+  vendor_fee: toFormString(event.vendor_fee),
+  budgeted_amount: toFormString(event.budgeted_amount),
 });
 
 const normalizeExistingEventImages = (event = {}) =>
@@ -3031,7 +3032,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     <View style={localStyles.fieldGroup}>
       {renderLabel(label)}
       <TextInput
-        value={props.value !== undefined ? props.value : form[key]}
+        value={toFormString(
+          props.value !== undefined ? props.value : form[key],
+        )}
         onChangeText={(value) =>
           props.onChangeText
             ? props.onChangeText(value)
