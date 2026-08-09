@@ -56,6 +56,7 @@ import {
   PUBLIC_MARKETPLACE_EVENT_BY_ID,
   PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK,
   MARKETPLACE_EVENT_IMAGES,
+  MARKETPLACE_EVENT_IMAGE,
   MARKETPLACE_EVENT_BIDS,
   MARKETPLACE_EVENT_QUESTIONS,
   MARKETPLACE_EVENT_QUESTION_ANSWER,
@@ -1083,6 +1084,18 @@ export const uploadMarketplaceEventImage_API = async ({ eventId, payload }) => {
       MARKETPLACE_EVENT_IMAGES(eventId),
       payload,
       { formData: true, skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const deleteMarketplaceEventImage_API = async ({ eventId, imageId }) => {
+  try {
+    const response = await apiClient.delete(
+      MARKETPLACE_EVENT_IMAGE(eventId, imageId),
+      { skipToken: false },
     );
     return response?.data;
   } catch (error) {

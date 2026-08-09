@@ -42,6 +42,7 @@ import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
 import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 import { canCancelCoordinatorEvent } from "../helpers/customerRegression.helper";
+import { isPdfAttachment } from "../helpers/customerPunchList.helper";
 import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import {
@@ -431,6 +432,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   );
 
   const imageUrls = getEventImageUrls(event);
+  const exemptionCertificateUrl =
+    event?.tax_exemption_certificate_url ||
+    event?.taxExemptionCertificateUrl ||
+    event?.tax_exemption_certificate?.file_url;
+  const exemptionCertificateIsPdf = isPdfAttachment({
+    file_url: exemptionCertificateUrl,
+    mime_type:
+      event?.tax_exemption_certificate?.mime_type ||
+      event?.tax_exemption_certificate_mime_type,
+  });
   const locationText =
     event?.formatted_address ||
     event?.geocoded_address ||
@@ -1460,6 +1471,26 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	            ) : null}
             </>
           ))}
+
+          {exemptionCertificateUrl ? (
+            <View style={styles.card}>
+              <Text style={styles.label}>Sales Tax Exemption Certificate</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.secondaryButton}
+                onPress={() =>
+                  exemptionCertificateIsPdf
+                    ? navigation.navigate("marketplaceTicketWebViewScreen", {
+                        url: exemptionCertificateUrl,
+                        title: "Sales Tax Exemption Certificate",
+                      })
+                    : openImagePreview(exemptionCertificateUrl)
+                }
+              >
+                <Text style={styles.secondaryButtonText}>Open Certificate</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {showEventVisibility
             ? renderCollapsibleSection("visibility", "Event Visibility", (

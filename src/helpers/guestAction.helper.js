@@ -7,10 +7,7 @@ export const showGuestSignupRequired = (navigation) => {
       {
         text: "OK",
         onPress: () => {
-          navigation?.reset?.({
-            index: 0,
-            routes: [{ name: "signin" }],
-          });
+          navigation?.navigate?.("signin", { returnToPrevious: true });
         },
       },
     ],

@@ -50,6 +50,11 @@ import {
   calculateSelectedOptionCost,
   formatSelectedComboSides,
 } from "../helpers/discount.helper";
+import {
+  getCheckoutPricePresentation,
+  getDeliveryAddressPayload,
+  getSelectedOptionLabels,
+} from "../helpers/customerPunchList.helper";
 import { foodTypeStrings } from "../utils/constants";
 
 const CUSTOMER_FEE_TIERS = [
@@ -439,6 +444,7 @@ const CheckoutScreen = ({ navigation, route }) => {
     }
   }, [driverTip, isDelivery]);
 
+  const deliveryAddressPayload = getDeliveryAddressPayload(defaultLocation);
   const buildTaxParams = ({ locationId, amount }) => ({
     foodTruck_id: foodTruckId,
     location_id: locationId,
@@ -446,9 +452,9 @@ const CheckoutScreen = ({ navigation, route }) => {
     deliveryFee,
     serviceFee: processingFeeAmount,
     fulfillmentType,
-    deliveryAddress: isDelivery ? defaultLocation?.address : null,
-    deliveryLat: isDelivery ? defaultLocation?.lat : null,
-    deliveryLong: isDelivery ? defaultLocation?.long : null,
+    deliveryAddress: isDelivery ? deliveryAddressPayload.deliveryAddress : null,
+    deliveryLat: isDelivery ? deliveryAddressPayload.deliveryLat : null,
+    deliveryLong: isDelivery ? deliveryAddressPayload.deliveryLong : null,
   });
   const currentTaxLocationId = useMemo(
     () =>
@@ -533,7 +539,6 @@ const CheckoutScreen = ({ navigation, route }) => {
       );
       return;
     }
-
     const incompleteItem = order.items.find(hasIncompleteRequiredSelections);
     if (incompleteItem) {
       Alert.alert(
@@ -552,9 +557,9 @@ const CheckoutScreen = ({ navigation, route }) => {
       subtotal,
       deliveryFee,
       fulfillmentType,
-      deliveryAddress: isDelivery ? defaultLocation?.address : null,
-      deliveryLat: isDelivery ? defaultLocation?.lat : null,
-      deliveryLong: isDelivery ? defaultLocation?.long : null,
+      deliveryAddress: isDelivery ? deliveryAddressPayload.deliveryAddress : null,
+      deliveryLat: isDelivery ? deliveryAddressPayload.deliveryLat : null,
+      deliveryLong: isDelivery ? deliveryAddressPayload.deliveryLong : null,
       tip: normalizedDriverTip,
       tips: normalizedDriverTip,
       totalOrderCost: finalTotal,
@@ -704,11 +709,7 @@ const CheckoutScreen = ({ navigation, route }) => {
       item.quantity ?? item.qty ?? 0,
     );
     const hasRewardNested = rewardItems.length > 0;
-    const primaryDisplayTotal = hasRewardNested
-      ? (Number(item.price) || 0) +
-        calculateSelectedOptionCost(item) +
-        calculateSelectedComboSideCost(item)
-      : calculateItemTotalWithDiscount({ ...item, quantity: 1 });
+    const pricePresentation = getCheckoutPricePresentation(item);
     const hasComboNested = (item?.selectedSubItems?.length ?? 0) > 0;
     const comboNestedLabel =
       item?.itemType === foodTypeStrings.combo
@@ -729,16 +730,16 @@ const CheckoutScreen = ({ navigation, route }) => {
               {item.description}
             </Text>
             <Text style={styles.itemPrice}>
-              {`$${parseFloat(primaryDisplayTotal || 0).toFixed(2)} `}
+              {`Base price: $${pricePresentation.basePrice.toFixed(2)}`}
             </Text>
             {item.selectedFlavors?.length > 0 ? (
               <Text style={styles.itemDesc} numberOfLines={2}>
-                {`Flavors: ${item.selectedFlavors.join(", ")}`}
+                {`Flavors: ${getSelectedOptionLabels(item, "flavor").join(", ")}`}
               </Text>
             ) : null}
             {item.selectedToppings?.length > 0 ? (
               <Text style={styles.itemDesc} numberOfLines={2}>
-                {`Toppings: ${item.selectedToppings.join(", ")}`}
+                {`Toppings: ${getSelectedOptionLabels(item, "topping").join(", ")}`}
               </Text>
             ) : null}
             {item.selectedComboSides?.length > 0 ? (
@@ -746,6 +747,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                 {`Sides: ${formatSelectedComboSides(item).join(", ")}`}
               </Text>
             ) : null}
+            <Text style={styles.itemPrice}>
+              {`Line total: $${pricePresentation.lineTotal.toFixed(2)}`}
+            </Text>
           </View>
           <View style={styles.qtyBox}>
             <TouchableOpacity
@@ -919,12 +923,12 @@ const CheckoutScreen = ({ navigation, route }) => {
 	                  ) : null}
                   {itm.selectedFlavors?.length > 0 ? (
                     <Text style={styles.nestedItemDesc} numberOfLines={2}>
-                      {`Flavors: ${itm.selectedFlavors.join(", ")}`}
+                      {`Flavors: ${getSelectedOptionLabels(itm, "flavor").join(", ")}`}
                     </Text>
                   ) : null}
                   {itm.selectedToppings?.length > 0 ? (
                     <Text style={styles.nestedItemDesc} numberOfLines={2}>
-                      {`Toppings: ${itm.selectedToppings.join(", ")}`}
+                      {`Toppings: ${getSelectedOptionLabels(itm, "topping").join(", ")}`}
                     </Text>
                   ) : null}
                   {itm.selectedComboSides?.length > 0 ? (
@@ -938,13 +942,15 @@ const CheckoutScreen = ({ navigation, route }) => {
                     </Text>
                   ) : null}
 	                  <Text style={styles.nestedItemPriceMuted}>
-	                    Included in combo
+	                    {itm.hasAdditionalCost && Number(itm.additionalCost) > 0
+	                      ? `+$${Number(itm.additionalCost).toFixed(2)}`
+	                      : "Included in combo"}
 	                  </Text>
                 </View>
                 <View style={styles.nestedQtyCol}>
                   <Text
                     style={styles.nestedQtyText}
-                  >{`×${item.quantity}`}</Text>
+                  >{`×${Number(itm.qty) || 1}`}</Text>
                 </View>
               </View>
             ))}

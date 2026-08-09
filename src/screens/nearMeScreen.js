@@ -29,6 +29,7 @@ import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
 import { EVENT_TYPES, formatEventTime } from "./marketplaceShared";
 import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import { isEligiblePublicEvent } from "../helpers/customerPunchList.helper";
 
 const { width, height } = Dimensions.get("window");
 const FILTERS = [
@@ -157,7 +158,7 @@ const NearMeScreen = ({ navigation }) => {
       const response = await getNearMeResults_API(params);
 
       if (response?.success && response?.data) {
-        const items = response.data.nearMeList || [];
+        const items = (response.data.nearMeList || []).filter(isEligiblePublicEvent);
         setNearMeItems(items);
         const firstMappableItem = items.find(
           (item) => getItemLatitude(item) != null && getItemLongitude(item) != null

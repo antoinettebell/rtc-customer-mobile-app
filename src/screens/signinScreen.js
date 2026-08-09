@@ -217,9 +217,13 @@ const SignInScreen = ({ navigation, route }) => {
           icon="arrow-left"
           iconColor={AppColor.white}
           size={24}
-          onPress={() =>
-            navigation.reset({ index: 0, routes: [{ name: "authIntro" }] })
-          }
+          onPress={() => {
+            if (route?.params?.returnToPrevious && navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+            navigation.reset({ index: 0, routes: [{ name: "authIntro" }] });
+          }}
         />
         <Text style={styles.headerTitle}>{"Sign In"}</Text>
         <View style={{ width: 48 }} />

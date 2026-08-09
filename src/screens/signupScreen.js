@@ -103,6 +103,9 @@ const SignupScreen = ({ navigation }) => {
   const [eventCoordinatorFormattedAddress, setEventCoordinatorFormattedAddress] =
     useState("");
   const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState("");
+  const [eventCoordinatorAddressCountry, setEventCoordinatorAddressCountry] = useState("US");
+  const [eventCoordinatorAddressLatitude, setEventCoordinatorAddressLatitude] = useState("");
+  const [eventCoordinatorAddressLongitude, setEventCoordinatorAddressLongitude] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -323,6 +326,9 @@ const SignupScreen = ({ navigation }) => {
         );
         formData.append("eventCoordinatorFormattedAddress", companyAddress);
         formData.append("eventCoordinatorPlaceId", eventCoordinatorPlaceId);
+        formData.append("eventCoordinatorAddressCountry", eventCoordinatorAddressCountry);
+        formData.append("eventCoordinatorAddressLatitude", eventCoordinatorAddressLatitude);
+        formData.append("eventCoordinatorAddressLongitude", eventCoordinatorAddressLongitude);
       }
 
       if (selectedPhoto) {
@@ -909,6 +915,9 @@ const SignupScreen = ({ navigation }) => {
 	                        setEventCoordinatorAddressZip(address.zip);
 	                        setEventCoordinatorFormattedAddress(address.formattedAddress);
 	                        setEventCoordinatorPlaceId(address.placeId);
+	                        setEventCoordinatorAddressCountry(address.country);
+	                        setEventCoordinatorAddressLatitude(address.latitude);
+	                        setEventCoordinatorAddressLongitude(address.longitude);
 	                        coordinatorAddressRef.current?.setAddressText(address.line1);
 	                      }}
 	                      onFail={(error) => {

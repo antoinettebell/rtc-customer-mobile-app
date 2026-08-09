@@ -459,6 +459,38 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       return;
     }
 
+    const existingOrderItem = currentOrder.items.find(
+      (orderItem) => orderItem._id === menuItem._id
+    );
+
+    if (existingOrderItem) {
+      Alert.alert(
+        "Is This Item the Same?",
+        "Would you like the additional item to have the same options and customizations?",
+        [
+          {
+            text: "No",
+            onPress: () => {
+              setSelectedMenuItem({
+                ...menuItem,
+                _startAdditionalItem: true,
+              });
+              actionSheetRef.current?.show();
+            },
+          },
+          {
+            text: "Yes",
+            onPress: () => handleAddItem(existingOrderItem),
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+      return;
+    }
+
     if (menuItemRequiresOptions(menuItem)) {
       openMenuItemOptions(menuItem);
       return;

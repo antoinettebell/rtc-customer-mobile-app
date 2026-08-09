@@ -44,6 +44,7 @@ import {
 } from "../helpers/marketplaceParticipation.helper";
 import {
   createMarketplaceEvent_API,
+  deleteMarketplaceEventImage_API,
   deleteMarketplaceEvent_API,
   getMarketplaceEventById_API,
   getLocationName,
@@ -61,6 +62,11 @@ import {
   sanitizeCurrencyInput,
   toFormString,
 } from "../helpers/customerRegression.helper";
+import {
+  getAttachmentSaveOutcome,
+  reconcileUploadResults,
+  removeEventImageAt,
+} from "../helpers/customerPunchList.helper";
 import {
   CUISINE_OPTIONS,
   DIETARY_OPTIONS,
@@ -449,6 +455,24 @@ const normalizeExistingEventImages = (event = {}) =>
       };
     })
     .filter(Boolean);
+
+const normalizeExistingCertificate = (event = {}) => {
+  const uri =
+    event.tax_exemption_certificate_url ||
+    event.taxExemptionCertificateUrl ||
+    event.tax_exemption_certificate?.file_url;
+  if (!uri) return null;
+  return {
+    uri,
+    name:
+      event.tax_exemption_certificate?.original_name ||
+      event.tax_exemption_certificate_name ||
+      "Sales Tax Exemption Certificate",
+    type: event.tax_exemption_certificate?.mime_type ||
+      (String(uri).toLowerCase().includes(".pdf") ? "application/pdf" : "image/jpeg"),
+    uploaded: true,
+  };
+};
 
 const formatTimeForPayload = (date) => {
   if (!date) return "";
@@ -1639,7 +1663,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     if (!event) return;
     const nextForm = normalizeEventForForm(event);
     const nextImages = retainedAttachments.eventImages ?? normalizeExistingEventImages(event);
-    const nextCertificate = retainedAttachments.exemptionCertificate ?? null;
+    const nextCertificate = retainedAttachments.exemptionCertificate ?? normalizeExistingCertificate(event);
     setForm(nextForm);
     setEventImages(nextImages);
     setExemptionCertificate(nextCertificate);
@@ -2609,11 +2633,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       }
 
       const imagesToUpload = eventImages.filter((image) => !image.uploaded);
-      const shouldUploadImages =
-        status !== "DRAFT" && eventId && imagesToUpload.length;
+      const shouldUploadImages = eventId && imagesToUpload.length;
+      let failedLocalImages = [];
+      let certificateUploadFailed = false;
       if (shouldUploadImages) {
-        const { failedUploads, uploadedImages } =
+        const { failedUploads, failedImages, uploadedImages } =
           await uploadEventImagesForEvent(eventId, imagesToUpload);
+        failedLocalImages = failedImages;
         if (failedUploads.length) {
           console.log("Marketplace event image upload error", failedUploads);
           setSnackbar({
@@ -2632,14 +2658,18 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ]);
         }
       }
-      if (status !== "DRAFT" && eventId && exemptionCertificate) {
-        const certificateData = new FormData();
-        certificateData.append("file", exemptionCertificate);
-        await uploadMarketplaceTaxExemptionCertificate_API({
-          eventId,
-          payload: certificateData,
-        });
-        setExemptionCertificate(null);
+      if (eventId && exemptionCertificate && !exemptionCertificate.uploaded) {
+        try {
+          const certificateData = new FormData();
+          certificateData.append("file", exemptionCertificate);
+          await uploadMarketplaceTaxExemptionCertificate_API({
+            eventId,
+            payload: certificateData,
+          });
+        } catch (error) {
+          certificateUploadFailed = true;
+          console.log("Marketplace certificate upload error", error);
+        }
       }
       const refreshedEventResponse = eventId
         ? await getMarketplaceEventById_API(eventId).catch((error) => {
@@ -2652,28 +2682,42 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         : null;
       const refreshedEvent = refreshedEventResponse?.data?.marketplaceEvent;
       if (refreshedEvent) {
-        hydrateEventForEditing(
-          refreshedEvent,
-          status === "DRAFT" ? { eventImages, exemptionCertificate } : {},
-        );
-      } else if (status === "DRAFT") {
+        hydrateEventForEditing(refreshedEvent);
+        if (failedLocalImages.length) {
+          setEventImages((serverImages) => [...serverImages, ...failedLocalImages]);
+        }
+        if (certificateUploadFailed) {
+          setExemptionCertificate(exemptionCertificate);
+        }
+      } else if (
+        status === "DRAFT" &&
+        !failedLocalImages.length &&
+        !certificateUploadFailed
+      ) {
         cleanDraftSnapshotRef.current = buildMarketplaceDraftSnapshot({
           form,
           eventImages,
           exemptionCertificate,
         });
       }
+      const attachmentOutcome = getAttachmentSaveOutcome({
+        status,
+        hasFailures: !!(failedLocalImages.length || certificateUploadFailed),
+      });
       setSnackbar({
         visible: true,
-        message: options.successMessage
+        message: attachmentOutcome
+          ? attachmentOutcome.message
+          : options.successMessage
           ? options.successMessage
           : status === "DRAFT"
             ? "Your draft has been saved."
             : shouldUploadImages
               ? "Your event is open for vendor bids. Images are uploaded."
               : "Your event is open for vendor bids.",
-        type: "success",
+        type: attachmentOutcome?.type || "success",
       });
+      if (attachmentOutcome && !attachmentOutcome.shouldNavigate) return true;
       setTimeout(() => {
         if (options.skipNavigation) {
           return;
@@ -2883,11 +2927,12 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       }),
     );
 
+    const { failedAttachments, successfulValues } = reconcileUploadResults(images, results);
     return {
       failedUploads: results.filter((result) => result.status === "rejected"),
-      uploadedImages: results
-        .filter((result) => result.status === "fulfilled")
-        .map((result) => result.value?.data?.marketplaceEventImage)
+      failedImages: failedAttachments,
+      uploadedImages: successfulValues
+        .map((value) => value?.data?.marketplaceEventImage)
         .filter(Boolean),
     };
   };
@@ -3005,6 +3050,25 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         setLoading(false);
         setSubmitMode(null);
       }
+    }
+  };
+
+  const handleRemoveEventImage = async (image, index) => {
+    try {
+      const nextImages = await removeEventImageAt({
+        images: eventImages,
+        image,
+        index,
+        eventId: editingEventId,
+        deleteRemote: deleteMarketplaceEventImage_API,
+      });
+      setEventImages(nextImages);
+    } catch (error) {
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Unable to remove this event image.",
+        type: "error",
+      });
     }
   };
 
@@ -5002,11 +5066,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                           <TouchableOpacity
                             activeOpacity={0.7}
                             style={localStyles.removeImageButton}
-                            onPress={() =>
-                              setEventImages((prev) =>
-                                prev.filter((_, i) => i !== index),
-                              )
-                            }
+                            onPress={() => handleRemoveEventImage(image, index)}
                           >
                             <Text style={styles.secondaryButtonText}>
                               Remove

@@ -91,8 +91,9 @@ assert.match(createEvent, /Budgeted amount is based on average price per plate/)
 assert.doesNotMatch(createEvent, /Budget Calculation/);
 assert.match(profile, /initializeAddressEdit/);
 assert.match(splash, /guests can browse without granting location/);
-assert.match(guestAction, /routes: \[\{ name: "signin" \}\]/);
+assert.match(guestAction, /navigate\?\.\("signin", \{ returnToPrevious: true \}\)/);
 assert.doesNotMatch(guestAction, /intendedDestination/);
+assert.match(signIn, /returnToPrevious && navigation\.canGoBack\(\)/);
 assert.match(signIn, /navigation\.reset\(\{ index: 0, routes: \[\{ name: "authIntro" \}\] \}\)/);
 assert.match(authMap, /leaveWithFallback/);
 

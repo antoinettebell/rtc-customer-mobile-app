@@ -55,6 +55,7 @@ export const parseUsAddressFromGooglePlace = ({
   const zip = getAddressPart(components, "postal_code", "short_name") || fallbackParts.zip;
   const latitude = details?.geometry?.location?.lat;
   const longitude = details?.geometry?.location?.lng;
+  const country = getAddressPart(components, "country", "short_name") || "US";
 
   return {
     line1: street || formattedAddress,
@@ -63,6 +64,7 @@ export const parseUsAddressFromGooglePlace = ({
     zip,
     latitude: latitude != null ? String(latitude) : "",
     longitude: longitude != null ? String(longitude) : "",
+    country,
     formattedAddress,
     placeId: data?.place_id || details?.place_id || "",
   };
