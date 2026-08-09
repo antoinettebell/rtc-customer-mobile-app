@@ -56,6 +56,7 @@ import {
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
+import { normalizeMarketplaceTaxExemptionForForm } from "../helpers/marketplaceTaxExemption.helper";
 import {
   getTicketAttendancePatch,
   normalizeCurrencyOnBlur,
@@ -368,6 +369,7 @@ const formatDateForDisplay = (value) => {
 const normalizeEventForForm = (event = {}) => ({
   ...initialForm,
   ...event,
+  ...normalizeMarketplaceTaxExemptionForForm(event),
   service_types: normalizeOptionList(event.service_types || event.service_type),
   service_styles: normalizeOptionList(event.service_styles),
   power_required: normalizeOptionList(event.power_required),
