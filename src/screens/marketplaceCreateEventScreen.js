@@ -5,6 +5,7 @@ import {
   BackHandler,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -29,7 +30,9 @@ import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 import Geolocation from "@react-native-community/geolocation";
 import AppHeader from "../components/AppHeader";
+import AppImage from "../components/AppImage";
 import StatusBarManager from "../components/StatusBarManager";
+import ZoomableImageModal from "../components/ZoomableImageModal";
 import { AppColor } from "../utils/theme";
 import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
@@ -57,6 +60,10 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
 import { normalizeMarketplaceTaxExemptionForForm } from "../helpers/marketplaceTaxExemption.helper";
+import {
+  getAttachmentPreview,
+  normalizeExistingCertificateAttachment,
+} from "../helpers/attachmentPreview.helper";
 import {
   getTicketAttendancePatch,
   normalizeCurrencyOnBlur,
@@ -457,24 +464,6 @@ const normalizeExistingEventImages = (event = {}) =>
       };
     })
     .filter(Boolean);
-
-const normalizeExistingCertificate = (event = {}) => {
-  const uri =
-    event.tax_exemption_certificate_url ||
-    event.taxExemptionCertificateUrl ||
-    event.tax_exemption_certificate?.file_url;
-  if (!uri) return null;
-  return {
-    uri,
-    name:
-      event.tax_exemption_certificate?.original_name ||
-      event.tax_exemption_certificate_name ||
-      "Sales Tax Exemption Certificate",
-    type: event.tax_exemption_certificate?.mime_type ||
-      (String(uri).toLowerCase().includes(".pdf") ? "application/pdf" : "image/jpeg"),
-    uploaded: true,
-  };
-};
 
 const formatTimeForPayload = (date) => {
   if (!date) return "";
@@ -1454,6 +1443,28 @@ const localStyles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#EEF1F5",
   },
+  certificateDocumentCard: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  certificateImageCard: {
+    marginTop: 12,
+    alignItems: "center",
+    gap: 8,
+  },
+  certificateImagePreview: {
+    width: "100%",
+    height: 190,
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
+  },
   removeImageButton: {
     marginTop: 6,
     alignItems: "center",
@@ -1531,6 +1542,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const [eventImages, setEventImages] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [exemptionCertificate, setExemptionCertificate] = useState(null);
+  const [certificatePreviewImageUri, setCertificatePreviewImageUri] = useState("");
   const cleanDraftSnapshotRef = useRef(
     buildMarketplaceDraftSnapshot({ form: initialForm }),
   );
@@ -1642,6 +1654,35 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       ],
     );
   };
+
+  const certificatePreview = getAttachmentPreview({
+    attachment: exemptionCertificate,
+    persistedUrl: form.tax_exemption_certificate_url,
+  });
+
+  const handleViewCertificate = async () => {
+    if (!certificatePreview?.uri) return;
+    if (!certificatePreview.isPdf) {
+      setCertificatePreviewImageUri(certificatePreview.uri);
+      return;
+    }
+    if (/^(?:file|content):\/\//i.test(certificatePreview.uri)) {
+      try {
+        await Linking.openURL(certificatePreview.uri);
+      } catch (_error) {
+        setSnackbar({
+          visible: true,
+          message: "Unable to open this certificate.",
+          type: "error",
+        });
+      }
+      return;
+    }
+    navigation.navigate("marketplaceTicketWebViewScreen", {
+      url: certificatePreview.uri,
+      title: "Sales Tax Exemption Certificate",
+    });
+  };
   const foodTruckSelected = isFoodTruckService(form);
   const savedEventLocationLocked = !!editingEventId && !isReopenMode;
   const budgetSummary = getMarketplaceBudget(form);
@@ -1665,7 +1706,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     if (!event) return;
     const nextForm = normalizeEventForForm(event);
     const nextImages = retainedAttachments.eventImages ?? normalizeExistingEventImages(event);
-    const nextCertificate = retainedAttachments.exemptionCertificate ?? normalizeExistingCertificate(event);
+    const nextCertificate = retainedAttachments.exemptionCertificate ??
+      normalizeExistingCertificateAttachment(event);
     setForm(nextForm);
     setEventImages(nextImages);
     setExemptionCertificate(nextCertificate);
@@ -4540,13 +4582,42 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             onPress={chooseExemptionCertificate}
           >
             <Text style={styles.secondaryButtonText}>
-              {exemptionCertificate
-                ? "Certificate Selected"
-                : form.tax_exemption_certificate_url
-                  ? "Existing Certificate Attached"
+              {certificatePreview?.isPersisted
+                ? "Certificate Exists"
+                : certificatePreview
+                  ? "Certificate Selected"
                   : "Add Certificate (File, Camera, or Photo)"}
             </Text>
           </TouchableOpacity>
+          {certificatePreview ? (
+            certificatePreview.isPdf ? (
+              <View style={localStyles.certificateDocumentCard}>
+                <MaterialIcons name="picture-as-pdf" size={30} color={AppColor.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label} numberOfLines={2}>
+                    {certificatePreview.name}
+                  </Text>
+                  <TouchableOpacity onPress={handleViewCertificate}>
+                    <Text style={styles.secondaryButtonText}>View Certificate</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleViewCertificate}
+                style={localStyles.certificateImageCard}
+              >
+                <AppImage
+                  uri={certificatePreview.uri}
+                  resizeMode="contain"
+                  containerStyle={localStyles.certificateImagePreview}
+                  imageStyle={{ width: "100%", height: "100%" }}
+                />
+                <Text style={styles.meta}>Tap to view certificate</Text>
+              </TouchableOpacity>
+            )
+          ) : null}
         </>
       ) : null}
     </View>
@@ -5165,7 +5236,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Tax Exemption & Documents",
-                  `Charitable: ${form.charitable_event ? "Yes" : "No"} · Religious: ${form.religious_organization ? "Yes" : "No"}\nCertificate: ${exemptionCertificate ? "Selected" : form.tax_exemption_certificate_url ? "Existing certificate attached" : "Not selected"}`,
+                  `Charitable: ${form.charitable_event ? "Yes" : "No"} · Religious: ${form.religious_organization ? "Yes" : "No"}\nCertificate: ${certificatePreview?.isPersisted ? "Certificate Exists" : certificatePreview ? "Selected" : "Not selected"}`,
                 ],
                 ["Images", `${eventImages.length} selected`],
               ].map(([label, value]) => (
@@ -5380,6 +5451,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+      <ZoomableImageModal
+        uri={certificatePreviewImageUri}
+        title="Sales Tax Exemption Certificate"
+        onClose={() => setCertificatePreviewImageUri("")}
+      />
     </View>
   );
 };

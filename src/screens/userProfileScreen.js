@@ -40,6 +40,7 @@ import { permission } from "../helpers/permission.helper";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
 import StatePickerModal from "../components/StatePickerModal";
+import ZoomableImageModal from "../components/ZoomableImageModal";
 import { getStateCode } from "../utils/usStates";
 import {
   buildCoordinatorAddressProfileFields,
@@ -47,6 +48,7 @@ import {
   hydrateCoordinatorAddressProfileFields,
   normalizeAddressStateInput,
 } from "../helpers/address.helper";
+import { getPaymentQrPreview } from "../helpers/attachmentPreview.helper";
 
 const COORDINATOR_PAYMENT_OPTIONS = [
   { label: "Cash App", value: "CASHAPP" },
@@ -211,6 +213,8 @@ const UserProfileScreen = ({ navigation, route }) => {
     useState(user?.eventCoordinatorPaymentHandle || "");
   const [eventCoordinatorPaymentQrCodeUrl, setEventCoordinatorPaymentQrCodeUrl] =
     useState(user?.eventCoordinatorPaymentQrCodeUrl || "");
+  const [coordinatorQrPendingSave, setCoordinatorQrPendingSave] = useState(false);
+  const [qrPreviewImageUri, setQrPreviewImageUri] = useState("");
   const [
     eventCoordinatorDirectDepositRoutingNumber,
     setEventCoordinatorDirectDepositRoutingNumber,
@@ -269,6 +273,7 @@ const UserProfileScreen = ({ navigation, route }) => {
       setEventCoordinatorPaymentQrCodeUrl(
         user.eventCoordinatorPaymentQrCodeUrl || ""
       );
+      setCoordinatorQrPendingSave(false);
       setEventCoordinatorDirectDepositRoutingNumber(
         user.eventCoordinatorDirectDepositRoutingNumber || ""
       );
@@ -398,6 +403,7 @@ const UserProfileScreen = ({ navigation, route }) => {
     setEventCoordinatorPaymentQrCodeUrl(
       user?.eventCoordinatorPaymentQrCodeUrl || ""
     );
+    setCoordinatorQrPendingSave(false);
     setEventCoordinatorDirectDepositRoutingNumber(
       user?.eventCoordinatorDirectDepositRoutingNumber || ""
     );
@@ -740,6 +746,7 @@ const UserProfileScreen = ({ navigation, route }) => {
       const uploadResponse = await uploadImage_API(formData);
       if (uploadResponse?.success && uploadResponse?.data?.file) {
         setEventCoordinatorPaymentQrCodeUrl(uploadResponse.data.file);
+        setCoordinatorQrPendingSave(true);
         setSnackbar({
           visible: true,
           message: "Coordinator payment QR selected. Save profile to keep it.",
@@ -760,6 +767,11 @@ const UserProfileScreen = ({ navigation, route }) => {
       setUploadingCoordinatorQr(false);
     }
   };
+
+  const paymentQrPreview = getPaymentQrPreview({
+    url: eventCoordinatorPaymentQrCodeUrl,
+    pendingSave: coordinatorQrPendingSave,
+  });
 
   const handleUpdateName = async () => {
     if (!tempFirstName.trim()) {
@@ -1407,11 +1419,26 @@ const UserProfileScreen = ({ navigation, route }) => {
                       />
                     )}
                     <Text style={styles.qrUploadText}>
-                      {eventCoordinatorPaymentQrCodeUrl
-                        ? "Payment QR Selected"
+                      {paymentQrPreview
+                        ? paymentQrPreview.label
                         : "Upload Payment QR Code *"}
                     </Text>
                   </TouchableOpacity>
+                  {paymentQrPreview ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setQrPreviewImageUri(paymentQrPreview.uri)}
+                      style={styles.qrPreviewCard}
+                    >
+                      <AppImage
+                        uri={paymentQrPreview.uri}
+                        resizeMode="contain"
+                        containerStyle={styles.qrPreviewImage}
+                        imageStyle={{ width: "100%", height: "100%" }}
+                      />
+                      <Text style={styles.coordinatorHelpText}>Tap to view QR image</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </>
               ) : null}
             </View>
@@ -1507,6 +1534,11 @@ const UserProfileScreen = ({ navigation, route }) => {
         }}
         loading={contactModalLoading}
         error={contactError}
+      />
+      <ZoomableImageModal
+        uri={qrPreviewImageUri}
+        title="Coordinator Payment QR Code"
+        onClose={() => setQrPreviewImageUri("")}
       />
 
       {/* Snackbar */}
@@ -1823,6 +1855,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Mulish700,
     color: AppColor.primary,
+  },
+  qrPreviewCard: {
+    marginTop: 12,
+    alignItems: "center",
+    gap: 8,
+  },
+  qrPreviewImage: {
+    width: 220,
+    height: 220,
+    borderWidth: 1,
+    borderColor: AppColor.borderColor,
+    borderRadius: 10,
+    backgroundColor: AppColor.white,
   },
   placesWrapper: {
     zIndex: 10,
