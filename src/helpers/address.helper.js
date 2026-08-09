@@ -1,30 +1,36 @@
 const getAddressPart = (components = [], type, field = "long_name") =>
   components.find((component) => component.types?.includes(type))?.[field] || "";
 
-const parseCityStateZipFromFormattedAddress = (formattedAddress = "") => {
+const parseFallbackAddress = (formattedAddress = "") => {
   const parts = String(formattedAddress)
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
-  const cityStateZip = parts.length >= 2 ? parts[parts.length - 2] : "";
-  const stateZip = parts.length >= 1 ? parts[parts.length - 1] : "";
-  const cityStateZipMatch = cityStateZip.match(
-    /^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i
+  if (/^(?:USA|US|United States)$/i.test(parts[parts.length - 1] || "")) {
+    parts.pop();
+  }
+  const stateZipIndex = parts.length - 1;
+  const stateZipMatch = (parts[stateZipIndex] || "").match(
+    /^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i,
   );
-  const stateZipMatch = stateZip.match(/^([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+  const cityStateZipMatch = (parts[stateZipIndex] || "").match(
+    /^(.+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i,
+  );
+  const cityIndex = stateZipMatch
+    ? stateZipIndex - 1
+    : cityStateZipMatch
+      ? stateZipIndex
+      : -1;
 
   return {
-    city: cityStateZipMatch ? cityStateZipMatch[1].trim() : "",
-    state: cityStateZipMatch
-      ? cityStateZipMatch[2].toUpperCase()
-      : stateZipMatch
-      ? stateZipMatch[1].toUpperCase()
-      : "",
-    zip: cityStateZipMatch
-      ? cityStateZipMatch[3]
-      : stateZipMatch
-      ? stateZipMatch[2]
-      : "",
+    line1: cityIndex > 0 ? parts.slice(0, cityIndex).join(", ") : "",
+    city: cityStateZipMatch
+      ? cityStateZipMatch[1].trim()
+      : cityIndex >= 0
+        ? parts[cityIndex]
+        : "",
+    state: (stateZipMatch?.[1] || cityStateZipMatch?.[2] || "").toUpperCase(),
+    zip: stateZipMatch?.[2] || cityStateZipMatch?.[3] || "",
   };
 };
 
@@ -36,7 +42,7 @@ export const parseUsAddressFromGooglePlace = ({
   const components = details?.address_components || [];
   const formattedAddress =
     details?.formatted_address || data?.description || fallbackAddress || "";
-  const fallbackParts = parseCityStateZipFromFormattedAddress(formattedAddress);
+  const fallbackParts = parseFallbackAddress(formattedAddress);
   const street = [
     getAddressPart(components, "street_number"),
     getAddressPart(components, "route"),
@@ -58,7 +64,7 @@ export const parseUsAddressFromGooglePlace = ({
   const country = getAddressPart(components, "country", "short_name") || "US";
 
   return {
-    line1: street || formattedAddress,
+    line1: street || fallbackParts.line1 || formattedAddress,
     city,
     state,
     zip,
@@ -69,3 +75,49 @@ export const parseUsAddressFromGooglePlace = ({
     placeId: data?.place_id || details?.place_id || "",
   };
 };
+
+export const getGooglePlaceAddressSelection = (place = {}) => {
+  const address = parseUsAddressFromGooglePlace(place);
+  const missingFields = [
+    ["street address", address.line1],
+    ["city", address.city],
+    ["state", address.state],
+    ["ZIP code", address.zip],
+  ].filter(([, value]) => !String(value || "").trim());
+
+  return {
+    address,
+    shouldCloseSelection: missingFields.length === 0,
+    error: missingFields.length
+      ? `Select an address that includes a ${missingFields.map(([label]) => label).join(", ")}.`
+      : "",
+  };
+};
+
+export const normalizeAddressStateInput = (value) => String(value || "");
+
+export const buildCoordinatorAddressProfileFields = (address = {}) => ({
+  eventCoordinatorAddressLine1: String(address.line1 || "").trim(),
+  eventCoordinatorAddressLine2: String(address.line2 || "").trim(),
+  eventCoordinatorAddressCity: String(address.city || "").trim(),
+  eventCoordinatorAddressState: String(address.state || "").trim().toUpperCase(),
+  eventCoordinatorAddressZip: String(address.zip || "").trim(),
+  eventCoordinatorFormattedAddress: String(address.formattedAddress || "").trim(),
+  eventCoordinatorPlaceId: address.placeId || "",
+  eventCoordinatorAddressLatitude: String(address.latitude || "").trim(),
+  eventCoordinatorAddressLongitude: String(address.longitude || "").trim(),
+  eventCoordinatorAddressCountry: String(address.country || "US").trim() || "US",
+});
+
+export const hydrateCoordinatorAddressProfileFields = (user = {}) => ({
+  line1: user.eventCoordinatorAddressLine1 || "",
+  line2: user.eventCoordinatorAddressLine2 || "",
+  city: user.eventCoordinatorAddressCity || "",
+  state: user.eventCoordinatorAddressState || "",
+  zip: user.eventCoordinatorAddressZip || "",
+  formattedAddress: user.eventCoordinatorFormattedAddress || "",
+  placeId: user.eventCoordinatorPlaceId || "",
+  latitude: user.eventCoordinatorAddressLatitude || "",
+  longitude: user.eventCoordinatorAddressLongitude || "",
+  country: user.eventCoordinatorAddressCountry || "US",
+});

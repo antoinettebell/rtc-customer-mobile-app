@@ -44,7 +44,12 @@ import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
 import { initializeAddressEdit } from "../helpers/customerRegression.helper";
 import { getStateCode } from "../utils/usStates";
-import { parseUsAddressFromGooglePlace } from "../helpers/address.helper";
+import {
+  buildCoordinatorAddressProfileFields,
+  getGooglePlaceAddressSelection,
+  hydrateCoordinatorAddressProfileFields,
+  normalizeAddressStateInput,
+} from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const COORDINATOR_PAYMENT_OPTIONS = [
@@ -76,6 +81,7 @@ const getTaxIdDisplayParts = (maskedValue, fallbackType = "EIN") => {
 };
 
 const getLegacyCoordinatorAddress = (user = {}) => {
+  const savedAddress = hydrateCoordinatorAddressProfileFields(user);
   const formattedAddress =
     user.eventCoordinatorFormattedAddress || user.eventCoordinatorCompanyAddress || "";
   const parts = String(formattedAddress)
@@ -89,16 +95,16 @@ const getLegacyCoordinatorAddress = (user = {}) => {
 
   return {
     line1:
-      user.eventCoordinatorAddressLine1 ||
+      savedAddress.line1 ||
       (parts.length > 1 ? parts[0] : formattedAddress) ||
       "",
-    line2: user.eventCoordinatorAddressLine2 || "",
+    line2: savedAddress.line2,
     city:
-      user.eventCoordinatorAddressCity ||
+      savedAddress.city ||
       (cityStateZipMatch ? cityStateZipMatch[1] : parts.length >= 4 ? parts[1] : "") ||
       "",
     state: getStateCode(
-      user.eventCoordinatorAddressState ||
+      savedAddress.state ||
         (cityStateZipMatch
           ? cityStateZipMatch[2]
           : stateZipMatch
@@ -107,11 +113,14 @@ const getLegacyCoordinatorAddress = (user = {}) => {
         ""
     ),
     zip:
-      user.eventCoordinatorAddressZip ||
+      savedAddress.zip ||
       (cityStateZipMatch ? cityStateZipMatch[3] : stateZipMatch ? stateZipMatch[2] : "") ||
       "",
     formattedAddress,
-    placeId: user.eventCoordinatorPlaceId || "",
+    placeId: savedAddress.placeId,
+    latitude: savedAddress.latitude,
+    longitude: savedAddress.longitude,
+    country: savedAddress.country,
   };
 };
 
@@ -195,6 +204,12 @@ const UserProfileScreen = ({ navigation }) => {
   const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState(
     initialCoordinatorAddress.placeId
   );
+  const [eventCoordinatorAddressLatitude, setEventCoordinatorAddressLatitude] =
+    useState(initialCoordinatorAddress.latitude);
+  const [eventCoordinatorAddressLongitude, setEventCoordinatorAddressLongitude] =
+    useState(initialCoordinatorAddress.longitude);
+  const [eventCoordinatorAddressCountry, setEventCoordinatorAddressCountry] =
+    useState(initialCoordinatorAddress.country);
   const [eventCoordinatorPaymentPreference, setEventCoordinatorPaymentPreference] =
     useState(user?.eventCoordinatorPaymentPreference || "");
   const [eventCoordinatorPaymentHandle, setEventCoordinatorPaymentHandle] =
@@ -328,6 +343,9 @@ const UserProfileScreen = ({ navigation }) => {
     setEventCoordinatorAddressZip(coordinatorAddress.zip);
     setEventCoordinatorFormattedAddress(coordinatorAddress.formattedAddress);
     setEventCoordinatorPlaceId(coordinatorAddress.placeId);
+    setEventCoordinatorAddressLatitude(coordinatorAddress.latitude);
+    setEventCoordinatorAddressLongitude(coordinatorAddress.longitude);
+    setEventCoordinatorAddressCountry(coordinatorAddress.country);
     setEventCoordinatorPaymentPreference(
       user?.eventCoordinatorPaymentPreference || ""
     );
@@ -433,13 +451,18 @@ const UserProfileScreen = ({ navigation }) => {
           ...(eventCoordinatorTaxId.trim()
             ? { eventCoordinatorTaxId: eventCoordinatorTaxId.replace(/\D/g, "") }
             : {}),
-          eventCoordinatorAddressLine1: trimAddressValue(eventCoordinatorAddressLine1),
-          eventCoordinatorAddressLine2: trimAddressValue(eventCoordinatorAddressLine2),
-          eventCoordinatorAddressCity: trimAddressValue(eventCoordinatorAddressCity),
-          eventCoordinatorAddressState: trimAddressValue(eventCoordinatorAddressState).toUpperCase(),
-          eventCoordinatorAddressZip: trimAddressValue(eventCoordinatorAddressZip),
-          eventCoordinatorFormattedAddress: trimAddressValue(eventCoordinatorFormattedAddress),
-          eventCoordinatorPlaceId,
+          ...buildCoordinatorAddressProfileFields({
+            line1: eventCoordinatorAddressLine1,
+            line2: eventCoordinatorAddressLine2,
+            city: eventCoordinatorAddressCity,
+            state: eventCoordinatorAddressState,
+            zip: eventCoordinatorAddressZip,
+            formattedAddress: eventCoordinatorFormattedAddress,
+            placeId: eventCoordinatorPlaceId,
+            latitude: eventCoordinatorAddressLatitude,
+            longitude: eventCoordinatorAddressLongitude,
+            country: eventCoordinatorAddressCountry,
+          }),
           eventCoordinatorPaymentPreference:
             eventCoordinatorPaymentPreference || null,
           eventCoordinatorPaymentHandle:
@@ -1145,18 +1168,25 @@ const UserProfileScreen = ({ navigation }) => {
                     minLength={2}
                     timeout={20000}
                     onPress={(data, details) => {
-                      const address = parseUsAddressFromGooglePlace({
+                      const selection = getGooglePlaceAddressSelection({
                         data,
                         details,
                         fallbackAddress: data?.description,
                       });
+                      const { address } = selection;
                       setEventCoordinatorAddressLine1(address.line1);
                       setEventCoordinatorAddressCity(address.city);
                       setEventCoordinatorAddressState(address.state);
                       setEventCoordinatorAddressZip(address.zip);
                       setEventCoordinatorFormattedAddress(address.formattedAddress);
                       setEventCoordinatorPlaceId(address.placeId);
-                      setIsCoordinatorAddressEditing(false);
+                      setEventCoordinatorAddressLatitude(address.latitude);
+                      setEventCoordinatorAddressLongitude(address.longitude);
+                      setEventCoordinatorAddressCountry(address.country);
+                      setCoordinatorError(selection.error);
+                      if (selection.shouldCloseSelection) {
+                        setIsCoordinatorAddressEditing(false);
+                      }
                     }}
                     onFail={(error) => {
                       console.log("Google Places coordinator profile address error", error);
@@ -1174,6 +1204,8 @@ const UserProfileScreen = ({ navigation }) => {
                         setEventCoordinatorAddressLine1(value);
                         setEventCoordinatorFormattedAddress("");
                         setEventCoordinatorPlaceId("");
+                        setEventCoordinatorAddressLatitude("");
+                        setEventCoordinatorAddressLongitude("");
                       },
                     }}
                     styles={{
@@ -1213,7 +1245,9 @@ const UserProfileScreen = ({ navigation }) => {
               <StatePickerModal
                 disabled={!isCoordinatorProfileEditing}
                 value={eventCoordinatorAddressState}
-                onChange={setEventCoordinatorAddressState}
+                onChangeText={(value) =>
+                  setEventCoordinatorAddressState(normalizeAddressStateInput(value))
+                }
               />
               <TextInput
                 value={eventCoordinatorAddressZip}

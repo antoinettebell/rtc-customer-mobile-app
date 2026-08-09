@@ -17,12 +17,13 @@ const StatePickerModal = ({
   error,
   label = "State *",
   onChange,
+  onChangeText,
   value,
 }) => {
   const [visible, setVisible] = React.useState(false);
 
   const handleSelect = (state) => {
-    onChange(state.value);
+    (onChangeText || onChange)?.(String(state.value));
     setVisible(false);
   };
 
