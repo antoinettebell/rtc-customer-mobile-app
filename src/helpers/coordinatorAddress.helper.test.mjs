@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   buildCoordinatorAddressProfileFields,
+  getCoordinatorAddressSelectionFromLocation,
   getGooglePlaceAddressSelection,
   hydrateCoordinatorAddressProfileFields,
   normalizeAddressStateInput,
@@ -78,5 +79,41 @@ assert.deepEqual(hydrateCoordinatorAddressProfileFields(savedProfileFields), {
   ...fullDetails,
   line2: "Suite 4",
 });
+
+const locationSelection = getCoordinatorAddressSelectionFromLocation({
+  title: "318 Rockingham Rd",
+  address: "318 Rockingham Rd, Columbia, SC 29223, USA",
+  city: "Columbia",
+  state: "SC",
+  zip: "29223",
+  formattedAddress: "318 Rockingham Rd, Columbia, SC 29223, USA",
+  placeId: "place-rockingham",
+  lat: 34.089,
+  long: -80.938,
+  country: "US",
+});
+assert.equal(locationSelection.isComplete, true);
+assert.equal(locationSelection.error, "");
+assert.deepEqual(locationSelection.address, {
+  line1: "318 Rockingham Rd",
+  line2: "",
+  city: "Columbia",
+  state: "SC",
+  zip: "29223",
+  formattedAddress: "318 Rockingham Rd, Columbia, SC 29223, USA",
+  placeId: "place-rockingham",
+  latitude: "34.089",
+  longitude: "-80.938",
+  country: "US",
+});
+
+const incompleteLocationSelection = getCoordinatorAddressSelectionFromLocation({
+  title: "318 Rockingham Rd",
+  address: "318 Rockingham Rd, Columbia, SC, USA",
+  city: "Columbia",
+  state: "SC",
+});
+assert.equal(incompleteLocationSelection.isComplete, false);
+assert.match(incompleteLocationSelection.error, /ZIP code/);
 
 console.log("Coordinator address autocomplete tests passed.");

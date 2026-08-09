@@ -121,3 +121,32 @@ export const hydrateCoordinatorAddressProfileFields = (user = {}) => ({
   longitude: user.eventCoordinatorAddressLongitude || "",
   country: user.eventCoordinatorAddressCountry || "US",
 });
+
+export const getCoordinatorAddressSelectionFromLocation = (location = {}) => {
+  const address = {
+    line1: location.title || "",
+    line2: "",
+    city: location.city || "",
+    state: location.state || "",
+    zip: location.zip || "",
+    formattedAddress: location.formattedAddress || location.address || "",
+    placeId: location.placeId || "",
+    latitude: location.lat != null ? String(location.lat) : "",
+    longitude: location.long != null ? String(location.long) : "",
+    country: location.country || "US",
+  };
+  const missingFields = [
+    ["street address", address.line1],
+    ["city", address.city],
+    ["state", address.state],
+    ["ZIP code", address.zip],
+  ].filter(([, value]) => !String(value || "").trim());
+
+  return {
+    address,
+    isComplete: missingFields.length === 0,
+    error: missingFields.length
+      ? `Select an address that includes a ${missingFields.map(([label]) => label).join(", ")}.`
+      : "",
+  };
+};

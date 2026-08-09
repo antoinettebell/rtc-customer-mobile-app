@@ -41,6 +41,10 @@ import {
   setAllLocations,
   setDefaultLocation,
 } from "../redux/slices/locationSlice";
+import {
+  getCoordinatorAddressSelectionFromLocation,
+  parseUsAddressFromGooglePlace,
+} from "../helpers/address.helper";
 
 const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 
@@ -53,23 +57,17 @@ const initialRegion = {
   longitudeDelta: 0.0421,
 };
 
-const getAddressPart = (components = [], type, field = "long_name") =>
-  components.find((component) => component.types?.includes(type))?.[field] || "";
-
 const parseAddressMetadata = ({ data, details, fallbackAddress = "" }) => {
-  const components = details?.address_components || [];
-  const formattedAddress =
-    details?.formatted_address || data?.description || fallbackAddress || "";
+  const address = parseUsAddressFromGooglePlace({ data, details, fallbackAddress });
 
   return {
-    city:
-      getAddressPart(components, "locality") ||
-      getAddressPart(components, "postal_town") ||
-      getAddressPart(components, "administrative_area_level_2"),
-    state: getAddressPart(components, "administrative_area_level_1", "short_name"),
-    zip: getAddressPart(components, "postal_code", "short_name"),
-    formattedAddress,
-    placeId: data?.place_id || details?.place_id || "",
+    line1: address.line1,
+    city: address.city,
+    state: address.state,
+    zip: address.zip,
+    country: address.country,
+    formattedAddress: address.formattedAddress,
+    placeId: address.placeId,
   };
 };
 
@@ -309,11 +307,18 @@ const AuthMapScreen = ({ navigation, route }) => {
       zip: addressMetadata.zip || "",
       formattedAddress: addressMetadata.formattedAddress || locationName,
       placeId: addressMetadata.placeId || "",
+      country: addressMetadata.country || "US",
       geocodingProvider: "GOOGLE_PLACES",
       geocodedAt: new Date().toISOString(),
     };
 
     if (mode === "select" && returnTo) {
+      const selection = getCoordinatorAddressSelectionFromLocation(locationData);
+      if (!selection.isComplete) {
+        setSnackbar({ visible: true, message: selection.error, type: "error" });
+        setLoading(false);
+        return;
+      }
       setLoading(false);
       navigation.navigate({
         name: returnTo,
@@ -410,6 +415,7 @@ const AuthMapScreen = ({ navigation, route }) => {
         formattedAddress:
           initialLocation.formattedAddress || initialLocation.address || "",
         placeId: initialLocation.placeId || "",
+        country: initialLocation.country || "US",
       });
       setTimeout(() => {
         if (mapRef?.current) {
@@ -568,6 +574,20 @@ const AuthMapScreen = ({ navigation, route }) => {
               setSnackbar({
                 visible: true,
                 message: "Failed to search location. Please try again.",
+                type: "error",
+              });
+            }}
+            onNotFound={() => {
+              setSnackbar({
+                visible: true,
+                message: "That address could not be completed. Please select another result.",
+                type: "error",
+              });
+            }}
+            onTimeout={() => {
+              setSnackbar({
+                visible: true,
+                message: "Address details timed out. Please try again.",
                 type: "error",
               });
             }}

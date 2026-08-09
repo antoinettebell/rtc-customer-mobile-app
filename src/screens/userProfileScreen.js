@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,7 +17,6 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { IconButton, Snackbar } from "react-native-paper";
 import { RESULTS } from "react-native-permissions";
 import ImagePicker from "react-native-image-crop-picker";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 import {
   AppColor,
@@ -40,18 +39,15 @@ import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import MediaPickerDialog from "../components/MediaPickerDialog";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
-import Config from "../config/env";
 import StatePickerModal from "../components/StatePickerModal";
-import { initializeAddressEdit } from "../helpers/customerRegression.helper";
 import { getStateCode } from "../utils/usStates";
 import {
   buildCoordinatorAddressProfileFields,
-  getGooglePlaceAddressSelection,
+  getCoordinatorAddressSelectionFromLocation,
   hydrateCoordinatorAddressProfileFields,
   normalizeAddressStateInput,
 } from "../helpers/address.helper";
 
-const GOOGLE_MAP_API_KEY = Config.GOOGLE_MAP_API_KEY;
 const COORDINATOR_PAYMENT_OPTIONS = [
   { label: "Cash App", value: "CASHAPP" },
   { label: "PayPal", value: "PAYPAL" },
@@ -142,11 +138,10 @@ const maskAccountNumber = (value) => {
 
 const isMaskedAccountNumber = (value) => /^\*+\d{4}$/.test(String(value || ""));
 
-const UserProfileScreen = ({ navigation }) => {
+const UserProfileScreen = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const { user } = useSelector((state) => state.userReducer);
-  const coordinatorAddressRef = useRef(null);
 
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(
     permission.photos
@@ -287,9 +282,59 @@ const UserProfileScreen = ({ navigation }) => {
       setEventCoordinatorBankState(user.eventCoordinatorBankState || "");
       setEventCoordinatorBankPostal(user.eventCoordinatorBankPostal || "");
       setIsCoordinatorProfileEditing(false);
-      coordinatorAddressRef.current?.setAddressText(coordinatorAddress.line1);
     }
   }, [user]);
+
+  useEffect(() => {
+    const selectedLocation = route?.params?.selectedCoordinatorLocation;
+    if (!selectedLocation) return;
+
+    const selection = getCoordinatorAddressSelectionFromLocation(selectedLocation);
+    const { address } = selection;
+    setEventCoordinatorAddressLine1(address.line1);
+    setEventCoordinatorAddressCity(address.city);
+    setEventCoordinatorAddressState(address.state);
+    setEventCoordinatorAddressZip(address.zip);
+    setEventCoordinatorFormattedAddress(address.formattedAddress);
+    setEventCoordinatorPlaceId(address.placeId);
+    setEventCoordinatorAddressLatitude(address.latitude);
+    setEventCoordinatorAddressLongitude(address.longitude);
+    setEventCoordinatorAddressCountry(address.country);
+    setCoordinatorError(selection.error);
+    setIsCoordinatorAddressEditing(!selection.isComplete);
+    navigation.setParams({ selectedCoordinatorLocation: undefined });
+  }, [navigation, route?.params?.selectedCoordinatorLocation]);
+
+  const openCoordinatorAddressFinder = () => {
+    setCoordinatorError("");
+    setIsCoordinatorAddressEditing(true);
+    navigation.navigate("authMapScreen", {
+      mode: "select",
+      returnTo: "userProfileScreen",
+      returnParamKey: "selectedCoordinatorLocation",
+      initialLocation: {
+        title: eventCoordinatorAddressLine1,
+        address:
+          eventCoordinatorFormattedAddress ||
+          [
+            eventCoordinatorAddressLine1,
+            eventCoordinatorAddressCity,
+            eventCoordinatorAddressState,
+            eventCoordinatorAddressZip,
+          ]
+            .filter(Boolean)
+            .join(", "),
+        city: eventCoordinatorAddressCity,
+        state: eventCoordinatorAddressState,
+        zip: eventCoordinatorAddressZip,
+        formattedAddress: eventCoordinatorFormattedAddress,
+        placeId: eventCoordinatorPlaceId,
+        lat: eventCoordinatorAddressLatitude,
+        long: eventCoordinatorAddressLongitude,
+        country: eventCoordinatorAddressCountry,
+      },
+    });
+  };
 
   const fetchUserDataFromAPI = async () => {
     try {
@@ -1115,11 +1160,11 @@ const UserProfileScreen = ({ navigation }) => {
                   placeholderTextColor={AppColor.placeholderTextColor}
                   style={[styles.coordinatorInput, styles.coordinatorInputReadOnly]}
                 />
-              ) : !isCoordinatorAddressEditing && eventCoordinatorAddressLine1 &&
-                (eventCoordinatorFormattedAddress ||
-                  eventCoordinatorAddressCity ||
-                  eventCoordinatorAddressState ||
-                  eventCoordinatorAddressZip) ? (
+              ) : !isCoordinatorAddressEditing &&
+                eventCoordinatorAddressLine1 &&
+                eventCoordinatorAddressCity &&
+                eventCoordinatorAddressState &&
+                eventCoordinatorAddressZip ? (
                 <View style={styles.coordinatorAddressSelection}>
                   <View style={styles.coordinatorAddressSelectionCopy}>
                     <Text style={styles.coordinatorAddressSelectionLabel}>Selected address</Text>
@@ -1137,87 +1182,37 @@ const UserProfileScreen = ({ navigation }) => {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => {
-                      const preservedAddress = initializeAddressEdit({
-                        line1: eventCoordinatorAddressLine1,
-                        formattedAddress: eventCoordinatorFormattedAddress,
-                      });
-                      setIsCoordinatorAddressEditing(true);
-                      requestAnimationFrame(() => {
-                        coordinatorAddressRef.current?.setAddressText(
-                          preservedAddress.formattedAddress || preservedAddress.line1,
-                        );
-                        coordinatorAddressRef.current?.focus();
-                      });
-                    }}
+                    onPress={openCoordinatorAddressFinder}
                     style={styles.coordinatorAddressChangeButton}
                   >
                     <Text style={styles.coordinatorAddressChangeText}>Change</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View style={styles.placesWrapper}>
-                  <GooglePlacesAutocomplete
-                    ref={coordinatorAddressRef}
+                <View>
+                  <TextInput
+                    value={eventCoordinatorAddressLine1}
+                    onChangeText={(value) => {
+                      setEventCoordinatorAddressLine1(value);
+                      setEventCoordinatorFormattedAddress("");
+                      setEventCoordinatorPlaceId("");
+                      setEventCoordinatorAddressLatitude("");
+                      setEventCoordinatorAddressLongitude("");
+                    }}
+                    editable={isCoordinatorProfileEditing}
                     placeholder="Street Address *"
-                    fetchDetails
-                    debounce={250}
-                    enablePoweredByContainer={false}
-                    predefinedPlaces={[]}
-                    keyboardShouldPersistTaps="always"
-                    minLength={2}
-                    timeout={20000}
-                    onPress={(data, details) => {
-                      const selection = getGooglePlaceAddressSelection({
-                        data,
-                        details,
-                        fallbackAddress: data?.description,
-                      });
-                      const { address } = selection;
-                      setEventCoordinatorAddressLine1(address.line1);
-                      setEventCoordinatorAddressCity(address.city);
-                      setEventCoordinatorAddressState(address.state);
-                      setEventCoordinatorAddressZip(address.zip);
-                      setEventCoordinatorFormattedAddress(address.formattedAddress);
-                      setEventCoordinatorPlaceId(address.placeId);
-                      setEventCoordinatorAddressLatitude(address.latitude);
-                      setEventCoordinatorAddressLongitude(address.longitude);
-                      setEventCoordinatorAddressCountry(address.country);
-                      setCoordinatorError(selection.error);
-                      if (selection.shouldCloseSelection) {
-                        setIsCoordinatorAddressEditing(false);
-                      }
-                    }}
-                    onFail={(error) => {
-                      console.log("Google Places coordinator profile address error", error);
-                    }}
-                    query={{
-                      key: GOOGLE_MAP_API_KEY,
-                      language: "en",
-                      types: "geocode|establishment",
-                      components: "country:us",
-                    }}
-                    textInputProps={{
-                      placeholderTextColor: AppColor.placeholderTextColor,
-                      returnKeyType: "search",
-                      onChangeText: (value) => {
-                        setEventCoordinatorAddressLine1(value);
-                        setEventCoordinatorFormattedAddress("");
-                        setEventCoordinatorPlaceId("");
-                        setEventCoordinatorAddressLatitude("");
-                        setEventCoordinatorAddressLongitude("");
-                      },
-                    }}
-                    styles={{
-                      container: styles.placesContainer,
-                      textInputContainer: styles.placesTextInputContainer,
-                      textInput: styles.placesTextInput,
-                      listView: styles.placesListView,
-                      row: styles.placesRow,
-                      description: styles.placesDescription,
-                      separator: styles.placesSeparator,
-                    }}
+                    placeholderTextColor={AppColor.placeholderTextColor}
+                    style={styles.coordinatorInput}
                   />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={openCoordinatorAddressFinder}
+                    style={styles.coordinatorAddressChangeButton}
+                  >
+                    <Text style={styles.coordinatorAddressChangeText}>
+                      Find Address
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
               <TextInput
