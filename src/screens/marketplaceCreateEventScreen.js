@@ -4540,9 +4540,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             onPress={chooseExemptionCertificate}
           >
             <Text style={styles.secondaryButtonText}>
-              {exemptionCertificate || form.tax_exemption_certificate_url
+              {exemptionCertificate
                 ? "Certificate Selected"
-                : "Add Certificate (File, Camera, or Photo)"}
+                : form.tax_exemption_certificate_url
+                  ? "Existing Certificate Attached"
+                  : "Add Certificate (File, Camera, or Photo)"}
             </Text>
           </TouchableOpacity>
         </>
@@ -5163,7 +5165,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Tax Exemption & Documents",
-                  `Charitable: ${form.charitable_event ? "Yes" : "No"} · Religious: ${form.religious_organization ? "Yes" : "No"}\nCertificate: ${exemptionCertificate || form.tax_exemption_certificate_url ? "Selected" : "Not selected"}`,
+                  `Charitable: ${form.charitable_event ? "Yes" : "No"} · Religious: ${form.religious_organization ? "Yes" : "No"}\nCertificate: ${exemptionCertificate ? "Selected" : form.tax_exemption_certificate_url ? "Existing certificate attached" : "Not selected"}`,
                 ],
                 ["Images", `${eventImages.length} selected`],
               ].map(([label, value]) => (
