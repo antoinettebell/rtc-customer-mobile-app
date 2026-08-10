@@ -18,3 +18,6 @@ export const normalizePublicBanners = (response, now = new Date()) => {
     .filter((banner) => isBannerActiveAt(banner, now))
     .map((banner) => ({ ...banner, imageUrl: getBannerImageUrl(banner) }));
 };
+
+export const shouldShowNonFoodVendorHeading = (eligibleBanners) =>
+  Array.isArray(eligibleBanners) && eligibleBanners.length > 0;

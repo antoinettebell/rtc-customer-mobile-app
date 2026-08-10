@@ -52,6 +52,7 @@ import {
   formatPermitList,
   normalizeExternalUrl,
   styles,
+  getEventVendorRequirementRows,
 } from "./marketplaceShared";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -1286,6 +1287,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.label}>Tickets Sold: {event?.marketplace_metrics?.tickets_sold ?? 0}</Text>
             <Text style={styles.label}>VIP Vendors Selected: {event?.marketplace_metrics?.vip_vendors_selected ?? 0}</Text>
             <Text style={styles.label}>Vendor GA Slots Filled: {event?.marketplace_metrics?.vendor_ga_slots_filled ?? 0}</Text>
+            {getEventVendorRequirementRows(event).map((requirement) => (
+              <Text key={requirement.vendorType} style={styles.label}>
+                {requirement.vendorType}: {requirement.requested} requested · {requirement.filled} filled · {requirement.remaining} remaining
+              </Text>
+            ))}
           </View>
           {renderMessagesEntry()}
           {renderSectionControls()}

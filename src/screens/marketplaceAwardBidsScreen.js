@@ -544,8 +544,16 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                   <View>
                     <Text style={[styles.title, { marginBottom: 10 }]}>Merchandise / Service / Other Applications</Text>
                     {eventVendorApplications.map((application) => (
-                      <View key={application.application_id} style={styles.card}>
-                        <Text style={styles.title}>{application.business_name}</Text>
+                      <TouchableOpacity
+                        key={application.application_id}
+                        style={styles.card}
+                        activeOpacity={0.8}
+                        onPress={() => navigation.navigate("marketplaceSubmissionDetailsScreen", {
+                          submission: application,
+                          submissionType: "Marketplace Vendor Application",
+                        })}
+                      >
+                        <Text style={styles.title}>{getVendorName(application)}</Text>
                         <Text style={styles.meta}>{application.vendor_types.join(", ")}</Text>
                         <Text style={styles.meta}>Offerings: {(application.offering_bullets || []).join(" • ")}</Text>
                         <Text style={styles.meta}>Category fee: {formatMoney(application.category_fee)} · Electricity: {formatMoney(application.electricity_fee)}</Text>
@@ -555,7 +563,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                             <Text style={styles.secondaryButtonText}>Award Marketplace Vendor</Text>
                           </TouchableOpacity>
                         ) : null}
-                      </View>
+                        <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>Review full application</Text>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 ) : null}

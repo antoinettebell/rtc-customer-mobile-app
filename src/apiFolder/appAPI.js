@@ -63,6 +63,8 @@ import {
   MARKETPLACE_AWARD_BIDS,
   MARKETPLACE_ACCEPT_APPLICATION,
   MARKETPLACE_REVOKE_AWARD,
+  MARKETPLACE_DECLINE_BID,
+  MARKETPLACE_DECLINE_APPLICATION,
   MARKETPLACE_EVENT_FINAL_PAYMENT,
   MARKETPLACE_PAYMENT_BY_ID,
   MARKETPLACE_PAYMENT_CHECKOUT,
@@ -78,6 +80,7 @@ import {
   MARKETPLACE_CANCEL_TICKETED_EVENT,
   EVENT_VENDOR_EVENT_APPLICATIONS,
   EVENT_VENDOR_AWARD_APPLICATION,
+  EVENT_VENDOR_DECLINE_APPLICATION,
   MARKETPLACE_TICKET_INVITATION,
   MARKETPLACE_MY_TICKETS,
   MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
@@ -1035,7 +1038,11 @@ export const getMarketplaceEventBids_API = async (eventId) => {
 
 export const getMarketplaceEventQuestions_API = async (eventId, options = {}) => {
   try {
-    const query = options.markRead ? "?markRead=true" : "";
+    const params = new URLSearchParams();
+    if (options.markRead) params.set("markRead", "true");
+    if (options.bid_id) params.set("bid_id", options.bid_id);
+    if (options.application_id) params.set("application_id", options.application_id);
+    const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiClient.get(
       `${MARKETPLACE_EVENT_QUESTIONS(eventId)}${query}`,
       {
@@ -1137,6 +1144,22 @@ export const revokeMarketplaceAward_API = async ({ eventId, bidId, reason = "" }
       { skipToken: false }
     );
     return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const declineMarketplaceBid_API = async (bidId) => {
+  try {
+    return (await apiClient.patch(MARKETPLACE_DECLINE_BID(bidId), {}, { skipToken: false }))?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const declineMarketplaceApplication_API = async (applicationId) => {
+  try {
+    return (await apiClient.patch(MARKETPLACE_DECLINE_APPLICATION(applicationId), {}, { skipToken: false }))?.data;
   } catch (error) {
     throw error?.response?.data || error;
   }
@@ -1306,6 +1329,10 @@ export const getEventVendorEventApplications_API = async (eventId) => {
 };
 export const awardEventVendorApplication_API = async (applicationId) => {
   try { return (await apiClient.post(EVENT_VENDOR_AWARD_APPLICATION(applicationId), {}, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const declineEventVendorApplication_API = async (applicationId) => {
+  try { return (await apiClient.patch(EVENT_VENDOR_DECLINE_APPLICATION(applicationId), {}, { skipToken: false }))?.data; }
   catch (error) { throw error?.response?.data || error; }
 };
 

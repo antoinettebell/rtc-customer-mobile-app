@@ -48,7 +48,10 @@ import moment from "moment";
 import { getMessaging } from "@react-native-firebase/messaging";
 import { checkInstallationId } from "../helpers/notification.helper";
 import Carousel from "react-native-reanimated-carousel";
-import { normalizePublicBanners } from "../helpers/customerBanner.helper";
+import {
+  normalizePublicBanners,
+  shouldShowNonFoodVendorHeading,
+} from "../helpers/customerBanner.helper";
 import { clearCurrentOrder, clearOrderSlice } from "../redux/slices/orderSlice";
 import AppImage from "../components/AppImage";
 import { onGuest, onSignOut } from "../redux/slices/authSlice";
@@ -680,25 +683,32 @@ const ExploreScreen = (props) => {
         onScroll={scrollHandler}
       >
         <View style={styles.scrollViewContaier}>
-          {bannerList?.length > 0 && (
-            <View style={{ height: 150, marginVertical: 10, paddingHorizontal: 16 }}>
-              <Carousel
-                ref={carouselRef}
-                mode="parallax"
-                modeConfig={{
-                  parallaxScrollingScale: 0.9,
-                  parallaxAdjacentItemScale: 0.55,
-                }}
-                width={Math.max(1, width - 32)}
-                data={bannerList}
-                onProgressChange={progress}
-                renderItem={renderBanner}
-                loop={true}
-                autoPlay={true}
-                autoPlayInterval={10000}
-                scrollAnimationDuration={700}
-              />
-            </View>
+          {shouldShowNonFoodVendorHeading(bannerList) && (
+            <>
+              <View style={styles.adSectionHeading}>
+                <Text style={styles.sectionTitleText}>
+                  Non-Food Vendors to Shop With
+                </Text>
+              </View>
+              <View style={{ height: 150, marginVertical: 10, paddingHorizontal: 16 }}>
+                <Carousel
+                  ref={carouselRef}
+                  mode="parallax"
+                  modeConfig={{
+                    parallaxScrollingScale: 0.9,
+                    parallaxAdjacentItemScale: 0.55,
+                  }}
+                  width={Math.max(1, width - 32)}
+                  data={bannerList}
+                  onProgressChange={progress}
+                  renderItem={renderBanner}
+                  loop={true}
+                  autoPlay={true}
+                  autoPlayInterval={10000}
+                  scrollAnimationDuration={700}
+                />
+              </View>
+            </>
           )}
 
           {renderFoodTruckSection({
@@ -1160,6 +1170,10 @@ const styles = StyleSheet.create({
   sectionTitleBlock: {
     flex: 1,
     paddingRight: 12,
+  },
+  adSectionHeading: {
+    marginHorizontal: 20,
+    marginTop: 10,
   },
   sectionTitleText: {
     fontFamily: Mulish700,

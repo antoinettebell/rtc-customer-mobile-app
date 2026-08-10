@@ -139,6 +139,10 @@ export const MARKETPLACE_ACCEPT_APPLICATION = (event_id, application_id) =>
   `/marketplace/events/${event_id}/applications/${application_id}/accept`;
 export const MARKETPLACE_REVOKE_AWARD = (event_id, bid_id) =>
   `/marketplace/events/${event_id}/awards/${bid_id}/revoke`;
+export const MARKETPLACE_DECLINE_BID = (bid_id) =>
+  `/marketplace/bids/${bid_id}/not-select`;
+export const MARKETPLACE_DECLINE_APPLICATION = (application_id) =>
+  `/marketplace/applications/${application_id}/not-select`;
 export const MARKETPLACE_EVENT_FINAL_PAYMENT = (event_id) =>
   `/marketplace/events/${event_id}/final-payment`;
 export const MARKETPLACE_TICKET_CHECKOUT = (event_id) =>
@@ -161,6 +165,8 @@ export const EVENT_VENDOR_EVENT_APPLICATIONS = (event_id) =>
   `/marketplace/event-vendor/events/${event_id}/applications`;
 export const EVENT_VENDOR_AWARD_APPLICATION = (application_id) =>
   `/marketplace/event-vendor/applications/${application_id}/award`;
+export const EVENT_VENDOR_DECLINE_APPLICATION = (application_id) =>
+  `/marketplace/event-vendor/applications/${application_id}/not-select`;
 export const MARKETPLACE_TICKET_INVITATION = (share_token) =>
   `/public/marketplace/ticket-invitations/${share_token}`;
 export const MARKETPLACE_MY_TICKETS = "/marketplace/tickets/my";

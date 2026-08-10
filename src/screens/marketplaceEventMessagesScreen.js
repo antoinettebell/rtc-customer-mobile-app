@@ -23,6 +23,8 @@ import { getMarketplaceMessageError, styles } from "./marketplaceShared";
 const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const eventId = route?.params?.eventId;
+  const bidId = route?.params?.bidId || null;
+  const applicationId = route?.params?.applicationId || null;
   const [questions, setQuestions] = useState([]);
   const [qaArchived, setQaArchived] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,8 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
     try {
       const response = await getMarketplaceEventQuestions_API(eventId, {
         markRead: true,
+        bid_id: bidId,
+        application_id: applicationId,
       });
       if (response?.success) {
         setQuestions(response.data?.marketplaceQuestionList || []);
@@ -50,14 +54,14 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       loadQuestions();
-    }, [eventId])
+    }, [applicationId, bidId, eventId])
   );
 
   const handleAnswerQuestion = async (questionId) => {
     const answerText = String(answerDrafts[questionId] || "").trim();
     const answerError = getMarketplaceMessageError(answerText);
-    if (!answerText) {
-      Alert.alert("Messages", "Enter a response before posting.");
+    if (answerText.length < 3) {
+      Alert.alert("Messages", "Enter at least 3 characters before posting.");
       return;
     }
     if (answerError) {
@@ -121,6 +125,7 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
               const answerError = getMarketplaceMessageError(
                 answerDrafts[question.question_id]
               );
+              const answerTooShort = String(answerDrafts[question.question_id] || "").trim().length < 3;
               return (
                 <View
                   key={question.question_id}
@@ -183,10 +188,10 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
                         style={[
                           styles.button,
                           { marginTop: 10 },
-                          (answeringId === question.question_id || !!answerError) &&
+                          (answeringId === question.question_id || answerTooShort || !!answerError) &&
                             styles.buttonDisabled,
                         ]}
-                        disabled={answeringId === question.question_id || !!answerError}
+                        disabled={answeringId === question.question_id || answerTooShort || !!answerError}
                         onPress={() => handleAnswerQuestion(question.question_id)}
                       >
                         <Text style={styles.buttonText}>

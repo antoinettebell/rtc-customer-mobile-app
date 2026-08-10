@@ -15,7 +15,13 @@ import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import { sendMarketplaceEventQuestion_API } from "../apiFolder/appAPI";
+import {
+  declineEventVendorApplication_API,
+  declineMarketplaceApplication_API,
+  declineMarketplaceBid_API,
+} from "../apiFolder/appAPI";
 import { formatMoney, getMarketplaceMessageError, styles } from "./marketplaceShared";
+import ZoomableImageModal from "../components/ZoomableImageModal";
 
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
@@ -38,8 +44,9 @@ const getImageUrls = (submission = {}) => {
     ...(Array.isArray(submission.image_urls) ? submission.image_urls : []),
     ...(Array.isArray(submission.imageUrls) ? submission.imageUrls : []),
     ...(Array.isArray(submission.images) ? submission.images : []),
+    ...(Array.isArray(submission.photos) ? submission.photos : []),
   ]
-    .map((image) => (typeof image === "string" ? image : image?.file_url || image?.url))
+    .map((image) => (typeof image === "string" ? image : image?.file_url || image?.url || image?.image_url))
     .filter(Boolean);
   const attachmentUrls = (submission.attachments || [])
     .filter((attachment) =>
@@ -89,12 +96,14 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const menuAttachments = getMenuAttachments(submission);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [declining, setDeclining] = useState(false);
   const messageError = getMarketplaceMessageError(messageText);
   const eventId = submission.event_id || submission.marketplaceEvent?.event_id || submission.event?.event_id;
   const vendorMessageId = getVendorMessageId(submission);
   const canSendMessage =
     !!eventId &&
-    !!vendorMessageId &&
+    (!!vendorMessageId || !!submission.bid_id || !!submission.application_id) &&
     !!messageText.trim() &&
     !messageError &&
     !sendingMessage;
@@ -132,6 +141,38 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  const status = submission.bid_status || submission.application_status || submission.status;
+  const isEventVendorApplication =
+    !!submission.profile_id ||
+    (Array.isArray(submission.vendor_types) && Array.isArray(submission.offering_bullets));
+  const canDecline = ["SUBMITTED", "UNDER_REVIEW"].includes(String(status || "").toUpperCase());
+  const handleDecline = () => Alert.alert(
+    "Not Select Vendor",
+    "Mark this submission as not selected? The vendor will be notified.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Not Select",
+        style: "destructive",
+        onPress: async () => {
+          setDeclining(true);
+          try {
+            if (submission.bid_id) await declineMarketplaceBid_API(submission.bid_id);
+            else if (isEventVendorApplication) await declineEventVendorApplication_API(submission.application_id);
+            else await declineMarketplaceApplication_API(submission.application_id);
+            Alert.alert("Submission Updated", "The vendor was notified that this submission was not selected.", [
+              { text: "OK", onPress: () => navigation.canGoBack() && navigation.goBack() },
+            ]);
+          } catch (error) {
+            Alert.alert("Unable to Update", error?.message || "Please try again.");
+          } finally {
+            setDeclining(false);
+          }
+        },
+      },
+    ],
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
@@ -140,7 +181,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.secondaryButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.canGoBack() && navigation.goBack()}
         >
           <MaterialIcons name="arrow-back" size={18} color={AppColor.primary} />
           <Text style={styles.secondaryButtonText}>Back to Bids</Text>
@@ -193,6 +234,15 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             label="Menu / Proposal Notes"
             value={submission.menu_description || submission.message || submission.notes}
           />
+          <DetailRow label="Submission Status" value={status} />
+          {submission.vendor_types ? <DetailRow label="Vendor Types" value={submission.vendor_types.join(", ")} /> : null}
+          {submission.offering_bullets ? <DetailRow label="Products / Services" value={submission.offering_bullets.map((item) => `• ${item}`).join("\n")} /> : null}
+          {submission.average_price != null ? <DetailRow label="Average Price" value={formatMoney(submission.average_price)} /> : null}
+          {submission.category_fee != null ? <DetailRow label="Category Fee" value={formatMoney(submission.category_fee)} /> : null}
+          {submission.electricity_required !== undefined ? (
+            <DetailRow label="Electricity" value={submission.electricity_required ? `Required · ${formatMoney(submission.electricity_fee)}` : "Not required"} />
+          ) : null}
+          <DetailRow label="Agreement" value={submission.agreement_status || (submission.nda_accepted_at && submission.governance_accepted_at ? "SIGNED" : "Not provided")} />
           <DetailRow
             label="Insurance"
             value={submission.insurance_confirmed ? "Confirmed" : "Not confirmed"}
@@ -203,8 +253,30 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
           />
         </View>
 
+        {canDecline ? (
+          <TouchableOpacity
+            style={[styles.secondaryButton, { marginBottom: 14, borderColor: "#B42318" }]}
+            disabled={declining}
+            onPress={handleDecline}
+          >
+            <Text style={[styles.secondaryButtonText, { color: "#B42318" }]}>
+              {declining ? "Updating..." : "Reject / Not Select"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.title}>Message Vendor</Text>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { marginBottom: 12 }]}
+            onPress={() => navigation.navigate("marketplaceEventMessagesScreen", {
+              eventId,
+              bidId: submission.bid_id || null,
+              applicationId: submission.application_id || null,
+            })}
+          >
+            <Text style={styles.secondaryButtonText}>Open Submission Conversation</Text>
+          </TouchableOpacity>
           <TextInput
             value={messageText}
             onChangeText={setMessageText}
@@ -235,8 +307,8 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
           {imageUrls.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
               {imageUrls.map((url) => (
+                <TouchableOpacity key={url} onPress={() => setSelectedImage(url)}>
                 <Image
-                  key={url}
                   source={{ uri: url }}
                   style={{
                     width: 220,
@@ -247,6 +319,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
                   }}
                   resizeMode="cover"
                 />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : (
@@ -274,6 +347,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
           )}
         </View>
       </ScrollView>
+      <ZoomableImageModal uri={selectedImage} title="Submission Photo" onClose={() => setSelectedImage(null)} />
     </View>
   );
 };

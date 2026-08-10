@@ -253,11 +253,37 @@ export const formatMoney = (value) => {
   return `$${amount.toFixed(2)}`;
 };
 
+export const getEventVendorRequirementRows = (event = {}) => {
+  const summary = Array.isArray(event.event_vendor_requirement_summary)
+    ? event.event_vendor_requirement_summary
+    : [];
+  return ['MERCHANDISE', 'SERVICE', 'OTHER'].map((vendorType) => {
+    const item = summary.find((entry) => entry?.vendor_type === vendorType) || {};
+    const need = (event.event_vendor_needs || []).find(
+      (entry) => entry?.vendor_type === vendorType,
+    ) || {};
+    const requested = Number(item.requested ?? need.quantity ?? 0);
+    const filled = Number(item.filled ?? 0);
+    return {
+      vendorType,
+      requested,
+      filled,
+      remaining: Number(item.remaining ?? Math.max(0, requested - filled)),
+    };
+  });
+};
+
 export const toggleListValue = (list, value) =>
   list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
 export const getMarketplaceMessageError = (value) => {
-  const text = String(value || "");
+  const original = String(value || "").normalize("NFKC");
+  const compact = original
+    .toLowerCase()
+    .replace(/\s+(?:\[\s*)?at(?:\s*\])?\s+/g, "@")
+    .replace(/\s+(?:\[\s*)?dot(?:\s*\])?\s+/g, ".")
+    .replace(/\s+/g, "");
+  const text = `${original} ${compact}`;
   if (!text.trim()) return "";
 
   const hasEmail = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text);
@@ -282,13 +308,18 @@ export const getMarketplaceMessageError = (value) => {
       text,
     );
   const hasSocialHandle = /(^|\s)@[A-Z0-9_.-]{2,}/i.test(text);
+  const digitCount = original.replace(/\D/g, "").length;
+  const hasObfuscatedNumber = digitCount >= 10 && digitCount <= 19;
+  const hasPaymentHandle = /\$[a-z][a-z0-9_.-]{2,}/i.test(original);
 
   return hasEmail ||
     hasUrl ||
     hasPhone ||
     hasSocialOrPayment ||
     hasContactRequest ||
-    hasSocialHandle
+    hasSocialHandle ||
+    hasObfuscatedNumber ||
+    hasPaymentHandle
     ? "Messages cannot include contact info, social handles, payment handles, or requests to connect outside RTC."
     : "";
 };
