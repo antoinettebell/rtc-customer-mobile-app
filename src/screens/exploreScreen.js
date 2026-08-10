@@ -48,6 +48,7 @@ import moment from "moment";
 import { getMessaging } from "@react-native-firebase/messaging";
 import { checkInstallationId } from "../helpers/notification.helper";
 import Carousel from "react-native-reanimated-carousel";
+import { normalizePublicBanners } from "../helpers/customerBanner.helper";
 import { clearCurrentOrder, clearOrderSlice } from "../redux/slices/orderSlice";
 import AppImage from "../components/AppImage";
 import { onGuest, onSignOut } from "../redux/slices/authSlice";
@@ -281,7 +282,7 @@ const ExploreScreen = (props) => {
     try {
       const response = await getAllBanner_API();
       if (response?.success && response?.data) {
-        const activeBanners = response.data.bannerList || [];
+        const activeBanners = normalizePublicBanners(response);
         setBannerList(activeBanners);
         activeBanners.forEach((banner) => {
           if (!banner?._id || trackedImpressionsRef.current.has(banner._id)) {
@@ -680,7 +681,7 @@ const ExploreScreen = (props) => {
       >
         <View style={styles.scrollViewContaier}>
           {bannerList?.length > 0 && (
-            <View style={{ height: 150, marginVertical: 10 }}>
+            <View style={{ height: 150, marginVertical: 10, paddingHorizontal: 16 }}>
               <Carousel
                 ref={carouselRef}
                 mode="parallax"
@@ -688,7 +689,7 @@ const ExploreScreen = (props) => {
                   parallaxScrollingScale: 0.9,
                   parallaxAdjacentItemScale: 0.55,
                 }}
-                width={width}
+                width={Math.max(1, width - 32)}
                 data={bannerList}
                 onProgressChange={progress}
                 renderItem={renderBanner}
