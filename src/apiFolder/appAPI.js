@@ -455,7 +455,7 @@ export const paymentCheckout_API = async (payload) => {
 // Get All Food Order
 export const getAllOrders_API = async (params = {}) => {
   try {
-    const { page = 1, limit = 10, orderStatus = null } = params;
+    const { page = 1, limit = 10, orderStatus = null, orderView = null } = params;
     let URL = `${GET_ALL_ORDERS}`;
 
     // Build query string with required and optional parameters
@@ -463,7 +463,10 @@ export const getAllOrders_API = async (params = {}) => {
 
     // Add optional parameters if they exist
     if (orderStatus) {
-      queryParams.push(`orderStatus=${orderStatus}`);
+      queryParams.push(`orderStatus=${encodeURIComponent(orderStatus)}`);
+    }
+    if (orderView) {
+      queryParams.push(`orderView=${encodeURIComponent(orderView)}`);
     }
 
     URL += `?${queryParams.join("&")}`;

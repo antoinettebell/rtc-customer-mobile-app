@@ -375,7 +375,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const { eventId, shareToken, customerSafe = false, initialEvent = null } = route.params || {};
   const customerView = customerSafe || !!shareToken;
   const [event, setEvent] = useState(initialEvent);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialEvent);
   const [questions, setQuestions] = useState([]);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [closeComment, setCloseComment] = useState("");
@@ -1198,6 +1198,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           <View style={safeStyles.loadingWrap}>
             <ActivityIndicator color={AppColor.primary} size="large" />
           </View>
+        ) : !event ? (
+          <View style={safeStyles.loadingWrap}>
+            <Text style={styles.subtitle}>Event details are unavailable.</Text>
+          </View>
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
             <View style={styles.card}>
@@ -1277,6 +1281,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={AppColor.primary} size="large" />
+        </View>
+      ) : !event ? (
+        <View style={safeStyles.loadingWrap}>
+          <Text style={styles.subtitle}>Event details are unavailable.</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body}>

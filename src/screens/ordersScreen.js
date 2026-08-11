@@ -26,6 +26,7 @@ import { extractAdvanceOrderLocationAndTime } from "../helpers/order.helper";
 import { Divider } from "react-native-paper";
 import AppImage from "../components/AppImage";
 import { useFocusEffect } from "@react-navigation/native";
+import { getCustomerOrderListParams } from "../helpers/customerOrderView.helper";
 
 const OrdersScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -297,13 +298,9 @@ const OrdersScreen = ({ navigation }) => {
     }
 
     try {
-      const response = await getAllOrders_API({
-        page,
-        limit: 20,
-        orderStatus: isPast
-          ? "CANCEL, REJECTED, DELIVERED, COMPLETED"
-          : "PLACED, ACCEPTED,PREPARING, READY_FOR_PICKUP, DRIVER_PICKED_UP",
-      });
+      const response = await getAllOrders_API(
+        getCustomerOrderListParams({ page, limit: 20, isPast }),
+      );
       console.log("reponse => ", response);
       if (response?.success && response?.data) {
         setTotalPages(response.data.totalPages);

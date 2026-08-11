@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
+export { getEventVendorRequirementRows } from "../helpers/marketplaceEventRequirements.helper";
 
 export const EVENT_TYPES = [
   "Festival",
@@ -251,26 +252,6 @@ export const formatEventTime = (timeValue, event = {}) => {
 export const formatMoney = (value) => {
   const amount = Number(value || 0);
   return `$${amount.toFixed(2)}`;
-};
-
-export const getEventVendorRequirementRows = (event = {}) => {
-  const summary = Array.isArray(event.event_vendor_requirement_summary)
-    ? event.event_vendor_requirement_summary
-    : [];
-  return ['MERCHANDISE', 'SERVICE', 'OTHER'].map((vendorType) => {
-    const item = summary.find((entry) => entry?.vendor_type === vendorType) || {};
-    const need = (event.event_vendor_needs || []).find(
-      (entry) => entry?.vendor_type === vendorType,
-    ) || {};
-    const requested = Number(item.requested ?? need.quantity ?? 0);
-    const filled = Number(item.filled ?? 0);
-    return {
-      vendorType,
-      requested,
-      filled,
-      remaining: Number(item.remaining ?? Math.max(0, requested - filled)),
-    };
-  });
 };
 
 export const toggleListValue = (list, value) =>

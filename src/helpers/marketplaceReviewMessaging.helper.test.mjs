@@ -6,13 +6,15 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const shared = read("screens/marketplaceShared.js");
+const requirements = read("helpers/marketplaceEventRequirements.helper.js");
 const eventDetails = read("screens/marketplaceEventDetailsScreen.js");
 const awards = read("screens/marketplaceAwardBidsScreen.js");
 const submission = read("screens/marketplaceSubmissionDetailsScreen.js");
 const messages = read("screens/marketplaceEventMessagesScreen.js");
 const api = read("apiFolder/appAPI.js");
 
-assert.match(shared, /event_vendor_requirement_summary/);
+assert.match(shared, /marketplaceEventRequirements\.helper/);
+assert.match(requirements, /event_vendor_requirement_summary/);
 assert.match(eventDetails, /requested.*filled.*remaining/s);
 assert.match(awards, /marketplaceSubmissionDetailsScreen/);
 assert.match(submission, /ZoomableImageModal/);
