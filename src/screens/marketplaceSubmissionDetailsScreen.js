@@ -146,13 +146,14 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
     !!submission.profile_id ||
     (Array.isArray(submission.vendor_types) && Array.isArray(submission.offering_bullets));
   const canDecline = ["SUBMITTED", "UNDER_REVIEW"].includes(String(status || "").toUpperCase());
+  const rejectionLabel = submission.bid_id ? "Reject Bid" : "Reject Application";
   const handleDecline = () => Alert.alert(
-    "Not Select Vendor",
-    "Mark this submission as not selected? The vendor will be notified.",
+    rejectionLabel,
+    `Reject this ${submission.bid_id ? "bid" : "application"}? The vendor will be notified.`,
     [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Not Select",
+        text: rejectionLabel,
         style: "destructive",
         onPress: async () => {
           setDeclining(true);
@@ -260,7 +261,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             onPress={handleDecline}
           >
             <Text style={[styles.secondaryButtonText, { color: "#B42318" }]}>
-              {declining ? "Updating..." : "Reject / Not Select"}
+              {declining ? "Updating..." : rejectionLabel}
             </Text>
           </TouchableOpacity>
         ) : null}
