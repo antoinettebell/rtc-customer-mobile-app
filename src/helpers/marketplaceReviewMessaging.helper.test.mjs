@@ -44,6 +44,8 @@ assert.match(api, /declineMarketplaceApplication_API/);
 assert.match(api, /declineEventVendorApplication_API/);
 assert.match(api, /revokeMarketplaceApplicationAward_API/);
 assert.match(api, /revokeEventVendorApplicationAward_API/);
+assert.doesNotMatch(api, /new URLSearchParams\(\)/);
+assert.match(api, /params,\s*\n\s*\}\);/);
 for (const value of [
   "vendor@example.com",
   "vendor at example dot com",

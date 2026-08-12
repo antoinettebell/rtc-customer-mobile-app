@@ -24,6 +24,37 @@ const ceilPerHundred = (value) => {
   return count > 0 ? Math.ceil(count / 100) : 0;
 };
 
+const FOOD_VENDOR_SERVICE_TYPES = new Set([
+  "food truck", "full service catering", "buffet", "drop off catering",
+  "served stations", "beverage and alcohol", "beverage alcohol service", "alcohol",
+]);
+const FOOD_VENDOR_SERVICE_STYLES = new Set([
+  "plated", "buffet", "food truck", "family style stations",
+]);
+const normalizeServiceValue = (value) => String(value || "")
+  .trim()
+  .toLowerCase()
+  .replace(/&/g, " and ")
+  .replace(/[^a-z0-9]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+const normalizedServices = (value) => (Array.isArray(value) ? value : [value])
+  .map(normalizeServiceValue)
+  .filter(Boolean);
+
+export const isFoodVendorMarketplaceEvent = (event = {}) => {
+  const serviceTypes = [
+    ...normalizedServices(event.service_type),
+    ...normalizedServices(event.service_types),
+  ];
+  const serviceStyles = [
+    ...normalizedServices(event.primary_service_style),
+    ...normalizedServices(event.service_styles),
+  ];
+  return serviceTypes.some((value) => FOOD_VENDOR_SERVICE_TYPES.has(value)) ||
+    serviceStyles.some((value) => FOOD_VENDOR_SERVICE_STYLES.has(value));
+};
+
 export const getMarketplaceVendorCapacity = (event = {}) => {
   const gaGuests = Math.max(0, Number(event.number_of_guests || 0));
   const vipGuests = getExpectedVipGuests(event);

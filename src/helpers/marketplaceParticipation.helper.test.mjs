@@ -6,7 +6,18 @@ import {
   getMarketplaceFilledSlotSummary,
   getVendorReductionProtection,
   getTicketInventory,
+  isFoodVendorMarketplaceEvent,
 } from "./marketplaceParticipation.helper.js";
+
+assert.equal(isFoodVendorMarketplaceEvent({ service_types: ["Food Truck"] }), true);
+assert.equal(isFoodVendorMarketplaceEvent({ service_type: "Full-Service Catering" }), true);
+assert.equal(isFoodVendorMarketplaceEvent({ primary_service_style: "Plated" }), true);
+assert.equal(isFoodVendorMarketplaceEvent({ service_types: ["Photography"] }), false);
+assert.equal(
+  getMarketplaceVendorCapacity({ number_of_guests: 50 }).calculatedMaximum,
+  1,
+  "fifty guests cannot authorize two Food Vendors",
+);
 
 const fullyCatered = {
   number_of_guests: 150,

@@ -44,6 +44,7 @@ import {
   getMarketplaceServiceRequirements,
   getMarketplaceVendorCapacity,
   getVendorReductionProtection,
+  isFoodVendorMarketplaceEvent,
 } from "../helpers/marketplaceParticipation.helper";
 import {
   createMarketplaceEvent_API,
@@ -332,6 +333,7 @@ const getDefaultVendorCount = (value) =>
   String(Math.max(1, Number(value || 1)));
 
 const isFoodTruckService = (form) => form.service_types?.includes("Food Truck");
+const usesCalculatedFoodVendorCount = (form) => isFoodVendorMarketplaceEvent(form);
 const hasServiceStyle = (form, style) =>
   normalizeOptionList(form.service_styles).includes(style) ||
   form.primary_service_style === style;
@@ -1683,7 +1685,6 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       title: "Sales Tax Exemption Certificate",
     });
   };
-  const foodTruckSelected = isFoodTruckService(form);
   const savedEventLocationLocked = !!editingEventId && !isReopenMode;
   const budgetSummary = getMarketplaceBudget(form);
   const capacitySummary = getMarketplaceVendorCapacity(form);
@@ -1807,7 +1808,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         next.vip_guest_count = value;
       }
       if (
-        isFoodTruckService(next) &&
+        usesCalculatedFoodVendorCount(next) &&
         [
           "number_of_guests",
           "vip_guest_count",
@@ -1839,7 +1840,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    if (!isFoodTruckService(form)) return;
+    if (!usesCalculatedFoodVendorCount(form)) return;
     const calculatedCount = String(getAutoFoodTruckVendorCount(form));
     if (form.number_of_vendors_needed === calculatedCount) return;
     setForm((previous) => ({
@@ -2597,7 +2598,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       event_vendor_electricity_fee: Number(
         form.event_vendor_electricity_fee || 0,
       ),
-      number_of_vendors_needed: isFoodTruckService(form)
+      number_of_vendors_needed: usesCalculatedFoodVendorCount(form)
         ? getAllowedFoodTruckVendorCount(form)
         : Number(form.number_of_vendors_needed || 1),
       plated_number_of_courses: form.plated_number_of_courses
@@ -4797,7 +4798,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         keyboardType: "number-pad",
         onChangeText: (value) => {
           const digits = value.replace(/\D/g, "");
-          if (!foodTruckSelected || !digits) {
+          if (!usesCalculatedFoodVendorCount(form) || !digits) {
             updateField("number_of_vendors_needed", digits);
             return;
           }
@@ -4827,7 +4828,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           );
         },
       })}
-      {foodTruckSelected ? (
+      {usesCalculatedFoodVendorCount(form) ? (
         <Text style={styles.meta}>
           {form.separate_vip_vendor_required
             ? "The service requirement includes GA capacity plus an additional VIP catering slot. A qualified vendor may fill both categories."
