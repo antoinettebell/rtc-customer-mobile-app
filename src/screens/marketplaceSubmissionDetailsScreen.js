@@ -23,9 +23,13 @@ import {
   revokeMarketplaceApplicationAward_API,
   revokeMarketplaceAward_API,
 } from "../apiFolder/appAPI";
-import { getCoordinatorSubmissionActions } from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
+import {
+  getCoordinatorRevocationErrorAlert,
+  getCoordinatorSubmissionActions,
+} from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
 import { formatMoney, getMarketplaceMessageError, styles } from "./marketplaceShared";
 import ZoomableImageModal from "../components/ZoomableImageModal";
+import { getMarketplaceSubmissionMenuAttachments } from "../helpers/marketplaceSubmissionDocuments.helper";
 
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
@@ -63,21 +67,6 @@ const getImageUrls = (submission = {}) => {
   return [...new Set([...imageUrls, ...attachmentUrls])];
 };
 
-const getMenuAttachments = (submission = {}) => {
-  const attachments = (submission.attachments || []).filter((attachment) =>
-    ["BID_MENU_PDF", "APPLICATION_MENU_PDF"].includes(attachment.attachment_type) ||
-    String(attachment.mime_type || "").includes("pdf")
-  );
-  const menuUrl = submission.menu_pdf_url || submission.menuPdfUrl || submission.menu_url;
-  if (menuUrl) {
-    return [
-      { attachment_id: "menu_pdf_url", file_url: menuUrl, original_name: "Menu PDF" },
-      ...attachments,
-    ];
-  }
-  return attachments;
-};
-
 const getVendorDisplay = (submission = {}) => {
   if (submission.vendor_display_id) return submission.vendor_display_id;
   if (submission.food_truck_id?.display_id) return submission.food_truck_id.display_id;
@@ -97,7 +86,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const submission = route?.params?.submission || {};
   const submissionType = route?.params?.submissionType || "Bid";
   const imageUrls = getImageUrls(submission);
-  const menuAttachments = getMenuAttachments(submission);
+  const menuAttachments = getMarketplaceSubmissionMenuAttachments(submission);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -203,7 +192,8 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
               { text: "OK", onPress: () => navigation.canGoBack() && navigation.goBack() },
             ]);
           } catch (error) {
-            Alert.alert("Unable to Revoke Award", error?.message || "Please try again.");
+            const alert = getCoordinatorRevocationErrorAlert(error);
+            Alert.alert(alert.title, alert.message);
           } finally {
             setRevoking(false);
           }
@@ -281,7 +271,6 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
           {submission.electricity_required !== undefined ? (
             <DetailRow label="Electricity" value={submission.electricity_required ? `Required · ${formatMoney(submission.electricity_fee)}` : "Not required"} />
           ) : null}
-          <DetailRow label="Agreement" value={submission.agreement_status || (submission.nda_accepted_at && submission.governance_accepted_at ? "SIGNED" : "Not provided")} />
           <DetailRow
             label="Insurance"
             value={submission.insurance_confirmed ? "Confirmed" : "Not confirmed"}
@@ -315,12 +304,6 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             </Text>
           </TouchableOpacity>
         ) : null}
-        {submissionActions.paidRevocationBlocked ? (
-          <Text style={[styles.meta, { marginBottom: 14 }]}>
-            This paid award cannot be revoked until a verified processor refund is available.
-          </Text>
-        ) : null}
-
         <View style={styles.card}>
           <Text style={styles.title}>Message Vendor</Text>
           <TouchableOpacity

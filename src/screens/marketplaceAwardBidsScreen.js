@@ -155,8 +155,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     }
 
     Alert.alert(
-      "Award Vendors",
-      "Awarded bids will be marked AWARDED and all other bids will be marked NOT_AWARDED.",
+      "Award Bid",
+      "Are you sure you want to award the selected bid(s) to the selected vendor(s)?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -413,12 +413,12 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={[styles.secondaryButton, { marginTop: 10 }]}
               onPress={() => Alert.alert(
-                "Accept Vendor Application",
-                `Accept ${getVendorName(item)}? ${event?.vendor_fee > 0 ? `They must pay ${formatMoney(event.vendor_fee)} by the configured payment deadline.` : "No vendor fee is due."}`,
+                "Award Application",
+                "Are you sure you want to award this application to this vendor?",
                 [
                   { text: "Cancel", style: "cancel" },
                   {
-                    text: "Accept",
+                    text: "Award",
                     onPress: async () => {
                       try {
                         await acceptMarketplaceApplication_API({
@@ -452,7 +452,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
 
   const awardEventVendor = (application) => Alert.alert(
     "Award Marketplace Vendor",
-    `Award ${application.business_name}? The vendor will pay the category/electricity subtotal plus a 3.5% checkout fee.`,
+    "Are you sure you want to award this application to this vendor?",
     [
       { text: "Cancel", style: "cancel" },
       { text: "Award", onPress: async () => {

@@ -17,9 +17,16 @@ const actions = read("helpers/marketplaceCoordinatorSubmissionActions.helper.js"
 assert.match(shared, /marketplaceEventRequirements\.helper/);
 assert.match(requirements, /event_vendor_requirement_summary/);
 assert.match(eventDetails, /requested.*filled.*remaining/s);
+assert.match(eventDetails, /Manage Awarded Vendors/);
+assert.match(eventDetails, /navigation\.navigate\("marketplaceAwardBidsScreen", \{ eventId \}\)/);
 assert.match(awards, /marketplaceSubmissionDetailsScreen/);
+assert.match(awards, /Are you sure you want to award this application to this vendor\?/);
+assert.match(awards, /Are you sure you want to award the selected bid\(s\) to the selected vendor\(s\)\?/);
+assert.doesNotMatch(awards, /category\/electricity subtotal plus a 3\.5% checkout fee/);
 assert.match(submission, /ZoomableImageModal/);
 assert.match(submission, /getCoordinatorSubmissionActions\(submission\)/);
+assert.match(submission, /getMarketplaceSubmissionMenuAttachments\(submission\)/);
+assert.doesNotMatch(submission, /label="Agreement"/);
 assert.match(submission, /const canDecline = submissionActions\.canReject/);
 assert.match(submission, /const rejectionLabel = submissionActions\.rejectLabel/);
 assert.match(submission, /\{declining \? "Updating\.\.\." : rejectionLabel\}/);

@@ -28,14 +28,53 @@ export const getCoordinatorSubmissionActions = (submission = {}) => {
     FOOD_APPLICATION: ["ACCEPTED", "PAYMENT_DUE", "CONFIRMED", "PAID"],
     EVENT_VENDOR_APPLICATION: ["AWARDED", "PAYMENT_DUE", "PAID"],
   };
-  const vendorFeePaid =
-    upper(submission.payment_status) === "PAID" || status === "PAID";
   return {
     kind,
     status,
     canReject,
     rejectLabel: kind === "FOOD_BID" ? "Reject Bid" : "Reject Application",
-    canRevoke: revokeStatuses[kind].includes(status) && !vendorFeePaid,
-    paidRevocationBlocked: revokeStatuses[kind].includes(status) && vendorFeePaid,
+    canRevoke: revokeStatuses[kind].includes(status),
+    paidRevocationBlocked: false,
   };
+};
+
+const getErrorMessage = (error) =>
+  error?.message ||
+  error?.error?.message ||
+  error?.data?.message ||
+  error?.response?.data?.message ||
+  "Please try again.";
+
+export const getCoordinatorRevocationErrorAlert = (error) => {
+  const originalMessage = getErrorMessage(error);
+  const message = String(originalMessage).toLowerCase();
+
+  if (message.includes("within 72 hours")) {
+    return {
+      title: "Revocation Window Closed",
+      message: "Awards cannot be revoked at or within 72 hours of the event start. No award or payment changes were made.",
+    };
+  }
+
+  if (message.includes("payment is still processing") || message.includes("refund is already processing")) {
+    return {
+      title: "Payment Processing",
+      message: "The vendor payment is still processing. No award or payment changes were made. Try again after its final processor status is available.",
+    };
+  }
+
+  if (
+    message.includes("refund") ||
+    message.includes("processor transaction") ||
+    message.includes("refundable processor amount") ||
+    message.includes("gateway declined")
+  ) {
+    const reason = String(originalMessage).trim().replace(/[.!?]+$/, "");
+    return {
+      title: "Refund Not Completed",
+      message: `${reason}. The award remains active and the vendor slot was not released.`,
+    };
+  }
+
+  return { title: "Unable to Revoke Award", message: originalMessage };
 };

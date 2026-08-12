@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { getCoordinatorSubmissionActions } from "./marketplaceCoordinatorSubmissionActions.helper.js";
+import {
+  getCoordinatorRevocationErrorAlert,
+  getCoordinatorSubmissionActions,
+} from "./marketplaceCoordinatorSubmissionActions.helper.js";
 
 assert.deepEqual(
   getCoordinatorSubmissionActions({ bid_id: "bid-1", bid_status: "SUBMITTED" }),
@@ -25,7 +28,55 @@ assert.equal(getCoordinatorSubmissionActions({
 const paid = getCoordinatorSubmissionActions({
   application_id: "food-app-1", application_status: "PAID", payment_status: "PAID",
 });
-assert.equal(paid.canRevoke, false);
-assert.equal(paid.paidRevocationBlocked, true);
+assert.equal(paid.canRevoke, true);
+
+const coordinatorPaidFoodBid = getCoordinatorSubmissionActions({
+  bid_id: "bid-awarded",
+  bid_status: "AWARDED",
+  payment_status: "PAID",
+});
+assert.equal(coordinatorPaidFoodBid.canRevoke, true);
+assert.equal(coordinatorPaidFoodBid.paidRevocationBlocked, false);
+
+const vendorFeePaidFoodBid = getCoordinatorSubmissionActions({
+  bid_id: "bid-awarded",
+  bid_status: "AWARDED",
+  payment_status: "PAID",
+  linked_vendor_payment_status: "PAID",
+});
+assert.equal(vendorFeePaidFoodBid.canRevoke, true);
+assert.equal(vendorFeePaidFoodBid.paidRevocationBlocked, false);
+assert.equal(paid.paidRevocationBlocked, false);
+
+assert.equal(getCoordinatorSubmissionActions({
+  application_id: "event-app-processing", profile_id: "profile-1",
+  vendor_types: ["MERCHANDISE"], status: "PAYMENT_DUE", payment_status: "PROCESSING",
+}).canRevoke, true);
+
+assert.deepEqual(
+  getCoordinatorRevocationErrorAlert({ message: "Awards cannot be revoked at or within 72 hours of the event start." }),
+  {
+    title: "Revocation Window Closed",
+    message: "Awards cannot be revoked at or within 72 hours of the event start. No award or payment changes were made.",
+  }
+);
+assert.deepEqual(
+  getCoordinatorRevocationErrorAlert({ message: "The vendor fee payment is still processing." }),
+  {
+    title: "Payment Processing",
+    message: "The vendor payment is still processing. No award or payment changes were made. Try again after its final processor status is available.",
+  }
+);
+assert.deepEqual(
+  getCoordinatorRevocationErrorAlert({ message: "Gateway declined refund" }),
+  {
+    title: "Refund Not Completed",
+    message: "Gateway declined refund. The award remains active and the vendor slot was not released.",
+  }
+);
+assert.deepEqual(
+  getCoordinatorRevocationErrorAlert({ data: { message: "Temporary server failure" } }),
+  { title: "Unable to Revoke Award", message: "Temporary server failure" }
+);
 
 console.log("coordinator submission action tests passed");

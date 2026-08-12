@@ -1155,6 +1155,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	    if (isAwarded) {
       return (
         <View style={{ gap: 12 }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.button}
+            onPress={() => navigation.navigate("marketplaceAwardBidsScreen", { eventId })}
+          >
+            <Text style={styles.buttonText}>Manage Awarded Vendors</Text>
+          </TouchableOpacity>
           {ticketSalesEnabled && !event?.ticket_scanning_closed_at ? (
             <>
               <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={handleOpenScanner}>
