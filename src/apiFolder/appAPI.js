@@ -63,6 +63,7 @@ import {
   MARKETPLACE_AWARD_BIDS,
   MARKETPLACE_ACCEPT_APPLICATION,
   MARKETPLACE_REVOKE_AWARD,
+  MARKETPLACE_REVOKE_APPLICATION_AWARD,
   MARKETPLACE_DECLINE_BID,
   MARKETPLACE_DECLINE_APPLICATION,
   MARKETPLACE_EVENT_FINAL_PAYMENT,
@@ -81,6 +82,7 @@ import {
   EVENT_VENDOR_EVENT_APPLICATIONS,
   EVENT_VENDOR_AWARD_APPLICATION,
   EVENT_VENDOR_DECLINE_APPLICATION,
+  EVENT_VENDOR_REVOKE_APPLICATION,
   MARKETPLACE_TICKET_INVITATION,
   MARKETPLACE_MY_TICKETS,
   MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
@@ -1152,6 +1154,23 @@ export const revokeMarketplaceAward_API = async ({ eventId, bidId, reason = "" }
   }
 };
 
+export const revokeMarketplaceApplicationAward_API = async ({
+  eventId,
+  applicationId,
+  reason = "",
+}) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_REVOKE_APPLICATION_AWARD(eventId, applicationId),
+      { reason },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 export const declineMarketplaceBid_API = async (bidId) => {
   try {
     return (await apiClient.patch(MARKETPLACE_DECLINE_BID(bidId), {}, { skipToken: false }))?.data;
@@ -1337,6 +1356,15 @@ export const awardEventVendorApplication_API = async (applicationId) => {
 export const declineEventVendorApplication_API = async (applicationId) => {
   try { return (await apiClient.patch(EVENT_VENDOR_DECLINE_APPLICATION(applicationId), {}, { skipToken: false }))?.data; }
   catch (error) { throw error?.response?.data || error; }
+};
+export const revokeEventVendorApplicationAward_API = async ({ applicationId, reason = "" }) => {
+  try {
+    return (await apiClient.post(
+      EVENT_VENDOR_REVOKE_APPLICATION(applicationId),
+      { reason },
+      { skipToken: false }
+    ))?.data;
+  } catch (error) { throw error?.response?.data || error; }
 };
 
 export const getMarketplaceMyTickets_API = async () => {

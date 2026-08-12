@@ -19,7 +19,11 @@ import {
   declineEventVendorApplication_API,
   declineMarketplaceApplication_API,
   declineMarketplaceBid_API,
+  revokeEventVendorApplicationAward_API,
+  revokeMarketplaceApplicationAward_API,
+  revokeMarketplaceAward_API,
 } from "../apiFolder/appAPI";
+import { getCoordinatorSubmissionActions } from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
 import { formatMoney, getMarketplaceMessageError, styles } from "./marketplaceShared";
 import ZoomableImageModal from "../components/ZoomableImageModal";
 
@@ -98,6 +102,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [declining, setDeclining] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   const messageError = getMarketplaceMessageError(messageText);
   const eventId = submission.event_id || submission.marketplaceEvent?.event_id || submission.event?.event_id;
   const vendorMessageId = getVendorMessageId(submission);
@@ -141,12 +146,10 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const status = submission.bid_status || submission.application_status || submission.status;
-  const isEventVendorApplication =
-    !!submission.profile_id ||
-    (Array.isArray(submission.vendor_types) && Array.isArray(submission.offering_bullets));
-  const canDecline = ["SUBMITTED", "UNDER_REVIEW"].includes(String(status || "").toUpperCase());
-  const rejectionLabel = submission.bid_id ? "Reject Bid" : "Reject Application";
+  const submissionActions = getCoordinatorSubmissionActions(submission);
+  const isEventVendorApplication = submissionActions.kind === "EVENT_VENDOR_APPLICATION";
+  const canDecline = submissionActions.canReject;
+  const rejectionLabel = submissionActions.rejectLabel;
   const handleDecline = () => Alert.alert(
     rejectionLabel,
     `Reject this ${submission.bid_id ? "bid" : "application"}? The vendor will be notified.`,
@@ -168,6 +171,41 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             Alert.alert("Unable to Update", error?.message || "Please try again.");
           } finally {
             setDeclining(false);
+          }
+        },
+      },
+    ],
+  );
+  const handleRevoke = () => Alert.alert(
+    "Revoke Award",
+    "Revoke this award? The vendor will be notified and the capacity slot will be released. Awards cannot be revoked at or within 72 hours of the event.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Revoke Award",
+        style: "destructive",
+        onPress: async () => {
+          setRevoking(true);
+          try {
+            if (submissionActions.kind === "FOOD_BID") {
+              await revokeMarketplaceAward_API({ eventId, bidId: submission.bid_id });
+            } else if (submissionActions.kind === "EVENT_VENDOR_APPLICATION") {
+              await revokeEventVendorApplicationAward_API({
+                applicationId: submission.application_id,
+              });
+            } else {
+              await revokeMarketplaceApplicationAward_API({
+                eventId,
+                applicationId: submission.application_id,
+              });
+            }
+            Alert.alert("Award Revoked", "The vendor was notified and the slot is available.", [
+              { text: "OK", onPress: () => navigation.canGoBack() && navigation.goBack() },
+            ]);
+          } catch (error) {
+            Alert.alert("Unable to Revoke Award", error?.message || "Please try again.");
+          } finally {
+            setRevoking(false);
           }
         },
       },
@@ -235,7 +273,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             label="Menu / Proposal Notes"
             value={submission.menu_description || submission.message || submission.notes}
           />
-          <DetailRow label="Submission Status" value={status} />
+          <DetailRow label="Submission Status" value={submissionActions.status} />
           {submission.vendor_types ? <DetailRow label="Vendor Types" value={submission.vendor_types.join(", ")} /> : null}
           {submission.offering_bullets ? <DetailRow label="Products / Services" value={submission.offering_bullets.map((item) => `• ${item}`).join("\n")} /> : null}
           {submission.average_price != null ? <DetailRow label="Average Price" value={formatMoney(submission.average_price)} /> : null}
@@ -264,6 +302,23 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
               {declining ? "Updating..." : rejectionLabel}
             </Text>
           </TouchableOpacity>
+        ) : null}
+
+        {submissionActions.canRevoke ? (
+          <TouchableOpacity
+            style={[styles.secondaryButton, { marginBottom: 14, borderColor: "#B42318" }]}
+            disabled={revoking}
+            onPress={handleRevoke}
+          >
+            <Text style={[styles.secondaryButtonText, { color: "#B42318" }]}>
+              {revoking ? "Revoking..." : "Revoke Award"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+        {submissionActions.paidRevocationBlocked ? (
+          <Text style={[styles.meta, { marginBottom: 14 }]}>
+            This paid award cannot be revoked until a verified processor refund is available.
+          </Text>
         ) : null}
 
         <View style={styles.card}>

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,13 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [answeringId, setAnsweringId] = useState(null);
+  const groupedQuestions = useMemo(
+    () => ({
+      unread: questions.filter((question) => question.unread),
+      read: questions.filter((question) => !question.unread),
+    }),
+    [questions]
+  );
 
   const loadQuestions = async () => {
     if (!eventId) return;
@@ -89,6 +96,76 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
     }
   };
 
+  const renderQuestion = (question) => {
+    const canAnswer = question.status === "PENDING" && !qaArchived;
+    const answerError = getMarketplaceMessageError(
+      answerDrafts[question.question_id]
+    );
+    const answerTooShort = String(
+      answerDrafts[question.question_id] || ""
+    ).trim().length < 3;
+    return (
+      <View
+        key={question.question_id}
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: AppColor.borderColor,
+          marginTop: 14,
+          paddingTop: 14,
+        }}
+      >
+        <Text style={styles.label}>
+          {question.initiated_by_role === "CUSTOMER"
+            ? `Coordinator Message to ${question.vendor_display_id}`
+            : question.vendor_display_id}
+        </Text>
+        <Text style={styles.meta}>
+          {question.question_text || "Blocked by RTC moderation."}
+        </Text>
+        {question.answer_text ? (
+          <>
+            <Text style={styles.label}>Coordinator Response</Text>
+            <Text style={styles.meta}>{question.answer_text}</Text>
+          </>
+        ) : canAnswer ? (
+          <>
+            <TextInput
+              value={answerDrafts[question.question_id] || ""}
+              onChangeText={(text) =>
+                setAnswerDrafts((prev) => ({
+                  ...prev,
+                  [question.question_id]: text,
+                }))
+              }
+              placeholder="Response"
+              placeholderTextColor={AppColor.textHighlighter}
+              multiline
+              style={[styles.input, styles.textarea, { marginTop: 12 }]}
+            />
+            {!!answerError && <Text style={styles.errorText}>{answerError}</Text>}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.button,
+                { marginTop: 10 },
+                (answeringId === question.question_id || answerTooShort || !!answerError) &&
+                  styles.buttonDisabled,
+              ]}
+              disabled={answeringId === question.question_id || answerTooShort || !!answerError}
+              onPress={() => handleAnswerQuestion(question.question_id)}
+            >
+              <Text style={styles.buttonText}>
+                {answeringId === question.question_id ? "Posting..." : "Post Answer"}
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.meta}>Awaiting response.</Text>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBarManager />
@@ -101,6 +178,14 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
         >
           <MaterialIcons name="arrow-back" size={18} color={AppColor.primary} />
           <Text style={styles.secondaryButtonText}>Back to Event</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.secondaryButton, { marginTop: 10 }]}
+          onPress={() => navigation.navigate("marketplaceEventDetailsScreen", { eventId })}
+        >
+          <MaterialIcons name="open-in-new" size={18} color={AppColor.primary} />
+          <Text style={styles.secondaryButtonText}>Open Associated Event</Text>
         </TouchableOpacity>
 
         <View style={styles.card}>
@@ -120,93 +205,16 @@ const MarketplaceEventMessagesScreen = ({ navigation, route }) => {
               style={{ marginTop: 16 }}
             />
           ) : questions.length ? (
-            questions.map((question) => {
-              const canAnswer = question.status === "PENDING" && !qaArchived;
-              const answerError = getMarketplaceMessageError(
-                answerDrafts[question.question_id]
-              );
-              const answerTooShort = String(answerDrafts[question.question_id] || "").trim().length < 3;
-              return (
-                <View
-                  key={question.question_id}
-                  style={{
-                    borderTopWidth: 1,
-                    borderTopColor: AppColor.borderColor,
-                    marginTop: 14,
-                    paddingTop: 14,
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.label,
-                        { flex: 1, minWidth: 0, paddingRight: 12 },
-                      ]}
-                    >
-                      {question.initiated_by_role === "CUSTOMER"
-                        ? `Coordinator Message to ${question.vendor_display_id}`
-                        : question.vendor_display_id}
-                    </Text>
-                    <Text style={[styles.meta, { flexShrink: 0 }]}>
-                      {question.unread ? "Unread" : "Read"}
-                    </Text>
-                  </View>
-                  <Text style={styles.meta}>
-                    {question.question_text || "Blocked by RTC moderation."}
-                  </Text>
-                  {question.answer_text ? (
-                    <>
-                      <Text style={styles.label}>Coordinator Response</Text>
-                      <Text style={styles.meta}>{question.answer_text}</Text>
-                    </>
-                  ) : canAnswer ? (
-                    <>
-                      <TextInput
-                        value={answerDrafts[question.question_id] || ""}
-                        onChangeText={(text) =>
-                          setAnswerDrafts((prev) => ({
-                            ...prev,
-                            [question.question_id]: text,
-                          }))
-                        }
-                        placeholder="Response"
-                        placeholderTextColor={AppColor.textHighlighter}
-                        multiline
-                        style={[styles.input, styles.textarea, { marginTop: 12 }]}
-                      />
-                      {!!answerError && (
-                        <Text style={styles.errorText}>{answerError}</Text>
-                      )}
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={[
-                          styles.button,
-                          { marginTop: 10 },
-                          (answeringId === question.question_id || answerTooShort || !!answerError) &&
-                            styles.buttonDisabled,
-                        ]}
-                        disabled={answeringId === question.question_id || answerTooShort || !!answerError}
-                        onPress={() => handleAnswerQuestion(question.question_id)}
-                      >
-                        <Text style={styles.buttonText}>
-                          {answeringId === question.question_id
-                            ? "Posting..."
-                            : "Post Answer"}
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Text style={styles.meta}>Awaiting response.</Text>
-                  )}
-                </View>
-              );
-            })
+            <>
+              <Text style={[styles.label, { marginTop: 14 }]}>Unread Messages</Text>
+              {groupedQuestions.unread.length ? groupedQuestions.unread.map(renderQuestion) : (
+                <Text style={styles.meta}>No unread messages.</Text>
+              )}
+              <Text style={[styles.label, { marginTop: 20 }]}>Read Messages</Text>
+              {groupedQuestions.read.length ? groupedQuestions.read.map(renderQuestion) : (
+                <Text style={styles.meta}>No read messages.</Text>
+              )}
+            </>
           ) : (
             <Text style={styles.emptyText}>No messages yet.</Text>
           )}

@@ -12,23 +12,38 @@ const awards = read("screens/marketplaceAwardBidsScreen.js");
 const submission = read("screens/marketplaceSubmissionDetailsScreen.js");
 const messages = read("screens/marketplaceEventMessagesScreen.js");
 const api = read("apiFolder/appAPI.js");
+const actions = read("helpers/marketplaceCoordinatorSubmissionActions.helper.js");
 
 assert.match(shared, /marketplaceEventRequirements\.helper/);
 assert.match(requirements, /event_vendor_requirement_summary/);
 assert.match(eventDetails, /requested.*filled.*remaining/s);
 assert.match(awards, /marketplaceSubmissionDetailsScreen/);
 assert.match(submission, /ZoomableImageModal/);
-assert.match(submission, /const rejectionLabel = submission\.bid_id \? "Reject Bid" : "Reject Application"/);
+assert.match(submission, /getCoordinatorSubmissionActions\(submission\)/);
+assert.match(submission, /const canDecline = submissionActions\.canReject/);
+assert.match(submission, /const rejectionLabel = submissionActions\.rejectLabel/);
 assert.match(submission, /\{declining \? "Updating\.\.\." : rejectionLabel\}/);
+assert.match(submission, /submissionActions\.canRevoke/);
+assert.match(submission, /revokeMarketplaceAward_API/);
+assert.match(submission, /revokeMarketplaceApplicationAward_API/);
+assert.match(submission, /revokeEventVendorApplicationAward_API/);
+assert.match(actions, /FOOD_BID/);
+assert.match(actions, /EVENT_VENDOR_APPLICATION/);
+assert.match(actions, /\["SUBMITTED", "UNDER_REVIEW"\]/);
 assert.match(submission, /bid_id: submission\.bid_id/);
 assert.match(submission, /application_id: submission\.application_id/);
 assert.match(submission, /Open Submission Conversation/);
 assert.match(messages, /bid_id: bidId/);
 assert.match(messages, /application_id: applicationId/);
 assert.match(messages, /trim\(\)\.length < 3/);
+assert.match(messages, /Unread Messages/);
+assert.match(messages, /Read Messages/);
+assert.match(messages, /Open Associated Event/);
 assert.match(api, /declineMarketplaceBid_API/);
 assert.match(api, /declineMarketplaceApplication_API/);
 assert.match(api, /declineEventVendorApplication_API/);
+assert.match(api, /revokeMarketplaceApplicationAward_API/);
+assert.match(api, /revokeEventVendorApplicationAward_API/);
 for (const value of [
   "vendor@example.com",
   "vendor at example dot com",

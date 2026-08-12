@@ -103,7 +103,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   );
 
   const toggleBid = (bid) => {
-    if (["AWARDED", "NOT_AWARDED", "WITHDRAWN"].includes(bid.bid_status)) {
+    if (["AWARDED", "NOT_AWARDED", "DECLINED", "WITHDRAWN"].includes(bid.bid_status)) {
       return;
     }
 
@@ -199,7 +199,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
 
   const renderBid = ({ item }) => {
     const selected = selectedBidIds.includes(item.bid_id);
-    const locked = ["AWARDED", "NOT_AWARDED", "WITHDRAWN"].includes(
+    const locked = ["AWARDED", "NOT_AWARDED", "DECLINED", "WITHDRAWN"].includes(
       item.bid_status
     ) || !!item.archived_at;
     const offeredCoverage = item.guest_coverage || "REGULAR";
