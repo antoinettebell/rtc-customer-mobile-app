@@ -21,8 +21,11 @@ import {
   getMarketplaceEventById_API,
   getEventVendorEventApplications_API,
   awardEventVendorApplication_API,
+  declineMarketplaceApplication_API,
+  declineEventVendorApplication_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
+import { getRemainingFoodVendorAwards } from "../helpers/marketplaceAwardSelection.helper";
 
 const getVendorName = (bid) => {
   const detailsUnlocked = bid?.marketplace_unlock?.details_unlocked === true;
@@ -80,11 +83,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             [bid.bid_id]: bid.awarded_coverage || bid.guest_coverage || "REGULAR",
           }), {})
         );
-        setSelectedBidIds(
-          nextBids
-            .filter((bid) => bid.bid_status === "AWARDED")
-            .map((bid) => bid.bid_id)
-        );
+        setSelectedBidIds([]);
       }
     } catch (error) {
       setSnackbar({
@@ -112,10 +111,13 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
         return prev.filter((id) => id !== bid.bid_id);
       }
 
-      if (prev.length >= Number(event?.number_of_vendors_needed || 0)) {
+      const remainingAwards = getRemainingFoodVendorAwards({ event, bids, applications });
+      if (prev.length >= remainingAwards) {
         setSnackbar({
           visible: true,
-          message: `You can only award up to ${event?.number_of_vendors_needed || 0} vendor(s) for this event.`,
+          message: remainingAwards > 0
+            ? `You can only award ${remainingAwards} more Food Vendor(s) for this event.`
+            : "All available Food Vendor award slots have already been filled.",
         });
         return prev;
       }
@@ -129,10 +131,11 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       setSnackbar({ visible: true, message: "Select at least one bid." });
       return;
     }
-    if (selectedBidIds.length > Number(event?.number_of_vendors_needed || 0)) {
+    const remainingAwards = getRemainingFoodVendorAwards({ event, bids, applications });
+    if (selectedBidIds.length > remainingAwards) {
       setSnackbar({
         visible: true,
-        message: `You can only award up to ${event?.number_of_vendors_needed || 0} vendor(s) for this event.`,
+        message: `You can only award ${remainingAwards} more Food Vendor(s) for this event.`,
       });
       return;
     }
@@ -141,19 +144,6 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       bid_id: bid.bid_id,
       award_coverage: awardCoverageByBidId[bid.bid_id] || bid.guest_coverage,
     }));
-    const requiredCount = Math.max(1, Number(event?.number_of_vendors_needed || 1));
-    const minimumCount = Math.max(
-      1,
-      requiredCount - (awardSelections.some((item) => item.award_coverage === "BOTH") ? 1 : 0),
-    );
-    if (selectedBidIds.length < minimumCount) {
-      setSnackbar({
-        visible: true,
-        message: `Select at least ${minimumCount} vendor(s). One fewer is allowed only when a selected bid covers Both Regular and VIP Guests.`,
-      });
-      return;
-    }
-
     Alert.alert(
       "Award Bid",
       "Are you sure you want to award the selected bid(s) to the selected vendor(s)?",
@@ -410,6 +400,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             Review this application before accepting it.
           </Text>
           {["SUBMITTED", "UNDER_REVIEW"].includes(item.application_status) ? (
+            <>
             <TouchableOpacity
               style={[styles.secondaryButton, { marginTop: 10 }]}
               onPress={() => Alert.alert(
@@ -434,8 +425,33 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 ]
               )}
             >
-              <Text style={styles.secondaryButtonText}>Accept Vendor Application</Text>
+              <Text style={styles.secondaryButtonText}>Award Application</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginTop: 10, borderColor: "#D93025" }]}
+              onPress={() => Alert.alert(
+                "Reject Application",
+                "Are you sure you want to reject this application?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Reject",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await declineMarketplaceApplication_API(item.application_id);
+                        await loadData();
+                      } catch (error) {
+                        setSnackbar({ visible: true, message: error?.message || "Unable to reject vendor application." });
+                      }
+                    },
+                  },
+                ]
+              )}
+            >
+              <Text style={[styles.secondaryButtonText, { color: "#D93025" }]}>Reject Application</Text>
+            </TouchableOpacity>
+            </>
           ) : null}
         </>
       )}
@@ -446,9 +462,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     );
   };
 
-  const awardLocked = ["AWARDED", "CLOSED", "CANCELLED"].includes(
-    event?.status
-  );
+  const remainingFoodAwards = getRemainingFoodVendorAwards({ event, bids, applications });
+  const awardLocked = ["CLOSED", "CANCELLED"].includes(event?.status) ||
+    (event?.status === "AWARDED" && remainingFoodAwards === 0);
 
   const awardEventVendor = (application) => Alert.alert(
     "Award Marketplace Vendor",
@@ -458,6 +474,18 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       { text: "Award", onPress: async () => {
         try { await awardEventVendorApplication_API(application.application_id); await loadData(); }
         catch (error) { setSnackbar({ visible: true, message: error?.message || "Unable to award Marketplace Vendor." }); }
+      } },
+    ]
+  );
+
+  const rejectEventVendor = (application) => Alert.alert(
+    "Reject Application",
+    "Are you sure you want to reject this application?",
+    [
+      { text: "Cancel", style: "cancel" },
+      { text: "Reject", style: "destructive", onPress: async () => {
+        try { await declineEventVendorApplication_API(application.application_id); await loadData(); }
+        catch (error) { setSnackbar({ visible: true, message: error?.message || "Unable to reject Marketplace Vendor application." }); }
       } },
     ]
   );
@@ -481,7 +509,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               <View style={styles.card}>
                 <Text style={styles.title}>{event?.event_name || "Event Bids"}</Text>
                 <Text style={styles.meta}>
-                  Select up to {event?.number_of_vendors_needed || 0} vendor(s).
+                  Select up to {remainingFoodAwards} Food Vendor(s) in this award batch.
                 </Text>
                 <Text style={styles.meta}>
                   Awards finalize after the marketplace booking payment is confirmed.
@@ -532,9 +560,14 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                         <Text style={styles.meta}>Category fee: {formatMoney(application.category_fee)} · Electricity: {formatMoney(application.electricity_fee)}</Text>
                         <Text style={styles.meta}>Photos: {(application.photos || []).length} · Status: {application.status}</Text>
                         {["SUBMITTED", "UNDER_REVIEW"].includes(application.status) ? (
+                          <>
                           <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => awardEventVendor(application)}>
-                            <Text style={styles.secondaryButtonText}>Award Marketplace Vendor</Text>
+                            <Text style={styles.secondaryButtonText}>Award Application</Text>
                           </TouchableOpacity>
+                          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10, borderColor: "#D93025" }]} onPress={() => rejectEventVendor(application)}>
+                            <Text style={[styles.secondaryButtonText, { color: "#D93025" }]}>Reject Application</Text>
+                          </TouchableOpacity>
+                          </>
                         ) : null}
                         <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>Review full application</Text>
                       </TouchableOpacity>
