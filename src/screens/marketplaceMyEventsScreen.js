@@ -17,6 +17,7 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
+import { formatMarketplaceSubmissionCounts } from "../helpers/marketplaceMyEventsCounts.helper";
 import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
@@ -190,7 +191,7 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
         {item.number_of_guests} guests • {item.number_of_vendors_needed} vendors needed
       </Text>
       <Text style={styles.meta}>
-        {item.bid_count || 0} bids • Budget {formatMoney(item.budgeted_amount)}
+        {formatMarketplaceSubmissionCounts(item)} • Budget {formatMoney(item.budgeted_amount)}
       </Text>
       {Number(item.unread_message_count || 0) ||
       Number(item.unseen_submission_count || 0) ? (
