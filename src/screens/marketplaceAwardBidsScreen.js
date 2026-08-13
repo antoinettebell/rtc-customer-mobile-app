@@ -25,7 +25,10 @@ import {
   declineEventVendorApplication_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
-import { getRemainingFoodVendorAwards } from "../helpers/marketplaceAwardSelection.helper";
+import {
+  getEstimatedAwardVendorCounts,
+  getRemainingFoodVendorAwards,
+} from "../helpers/marketplaceAwardSelection.helper";
 import { getCoordinatorSubmissionActions } from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
 
 const getVendorName = (bid) => {
@@ -464,6 +467,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   };
 
   const remainingFoodAwards = getRemainingFoodVendorAwards({ event, bids, applications });
+  const estimatedAwardCounts = getEstimatedAwardVendorCounts(event);
   const awardLocked = ["CLOSED", "CANCELLED"].includes(event?.status) ||
     (event?.status === "AWARDED" && remainingFoodAwards === 0);
 
@@ -510,7 +514,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               <View style={styles.card}>
                 <Text style={styles.title}>{event?.event_name || "Event Bids"}</Text>
                 <Text style={styles.meta}>
-                  Select up to {remainingFoodAwards} Food Vendor(s) in this award batch.
+                  Select up to {estimatedAwardCounts.foodVendorCount} Food Vendors and{" "}
+                  {estimatedAwardCounts.applicationVendorCount} Application Vendors in this award batch.
                 </Text>
                 <Text style={styles.meta}>
                   Awards finalize after the marketplace booking payment is confirmed.

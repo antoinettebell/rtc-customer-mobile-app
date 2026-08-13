@@ -1,3 +1,5 @@
+import { getEventVendorRequirementRows } from "./marketplaceEventRequirements.helper.js";
+
 const AWARDED_BID_STATUSES = new Set(["AWARDED"]);
 const AWARDED_APPLICATION_STATUSES = new Set([
   "ACCEPTED",
@@ -29,3 +31,11 @@ export const getRemainingFoodVendorAwards = ({ event, bids = [], applications = 
   const limit = Math.max(1, Number(event?.number_of_vendors_needed || 1));
   return Math.max(0, limit - awardedVendorIds.size);
 };
+
+export const getEstimatedAwardVendorCounts = (event = {}) => ({
+  foodVendorCount: Math.max(0, Number(event?.number_of_vendors_needed || 0)),
+  applicationVendorCount: getEventVendorRequirementRows(event).reduce(
+    (total, requirement) => total + Math.max(0, Number(requirement.requested || 0)),
+    0,
+  ),
+});
