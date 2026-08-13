@@ -7,7 +7,7 @@ import {
 assert.deepEqual(
   getCoordinatorSubmissionActions({ bid_id: "bid-1", bid_status: "SUBMITTED" }),
   {
-    kind: "FOOD_BID", status: "SUBMITTED", canReject: true,
+    kind: "FOOD_BID", status: "SUBMITTED", canAward: true, canReject: true,
     rejectLabel: "Reject Bid", canRevoke: false, paidRevocationBlocked: false,
   }
 );
@@ -18,6 +18,17 @@ assert.equal(getCoordinatorSubmissionActions({
   application_id: "event-app-1", profile_id: "profile-1",
   vendor_types: ["MERCHANDISE"], status: "SUBMITTED",
 }).canReject, true);
+assert.deepEqual(
+  getCoordinatorSubmissionActions({
+    application_id: "event-app-hydrated", profile_id: "profile-1",
+    vendor_types: ["SERVICE"], application_status: "under_review",
+  }),
+  {
+    kind: "EVENT_VENDOR_APPLICATION", status: "UNDER_REVIEW",
+    canAward: true, canReject: true, rejectLabel: "Reject Application",
+    canRevoke: false, paidRevocationBlocked: false,
+  }
+);
 assert.equal(getCoordinatorSubmissionActions({
   bid_id: "bid-1", bid_status: "AWARDED", payment_status: "NOT_REQUIRED",
 }).canRevoke, true);

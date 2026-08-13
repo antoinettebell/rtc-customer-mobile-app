@@ -15,7 +15,9 @@ export const getCoordinatorSubmissionKind = (submission = {}) => {
 export const getCoordinatorSubmissionStatus = (submission = {}) => {
   const kind = getCoordinatorSubmissionKind(submission);
   if (kind === "FOOD_BID") return upper(submission.bid_status);
-  if (kind === "EVENT_VENDOR_APPLICATION") return upper(submission.status);
+  if (kind === "EVENT_VENDOR_APPLICATION") {
+    return upper(submission.status || submission.application_status);
+  }
   return upper(submission.application_status);
 };
 
@@ -31,6 +33,7 @@ export const getCoordinatorSubmissionActions = (submission = {}) => {
   return {
     kind,
     status,
+    canAward: canReject,
     canReject,
     rejectLabel: kind === "FOOD_BID" ? "Reject Bid" : "Reject Application",
     canRevoke: revokeStatuses[kind].includes(status),

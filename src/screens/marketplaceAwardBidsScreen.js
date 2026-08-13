@@ -26,6 +26,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { getRemainingFoodVendorAwards } from "../helpers/marketplaceAwardSelection.helper";
+import { getCoordinatorSubmissionActions } from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
 
 const getVendorName = (bid) => {
   const detailsUnlocked = bid?.marketplace_unlock?.details_unlocked === true;
@@ -544,7 +545,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 {eventVendorApplications.length ? (
                   <View>
                     <Text style={[styles.title, { marginBottom: 10 }]}>Merchandise / Service / Other Applications</Text>
-                    {eventVendorApplications.map((application) => (
+                    {eventVendorApplications.map((application) => {
+                      const applicationActions = getCoordinatorSubmissionActions(application);
+                      return (
                       <TouchableOpacity
                         key={application.application_id}
                         style={styles.card}
@@ -558,8 +561,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                         <Text style={styles.meta}>{application.vendor_types.join(", ")}</Text>
                         <Text style={styles.meta}>Offerings: {(application.offering_bullets || []).join(" • ")}</Text>
                         <Text style={styles.meta}>Category fee: {formatMoney(application.category_fee)} · Electricity: {formatMoney(application.electricity_fee)}</Text>
-                        <Text style={styles.meta}>Photos: {(application.photos || []).length} · Status: {application.status}</Text>
-                        {["SUBMITTED", "UNDER_REVIEW"].includes(application.status) ? (
+                        <Text style={styles.meta}>Photos: {(application.photos || []).length} · Status: {applicationActions.status}</Text>
+                        {applicationActions.canAward ? (
                           <>
                           <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => awardEventVendor(application)}>
                             <Text style={styles.secondaryButtonText}>Award Application</Text>
@@ -571,7 +574,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                         ) : null}
                         <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>Review full application</Text>
                       </TouchableOpacity>
-                    ))}
+                      );
+                    })}
                   </View>
                 ) : null}
                 <TouchableOpacity
