@@ -6,6 +6,7 @@ import {
   getTicketAttendancePatch,
   initializeAddressEdit,
   leaveWithFallback,
+  normalizeEventDateForForm,
   normalizeCurrencyOnBlur,
   sanitizeCurrencyInput,
   toFormString,
@@ -44,6 +45,8 @@ assert.equal(toFormString(150), "150");
 assert.equal(toFormString(0), "0");
 assert.equal(toFormString(null), "");
 assert.equal(toFormString(undefined), "");
+assert.equal(normalizeEventDateForForm("2026-08-19T00:00:00.000Z"), "2026-08-19");
+assert.equal(normalizeEventDateForForm("2026-08-19"), "2026-08-19");
 
 const ticketed = {
   ticket_sales_enabled: true,
@@ -83,6 +86,8 @@ assert.notEqual(editingAddress, savedAddress);
 assert.equal((createEvent.match(/Vendor Capacity/g) || []).length, 1);
 assert.equal((createEvent.match(/Payment & Budget/g) || []).length, 1);
 assert.match(createEvent, /Food Vendor Fee/);
+assert.match(createEvent, /formatTimeForDisplay\(form\.event_time\)/);
+assert.match(createEvent, /formatDurationLabel\(form\.event_duration_total_minutes\)/);
 const permitOptionsSource = marketplaceShared.match(
   /export const PERMIT_OPTIONS = \[([\s\S]*?)\];/,
 )?.[1] || "";

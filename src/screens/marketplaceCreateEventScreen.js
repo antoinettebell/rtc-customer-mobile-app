@@ -67,6 +67,7 @@ import {
 } from "../helpers/attachmentPreview.helper";
 import {
   getTicketAttendancePatch,
+  normalizeEventDateForForm,
   normalizeCurrencyOnBlur,
   sanitizeCurrencyInput,
   toFormString,
@@ -357,13 +358,7 @@ const normalizeOptionList = (value) => {
   return value ? [value] : [];
 };
 const formatDateForPayload = (date) => {
-  if (!date) return "";
-  const value = new Date(date);
-  if (Number.isNaN(value.getTime())) return "";
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return normalizeEventDateForForm(date);
 };
 
 const formatDateForDisplay = (value) => {
@@ -5190,7 +5185,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Date, Time & Location",
-                  `${formatDateForDisplay(form.event_date) || "Date not entered"} · ${form.event_time || "Time not entered"} · ${form.event_duration_total_minutes || 0} minutes\n${form.event_address || "Address not entered"}, ${form.event_city || "City"}, ${form.event_state || "State"} ${form.event_zip || ""}`,
+                  `${formatDateForDisplay(form.event_date) || "Date not entered"} · ${formatTimeForDisplay(form.event_time) || "Time not entered"} · ${formatDurationLabel(form.event_duration_total_minutes)}\n${form.event_address || "Address not entered"}, ${form.event_city || "City"}, ${form.event_state || "State"} ${form.event_zip || ""}`,
                 ],
                 [
                   "GA Attendance & Tickets",
