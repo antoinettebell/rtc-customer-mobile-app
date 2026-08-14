@@ -13,6 +13,7 @@ import {
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 const createEvent = read("../screens/marketplaceCreateEventScreen.js");
+const marketplaceShared = read("../screens/marketplaceShared.js");
 const details = read("../screens/marketplaceEventDetailsScreen.js");
 const profile = read("../screens/userProfileScreen.js");
 const splash = read("../screens/splashScreen.js");
@@ -82,6 +83,11 @@ assert.notEqual(editingAddress, savedAddress);
 assert.equal((createEvent.match(/Vendor Capacity/g) || []).length, 1);
 assert.equal((createEvent.match(/Payment & Budget/g) || []).length, 1);
 assert.match(createEvent, /Food Vendor Fee/);
+const permitOptionsSource = marketplaceShared.match(
+  /export const PERMIT_OPTIONS = \[([\s\S]*?)\];/,
+)?.[1] || "";
+assert.match(permitOptionsSource, /"City Permit"/);
+assert.doesNotMatch(permitOptionsSource, /"Food Vendor"/);
 assert.match(createEvent, /editable: !form\.ticket_sales_enabled/);
 assert.match(createEvent, /number_of_guests: toFormString\(event\.number_of_guests\)/);
 assert.match(createEvent, /ga_ticket_quantity: toFormString\(event\.ga_ticket_quantity\)/);

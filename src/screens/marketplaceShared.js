@@ -30,7 +30,6 @@ export const POWER_OPTIONS = ["110v/15A", "110V/30A", "220V", "Generator OK"];
 export const PERMIT_OPTIONS = [
   "None",
   "City Permit",
-  "Food Vendor",
   "Sanitation Grade",
   "Alcohol",
 ];
