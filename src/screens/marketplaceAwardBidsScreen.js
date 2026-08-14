@@ -16,11 +16,10 @@ import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import {
   awardMarketplaceBids_API,
-  acceptMarketplaceApplication_API,
   getMarketplaceEventBids_API,
   getMarketplaceEventById_API,
   getEventVendorEventApplications_API,
-  awardEventVendorApplication_API,
+  declineMarketplaceBid_API,
   declineMarketplaceApplication_API,
   declineEventVendorApplication_API,
 } from "../apiFolder/appAPI";
@@ -58,6 +57,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const [applications, setApplications] = useState([]);
   const [eventVendorApplications, setEventVendorApplications] = useState([]);
   const [selectedBidIds, setSelectedBidIds] = useState([]);
+  const [selectedFoodApplicationIds, setSelectedFoodApplicationIds] = useState([]);
+  const [selectedEventVendorApplicationIds, setSelectedEventVendorApplicationIds] = useState([]);
   const [awardCoverageByBidId, setAwardCoverageByBidId] = useState({});
   const [loading, setLoading] = useState(false);
   const [awarding, setAwarding] = useState(false);
@@ -88,6 +89,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           }), {})
         );
         setSelectedBidIds([]);
+        setSelectedFoodApplicationIds([]);
+        setSelectedEventVendorApplicationIds([]);
       }
     } catch (error) {
       setSnackbar({
@@ -116,7 +119,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       }
 
       const remainingAwards = getRemainingFoodVendorAwards({ event, bids, applications });
-      if (prev.length >= remainingAwards) {
+      if (prev.length + selectedFoodApplicationIds.length >= remainingAwards) {
         setSnackbar({
           visible: true,
           message: remainingAwards > 0
@@ -131,12 +134,15 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   };
 
   const handleAward = () => {
-    if (!selectedBidIds.length) {
-      setSnackbar({ visible: true, message: "Select at least one bid." });
+    const totalSelections = selectedBidIds.length +
+      selectedFoodApplicationIds.length +
+      selectedEventVendorApplicationIds.length;
+    if (!totalSelections) {
+      setSnackbar({ visible: true, message: "Select at least one vendor submission." });
       return;
     }
     const remainingAwards = getRemainingFoodVendorAwards({ event, bids, applications });
-    if (selectedBidIds.length > remainingAwards) {
+    if (selectedBidIds.length + selectedFoodApplicationIds.length > remainingAwards) {
       setSnackbar({
         visible: true,
         message: `You can only award ${remainingAwards} more Food Vendor(s) for this event.`,
@@ -149,18 +155,20 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       award_coverage: awardCoverageByBidId[bid.bid_id] || bid.guest_coverage,
     }));
     Alert.alert(
-      "Award Bid",
-      "Are you sure you want to award the selected bid(s) to the selected vendor(s)?",
+      "Complete Booking",
+      "Complete this booking with the selected vendor bid(s) and application(s)?",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Award",
+          text: "Complete Booking",
           onPress: async () => {
             setAwarding(true);
             try {
               const response = await awardMarketplaceBids_API({
                 eventId,
                 bidIds: selectedBidIds,
+                foodApplicationIds: selectedFoodApplicationIds,
+                eventVendorApplicationIds: selectedEventVendorApplicationIds,
                 awardSelections,
               });
               if (response?.success) {
@@ -174,7 +182,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                   });
                   return;
                 }
-                setSnackbar({ visible: true, message: "Vendors awarded successfully." });
+                setSnackbar({ visible: true, message: "Booking completed successfully." });
                 await loadData();
               }
             } catch (error) {
@@ -314,6 +322,32 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               {selected ? "Selected to Award" : "Select to Award"}
             </Text>
           </TouchableOpacity>
+          {["SUBMITTED", "UNDER_REVIEW"].includes(item.bid_status) ? (
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginTop: 10, borderColor: "#D93025" }]}
+              onPress={() => Alert.alert(
+                "Reject Bid",
+                "Are you sure you want to reject this bid?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Reject",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await declineMarketplaceBid_API(item.bid_id);
+                        await loadData();
+                      } catch (error) {
+                        setSnackbar({ visible: true, message: error?.message || "Unable to reject vendor bid." });
+                      }
+                    },
+                  },
+                ]
+              )}
+            >
+              <Text style={[styles.secondaryButtonText, { color: "#D93025" }]}>Reject Bid</Text>
+            </TouchableOpacity>
+          ) : null}
           </>
         ) : (
           <>
@@ -356,6 +390,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
 
   const renderApplication = (item) => {
     const withdrawn = item.application_status === "WITHDRAWN";
+    const selected = selectedFoodApplicationIds.includes(item.application_id);
 
     return (
       <TouchableOpacity
@@ -364,6 +399,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
         style={[
           styles.card,
           withdrawn ? { opacity: 0.75, borderColor: "#D93025" } : null,
+          selected ? { borderColor: AppColor.primary, backgroundColor: "#FFF8F1" } : null,
         ]}
         onPress={() =>
           navigation.navigate("marketplaceSubmissionDetailsScreen", {
@@ -406,30 +442,34 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           {["SUBMITTED", "UNDER_REVIEW"].includes(item.application_status) ? (
             <>
             <TouchableOpacity
-              style={[styles.secondaryButton, { marginTop: 10 }]}
-              onPress={() => Alert.alert(
-                "Award Application",
-                "Are you sure you want to award this application to this vendor?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Award",
-                    onPress: async () => {
-                      try {
-                        await acceptMarketplaceApplication_API({
-                          eventId,
-                          applicationId: item.application_id,
-                        });
-                        await loadData();
-                      } catch (error) {
-                        setSnackbar({ visible: true, message: error?.message || "Unable to accept vendor application." });
-                      }
-                    },
-                  },
-                ]
-              )}
+              style={[
+                styles.secondaryButton,
+                {
+                  marginTop: 10,
+                  borderColor: selected ? AppColor.primary : "#DDE2EA",
+                  backgroundColor: selected ? "#FFF1E6" : AppColor.white,
+                },
+              ]}
+              onPress={() => setSelectedFoodApplicationIds((current) => {
+                if (current.includes(item.application_id)) {
+                  return current.filter((id) => id !== item.application_id);
+                }
+                const remainingAwards = getRemainingFoodVendorAwards({ event, bids, applications });
+                if (selectedBidIds.length + current.length >= remainingAwards) {
+                  setSnackbar({
+                    visible: true,
+                    message: remainingAwards > 0
+                      ? `You can only award ${remainingAwards} more Food Vendor(s) for this event.`
+                      : "All available Food Vendor award slots have already been filled.",
+                  });
+                  return current;
+                }
+                return [...current, item.application_id];
+              })}
             >
-              <Text style={styles.secondaryButtonText}>Award Application</Text>
+              <Text style={styles.secondaryButtonText}>
+                {selected ? "Selected to Award" : "Award Application"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.secondaryButton, { marginTop: 10, borderColor: "#D93025" }]}
@@ -456,6 +496,12 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
               <Text style={[styles.secondaryButtonText, { color: "#D93025" }]}>Reject Application</Text>
             </TouchableOpacity>
             </>
+          ) : item.application_status === "PAYMENT_DUE" ? (
+            <View style={[styles.secondaryButton, { marginTop: 10, opacity: 0.7 }]}>
+              <Text style={styles.secondaryButtonText}>
+                Selected to Award · Vendor Payment Pending
+              </Text>
+            </View>
           ) : null}
         </>
       )}
@@ -471,17 +517,13 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const awardLocked = ["CLOSED", "CANCELLED"].includes(event?.status) ||
     (event?.status === "AWARDED" && remainingFoodAwards === 0);
 
-  const awardEventVendor = (application) => Alert.alert(
-    "Award Marketplace Vendor",
-    "Are you sure you want to award this application to this vendor?",
-    [
-      { text: "Cancel", style: "cancel" },
-      { text: "Award", onPress: async () => {
-        try { await awardEventVendorApplication_API(application.application_id); await loadData(); }
-        catch (error) { setSnackbar({ visible: true, message: error?.message || "Unable to award Marketplace Vendor." }); }
-      } },
-    ]
-  );
+  const toggleEventVendorAward = (application) => {
+    setSelectedEventVendorApplicationIds((current) =>
+      current.includes(application.application_id)
+        ? current.filter((id) => id !== application.application_id)
+        : [...current, application.application_id]
+    );
+  };
 
   const rejectEventVendor = (application) => Alert.alert(
     "Reject Application",
@@ -552,10 +594,16 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                     <Text style={[styles.title, { marginBottom: 10 }]}>Merchandise / Service / Other Applications</Text>
                     {eventVendorApplications.map((application) => {
                       const applicationActions = getCoordinatorSubmissionActions(application);
+                      const selected = selectedEventVendorApplicationIds.includes(
+                        application.application_id
+                      );
                       return (
                       <TouchableOpacity
                         key={application.application_id}
-                        style={styles.card}
+                        style={[
+                          styles.card,
+                          selected ? { borderColor: AppColor.primary, backgroundColor: "#FFF8F1" } : null,
+                        ]}
                         activeOpacity={0.8}
                         onPress={() => navigation.navigate("marketplaceSubmissionDetailsScreen", {
                           submission: application,
@@ -569,13 +617,31 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                         <Text style={styles.meta}>Photos: {(application.photos || []).length} · Status: {applicationActions.status}</Text>
                         {applicationActions.canAward ? (
                           <>
-                          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => awardEventVendor(application)}>
-                            <Text style={styles.secondaryButtonText}>Award Application</Text>
+                          <TouchableOpacity
+                            style={[
+                              styles.secondaryButton,
+                              {
+                                marginTop: 10,
+                                borderColor: selected ? AppColor.primary : "#DDE2EA",
+                                backgroundColor: selected ? "#FFF1E6" : AppColor.white,
+                              },
+                            ]}
+                            onPress={() => toggleEventVendorAward(application)}
+                          >
+                            <Text style={styles.secondaryButtonText}>
+                              {selected ? "Selected to Award" : "Award Application"}
+                            </Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10, borderColor: "#D93025" }]} onPress={() => rejectEventVendor(application)}>
                             <Text style={[styles.secondaryButtonText, { color: "#D93025" }]}>Reject Application</Text>
                           </TouchableOpacity>
                           </>
+                        ) : applicationActions.paymentPending ? (
+                          <View style={[styles.secondaryButton, { marginTop: 10, opacity: 0.7 }]}>
+                            <Text style={styles.secondaryButtonText}>
+                              Selected to Award · Vendor Payment Pending
+                            </Text>
+                          </View>
                         ) : null}
                         <Text style={[styles.secondaryButtonText, { marginTop: 10 }]}>Review full application</Text>
                       </TouchableOpacity>
@@ -590,16 +656,24 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                     {
                       backgroundColor: AppColor.text,
                       marginTop: 4,
-                      opacity: awarding || !bids.length || awardLocked ? 0.6 : 1,
+                      opacity: awarding || !(
+                        selectedBidIds.length +
+                        selectedFoodApplicationIds.length +
+                        selectedEventVendorApplicationIds.length
+                      ) || awardLocked ? 0.6 : 1,
                     },
                   ]}
-                  disabled={awarding || !bids.length || awardLocked}
+                  disabled={awarding || !(
+                    selectedBidIds.length +
+                    selectedFoodApplicationIds.length +
+                    selectedEventVendorApplicationIds.length
+                  ) || awardLocked}
                   onPress={handleAward}
                 >
                   {awarding ? (
                     <ActivityIndicator color={AppColor.white} />
                   ) : (
-                    <Text style={styles.buttonText}>Complete Booking Payment</Text>
+                    <Text style={styles.buttonText}>Complete Booking</Text>
                   )}
                 </TouchableOpacity>
               </View>

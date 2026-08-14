@@ -8,7 +8,8 @@ assert.deepEqual(
   getCoordinatorSubmissionActions({ bid_id: "bid-1", bid_status: "SUBMITTED" }),
   {
     kind: "FOOD_BID", status: "SUBMITTED", canAward: true, canReject: true,
-    rejectLabel: "Reject Bid", canRevoke: false, paidRevocationBlocked: false,
+    rejectLabel: "Reject Bid", canRevoke: false, paymentPending: false,
+    paidRevocationBlocked: false,
   }
 );
 assert.equal(getCoordinatorSubmissionActions({
@@ -26,7 +27,7 @@ assert.deepEqual(
   {
     kind: "EVENT_VENDOR_APPLICATION", status: "UNDER_REVIEW",
     canAward: true, canReject: true, rejectLabel: "Reject Application",
-    canRevoke: false, paidRevocationBlocked: false,
+    canRevoke: false, paymentPending: false, paidRevocationBlocked: false,
   }
 );
 assert.equal(getCoordinatorSubmissionActions({
@@ -35,7 +36,11 @@ assert.equal(getCoordinatorSubmissionActions({
 assert.equal(getCoordinatorSubmissionActions({
   application_id: "event-app-1", profile_id: "profile-1",
   vendor_types: ["SERVICE"], status: "PAYMENT_DUE",
-}).canRevoke, true);
+}).canRevoke, false);
+assert.equal(getCoordinatorSubmissionActions({
+  application_id: "event-app-1", profile_id: "profile-1",
+  vendor_types: ["SERVICE"], status: "PAYMENT_DUE",
+}).paymentPending, true);
 const paid = getCoordinatorSubmissionActions({
   application_id: "food-app-1", application_status: "PAID", payment_status: "PAID",
 });
@@ -62,7 +67,7 @@ assert.equal(paid.paidRevocationBlocked, false);
 assert.equal(getCoordinatorSubmissionActions({
   application_id: "event-app-processing", profile_id: "profile-1",
   vendor_types: ["MERCHANDISE"], status: "PAYMENT_DUE", payment_status: "PROCESSING",
-}).canRevoke, true);
+}).canRevoke, false);
 
 assert.deepEqual(
   getCoordinatorRevocationErrorAlert({ message: "Awards cannot be revoked at or within 72 hours of the event start." }),

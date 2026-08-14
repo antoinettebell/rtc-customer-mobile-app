@@ -27,8 +27,8 @@ export const getCoordinatorSubmissionActions = (submission = {}) => {
   const canReject = ["SUBMITTED", "UNDER_REVIEW"].includes(status);
   const revokeStatuses = {
     FOOD_BID: ["AWARDED"],
-    FOOD_APPLICATION: ["ACCEPTED", "PAYMENT_DUE", "CONFIRMED", "PAID"],
-    EVENT_VENDOR_APPLICATION: ["AWARDED", "PAYMENT_DUE", "PAID"],
+    FOOD_APPLICATION: ["CONFIRMED", "PAID"],
+    EVENT_VENDOR_APPLICATION: ["PAID"],
   };
   return {
     kind,
@@ -37,6 +37,7 @@ export const getCoordinatorSubmissionActions = (submission = {}) => {
     canReject,
     rejectLabel: kind === "FOOD_BID" ? "Reject Bid" : "Reject Application",
     canRevoke: revokeStatuses[kind].includes(status),
+    paymentPending: status === "PAYMENT_DUE",
     paidRevocationBlocked: false,
   };
 };

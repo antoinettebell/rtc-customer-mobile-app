@@ -1113,11 +1113,22 @@ export const deleteMarketplaceEventImage_API = async ({ eventId, imageId }) => {
   }
 };
 
-export const awardMarketplaceBids_API = async ({ eventId, bidIds, awardSelections = [] }) => {
+export const awardMarketplaceBids_API = async ({
+  eventId,
+  bidIds = [],
+  foodApplicationIds = [],
+  eventVendorApplicationIds = [],
+  awardSelections = [],
+}) => {
   try {
     const response = await apiClient.post(
       MARKETPLACE_AWARD_BIDS(eventId),
-      { bid_ids: bidIds, award_selections: awardSelections },
+      {
+        bid_ids: bidIds,
+        food_application_ids: foodApplicationIds,
+        event_vendor_application_ids: eventVendorApplicationIds,
+        award_selections: awardSelections,
+      },
       { skipToken: false }
     );
     return response?.data;
