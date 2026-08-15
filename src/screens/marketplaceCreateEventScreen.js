@@ -89,6 +89,7 @@ import {
   styles,
   toggleListValue,
 } from "./marketplaceShared";
+import { getMissingMarketplaceRequiredField } from "../helpers/marketplaceEventRequiredFields.helper";
 
 const initialForm = {
   event_name: "",
@@ -2256,7 +2257,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       }
       return true;
     }
-    const missing = requiredFields.find((field) => !String(form[field]).trim());
+    const missing = getMissingMarketplaceRequiredField(form, requiredFields);
     if (missing) {
       setSnackbar({
         visible: true,
