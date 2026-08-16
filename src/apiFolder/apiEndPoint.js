@@ -173,6 +173,10 @@ export const EVENT_VENDOR_REVOKE_APPLICATION = (application_id) =>
   `/marketplace/event-vendor/applications/${application_id}/revoke`;
 export const MARKETPLACE_TICKET_INVITATION = (share_token) =>
   `/public/marketplace/ticket-invitations/${share_token}`;
+export const MARKETPLACE_GUEST_TICKET_QUOTE = (share_token) =>
+  `/public/marketplace/ticket-invitations/${share_token}/quote`;
+export const MARKETPLACE_GUEST_TICKET_CHECKOUT = (share_token) =>
+  `/public/marketplace/ticket-invitations/${share_token}/checkout`;
 export const MARKETPLACE_MY_TICKETS = "/marketplace/tickets/my";
 export const MARKETPLACE_TAX_EXEMPTION_CERTIFICATE = (event_id) =>
   `/marketplace/events/${event_id}/tax-exemption-certificate`;

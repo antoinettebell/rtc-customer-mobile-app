@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const appSource = readFileSync(new URL("../../App.js", import.meta.url), "utf8");
+const androidManifest = readFileSync(
+  new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url),
+  "utf8",
+);
+const iosInfoPlist = readFileSync(
+  new URL("../../ios/foodtruck/Info.plist", import.meta.url),
+  "utf8",
+);
+const checkoutSource = readFileSync(
+  new URL("../screens/marketplaceTicketCheckoutScreen.js", import.meta.url),
+  "utf8",
+);
+const eventDetailsSource = readFileSync(
+  new URL("../screens/marketplaceEventDetailsScreen.js", import.meta.url),
+  "utf8",
+);
+const apiSource = readFileSync(
+  new URL("../apiFolder/appAPI.js", import.meta.url),
+  "utf8",
+);
+
+assert.match(appSource, /prefixes:\s*\["rtc-customer:\/\/"\]/);
+assert.match(
+  appSource,
+  /marketplaceTicketCheckoutScreen:\s*"invite\/:shareToken"/,
+);
+assert.match(
+  androidManifest,
+  /<data android:scheme="rtc-customer" android:host="invite"\s*\/>/,
+);
+assert.match(iosInfoPlist, /<key>CFBundleURLSchemes<\/key>[\s\S]*<string>rtc-customer<\/string>/);
+assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen"/);
+assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
+assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
+assert.match(checkoutSource, /Contact Information/);
+assert.match(checkoutSource, /checkoutGuestMarketplaceTickets_API/);
+assert.doesNotMatch(checkoutSource, /AsyncStorage|persist|saveCart/i);
+assert.match(eventDetailsSource, /!isSignedIn && !shareToken/);
+assert.match(apiSource, /MARKETPLACE_GUEST_TICKET_CHECKOUT\(shareToken\)[\s\S]*skipToken: true/);
+
+console.log("customer invitation deep-link wiring checks passed");

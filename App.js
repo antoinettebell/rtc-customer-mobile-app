@@ -84,7 +84,7 @@ const linking = {
   config: {
     screens: {
       rateTruckScreen: "review",
-      marketplaceEventDetailsScreen: "invite/:shareToken",
+      marketplaceTicketCheckoutScreen: "invite/:shareToken",
     },
   },
 };
@@ -146,6 +146,18 @@ const AuthNavigator = () => (
     <Stack.Screen name="forgetPassword" component={ForgetPasswordScreen} />
     <Stack.Screen name="termsOfService" component={TermsOfServiceScreen} />
     <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
+    <Stack.Screen
+      name="marketplaceEventDetailsScreen"
+      component={MarketplaceEventDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceTicketCheckoutScreen"
+      component={MarketplaceTicketCheckoutScreen}
+    />
+    <Stack.Screen
+      name="marketplaceTicketWebViewScreen"
+      component={MarketplaceTicketWebViewScreen}
+    />
   </Stack.Navigator>
 );
 

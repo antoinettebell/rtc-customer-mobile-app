@@ -89,7 +89,10 @@ import {
   styles,
   toggleListValue,
 } from "./marketplaceShared";
-import { getMissingMarketplaceRequiredField } from "../helpers/marketplaceEventRequiredFields.helper";
+import {
+  MARKETPLACE_EVENT_REQUIRED_FIELDS,
+  getMissingMarketplaceRequiredField,
+} from "../helpers/marketplaceEventRequiredFields.helper";
 
 const initialForm = {
   event_name: "",
@@ -316,20 +319,6 @@ const parseLocationDetails = ({ data, details, fallbackAddress = "" }) => {
       address.latitude && address.longitude ? new Date().toISOString() : "",
   };
 };
-
-const requiredFields = [
-  "event_name",
-  "event_type",
-  "primary_service_style",
-  "event_date",
-  "event_time",
-  "event_address",
-  "event_city",
-  "event_state",
-  "number_of_guests",
-  "event_close_date",
-  "event_close_time",
-];
 
 const getDefaultVendorCount = (value) =>
   String(Math.max(1, Number(value || 1)));
@@ -2257,7 +2246,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       }
       return true;
     }
-    const missing = getMissingMarketplaceRequiredField(form, requiredFields);
+    const missing = getMissingMarketplaceRequiredField(
+      form,
+      MARKETPLACE_EVENT_REQUIRED_FIELDS,
+    );
     if (missing) {
       setSnackbar({
         visible: true,
@@ -4941,7 +4933,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   </View>
                   <View style={localStyles.sideField}>
                     {renderDateTimePicker(
-                      "Close Time *",
+                      "Close Time",
                       "event_close_time",
                       "time",
                     )}

@@ -486,26 +486,28 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const handleCustomerEventImagePress = async () => {
     if (!ticketSalesEnabled) return;
 
-    if (!isSignedIn) {
+    if (!isSignedIn && !shareToken) {
       showGuestSignupRequired(navigation);
       return;
     }
 
-    try {
-      await trackPublicMarketplaceTicketClick_API(eventId);
-    } catch (error) {
-      console.log("Marketplace ticket click tracking error", error);
+    if (eventId) {
+      try {
+        await trackPublicMarketplaceTicketClick_API(eventId);
+      } catch (error) {
+        console.log("Marketplace ticket click tracking error", error);
+      }
     }
 
-    navigation.navigate("marketplaceTicketCheckoutScreen", { event });
+    navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
   };
 
   const handleBuyTickets = () => {
-    if (!isSignedIn) {
+    if (!isSignedIn && !shareToken) {
       showGuestSignupRequired(navigation);
       return;
     }
-    navigation.navigate("marketplaceTicketCheckoutScreen", { event });
+    navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
   };
 
   const handleOpenScanner = async () => {

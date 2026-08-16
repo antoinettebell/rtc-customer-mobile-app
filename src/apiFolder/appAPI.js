@@ -84,6 +84,8 @@ import {
   EVENT_VENDOR_DECLINE_APPLICATION,
   EVENT_VENDOR_REVOKE_APPLICATION,
   MARKETPLACE_TICKET_INVITATION,
+  MARKETPLACE_GUEST_TICKET_QUOTE,
+  MARKETPLACE_GUEST_TICKET_CHECKOUT,
   MARKETPLACE_MY_TICKETS,
   MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
 } from "./apiEndPoint";
@@ -1290,6 +1292,32 @@ export const quoteMarketplaceTickets_API = async ({ eventId, payload }) => {
   }
 };
 
+export const checkoutGuestMarketplaceTickets_API = async ({ shareToken, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_GUEST_TICKET_CHECKOUT(shareToken),
+      payload,
+      { skipToken: true }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const quoteGuestMarketplaceTickets_API = async ({ shareToken, payload }) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_GUEST_TICKET_QUOTE(shareToken),
+      payload,
+      { skipToken: true }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 export const createMarketplaceScannerSession_API = async (eventId) => {
   try {
     const response = await apiClient.post(
@@ -1350,7 +1378,7 @@ export const cancelMarketplaceTicketedEvent_API = async (eventId) => {
 
 export const getMarketplaceTicketInvitation_API = async (shareToken) => {
   try {
-    const response = await apiClient.get(MARKETPLACE_TICKET_INVITATION(shareToken), { skipToken: false });
+    const response = await apiClient.get(MARKETPLACE_TICKET_INVITATION(shareToken), { skipToken: true });
     return response?.data;
   } catch (error) { throw error?.response?.data || error; }
 };
