@@ -31,6 +31,7 @@ import {
   quoteGuestMarketplaceTickets_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
+import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -65,6 +66,7 @@ const walletMethod = Platform.OS === "ios"
 const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSelector((state) => state.authReducer);
+  const { user } = useSelector((state) => state.userReducer);
   const { event: initialEvent, shareToken } = route.params || {};
   const [event, setEvent] = useState(initialEvent || null);
   const [eventLoading, setEventLoading] = useState(!initialEvent && !!shareToken);
@@ -118,18 +120,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   );
 
   const goBackWithoutSaving = () => {
-    if (shareToken) {
-      navigation.replace("marketplaceEventDetailsScreen", {
-        shareToken,
-        initialEvent: event,
-      });
-      return;
-    }
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.replace("bottomRoot");
+    const destination = getMarketplaceTicketExitRoute(isSignedIn);
+    navigation.reset({ index: 0, routes: [destination] });
   };
 
   const purchase = async () => {
@@ -230,7 +222,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
           {[
             ["first_name", "First name", "default"],
             ["last_name", "Last name", "default"],
-            ["email", "Email address", "email-address"],
+            ["email", "Email address (required)", "email-address"],
             ["phone", "Phone number", "phone-pad"],
           ].map(([key, placeholder, keyboardType]) => (
             <TextInput
@@ -245,7 +237,14 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
             />
           ))}
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.title}>Ticket Delivery</Text>
+          <Text style={styles.meta}>
+            Tickets and QR codes will be emailed to {user?.email || "the email address on your customer account"}.
+          </Text>
+        </View>
+      )}
       <View style={styles.card}><Text style={styles.title}>Billing Address</Text>
         {[["line1", "Street address"], ["city", "City"]].map(([key, placeholder]) =>
           <TextInput key={key} value={address[key]} onChangeText={(value) => setAddress((old) => ({ ...old, [key]: value }))} placeholder={placeholder} placeholderTextColor={AppColor.textPlaceholder} autoCapitalize={key === "region" ? "characters" : "words"} style={local.input} />)}

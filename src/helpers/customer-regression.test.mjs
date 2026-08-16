@@ -30,7 +30,9 @@ assert.match(details, /ticketSalesEnabled \? "Cancel Event & Refund Tickets" : "
 assert.match(details, /ticketSalesEnabled\s*\? "Refunds are due immediately upon cancellation/);
 assert.match(details, /: "This event will be cancelled and affected vendors will be notified/);
 assert.match(details, /text: ticketSalesEnabled \? "Cancel & Refund" : "Cancel Event"/);
-assert.equal((details.match(/>Share Event<\/Text>/g) || []).length, 2);
+assert.equal((details.match(/>Share Event via Text<\/Text>/g) || []).length, 2);
+assert.doesNotMatch(details, /Share\.share\(/);
+assert.match(details, /Linking\.openURL\(`sms:\$\{smsSeparator\}body=\$\{encodeURIComponent\(message\)\}`\)/);
 assert.doesNotMatch(details, /Ticket invitations are available for private events/);
 
 assert.equal(sanitizeCurrencyInput(""), "");

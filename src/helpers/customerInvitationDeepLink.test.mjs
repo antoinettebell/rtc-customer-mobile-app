@@ -19,6 +19,10 @@ const checkoutSource = readFileSync(
   new URL("../screens/marketplaceTicketCheckoutScreen.js", import.meta.url),
   "utf8",
 );
+const ticketWebViewSource = readFileSync(
+  new URL("../screens/marketplaceTicketWebViewScreen.js", import.meta.url),
+  "utf8",
+);
 const eventDetailsSource = readFileSync(
   new URL("../screens/marketplaceEventDetailsScreen.js", import.meta.url),
   "utf8",
@@ -66,6 +70,11 @@ assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
 assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
 assert.match(checkoutSource, /Contact Information/);
+assert.match(checkoutSource, /Email address \(required\)/);
+assert.match(checkoutSource, /Tickets and QR codes will be emailed to/);
+assert.match(checkoutSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
+assert.match(ticketWebViewSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
+assert.doesNotMatch(ticketWebViewSource, /navigation\.goBack\(\)/);
 assert.match(checkoutSource, /<StatePickerModal/);
 assert.doesNotMatch(checkoutSource, /State \(2 letters\)/);
 assert.match(checkoutSource, /checkoutGuestMarketplaceTickets_API/);
@@ -75,8 +84,10 @@ assert.match(
   eventDetailsSource,
   /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,
 );
-assert.match(eventDetailsSource, /message: `\$\{shareSubject\}\\nGet Tickets: \$\{url\}`/);
-assert.match(eventDetailsSource, /subject: shareSubject/);
+assert.match(eventDetailsSource, /message = `\$\{shareSubject\}\\nGet Tickets: \$\{url\}`/);
+assert.match(eventDetailsSource, /smsSeparator = Platform\.OS === "ios" \? "&" : "\?"/);
+assert.match(eventDetailsSource, /Linking\.openURL\(`sms:\$\{smsSeparator\}body=\$\{encodeURIComponent\(message\)\}`\)/);
+assert.doesNotMatch(eventDetailsSource, /Share\.share\(/);
 assert.match(apiSource, /MARKETPLACE_GUEST_TICKET_CHECKOUT\(shareToken\)[\s\S]*skipToken: true/);
 
 console.log("customer invitation deep-link wiring checks passed");

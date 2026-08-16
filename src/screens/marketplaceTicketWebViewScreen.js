@@ -12,12 +12,19 @@ import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
 import { normalizeExternalUrl, styles } from "./marketplaceShared";
+import { useSelector } from "react-redux";
+import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 
 const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { isSignedIn } = useSelector((state) => state.authReducer);
   const webViewRef = useRef(null);
   const { url, title = "Tickets" } = route.params || {};
   const ticketUrl = normalizeExternalUrl(url);
+  const exitTicket = () => {
+    const destination = getMarketplaceTicketExitRoute(isSignedIn);
+    navigation.reset({ index: 0, routes: [destination] });
+  };
 
   if (!ticketUrl) {
     return (
@@ -31,9 +38,9 @@ const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.button, { marginTop: 16 }]}
-              onPress={() => navigation.goBack()}
+              onPress={exitTicket}
             >
-              <Text style={styles.buttonText}>Back to Event</Text>
+              <Text style={styles.buttonText}>Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -48,7 +55,7 @@ const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
         <TouchableOpacity
           activeOpacity={0.7}
           hitSlop={10}
-          onPress={() => navigation.goBack()}
+          onPress={exitTicket}
         >
           <MaterialIcons name="close" size={24} color={AppColor.primary} />
         </TouchableOpacity>
@@ -94,7 +101,7 @@ const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
           shadowOffset: { width: 0, height: 2 },
           elevation: 4,
         }}
-        onPress={() => navigation.goBack()}
+        onPress={exitTicket}
       >
         <MaterialIcons name="arrow-back" size={18} color={AppColor.primary} />
         <Text style={[styles.secondaryButtonText, { marginLeft: 4 }]}>

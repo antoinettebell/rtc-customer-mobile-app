@@ -9,7 +9,6 @@ import {
   Platform,
   StyleSheet,
   ScrollView,
-  Share,
   Text,
   TextInput,
   TouchableOpacity,
@@ -530,19 +529,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       const url = response?.data?.share_url;
       if (!url) throw new Error("Event link unavailable.");
       const shareSubject = `${event.event_name} - ${formatDate(event.event_date)} @ ${formatEventTime(event.event_time, event)}`;
-      await Share.share(
-        {
-          title: shareSubject,
-          message: `${shareSubject}\nGet Tickets: ${url}`,
-          url,
-        },
-        {
-          subject: shareSubject,
-          dialogTitle: shareSubject,
-        },
-      );
+      const message = `${shareSubject}\nGet Tickets: ${url}`;
+      const smsSeparator = Platform.OS === "ios" ? "&" : "?";
+      await Linking.openURL(`sms:${smsSeparator}body=${encodeURIComponent(message)}`);
     } catch (error) {
-      Alert.alert("Share Event", error?.message || "Unable to create the event link.");
+      Alert.alert("Share Event via Text", error?.message || "Unable to open text messages.");
     }
   };
 
@@ -1107,7 +1098,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               {!event?.ticket_sales_closed_at && eventStatus !== "CANCELLED" ? (
                 <>
                   <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                    <Text style={styles.secondaryButtonText}>Share Event</Text>
+                    <Text style={styles.secondaryButtonText}>Share Event via Text</Text>
                   </TouchableOpacity>
                   <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                     <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
@@ -1184,7 +1175,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
             <>
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                <Text style={styles.secondaryButtonText}>Share Event</Text>
+                <Text style={styles.secondaryButtonText}>Share Event via Text</Text>
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                 <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
