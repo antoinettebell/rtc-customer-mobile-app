@@ -45,6 +45,15 @@
         <category android:name="android.intent.category.BROWSABLE" />
         <data android:scheme="rtc-customer" android:host="invite" />
       </intent-filter>
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+          android:scheme="https"
+          android:host="tickets.roundthecornerapp.com"
+          android:pathPrefix="/events/" />
+      </intent-filter>
     </activity>
   </application>
 </manifest>

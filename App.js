@@ -7,7 +7,11 @@ import {
   Platform,
   TouchableOpacity,
 } from "react-native";
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import {
+  DefaultTheme,
+  NavigationContainer,
+  getStateFromPath as getNavigationStateFromPath,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSelector, useDispatch } from "react-redux";
@@ -19,6 +23,7 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
+import { normalizeCustomerInvitationPath } from "./src/helpers/customerInvitationDeepLink.helper";
 import {
   createAndroidChannel,
   requestNotificationPermission,
@@ -80,7 +85,12 @@ const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
 
 const linking = {
-  prefixes: ["rtc-customer://"],
+  prefixes: ["rtc-customer://", "https://tickets.roundthecornerapp.com"],
+  getStateFromPath: (path, options) =>
+    getNavigationStateFromPath(
+      normalizeCustomerInvitationPath(path),
+      options,
+    ),
   config: {
     screens: {
       rateTruckScreen: "review",
