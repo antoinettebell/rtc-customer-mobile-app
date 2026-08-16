@@ -19,6 +19,7 @@ import {
   SupportedNetworkEnum,
 } from "@rnw-community/react-native-payments";
 import AppHeader from "../components/AppHeader";
+import StatePickerModal from "../components/StatePickerModal";
 import StatusBarManager from "../components/StatusBarManager";
 import Config from "../config/env";
 import { AppColor } from "../utils/theme";
@@ -246,8 +247,23 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         </View>
       ) : null}
       <View style={styles.card}><Text style={styles.title}>Billing Address</Text>
-        {[["line1", "Street address"], ["city", "City"], ["region", "State (2 letters)"], ["postalCode", "ZIP code"]].map(([key, placeholder]) =>
+        {[["line1", "Street address"], ["city", "City"]].map(([key, placeholder]) =>
           <TextInput key={key} value={address[key]} onChangeText={(value) => setAddress((old) => ({ ...old, [key]: value }))} placeholder={placeholder} placeholderTextColor={AppColor.textPlaceholder} autoCapitalize={key === "region" ? "characters" : "words"} style={local.input} />)}
+        <View style={local.statePicker}>
+          <StatePickerModal
+            label="State"
+            value={address.region}
+            onChangeText={(value) => setAddress((old) => ({ ...old, region: value }))}
+          />
+        </View>
+        <TextInput
+          value={address.postalCode}
+          onChangeText={(value) => setAddress((old) => ({ ...old, postalCode: value }))}
+          placeholder="ZIP code"
+          placeholderTextColor={AppColor.textPlaceholder}
+          keyboardType="number-pad"
+          style={local.input}
+        />
       </View>
       <Text style={styles.meta}>A 3.5% processing fee and applicable sales tax are shown in the wallet before payment.</Text>
       <TouchableOpacity style={[styles.button, loading && { opacity: 0.6 }]} disabled={loading} onPress={purchase}>
@@ -264,6 +280,7 @@ const local = StyleSheet.create({
   stepText: { color: AppColor.white, fontSize: 24, fontWeight: "700" },
   quantity: { width: 40, textAlign: "center", fontSize: 18, fontWeight: "700" },
   input: { minHeight: 48, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, paddingHorizontal: 12, marginTop: 12, color: AppColor.text },
+  statePicker: { marginTop: 12 },
 });
 
 export default MarketplaceTicketCheckoutScreen;

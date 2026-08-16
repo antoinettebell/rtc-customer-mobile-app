@@ -529,11 +529,18 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       const response = await createMarketplaceTicketShareLink_API(event.event_id);
       const url = response?.data?.share_url;
       if (!url) throw new Error("Event link unavailable.");
-      await Share.share({
-        title: event.event_name,
-        message: `Check out ${event.event_name}. Create or sign in to your Round Da' Corner customer profile, then purchase tickets: ${url}`,
-        url,
-      });
+      const shareSubject = `${event.event_name} - ${formatDate(event.event_date)} @ ${formatEventTime(event.event_time, event)}`;
+      await Share.share(
+        {
+          title: shareSubject,
+          message: `${shareSubject}\nGet Tickets: ${url}`,
+          url,
+        },
+        {
+          subject: shareSubject,
+          dialogTitle: shareSubject,
+        },
+      );
     } catch (error) {
       Alert.alert("Share Event", error?.message || "Unable to create the event link.");
     }

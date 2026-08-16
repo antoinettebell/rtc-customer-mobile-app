@@ -37,9 +37,17 @@ assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
 assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
 assert.match(checkoutSource, /Contact Information/);
+assert.match(checkoutSource, /<StatePickerModal/);
+assert.doesNotMatch(checkoutSource, /State \(2 letters\)/);
 assert.match(checkoutSource, /checkoutGuestMarketplaceTickets_API/);
 assert.doesNotMatch(checkoutSource, /AsyncStorage|persist|saveCart/i);
 assert.match(eventDetailsSource, /!isSignedIn && !shareToken/);
+assert.match(
+  eventDetailsSource,
+  /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,
+);
+assert.match(eventDetailsSource, /message: `\$\{shareSubject\}\\nGet Tickets: \$\{url\}`/);
+assert.match(eventDetailsSource, /subject: shareSubject/);
 assert.match(apiSource, /MARKETPLACE_GUEST_TICKET_CHECKOUT\(shareToken\)[\s\S]*skipToken: true/);
 
 console.log("customer invitation deep-link wiring checks passed");
