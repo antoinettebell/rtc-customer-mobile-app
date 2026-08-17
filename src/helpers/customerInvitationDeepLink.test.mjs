@@ -69,9 +69,12 @@ assert.match(
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen"/);
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
 assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
-assert.match(checkoutSource, /Contact Information/);
+assert.match(checkoutSource, /Contact & Billing Information/);
 assert.match(checkoutSource, /Email address \(required\)/);
-assert.match(checkoutSource, /Tickets and QR codes will be emailed to/);
+assert.match(checkoutSource, /Phone number \(required\)/);
+assert.match(checkoutSource, /Tickets and QR codes are texted to the phone number and emailed to the email address below/);
+assert.match(checkoutSource, /Email: \{accountEmail/);
+assert.match(checkoutSource, /Phone: \{accountPhone/);
 assert.match(checkoutSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
 assert.match(ticketWebViewSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
 assert.doesNotMatch(ticketWebViewSource, /navigation\.goBack\(\)/);

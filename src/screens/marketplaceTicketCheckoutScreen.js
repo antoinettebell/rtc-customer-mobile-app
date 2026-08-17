@@ -81,6 +81,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   });
   const [address, setAddress] = useState({ line1: "", city: "", region: "", postalCode: "" });
   const [loading, setLoading] = useState(false);
+  const accountEmail = String(user?.email || "").trim();
+  const accountPhone = `${user?.countryCode || ""}${user?.mobileNumber || ""}`.trim();
 
   useEffect(() => {
     if (event || !shareToken) return;
@@ -215,15 +217,16 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         <TicketRow type="ga" label="General Admission" price={event?.ga_ticket_price} quantity={ga} />
         <TicketRow type="vip" label="VIP" price={event?.vip_ticket_price} quantity={vip} />
       </View>
-      {guestCheckout ? (
-        <View style={styles.card}>
-          <Text style={styles.title}>Contact Information</Text>
-          <Text style={styles.meta}>Used to deliver tickets and contact you if a refund is required.</Text>
+      <View style={styles.card}>
+        <Text style={styles.title}>Contact & Billing Information</Text>
+        <Text style={styles.meta}>Tickets and QR codes are texted to the phone number and emailed to the email address below. We also use this information if a refund is required.</Text>
+        {guestCheckout ? (
+          <>
           {[
             ["first_name", "First name", "default"],
             ["last_name", "Last name", "default"],
             ["email", "Email address (required)", "email-address"],
-            ["phone", "Phone number", "phone-pad"],
+            ["phone", "Phone number (required)", "phone-pad"],
           ].map(([key, placeholder, keyboardType]) => (
             <TextInput
               key={key}
@@ -236,16 +239,14 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
               style={local.input}
             />
           ))}
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.title}>Ticket Delivery</Text>
+          </>
+        ) : (
           <Text style={styles.meta}>
-            Tickets and QR codes will be emailed to {user?.email || "the email address on your customer account"}.
+            Email: {accountEmail || "Not available"}{"\n"}
+            Phone: {accountPhone || "Not available"}
           </Text>
-        </View>
-      )}
-      <View style={styles.card}><Text style={styles.title}>Billing Address</Text>
+        )}
+        <Text style={[styles.title, local.billingTitle]}>Billing Address</Text>
         {[["line1", "Street address"], ["city", "City"]].map(([key, placeholder]) =>
           <TextInput key={key} value={address[key]} onChangeText={(value) => setAddress((old) => ({ ...old, [key]: value }))} placeholder={placeholder} placeholderTextColor={AppColor.textPlaceholder} autoCapitalize={key === "region" ? "characters" : "words"} style={local.input} />)}
         <View style={local.statePicker}>
@@ -274,6 +275,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
 
 const local = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  billingTitle: { marginTop: 20 },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#ddd" },
   step: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: AppColor.primary },
   stepText: { color: AppColor.white, fontSize: 24, fontWeight: "700" },
