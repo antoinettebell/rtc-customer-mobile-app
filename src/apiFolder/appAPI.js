@@ -86,6 +86,8 @@ import {
   MARKETPLACE_TICKET_INVITATION,
   MARKETPLACE_GUEST_TICKET_QUOTE,
   MARKETPLACE_GUEST_TICKET_CHECKOUT,
+  PUBLIC_MARKETPLACE_GUEST_TICKET_QUOTE,
+  PUBLIC_MARKETPLACE_GUEST_TICKET_CHECKOUT,
   MARKETPLACE_MY_TICKETS,
   MARKETPLACE_TAX_EXEMPTION_CERTIFICATE,
 } from "./apiEndPoint";
@@ -1309,6 +1311,32 @@ export const quoteGuestMarketplaceTickets_API = async ({ shareToken, payload }) 
   try {
     const response = await apiClient.post(
       MARKETPLACE_GUEST_TICKET_QUOTE(shareToken),
+      payload,
+      { skipToken: true }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const checkoutPublicGuestMarketplaceTickets_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      PUBLIC_MARKETPLACE_GUEST_TICKET_CHECKOUT(eventId),
+      payload,
+      { skipToken: true }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const quotePublicGuestMarketplaceTickets_API = async ({ eventId, payload }) => {
+  try {
+    const response = await apiClient.post(
+      PUBLIC_MARKETPLACE_GUEST_TICKET_QUOTE(eventId),
       payload,
       { skipToken: true }
     );

@@ -39,7 +39,6 @@ import {
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
-import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 import { canCancelCoordinatorEvent } from "../helpers/customerRegression.helper";
 import { isPdfAttachment } from "../helpers/customerPunchList.helper";
 import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
@@ -494,11 +493,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const handleCustomerEventImagePress = async () => {
     if (!ticketSalesEnabled) return;
 
-    if (!isSignedIn && !shareToken) {
-      showGuestSignupRequired(navigation);
-      return;
-    }
-
     if (eventId) {
       try {
         await trackPublicMarketplaceTicketClick_API(eventId);
@@ -511,10 +505,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleBuyTickets = () => {
-    if (!isSignedIn && !shareToken) {
-      showGuestSignupRequired(navigation);
-      return;
-    }
     navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
   };
 

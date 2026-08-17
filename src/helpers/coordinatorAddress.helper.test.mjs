@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   buildCoordinatorAddressProfileFields,
   getCoordinatorAddressSelectionFromLocation,
@@ -132,5 +133,19 @@ const incompleteLocationSelection = getCoordinatorAddressSelectionFromLocation({
 });
 assert.equal(incompleteLocationSelection.isComplete, false);
 assert.match(incompleteLocationSelection.error, /ZIP code/);
+
+const ticketCheckoutSource = await readFile(
+  new URL("../screens/marketplaceTicketCheckoutScreen.js", import.meta.url),
+  "utf8",
+);
+assert.match(ticketCheckoutSource, /GooglePlacesAutocomplete/);
+assert.doesNotMatch(
+  ticketCheckoutSource,
+  /textInputProps=\{\{[\s\S]*?value:\s*address\.line1[\s\S]*?\}\}/,
+  "Google Places street input must not be controlled by its own onChange state",
+);
+assert.match(ticketCheckoutSource, /onPress={selectGoogleAddress}/);
+assert.match(ticketCheckoutSource, /getGooglePlaceAddressSelection/);
+assert.match(ticketCheckoutSource, /components: "country:us"/);
 
 console.log("Coordinator address autocomplete tests passed.");

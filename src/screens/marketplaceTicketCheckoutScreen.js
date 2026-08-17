@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import {
   PaymentRequest,
   SupportedNetworkEnum,
 } from "@rnw-community/react-native-payments";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import AppHeader from "../components/AppHeader";
 import StatePickerModal from "../components/StatePickerModal";
 import StatusBarManager from "../components/StatusBarManager";
@@ -26,13 +27,18 @@ import { AppColor } from "../utils/theme";
 import {
   checkoutMarketplaceTickets_API,
   checkoutGuestMarketplaceTickets_API,
+  checkoutPublicGuestMarketplaceTickets_API,
   getMarketplaceTicketInvitation_API,
   quoteMarketplaceTickets_API,
   quoteGuestMarketplaceTickets_API,
+  quotePublicGuestMarketplaceTickets_API,
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
-import { splitUsFormattedAddress } from "../helpers/address.helper";
+import {
+  getGooglePlaceAddressSelection,
+  splitUsFormattedAddress,
+} from "../helpers/address.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -71,7 +77,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   const { event: initialEvent, shareToken } = route.params || {};
   const [event, setEvent] = useState(initialEvent || null);
   const [eventLoading, setEventLoading] = useState(!initialEvent && !!shareToken);
-  const guestCheckout = !!shareToken && !isSignedIn;
+  const guestCheckout = !isSignedIn;
   const [ga, setGa] = useState(0);
   const [vip, setVip] = useState(0);
   const [purchaser, setPurchaser] = useState({
@@ -81,6 +87,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     phone: "",
   });
   const [address, setAddress] = useState({ line1: "", city: "", region: "", postalCode: "" });
+  const addressSearchRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const accountEmail = String(user?.email || "").trim();
   const accountPhone = `${user?.countryCode || ""}${user?.mobileNumber || ""}`.trim();
@@ -126,6 +133,20 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         }
       : { ...old, line1: value });
   };
+  const selectGoogleAddress = (data, details) => {
+    const selection = getGooglePlaceAddressSelection({ data, details });
+    if (!selection.shouldCloseSelection) {
+      Alert.alert("Billing Address", selection.error);
+      return;
+    }
+    setAddress({
+      line1: selection.address.line1,
+      city: selection.address.city,
+      region: selection.address.state,
+      postalCode: selection.address.zip,
+    });
+    addressSearchRef.current?.setAddressText(selection.address.line1);
+  };
   const billingAddress = { ...address, region: address.region.trim().toUpperCase(), country: "US" };
   const addressComplete = address.line1.trim() && address.city.trim() &&
     billingAddress.region.length === 2 && address.postalCode.trim();
@@ -160,7 +181,9 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         ...(guestCheckout ? { purchaser } : {}),
       };
       const quoteResponse = guestCheckout
-        ? await quoteGuestMarketplaceTickets_API({ shareToken, payload })
+        ? shareToken
+          ? await quoteGuestMarketplaceTickets_API({ shareToken, payload })
+          : await quotePublicGuestMarketplaceTickets_API({ eventId: event.event_id, payload })
         : await quoteMarketplaceTickets_API({ eventId: event.event_id, payload });
       const quote = quoteResponse.data?.quote;
       const total = Number(quote?.totalAmount || 0).toFixed(2);
@@ -184,7 +207,9 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         idempotency_key: idempotencyKey,
       };
       const checkout = guestCheckout
-        ? await checkoutGuestMarketplaceTickets_API({ shareToken, payload: checkoutPayload })
+        ? shareToken
+          ? await checkoutGuestMarketplaceTickets_API({ shareToken, payload: checkoutPayload })
+          : await checkoutPublicGuestMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutPayload })
         : await checkoutMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutPayload });
       response.complete("success");
       const tickets = checkout.data?.tickets || [];
@@ -262,16 +287,45 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
           </Text>
         )}
         <Text style={[styles.title, local.billingTitle]}>Billing Address</Text>
-        <TextInput
-          value={address.line1}
-          onChangeText={updateStreetAddress}
-          placeholder="Street address"
-          placeholderTextColor={AppColor.textPlaceholder}
-          autoCapitalize="words"
-          autoComplete="off"
-          textContentType="streetAddressLine1"
-          style={local.input}
-        />
+        <View style={local.placesWrapper}>
+          <GooglePlacesAutocomplete
+            ref={addressSearchRef}
+            placeholder="Street address"
+            fetchDetails
+            debounce={250}
+            enablePoweredByContainer={false}
+            predefinedPlaces={[]}
+            keyboardShouldPersistTaps="always"
+            minLength={2}
+            timeout={20000}
+            onPress={selectGoogleAddress}
+            onFail={() => {
+              Alert.alert("Billing Address", "Address search failed. Please try again.");
+            }}
+            query={{
+              key: Config.GOOGLE_MAP_API_KEY,
+              language: "en",
+              types: "geocode|establishment",
+              components: "country:us",
+            }}
+            textInputProps={{
+              onChangeText: updateStreetAddress,
+              placeholderTextColor: AppColor.textPlaceholder,
+              returnKeyType: "search",
+              autoCapitalize: "words",
+              autoCorrect: false,
+            }}
+            styles={{
+              container: local.placesContainer,
+              textInputContainer: local.placesInputContainer,
+              textInput: local.placesInput,
+              listView: local.placesList,
+              row: local.placesRow,
+              description: local.placesDescription,
+              separator: local.placesSeparator,
+            }}
+          />
+        </View>
         <TextInput
           value={address.city}
           onChangeText={(value) => setAddress((old) => ({ ...old, city: value }))}
@@ -316,6 +370,14 @@ const local = StyleSheet.create({
   stepText: { color: AppColor.white, fontSize: 24, fontWeight: "700" },
   quantity: { width: 40, textAlign: "center", fontSize: 18, fontWeight: "700" },
   input: { minHeight: 48, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, paddingHorizontal: 12, marginTop: 12, color: AppColor.text },
+  placesWrapper: { marginTop: 12, zIndex: 20 },
+  placesContainer: { flex: 0 },
+  placesInputContainer: { borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white },
+  placesInput: { minHeight: 48, height: 48, margin: 0, paddingHorizontal: 12, color: AppColor.text, backgroundColor: AppColor.white, borderRadius: 10 },
+  placesList: { borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, marginTop: 4, backgroundColor: AppColor.white, zIndex: 30, elevation: 4 },
+  placesRow: { paddingVertical: 12, paddingHorizontal: 12 },
+  placesDescription: { color: AppColor.text },
+  placesSeparator: { height: StyleSheet.hairlineWidth, backgroundColor: "#d8dee8" },
   statePicker: { marginTop: 12 },
 });
 

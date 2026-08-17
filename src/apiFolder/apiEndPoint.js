@@ -177,6 +177,10 @@ export const MARKETPLACE_GUEST_TICKET_QUOTE = (share_token) =>
   `/public/marketplace/ticket-invitations/${share_token}/quote`;
 export const MARKETPLACE_GUEST_TICKET_CHECKOUT = (share_token) =>
   `/public/marketplace/ticket-invitations/${share_token}/checkout`;
+export const PUBLIC_MARKETPLACE_GUEST_TICKET_QUOTE = (event_id) =>
+  `/public/marketplace/events/${event_id}/tickets/quote`;
+export const PUBLIC_MARKETPLACE_GUEST_TICKET_CHECKOUT = (event_id) =>
+  `/public/marketplace/events/${event_id}/tickets/checkout`;
 export const MARKETPLACE_MY_TICKETS = "/marketplace/tickets/my";
 export const MARKETPLACE_TAX_EXEMPTION_CERTIFICATE = (event_id) =>
   `/marketplace/events/${event_id}/tax-exemption-certificate`;
