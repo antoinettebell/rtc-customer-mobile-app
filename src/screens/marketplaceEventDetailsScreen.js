@@ -458,6 +458,15 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isDraft = eventStatus === "DRAFT";
   const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
   const isClosed = event?.status === "CLOSED";
+  const hasCoordinatorVendorPaymentDue = (event?.awarded_bids || []).some(
+    (bid) =>
+      bid?.bid_status === "AWARDED" &&
+      !bid?.award_revoked_at &&
+      Number(bid?.full_bid_amount || 0) > 0 &&
+      bid?.final_payment_status !== "PAID",
+  );
+  const canCloseEvent =
+    isPublished || (eventStatus === "AWARDED" && !hasCoordinatorVendorPaymentDue);
   const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
   const canCancelEvent = canCancelCoordinatorEvent({ status: eventStatus });
@@ -539,7 +548,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleCloseTicketSales = () => Alert.alert(
     "Close Ticket Sales",
-    "Customers will no longer be able to purchase tickets. Ticket scanning will remain available until you close check-in.",
+    "Customers will no longer be able to purchase tickets. Ticket scanning remains available until check-in is closed or 24 hours after the event start.",
     [
       { text: "Keep Open", style: "cancel" },
       { text: "Close Sales", style: "destructive", onPress: async () => {
@@ -1123,7 +1132,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           >
             <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
           </TouchableOpacity>
-          {isPublished ? (
+          {canCloseEvent ? (
             <TouchableOpacity
               activeOpacity={0.7}
               style={[styles.secondaryButton, safeStyles.dangerButton]}
