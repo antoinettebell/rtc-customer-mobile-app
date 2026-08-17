@@ -91,8 +91,29 @@ export const isEligiblePublicEvent = (item, now = Date.now()) => {
   if (item?.type !== "EVENT") return true;
   const event = item?.raw || item;
   if (event?.event_visibility && event.event_visibility !== "PUBLIC") return false;
+  if (event?.status === "CLOSED" && isTicketPurchaseAvailable(event)) return true;
   const end = getEventEndTimestamp(event);
   return !Number.isFinite(end) || end >= now;
+};
+
+export const isTicketPurchaseAvailable = (event = {}) => {
+  if (!event?.ticket_sales_enabled || event?.ticket_sales_closed_at) return false;
+  if (["DRAFT", "CANCELLED"].includes(event?.status)) return false;
+  const remainingGa = Math.max(
+    0,
+    Number(event?.ga_ticket_quantity || 0) -
+      Number(event?.ga_tickets_sold || 0) -
+      Number(event?.ga_tickets_reserved || 0),
+  );
+  const remainingVip = event?.vip_section_enabled
+    ? Math.max(
+      0,
+      Number(event?.vip_ticket_quantity || 0) -
+        Number(event?.vip_tickets_sold || 0) -
+        Number(event?.vip_tickets_reserved || 0),
+    )
+    : 0;
+  return remainingGa + remainingVip > 0;
 };
 
 export const reconcileUploadResults = (attachments, results) => ({

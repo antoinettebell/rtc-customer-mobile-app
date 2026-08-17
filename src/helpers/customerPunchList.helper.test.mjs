@@ -7,6 +7,7 @@ import {
   getSelectedOptionLabels,
   getAttachmentSaveOutcome,
   isEligiblePublicEvent,
+  isTicketPurchaseAvailable,
   isPdfAttachment,
   reconcileUploadResults,
   removeEventImageAt,
@@ -97,6 +98,27 @@ assert.equal(isEligiblePublicEvent({ type: "EVENT", event_visibility: "PUBLIC", 
 assert.equal(isEligiblePublicEvent({ type: "EVENT", event_visibility: "PUBLIC", event_end_at: "2026-08-08T11:00:00Z" }, now), false);
 assert.equal(isEligiblePublicEvent({ type: "EVENT", event_visibility: "PRIVATE", event_end_at: "2026-08-09T11:00:00Z" }, now), false);
 assert.equal(isEligiblePublicEvent({ type: "FOOD" }, now), true);
+const closedTicketEvent = {
+  type: "EVENT",
+  status: "CLOSED",
+  event_visibility: "PUBLIC",
+  event_end_at: "2026-08-08T11:00:00Z",
+  ticket_sales_enabled: true,
+  ticket_sales_closed_at: null,
+  ga_ticket_quantity: 10,
+  ga_tickets_sold: 9,
+  ga_tickets_reserved: 0,
+};
+assert.equal(isEligiblePublicEvent(closedTicketEvent, now), true);
+assert.equal(isTicketPurchaseAvailable(closedTicketEvent), true);
+assert.equal(isEligiblePublicEvent({
+  ...closedTicketEvent,
+  ticket_sales_closed_at: "2026-08-08T11:30:00Z",
+}, now), false);
+assert.equal(isEligiblePublicEvent({
+  ...closedTicketEvent,
+  ga_tickets_sold: 10,
+}, now), false);
 assert.equal(
   isEligiblePublicEvent(
     {

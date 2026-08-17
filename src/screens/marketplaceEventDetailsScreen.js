@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -40,7 +40,10 @@ import {
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
 import { canCancelCoordinatorEvent } from "../helpers/customerRegression.helper";
-import { isPdfAttachment } from "../helpers/customerPunchList.helper";
+import {
+  isPdfAttachment,
+  isTicketPurchaseAvailable,
+} from "../helpers/customerPunchList.helper";
 import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import {
@@ -379,6 +382,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [closeComment, setCloseComment] = useState("");
   const [closingEvent, setClosingEvent] = useState(false);
   const [finalPaymentLoadingId, setFinalPaymentLoadingId] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const [ticketSummary, setTicketSummary] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
@@ -388,6 +392,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     budget: true,
     visibility: true,
   });
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadQuestions = async () => {
     if (!eventId || customerView) return;
@@ -450,6 +459,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .filter(Boolean)
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
+  const ticketPurchaseAvailable = isTicketPurchaseAvailable(event);
   const ticketUrl = normalizeExternalUrl(event?.ticket_url);
   const showEventVisibility =
     event?.event_visibility === "PUBLIC" && ticketSalesEnabled && !!ticketUrl;
@@ -482,12 +492,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
     "Ticket availability details are not available in the app yet.";
-  if (ticketSalesEnabled && !event?.ticket_sales_closed_at) {
+  if (ticketPurchaseAvailable) {
     ticketAvailabilityMessage = imageUrls.length
       ? "Tap an event image to preview it, or select Buy Tickets below."
       : "Select Buy Tickets below to choose GA or VIP tickets.";
   } else if (ticketSalesEnabled) {
-    ticketAvailabilityMessage = "Ticket sales are closed for this event.";
+    ticketAvailabilityMessage = event?.ticket_sales_closed_at
+      ? "Ticket sales are closed for this event."
+      : "Tickets are no longer available to purchase.";
   }
 
   const handleCustomerEventImagePress = async () => {
@@ -691,7 +703,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             </ScrollView>
           </ScrollView>
 
-          {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
+          {ticketPurchaseAvailable ? (
             <View
               style={[
                 safeStyles.imagePreviewFooter,
@@ -968,11 +980,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	          const finalPaymentStatus = record.final_payment_status || "NOT_STARTED";
 	          const awardAmount = getAwardAmount(record, event);
 	          const paymentActionId = record.bid_id || record.application_id;
-	          const eventEndAt = event?.final_payment_timing?.event_end_at
-	            ? new Date(event.final_payment_timing.event_end_at).getTime()
+	          const paymentAvailableAt = event?.final_payment_timing?.available_at
+	            ? new Date(event.final_payment_timing.available_at).getTime()
 	            : null;
-	          const eventHasEnded =
-	            Number.isFinite(eventEndAt) && Date.now() >= eventEndAt;
+	          const eventHasStarted =
+	            Number.isFinite(paymentAvailableAt) && currentTime >= paymentAvailableAt;
 	          const openFinalPayment = async () => {
 	            setFinalPaymentLoadingId(paymentActionId);
 	            try {
@@ -1033,10 +1045,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	                <TouchableOpacity
 	                  activeOpacity={0.7}
 	                  onPress={openFinalPayment}
-	                  disabled={!!finalPaymentLoadingId || !eventHasEnded}
+	                  disabled={!!finalPaymentLoadingId || !eventHasStarted}
 	                  style={[
 	                    styles.button,
-	                    { marginTop: 10, opacity: eventHasEnded ? 1 : 0.5 },
+	                    { marginTop: 10, opacity: eventHasStarted ? 1 : 0.5 },
 	                  ]}
 	                >
 	                  {finalPaymentLoadingId === paymentActionId ? (
@@ -1171,7 +1183,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </>
           ) : null}
-          {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
+          {ticketPurchaseAvailable ? (
             <>
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
                 <Text style={styles.secondaryButtonText}>Share Event via Text</Text>
@@ -1226,7 +1238,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               <Text style={safeStyles.ticketText}>
                 {ticketAvailabilityMessage}
               </Text>
-              {ticketSalesEnabled && !event?.ticket_sales_closed_at ? (
+              {ticketPurchaseAvailable ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={[styles.button, safeStyles.ticketButton]}
