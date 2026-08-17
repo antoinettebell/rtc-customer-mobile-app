@@ -6,6 +6,7 @@ import {
   hydrateCoordinatorAddressProfileFields,
   normalizeAddressStateInput,
   parseUsAddressFromGooglePlace,
+  splitUsFormattedAddress,
 } from "./address.helper.js";
 
 const fullDetails = parseUsAddressFromGooglePlace({
@@ -53,6 +54,22 @@ assert.equal(legacyCommaStyle.line1, "318 Rockingham Rd");
 assert.equal(legacyCommaStyle.city, "Columbia");
 assert.equal(legacyCommaStyle.state, "SC");
 assert.equal(legacyCommaStyle.zip, "29223");
+
+assert.deepEqual(
+  splitUsFormattedAddress("138 Essie Bell Rd, Eastover SC 29044"),
+  {
+    line1: "138 Essie Bell Rd",
+    city: "Eastover",
+    state: "SC",
+    zip: "29044",
+  },
+);
+assert.deepEqual(splitUsFormattedAddress("138 Essie Bell Rd"), {
+  line1: "",
+  city: "",
+  state: "",
+  zip: "",
+});
 
 const validSelection = getGooglePlaceAddressSelection({
   data: { description: "318 Rockingham Rd, Columbia, SC 29223, USA" },

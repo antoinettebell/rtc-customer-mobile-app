@@ -1,7 +1,7 @@
 const getAddressPart = (components = [], type, field = "long_name") =>
   components.find((component) => component.types?.includes(type))?.[field] || "";
 
-const parseFallbackAddress = (formattedAddress = "") => {
+export const splitUsFormattedAddress = (formattedAddress = "") => {
   const parts = String(formattedAddress)
     .split(",")
     .map((part) => part.trim())
@@ -33,6 +33,8 @@ const parseFallbackAddress = (formattedAddress = "") => {
     zip: stateZipMatch?.[2] || cityStateZipMatch?.[3] || "",
   };
 };
+
+const parseFallbackAddress = splitUsFormattedAddress;
 
 export const parseUsAddressFromGooglePlace = ({
   data,

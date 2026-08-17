@@ -32,6 +32,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
+import { splitUsFormattedAddress } from "../helpers/address.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -110,6 +111,20 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     const setter = type === "ga" ? setGa : setVip;
     const current = type === "ga" ? ga : vip;
     setter(Math.max(0, Math.min(remaining(type), current + delta)));
+  };
+  const updateStreetAddress = (value) => {
+    const parsed = splitUsFormattedAddress(value);
+    const hasCompleteFormattedAddress =
+      parsed.line1 && parsed.city && parsed.state && parsed.zip;
+    setAddress((old) => hasCompleteFormattedAddress
+      ? {
+          ...old,
+          line1: parsed.line1,
+          city: parsed.city,
+          region: parsed.state,
+          postalCode: parsed.zip,
+        }
+      : { ...old, line1: value });
   };
   const billingAddress = { ...address, region: address.region.trim().toUpperCase(), country: "US" };
   const addressComplete = address.line1.trim() && address.city.trim() &&
@@ -247,8 +262,26 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
           </Text>
         )}
         <Text style={[styles.title, local.billingTitle]}>Billing Address</Text>
-        {[["line1", "Street address"], ["city", "City"]].map(([key, placeholder]) =>
-          <TextInput key={key} value={address[key]} onChangeText={(value) => setAddress((old) => ({ ...old, [key]: value }))} placeholder={placeholder} placeholderTextColor={AppColor.textPlaceholder} autoCapitalize={key === "region" ? "characters" : "words"} style={local.input} />)}
+        <TextInput
+          value={address.line1}
+          onChangeText={updateStreetAddress}
+          placeholder="Street address"
+          placeholderTextColor={AppColor.textPlaceholder}
+          autoCapitalize="words"
+          autoComplete="off"
+          textContentType="streetAddressLine1"
+          style={local.input}
+        />
+        <TextInput
+          value={address.city}
+          onChangeText={(value) => setAddress((old) => ({ ...old, city: value }))}
+          placeholder="City"
+          placeholderTextColor={AppColor.textPlaceholder}
+          autoCapitalize="words"
+          autoComplete="off"
+          textContentType="addressCity"
+          style={local.input}
+        />
         <View style={local.statePicker}>
           <StatePickerModal
             label="State"
@@ -262,6 +295,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
           placeholder="ZIP code"
           placeholderTextColor={AppColor.textPlaceholder}
           keyboardType="number-pad"
+          autoComplete="postal-code"
+          textContentType="postalCode"
           style={local.input}
         />
       </View>
