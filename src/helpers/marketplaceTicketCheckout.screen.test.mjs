@@ -18,5 +18,8 @@ assert.match(
 );
 assert.match(source, /placesList: \{ maxHeight: 220, marginTop: 4,/);
 assert.doesNotMatch(source, /placesList: \{ position: "absolute"/);
+assert.match(source, /text: guestCheckout \? "View Ticket" : "View All Tickets"/);
+assert.match(source, /navigation\.replace\("marketplaceMyTicketsScreen"\)/);
+assert.doesNotMatch(source, /text: "View First Ticket"/);
 
 console.log("marketplace ticket-checkout render stability tests passed");

@@ -209,11 +209,13 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
       const tickets = checkout.data?.tickets || [];
       Alert.alert("Tickets Purchased", `${tickets.length} ticket${tickets.length === 1 ? "" : "s"} sent by text and email.`, [
         {
-          text: "View First Ticket",
-          onPress: () => tickets[0]?.ticket_url && navigation.replace("marketplaceTicketWebViewScreen", {
-            url: tickets[0].ticket_url,
-            title: event.event_name,
-          }),
+          text: guestCheckout ? "View Ticket" : "View All Tickets",
+          onPress: () => guestCheckout
+            ? tickets[0]?.ticket_url && navigation.replace("marketplaceTicketWebViewScreen", {
+              url: tickets[0].ticket_url,
+              title: event.event_name,
+            })
+            : navigation.replace("marketplaceMyTicketsScreen"),
         },
       ]);
     } catch (error) {
