@@ -103,6 +103,16 @@ assert.deepEqual(
   }),
   { capacity: 125, sold: 20, reserved: 5, remaining: 100 },
 );
+assert.deepEqual(
+  getTicketInventory(null),
+  { capacity: 0, sold: 0, reserved: 0, remaining: 0 },
+  "ticket inventory should remain safe while the event is still loading",
+);
+assert.equal(
+  isTicketInventorySoldOut(null),
+  false,
+  "an event that has not loaded must not render as sold out",
+);
 assert.equal(
   isTicketInventorySoldOut({
     ga_ticket_quantity: 2,

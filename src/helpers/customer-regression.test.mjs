@@ -16,6 +16,11 @@ const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 const createEvent = read("../screens/marketplaceCreateEventScreen.js");
 const marketplaceShared = read("../screens/marketplaceShared.js");
 const details = read("../screens/marketplaceEventDetailsScreen.js");
+assert.match(
+  details,
+  /import\s*\{[\s\S]*getTicketInventory,[\s\S]*isTicketInventorySoldOut,[\s\S]*\}\s*from\s*"\.\.\/helpers\/marketplaceParticipation\.helper"/,
+  "Event Details must import both ticket inventory helpers used during render",
+);
 const profile = read("../screens/userProfileScreen.js");
 const splash = read("../screens/splashScreen.js");
 const guestAction = read("./guestAction.helper.js");

@@ -39,7 +39,10 @@ import {
   isPdfAttachment,
   isTicketPurchaseAvailable,
 } from "../helpers/customerPunchList.helper";
-import { isTicketInventorySoldOut } from "../helpers/marketplaceParticipation.helper";
+import {
+  getTicketInventory,
+  isTicketInventorySoldOut,
+} from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDocuments.helper";
 import {

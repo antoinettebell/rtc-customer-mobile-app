@@ -103,9 +103,10 @@ export const getMarketplaceServiceRequirements = (event = {}, selectedRequiremen
 };
 
 export const getTicketInventory = (event = {}, type = "ga") => {
-  const capacity = Math.max(0, Number(event[`${type}_ticket_quantity`] || 0));
-  const sold = Math.max(0, Number(event[`${type}_tickets_sold`] || 0));
-  const reserved = Math.max(0, Number(event[`${type}_tickets_reserved`] || 0));
+  const safeEvent = event && typeof event === "object" ? event : {};
+  const capacity = Math.max(0, Number(safeEvent[`${type}_ticket_quantity`] || 0));
+  const sold = Math.max(0, Number(safeEvent[`${type}_tickets_sold`] || 0));
+  const reserved = Math.max(0, Number(safeEvent[`${type}_tickets_reserved`] || 0));
   return {
     capacity,
     sold,
