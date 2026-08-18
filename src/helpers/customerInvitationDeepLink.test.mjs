@@ -81,8 +81,12 @@ assert.doesNotMatch(ticketWebViewSource, /navigation\.goBack\(\)/);
 assert.match(checkoutSource, /<StatePickerModal/);
 assert.doesNotMatch(checkoutSource, /State \(2 letters\)/);
 assert.match(checkoutSource, /checkoutGuestMarketplaceTickets_API/);
-assert.doesNotMatch(checkoutSource, /AsyncStorage|persist|saveCart/i);
-assert.match(eventDetailsSource, /!isSignedIn && !shareToken/);
+assert.doesNotMatch(checkoutSource, /AsyncStorage|saveCart|persist(?:ed|ence|Checkout|TicketCart)/i);
+assert.doesNotMatch(eventDetailsSource, /if \(!isSignedIn && !shareToken\)/);
+assert.match(
+  eventDetailsSource,
+  /handleBuyTickets[\s\S]*navigation\.navigate\("marketplaceTicketCheckoutScreen", \{ event, shareToken \}\)/,
+);
 assert.match(
   eventDetailsSource,
   /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,

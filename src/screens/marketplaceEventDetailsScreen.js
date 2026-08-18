@@ -46,6 +46,7 @@ import {
 } from "../helpers/customerPunchList.helper";
 import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
+import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDocuments.helper";
 import {
   formatDate,
   formatEventTime,
@@ -120,29 +121,6 @@ const getVendorName = (record) => {
   if (foodTruck?.name) return foodTruck.name;
   return [vendor?.firstName, vendor?.lastName].filter(Boolean).join(" ") || "Vendor";
 };
-
-const getRecordDocuments = (record) => [
-  ...(record?.menu_pdf_url ? [{ label: "Menu PDF", url: record.menu_pdf_url }] : []),
-  ...(record?.agreement_document_url
-    ? [{ label: "Agreement Document", url: record.agreement_document_url }]
-    : []),
-  ...(record?.signed_document_url
-    ? [{ label: "Signed Document", url: record.signed_document_url }]
-    : []),
-  ...(record?.permit_license_urls || []).map((url, index) => ({
-    label: `Business License/Permit ${index + 1}`,
-    url,
-  })),
-  ...(record?.attachments || [])
-    .filter((attachment) => attachment.file_url || attachment.url)
-    .map((attachment, index) => ({
-      label:
-        attachment.original_name ||
-        attachment.attachment_type ||
-        `Document ${index + 1}`,
-      url: attachment.file_url || attachment.url,
-    })),
-];
 
 const isRecordPaymentFulfilled = (record) =>
   ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED");
@@ -974,7 +952,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           Download signed agreements, permits, licenses, menus, and vendor files.
         </Text>
 	        {awardedRecords.map((record, index) => {
-	          const documents = getRecordDocuments(record);
+	          const documents = getMarketplaceAwardedDocuments(record);
 	          const key =
 	            record.bid_id || record.application_id || `${record.event_id}-${index}`;
 	          const finalPaymentStatus = record.final_payment_status || "NOT_STARTED";

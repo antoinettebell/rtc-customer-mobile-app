@@ -144,8 +144,14 @@ assert.doesNotMatch(
   /textInputProps=\{\{[\s\S]*?value:\s*address\.line1[\s\S]*?\}\}/,
   "Google Places street input must not be controlled by its own onChange state",
 );
+assert.doesNotMatch(
+  ticketCheckoutSource,
+  /textInputProps=\{\{[\s\S]*?onChangeText[\s\S]*?\}\}/,
+  "Ticket checkout must hydrate address fields from a selected Google result",
+);
 assert.match(ticketCheckoutSource, /onPress={selectGoogleAddress}/);
 assert.match(ticketCheckoutSource, /getGooglePlaceAddressSelection/);
 assert.match(ticketCheckoutSource, /components: "country:us"/);
+assert.match(ticketCheckoutSource, /suppressDefaultStyles/);
 
 console.log("Coordinator address autocomplete tests passed.");

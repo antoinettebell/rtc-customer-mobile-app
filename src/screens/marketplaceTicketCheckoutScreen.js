@@ -35,10 +35,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
-import {
-  getGooglePlaceAddressSelection,
-  splitUsFormattedAddress,
-} from "../helpers/address.helper";
+import { getGooglePlaceAddressSelection } from "../helpers/address.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -126,20 +123,6 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     const setter = type === "ga" ? setGa : setVip;
     const current = type === "ga" ? ga : vip;
     setter(Math.max(0, Math.min(remaining(type), current + delta)));
-  };
-  const updateStreetAddress = (value) => {
-    const parsed = splitUsFormattedAddress(value);
-    const hasCompleteFormattedAddress =
-      parsed.line1 && parsed.city && parsed.state && parsed.zip;
-    setAddress((old) => hasCompleteFormattedAddress
-      ? {
-          ...old,
-          line1: parsed.line1,
-          city: parsed.city,
-          region: parsed.state,
-          postalCode: parsed.zip,
-        }
-      : { ...old, line1: value });
   };
   const selectGoogleAddress = (data, details) => {
     const selection = getGooglePlaceAddressSelection({ data, details });
@@ -302,19 +285,23 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
             fetchDetails
             debounce={250}
             enablePoweredByContainer={false}
+            numberOfLines={2}
             predefinedPlaces={NO_PREDEFINED_PLACES}
             keyboardShouldPersistTaps="always"
             minLength={2}
             timeout={20000}
+            suppressDefaultStyles
             onPress={selectGoogleAddress}
             onFail={() => {
               Alert.alert("Billing Address", "Address search failed. Please try again.");
             }}
             query={GOOGLE_PLACES_QUERY}
             textInputProps={{
-              onChangeText: updateStreetAddress,
               placeholderTextColor: AppColor.textPlaceholder,
+              multiline: false,
+              numberOfLines: 1,
               returnKeyType: "search",
+              keyboardType: "default",
               autoCapitalize: "words",
               autoCorrect: false,
             }}
@@ -374,10 +361,10 @@ const local = StyleSheet.create({
   quantity: { width: 40, textAlign: "center", fontSize: 18, fontWeight: "700" },
   input: { minHeight: 48, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, paddingHorizontal: 12, marginTop: 12, color: AppColor.text },
   placesWrapper: { marginTop: 12, zIndex: 20 },
-  placesContainer: { flex: 0 },
+  placesContainer: { flex: 0, zIndex: 50 },
   placesInputContainer: { borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white },
   placesInput: { minHeight: 48, height: 48, margin: 0, paddingHorizontal: 12, color: AppColor.text, backgroundColor: AppColor.white, borderRadius: 10 },
-  placesList: { borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, marginTop: 4, backgroundColor: AppColor.white, zIndex: 30, elevation: 4 },
+  placesList: { position: "absolute", top: 50, left: 0, right: 0, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white, zIndex: 80, elevation: 8 },
   placesRow: { paddingVertical: 12, paddingHorizontal: 12 },
   placesDescription: { color: AppColor.text },
   placesSeparator: { height: StyleSheet.hairlineWidth, backgroundColor: "#d8dee8" },
