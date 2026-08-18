@@ -138,6 +138,9 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     });
     addressSearchRef.current?.setAddressText(selection.address.line1);
   };
+  const updateStreetAddress = (value) => {
+    setAddress((current) => ({ ...current, line1: value }));
+  };
   const billingAddress = { ...address, region: address.region.trim().toUpperCase(), country: "US" };
   const addressComplete = address.line1.trim() && address.city.trim() &&
     billingAddress.region.length === 2 && address.postalCode.trim();
@@ -243,7 +246,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
 
   return <View style={[styles.container, { paddingTop: insets.top }]}>
     <StatusBarManager /><AppHeader headerTitle="Get Tickets" onBackPress={goBackWithoutSaving} />
-    <ScrollView contentContainerStyle={styles.body}>
+    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="always">
       <View style={styles.card}><Text style={styles.title}>{event?.event_name}</Text>
         <TicketRow type="ga" label="General Admission" price={event?.ga_ticket_price} quantity={ga} />
         <TicketRow type="vip" label="VIP" price={event?.vip_ticket_price} quantity={vip} />
@@ -297,6 +300,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
             }}
             query={GOOGLE_PLACES_QUERY}
             textInputProps={{
+              onChangeText: updateStreetAddress,
               placeholderTextColor: AppColor.textPlaceholder,
               multiline: false,
               numberOfLines: 1,
@@ -360,11 +364,11 @@ const local = StyleSheet.create({
   stepText: { color: AppColor.white, fontSize: 24, fontWeight: "700" },
   quantity: { width: 40, textAlign: "center", fontSize: 18, fontWeight: "700" },
   input: { minHeight: 48, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, paddingHorizontal: 12, marginTop: 12, color: AppColor.text },
-  placesWrapper: { marginTop: 12, zIndex: 20 },
-  placesContainer: { flex: 0, zIndex: 50 },
+  placesWrapper: { marginTop: 12 },
+  placesContainer: { flex: 0 },
   placesInputContainer: { borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white },
   placesInput: { minHeight: 48, height: 48, margin: 0, paddingHorizontal: 12, color: AppColor.text, backgroundColor: AppColor.white, borderRadius: 10 },
-  placesList: { position: "absolute", top: 50, left: 0, right: 0, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white, zIndex: 80, elevation: 8 },
+  placesList: { maxHeight: 220, marginTop: 4, borderWidth: 1, borderColor: "#d8dee8", borderRadius: 10, backgroundColor: AppColor.white, elevation: 4 },
   placesRow: { paddingVertical: 12, paddingHorizontal: 12 },
   placesDescription: { color: AppColor.text },
   placesSeparator: { height: StyleSheet.hairlineWidth, backgroundColor: "#d8dee8" },

@@ -12,5 +12,11 @@ assert.match(source, /query=\{GOOGLE_PLACES_QUERY\}/);
 assert.match(source, /predefinedPlaces=\{NO_PREDEFINED_PLACES\}/);
 assert.doesNotMatch(source, /query=\{\{/);
 assert.doesNotMatch(source, /predefinedPlaces=\{\[\]\}/);
+assert.match(
+  source,
+  /<ScrollView contentContainerStyle=\{styles\.body\} keyboardShouldPersistTaps="always">/,
+);
+assert.match(source, /placesList: \{ maxHeight: 220, marginTop: 4,/);
+assert.doesNotMatch(source, /placesList: \{ position: "absolute"/);
 
 console.log("marketplace ticket-checkout render stability tests passed");
