@@ -114,6 +114,12 @@ export const getTicketInventory = (event = {}, type = "ga") => {
   };
 };
 
+export const isTicketInventorySoldOut = (event = {}) => {
+  const ga = getTicketInventory(event, "ga");
+  const vip = getTicketInventory(event, "vip");
+  return ga.capacity + vip.capacity > 0 && ga.remaining + vip.remaining === 0;
+};
+
 export const getMarketplaceFilledSlotSummary = ({
   gaSlotsFilled = 0,
   vipSlotsFilled = 0,

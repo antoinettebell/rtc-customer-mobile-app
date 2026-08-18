@@ -3,14 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
   StyleSheet,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -25,7 +23,6 @@ import {
   getMarketplaceEventById_API,
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
-  closeMarketplaceEvent_API,
   updateMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
   createMarketplaceScannerSession_API,
@@ -33,18 +30,16 @@ import {
   closeMarketplaceTicketSales_API,
   createMarketplaceTicketShareLink_API,
   getMarketplaceTicketSummary_API,
-  cancelMarketplaceTicketedEvent_API,
   getMarketplaceTicketInvitation_API,
   createMarketplaceFinalPayment_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
-import { canCancelCoordinatorEvent } from "../helpers/customerRegression.helper";
 import {
   isPdfAttachment,
   isTicketPurchaseAvailable,
 } from "../helpers/customerPunchList.helper";
-import { getTicketInventory } from "../helpers/marketplaceParticipation.helper";
+import { isTicketInventorySoldOut } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDocuments.helper";
 import {
@@ -129,14 +124,6 @@ const isRecordPaymentFulfilled = (record) =>
 const getAwardAmount = (record, event) =>
   Number(record?.full_bid_amount || record?.final_payment_base_amount || event?.budgeted_amount || 0);
 
-const hasEventDatePassed = (eventDate) => {
-  if (!eventDate) return false;
-  const date = new Date(eventDate);
-  if (Number.isNaN(date.getTime())) return false;
-  date.setHours(23, 59, 59, 999);
-  return date < new Date();
-};
-
 const getEventDurationMinutes = (event) => {
   const safeEvent = event || {};
   const hours = Number(safeEvent.event_duration_hours || 0);
@@ -218,49 +205,6 @@ const safeStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFF1E6",
-  },
-  dangerButton: {
-    borderColor: AppColor.snackbarError,
-  },
-  dangerButtonText: {
-    color: AppColor.snackbarError,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    backgroundColor: AppColor.white,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    padding: 18,
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    justifyContent: "flex-end",
-  },
-  closeCommentInput: {
-    minHeight: 140,
-    marginTop: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: AppColor.borderColor,
-    borderRadius: 10,
-    color: AppColor.text,
-    textAlignVertical: "top",
-  },
-  characterCount: {
-    marginTop: 6,
-    textAlign: "right",
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
-  },
-  modalActionButton: {
-    flex: 1,
   },
   sectionControls: {
     flexDirection: "row",
@@ -357,9 +301,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [event, setEvent] = useState(initialEvent);
   const [loading, setLoading] = useState(!initialEvent);
   const [questions, setQuestions] = useState([]);
-  const [closeModalVisible, setCloseModalVisible] = useState(false);
-  const [closeComment, setCloseComment] = useState("");
-  const [closingEvent, setClosingEvent] = useState(false);
   const [finalPaymentLoadingId, setFinalPaymentLoadingId] = useState(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [ticketSummary, setTicketSummary] = useState(null);
@@ -439,6 +380,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     .join(", ");
   const ticketSalesEnabled = !!event?.ticket_sales_enabled;
   const ticketPurchaseAvailable = isTicketPurchaseAvailable(event);
+  const ticketInventorySoldOut = isTicketInventorySoldOut(event);
   const ticketUrl = normalizeExternalUrl(event?.ticket_url);
   const showEventVisibility =
     event?.event_visibility === "PUBLIC" && ticketSalesEnabled && !!ticketUrl;
@@ -446,27 +388,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isDraft = eventStatus === "DRAFT";
   const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
   const isClosed = event?.status === "CLOSED";
-  const hasCoordinatorVendorPaymentDue = (event?.awarded_bids || []).some(
-    (bid) =>
-      bid?.bid_status === "AWARDED" &&
-      !bid?.award_revoked_at &&
-      Number(bid?.full_bid_amount || 0) > 0 &&
-      bid?.final_payment_status !== "PAID",
-  );
-  const canCloseEvent =
-    isPublished || (eventStatus === "AWARDED" && !hasCoordinatorVendorPaymentDue);
-  const isArchivedClosed = isClosed && !!event?.archived_at;
   const isAwarded = eventStatus === "AWARDED";
-  const canCancelEvent = canCancelCoordinatorEvent({ status: eventStatus });
   const canEditEvent = isPublished;
-  const submissionCount = Number(
-    event?.submission_count ?? event?.final_submission_count ?? 0
-  );
-  const hasAwardedRecords =
-    (event?.awarded_bids || []).length > 0 ||
-    (event?.awarded_applications || []).length > 0 ||
-    isAwarded;
-  const hasSubmissionsWithoutAwards = submissionCount > 0 && !hasAwardedRecords;
   const canViewAwardedDocs =
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
@@ -478,7 +401,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   } else if (ticketSalesEnabled) {
     ticketAvailabilityMessage = event?.ticket_sales_closed_at
       ? "Ticket sales are closed for this event."
-      : "Tickets are no longer available to purchase.";
+      : ticketInventorySoldOut
+        ? "Sorry, this event is sold out."
+        : "Tickets are no longer available to purchase.";
   }
 
   const handleCustomerEventImagePress = async () => {
@@ -537,28 +462,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           const response = await closeMarketplaceTicketSales_API(event.event_id);
           setEvent(response?.data?.marketplaceEvent || event);
         } catch (error) { Alert.alert("Close Ticket Sales", error?.message || "Unable to close ticket sales."); }
-      } },
-    ]
-  );
-
-  const handleCancelTicketedEvent = () => Alert.alert(
-    "Cancel Event",
-    ticketSalesEnabled
-      ? "Refunds are due immediately upon cancellation. All ticket buyers will be notified by text and email. Events must be cancelled at least 72 hours before they begin."
-      : "This event will be cancelled and affected vendors will be notified. Events must be cancelled at least 72 hours before they begin.",
-    [
-      { text: "Do Not Cancel", style: "cancel" },
-      { text: ticketSalesEnabled ? "Cancel & Refund" : "Cancel Event", style: "destructive", onPress: async () => {
-        try {
-          const response = await cancelMarketplaceTicketedEvent_API(event.event_id);
-          setEvent(response?.data?.marketplaceEvent || event);
-          Alert.alert(
-            "Event Cancelled",
-            ticketSalesEnabled
-              ? `${response?.data?.refunded_count || 0} refunds issued. ${response?.data?.failed_count || 0} require manual review.`
-              : "The event was cancelled and affected vendors will be notified.",
-          );
-        } catch (error) { Alert.alert("Cancel Event", error?.message || "Unable to cancel the event."); }
       } },
     ]
   );
@@ -707,80 +610,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           ) : null}
         </View>
       </Modal>
-    );
-  };
-
-  const handleReopenEvent = () => {
-    if (!event) return;
-    const eventDatePassed = hasEventDatePassed(event.event_date);
-
-    Alert.alert(
-      "Reopen Bidding",
-      eventDatePassed
-        ? "Update the event dates before reopening bidding. Previous submissions will be archived and remain visible for comparison."
-        : "This will move you to the event editor. When you submit, previous submissions will be archived and remain visible for comparison.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reopen & Edit",
-          onPress: () => {
-            navigation.navigate("marketplaceCreateEventScreen", {
-              eventId,
-              draftEvent: {
-                ...event,
-                status: "OPEN",
-                event_date: eventDatePassed ? "" : event.event_date,
-                event_close_date: eventDatePassed ? "" : event.event_close_date,
-                event_close_time: eventDatePassed ? "" : event.event_close_time,
-              },
-              reopenMode: true,
-            });
-          },
-        },
-      ]
-    );
-  };
-
-  const handleCloseEventContinue = () => {
-    const trimmedComment = closeComment.trim();
-    if (!trimmedComment) {
-      Alert.alert("Close Event", "Please enter a comment before closing this event.");
-      return;
-    }
-
-    Alert.alert(
-      "Close Event",
-      hasSubmissionsWithoutAwards
-        ? "This event has vendor submissions, but no award has been made. Closing will archive the event and it cannot be reopened. Do you want to continue?"
-        : "Are you sure you want to close and archive this event? This cannot be reopened.",
-      [
-        {
-          text: "Yes",
-          onPress: async () => {
-            setClosingEvent(true);
-            try {
-              const response = await closeMarketplaceEvent_API({
-                eventId,
-                closeComment: trimmedComment,
-              });
-              if (response?.success) {
-                setEvent(response.data?.marketplaceEvent);
-                setCloseModalVisible(false);
-                setCloseComment("");
-              }
-            } catch (error) {
-              Alert.alert("Close Event", error?.message || "Failed to close event.");
-            } finally {
-              setClosingEvent(false);
-            }
-          },
-        },
-        {
-          text: "No",
-          style: "cancel",
-          onPress: () => setCloseModalVisible(false),
-        },
-      ]
     );
   };
 
@@ -1036,7 +865,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	                    <Text style={styles.buttonText}>
 	                      {record.final_payment_id
 	                        ? "Checkout Payment"
-	                        : "Close Event for Payment"}
+	                        : "Checkout Payment"}
 	                    </Text>
 	                  )}
 	                </TouchableOpacity>
@@ -1097,13 +926,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ) : null}
             </>
           ) : null}
-          {canCancelEvent ? (
-            <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
-              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
-                {ticketSalesEnabled ? "Cancel Event & Refund Tickets" : "Cancel Event"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.button}
@@ -1113,31 +935,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           >
             <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
           </TouchableOpacity>
-          {canCloseEvent ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.secondaryButton, safeStyles.dangerButton]}
-              onPress={() => setCloseModalVisible(true)}
-            >
-              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
-                Close Event
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-          {isClosed && !isArchivedClosed ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.secondaryButton, styles.mutedButton]}
-              onPress={handleReopenEvent}
-              disabled={(event?.reopen_count || 0) >= 2}
-            >
-              <Text style={[styles.secondaryButtonText, styles.mutedButtonText]}>
-                {(event?.reopen_count || 0) >= 2
-                  ? "Reopen Limit Reached"
-                  : "Reopen Bidding"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
       );
     }
@@ -1171,13 +968,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
               </TouchableOpacity>
             </>
-          ) : null}
-          {canCancelEvent ? (
-            <TouchableOpacity activeOpacity={0.7} style={[styles.secondaryButton, safeStyles.dangerButton]} onPress={handleCancelTicketedEvent}>
-              <Text style={[styles.secondaryButtonText, safeStyles.dangerButtonText]}>
-                {ticketSalesEnabled ? "Cancel Event & Refund Tickets" : "Cancel Event"}
-              </Text>
-            </TouchableOpacity>
           ) : null}
         </View>
       );
@@ -1536,72 +1326,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
         </ScrollView>
       )}
-      <Modal
-        transparent
-        animationType="fade"
-        visible={closeModalVisible}
-        onRequestClose={() => setCloseModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={safeStyles.modalOverlay}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={safeStyles.modalScrollContent}
-          >
-          <View style={[safeStyles.modalSheet, { paddingBottom: Math.max(insets.bottom, 18) }]}>
-            <Text style={styles.title}>Close Event</Text>
-            <Text style={styles.meta}>
-              Add a closing comment before archiving this event.
-            </Text>
-            <TextInput
-              value={closeComment}
-              onChangeText={(value) => setCloseComment(value.slice(0, 1000))}
-              placeholder="Enter closing comment"
-              placeholderTextColor={AppColor.textPlaceholder}
-              multiline
-              maxLength={1000}
-              editable={!closingEvent}
-              style={safeStyles.closeCommentInput}
-            />
-            <Text style={[styles.meta, safeStyles.characterCount]}>
-              {closeComment.length}/1000
-            </Text>
-            <View style={safeStyles.modalActions}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.secondaryButton,
-                  safeStyles.modalActionButton,
-                  { opacity: closingEvent ? 0.6 : 1 },
-                ]}
-                onPress={() => setCloseModalVisible(false)}
-                disabled={closingEvent}
-              >
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.button,
-                  safeStyles.modalActionButton,
-                  { opacity: closingEvent ? 0.6 : 1 },
-                ]}
-                onPress={handleCloseEventContinue}
-                disabled={closingEvent}
-              >
-                {closingEvent ? (
-                  <ActivityIndicator color={AppColor.white} />
-                ) : (
-                  <Text style={styles.buttonText}>Continue</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
       {renderImagePreviewModal()}
     </View>
   );

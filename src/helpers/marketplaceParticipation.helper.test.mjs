@@ -6,6 +6,7 @@ import {
   getMarketplaceFilledSlotSummary,
   getVendorReductionProtection,
   getTicketInventory,
+  isTicketInventorySoldOut,
   isFoodVendorMarketplaceEvent,
 } from "./marketplaceParticipation.helper.js";
 
@@ -101,6 +102,22 @@ assert.deepEqual(
     ga_tickets_reserved: 5,
   }),
   { capacity: 125, sold: 20, reserved: 5, remaining: 100 },
+);
+assert.equal(
+  isTicketInventorySoldOut({
+    ga_ticket_quantity: 2,
+    ga_tickets_sold: 2,
+    vip_ticket_quantity: 1,
+    vip_tickets_reserved: 1,
+  }),
+  true,
+);
+assert.equal(
+  isTicketInventorySoldOut({
+    ga_ticket_quantity: 2,
+    ga_tickets_sold: 1,
+  }),
+  false,
 );
 assert.deepEqual(
   getMarketplaceFilledSlotSummary({

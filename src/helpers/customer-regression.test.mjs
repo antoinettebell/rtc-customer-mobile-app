@@ -26,10 +26,11 @@ assert.equal(canCancelCoordinatorEvent({ status: "OPEN", ticket_sales_enabled: f
 assert.equal(canCancelCoordinatorEvent({ status: "OPEN", ticket_sales_enabled: true }), true);
 assert.equal(canCancelCoordinatorEvent({ status: "DRAFT" }), false);
 assert.equal(canCancelCoordinatorEvent({ status: "CANCELLED" }), false);
-assert.match(details, /ticketSalesEnabled \? "Cancel Event & Refund Tickets" : "Cancel Event"/);
-assert.match(details, /ticketSalesEnabled\s*\? "Refunds are due immediately upon cancellation/);
-assert.match(details, /: "This event will be cancelled and affected vendors will be notified/);
-assert.match(details, /text: ticketSalesEnabled \? "Cancel & Refund" : "Cancel Event"/);
+assert.doesNotMatch(details, /Cancel Event & Refund Tickets/);
+assert.doesNotMatch(details, /text: "Cancel Event"/);
+assert.doesNotMatch(details, />Reopen Bidding<\/Text>/);
+assert.doesNotMatch(details, />Close Event<\/Text>/);
+assert.doesNotMatch(details, /Close Event for Payment/);
 assert.equal((details.match(/>Share Event via Text<\/Text>/g) || []).length, 2);
 assert.doesNotMatch(details, /Share\.share\(/);
 assert.match(details, /Linking\.openURL\(`sms:\$\{smsSeparator\}body=\$\{encodeURIComponent\(message\)\}`\)/);
