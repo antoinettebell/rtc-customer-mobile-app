@@ -49,6 +49,7 @@ import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDocuments.helper";
 import {
   formatDate,
+  formatEventDeadlineDate,
   formatEventTime,
   formatMoney,
   formatPermitList,
@@ -1447,7 +1448,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 value={event?.separate_vip_vendor_required ? "Yes" : "No"}
               />
             ) : null}
-            <DetailRow label="Close Date" value={formatDate(event?.event_close_date)} />
+            <DetailRow
+              label="Close Date"
+              value={formatEventDeadlineDate(event?.event_close_date, event)}
+            />
             <DetailRow
               label="Close Time"
               value={formatEventTime(event?.event_close_time, {

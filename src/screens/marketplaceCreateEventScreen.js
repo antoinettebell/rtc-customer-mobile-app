@@ -72,6 +72,7 @@ import {
   sanitizeCurrencyInput,
   toFormString,
 } from "../helpers/customerRegression.helper";
+import { normalizeMarketplaceZonedDateForForm } from "../helpers/marketplaceDate.helper";
 import {
   getAttachmentSaveOutcome,
   reconcileUploadResults,
@@ -86,6 +87,7 @@ import {
   PERMIT_OPTIONS,
   POWER_OPTIONS,
   SERVICE_TYPES,
+  resolveEventTimeZone,
   styles,
   toggleListValue,
 } from "./marketplaceShared";
@@ -421,7 +423,10 @@ const normalizeEventForForm = (event = {}) => ({
       ? String(getDurationTotalMinutes(event))
       : "",
   event_close_date: event.event_close_date
-    ? formatDateForPayload(event.event_close_date)
+    ? normalizeMarketplaceZonedDateForForm(
+        event.event_close_date,
+        resolveEventTimeZone(event),
+      )
     : "",
   number_of_guests: toFormString(event.number_of_guests),
   number_of_vendors_needed: toFormString(event.number_of_vendors_needed),

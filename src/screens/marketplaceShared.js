@@ -1,6 +1,9 @@
 import { StyleSheet } from "react-native";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
-import { formatMarketplaceCalendarDate } from "../helpers/marketplaceDate.helper";
+import {
+  formatMarketplaceCalendarDate,
+  formatMarketplaceZonedDate,
+} from "../helpers/marketplaceDate.helper";
 export { getEventVendorRequirementRows } from "../helpers/marketplaceEventRequirements.helper";
 
 export const EVENT_TYPES = [
@@ -183,6 +186,9 @@ export const resolveEventTimeZone = (event = {}) => {
   );
 };
 
+export const formatEventDeadlineDate = (value, event = {}) =>
+  formatMarketplaceZonedDate(value, resolveEventTimeZone(event));
+
 const parseEventTimeParts = (value) => {
   const text = String(value || "").trim();
   const match = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
@@ -211,18 +217,23 @@ export const formatEventTime = (timeValue, event = {}) => {
   if (!parts) return timeValue;
 
   const safeEvent = event || {};
+  const calendarMatch = String(safeEvent.event_date || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/,
+  );
   const dateValue = safeEvent.event_date ? new Date(safeEvent.event_date) : new Date();
-  const zoneProbeDate = Number.isNaN(dateValue.getTime())
-    ? new Date()
-    : new Date(
+  const zoneProbeDate = calendarMatch
+    ? new Date(
         Date.UTC(
-          dateValue.getFullYear(),
-          dateValue.getMonth(),
-          dateValue.getDate(),
+          Number(calendarMatch[1]),
+          Number(calendarMatch[2]) - 1,
+          Number(calendarMatch[3]),
           12,
           0,
         ),
-      );
+      )
+    : Number.isNaN(dateValue.getTime())
+      ? new Date()
+      : dateValue;
   const normalizedHours = parts.hours % 24;
   const displayHours = normalizedHours % 12 || 12;
   const displayMinutes = String(parts.minutes).padStart(2, "0");
