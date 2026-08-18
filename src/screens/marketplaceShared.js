@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
+import { formatMarketplaceCalendarDate } from "../helpers/marketplaceDate.helper";
 export { getEventVendorRequirementRows } from "../helpers/marketplaceEventRequirements.helper";
 
 export const EVENT_TYPES = [
@@ -81,16 +82,7 @@ export const EQUIPMENT_OPTIONS = [
   "Chair Covers",
 ];
 
-export const formatDate = (value) => {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-  });
-};
+export const formatDate = formatMarketplaceCalendarDate;
 
 const DEFAULT_EVENT_TIME_ZONE = "America/New_York";
 

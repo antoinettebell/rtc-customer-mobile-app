@@ -70,6 +70,14 @@ const walletMethod = Platform.OS === "ios"
       },
     };
 
+const GOOGLE_PLACES_QUERY = Object.freeze({
+  key: Config.GOOGLE_MAP_API_KEY,
+  language: "en",
+  types: "geocode|establishment",
+  components: "country:us",
+});
+const NO_PREDEFINED_PLACES = Object.freeze([]);
+
 const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSelector((state) => state.authReducer);
@@ -294,7 +302,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
             fetchDetails
             debounce={250}
             enablePoweredByContainer={false}
-            predefinedPlaces={[]}
+            predefinedPlaces={NO_PREDEFINED_PLACES}
             keyboardShouldPersistTaps="always"
             minLength={2}
             timeout={20000}
@@ -302,12 +310,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
             onFail={() => {
               Alert.alert("Billing Address", "Address search failed. Please try again.");
             }}
-            query={{
-              key: Config.GOOGLE_MAP_API_KEY,
-              language: "en",
-              types: "geocode|establishment",
-              components: "country:us",
-            }}
+            query={GOOGLE_PLACES_QUERY}
             textInputProps={{
               onChangeText: updateStreetAddress,
               placeholderTextColor: AppColor.textPlaceholder,
