@@ -22,4 +22,16 @@ assert.match(source, /text: guestCheckout \? "View Ticket" : "View All Tickets"/
 assert.match(source, /navigation\.replace\("marketplaceMyTicketsScreen"\)/);
 assert.doesNotMatch(source, /text: "View First Ticket"/);
 
+const ticketListSource = fs.readFileSync(
+  new URL("../screens/marketplaceMyTicketsScreen.js", import.meta.url),
+  "utf8",
+);
+const ticketViewerSource = fs.readFileSync(
+  new URL("../screens/marketplaceTicketWebViewScreen.js", import.meta.url),
+  "utf8",
+);
+assert.match(ticketListSource, /returnToMyTickets: true/);
+assert.match(ticketViewerSource, /isSignedIn && returnToMyTickets/);
+assert.match(ticketViewerSource, /navigation\.goBack\(\)/);
+
 console.log("marketplace ticket-checkout render stability tests passed");

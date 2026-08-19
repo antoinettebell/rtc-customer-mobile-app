@@ -19,9 +19,17 @@ const MarketplaceTicketWebViewScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSelector((state) => state.authReducer);
   const webViewRef = useRef(null);
-  const { url, title = "Tickets" } = route.params || {};
+  const { url, title = "Tickets", returnToMyTickets = false } = route.params || {};
   const ticketUrl = normalizeExternalUrl(url);
   const exitTicket = () => {
+    if (isSignedIn && returnToMyTickets) {
+      if (navigation.canGoBack?.()) {
+        navigation.goBack();
+      } else {
+        navigation.replace("marketplaceMyTicketsScreen");
+      }
+      return;
+    }
     const destination = getMarketplaceTicketExitRoute(isSignedIn);
     navigation.reset({ index: 0, routes: [destination] });
   };

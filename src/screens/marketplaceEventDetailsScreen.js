@@ -77,9 +77,27 @@ const displayValue = (value) => {
   return String(value);
 };
 
-const DetailRow = ({ label, value }) => (
+const DetailRow = ({ label, value, infoMessage = "" }) => (
   <View style={{ marginTop: 12 }}>
-    <Text style={styles.label}>{label}</Text>
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Text style={styles.label}>{label}</Text>
+      {infoMessage ? (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${label} information`}
+          activeOpacity={0.7}
+          hitSlop={8}
+          style={{ marginLeft: 8 }}
+          onPress={() => Alert.alert(label, infoMessage)}
+        >
+          <MaterialIcons
+            name="info-outline"
+            size={19}
+            color={AppColor.primary}
+          />
+        </TouchableOpacity>
+      ) : null}
+    </View>
     <Text style={styles.meta}>{displayValue(value)}</Text>
   </View>
 );
@@ -1201,9 +1219,8 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               <>
                 <DetailRow label="Tickets Sold" value={String(ticketSummary.summary.tickets || 0)} />
                 <DetailRow label="Gross Ticket Sales" value={formatMoney(ticketSummary.summary.gross_ticket_sales)} />
-                <DetailRow label="RTC Ticket Fee (1.5% + $1/ticket)" value={formatMoney(ticketSummary.summary.rtc_processing_fee)} />
                 <DetailRow label="Collected Sales Tax" value={formatMoney(ticketSummary.summary.collected_sales_tax)} />
-                <DetailRow label="Estimated Net Payout" value={formatMoney(ticketSummary.summary.estimated_net_payout)} />
+                <DetailRow label="Estimated Ticket Proceeds" value={formatMoney(ticketSummary.summary.estimated_net_payout)} />
                 <Text style={[styles.meta, { marginTop: 12 }]}>{ticketSummary.payout_notice}</Text>
               </>
             ) : null}
@@ -1244,6 +1261,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             <DetailRow
               label="Close Date"
               value={formatEventDeadlineDate(event?.event_close_date, event)}
+              infoMessage="All applications and awards must be accepted by this date."
             />
             <DetailRow
               label="Close Time"

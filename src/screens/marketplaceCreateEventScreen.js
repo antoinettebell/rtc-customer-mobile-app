@@ -3158,9 +3158,28 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderDateTimePicker = (label, key, mode) => (
+  const renderDateTimePicker = (label, key, mode, infoMessage = "") => (
     <View style={localStyles.fieldGroup}>
-      {renderLabel(label)}
+      {infoMessage ? (
+        <View style={localStyles.labelWithAction}>
+          <View style={localStyles.labelActionCopy}>{renderLabel(label)}</View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Closing Date information"
+            activeOpacity={0.7}
+            style={localStyles.infoIconButton}
+            onPress={() => Alert.alert("Closing Date", infoMessage)}
+          >
+            <MaterialIcons
+              name="info-outline"
+              size={19}
+              color={AppColor.primary}
+            />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        renderLabel(label)
+      )}
       <Pressable
         accessibilityRole="button"
         hitSlop={8}
@@ -4934,6 +4953,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                       "Close Date *",
                       "event_close_date",
                       "date",
+                      "All applications and awards must be accepted by this date.",
                     )}
                   </View>
                   <View style={localStyles.sideField}>

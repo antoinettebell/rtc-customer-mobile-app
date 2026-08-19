@@ -62,7 +62,7 @@ const MarketplaceMyTicketsScreen = ({ navigation }) => {
                   <Text style={styles.label}>{ticket.attendee_label} · {ticket.ticket_type}</Text>
                   <Text style={styles.meta}>Status: {ticket.status?.replaceAll("_", " ")}</Text>
                   <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-                    <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={() => navigation.navigate("marketplaceTicketWebViewScreen", { url: ticket.ticket_url, title: order.event?.event_name || "Ticket" })}><Text style={styles.buttonText}>View QR</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={() => navigation.navigate("marketplaceTicketWebViewScreen", { url: ticket.ticket_url, title: order.event?.event_name || "Ticket", returnToMyTickets: true })}><Text style={styles.buttonText}>View QR</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.secondaryButton, { flex: 1 }]} onPress={() => shareTicket(ticket, order.event?.event_name || "Event")}><Text style={styles.secondaryButtonText}>Share</Text></TouchableOpacity>
                   </View>
                 </View>
