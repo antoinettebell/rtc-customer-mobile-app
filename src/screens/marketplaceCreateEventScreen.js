@@ -4125,7 +4125,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
 
   const renderFreeFoodQuestions = () => (
     <View style={localStyles.fieldGroup}>
-      {renderRequiredYesNo("Will free food be offered?", "free_food_offered")}
+      {renderRequiredYesNo(
+        "Is any food being given away for free by the event organizers or sponsors, aside from what people buy or get from the hired caterers and trucks?",
+        "free_food_offered"
+      )}
       {form.free_food_offered === true ? (
         <>
           {renderInput(
