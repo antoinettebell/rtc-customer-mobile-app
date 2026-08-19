@@ -44,7 +44,7 @@ export const getDeliveryAddressPayload = (location) => {
   };
 };
 
-const getEventEndTimestamp = (event) => {
+export const getEventEndTimestamp = (event) => {
   const explicitEnd =
     event?.event_end_at || event?.event_end_datetime || event?.end_datetime;
   if (explicitEnd) return Date.parse(explicitEnd);
