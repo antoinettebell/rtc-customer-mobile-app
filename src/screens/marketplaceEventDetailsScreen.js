@@ -1097,7 +1097,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.card}>
-            <Text style={styles.title}>Event Activity</Text>
+            <Text style={styles.title}>
+              Event Activity · {String(event?.event_id || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}
+            </Text>
             <Text style={styles.label}>Views: {event?.marketplace_metrics?.views ?? event?.event_impression_count ?? 0}</Text>
             <Text style={styles.label}>Ticket Checkout Clicks: {event?.marketplace_metrics?.ticket_checkout_clicks ?? event?.ticket_click_count ?? 0}</Text>
             <Text style={styles.label}>Tickets Sold: {event?.marketplace_metrics?.tickets_sold ?? 0}</Text>
@@ -1131,6 +1133,18 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	              label="Duration"
 	              value={formatEventDuration(event)}
 	            />
+            <DetailRow
+              label="Close Date"
+              value={formatEventDeadlineDate(event?.event_close_date, event)}
+              infoMessage="All applications and awards must be accepted by this date."
+            />
+            <DetailRow
+              label="Close Time"
+              value={formatEventTime(event?.event_close_time, {
+                ...event,
+                event_date: event?.event_close_date || event?.event_date,
+              })}
+            />
             <DetailRow
               label="Location"
               value={`${event?.event_address || ""}, ${event?.event_city || ""}, ${event?.event_state || ""} ${event?.event_zip || ""}`}
@@ -1258,18 +1272,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 value={event?.separate_vip_vendor_required ? "Yes" : "No"}
               />
             ) : null}
-            <DetailRow
-              label="Close Date"
-              value={formatEventDeadlineDate(event?.event_close_date, event)}
-              infoMessage="All applications and awards must be accepted by this date."
-            />
-            <DetailRow
-              label="Close Time"
-              value={formatEventTime(event?.event_close_time, {
-                ...event,
-                event_date: event?.event_close_date || event?.event_date,
-              })}
-            />
             {event?.close_comment ? (
               <DetailRow label="Close Comment" value={event.close_comment} />
             ) : null}
