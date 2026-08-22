@@ -24,6 +24,7 @@ import {
   getMarketplaceEventQuestions_API,
   getPublicMarketplaceEventById_API,
   updateMarketplaceEvent_API,
+  closeMarketplaceEvent_API,
   trackPublicMarketplaceTicketClick_API,
   createMarketplaceScannerSession_API,
   closeMarketplaceScanner_API,
@@ -410,6 +411,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isDraft = eventStatus === "DRAFT";
   const isPublished = ["OPEN", "REOPENED"].includes(eventStatus);
   const isClosed = event?.status === "CLOSED";
+  const submissionsClosed = !!event?.vendor_applications_closed_at;
   const isAwarded = eventStatus === "AWARDED";
   const canEditEvent = isPublished;
   const canViewAwardedDocs =
@@ -499,6 +501,62 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           setEvent(response?.data?.marketplaceEvent || event);
         } catch (error) { Alert.alert("Close Check-In", error?.message || "Unable to close ticket scanning."); }
       } },
+    ]
+  );
+
+  const handleCloseEvent = () => Alert.alert(
+    "Close Event",
+    "Are you sure you want to close the event?",
+    [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const response = await closeMarketplaceEvent_API({
+              eventId,
+              closeComment: "Closed early by coordinator.",
+            });
+            setEvent(response?.data?.marketplaceEvent || event);
+          } catch (error) {
+            Alert.alert("Close Event", error?.message || "Unable to close this event.");
+          }
+        },
+      },
+    ]
+  );
+
+  const openReopenEditor = (reopenStrategy) => {
+    navigation.navigate("marketplaceCreateEventScreen", {
+      eventId,
+      draftEvent: event,
+      reopenMode: true,
+      reopenStrategy,
+    });
+  };
+
+  const handleReopenEvent = () => Alert.alert(
+    "Reopen Event",
+    "By reopening the event, outstanding bids and applications can either be archived or kept. Awarded and paid vendors are protected. Do you want to Archive or Keep Existing Bids?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Archive",
+        style: "destructive",
+        onPress: () => openReopenEditor("ARCHIVE"),
+      },
+      {
+        text: "Keep Existing Bids",
+        onPress: () => Alert.alert(
+          "Update Close Date",
+          "Please edit and enter new close date?",
+          [
+            { text: "No", style: "cancel" },
+            { text: "Yes", onPress: () => openReopenEditor("KEEP") },
+          ]
+        ),
+      },
     ]
   );
 
@@ -957,6 +1015,24 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           >
             <Text style={styles.buttonText}>View Bids / Award Vendors</Text>
           </TouchableOpacity>
+          {isPublished && !submissionsClosed ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.secondaryButton}
+              onPress={handleCloseEvent}
+            >
+              <Text style={styles.secondaryButtonText}>Close Event</Text>
+            </TouchableOpacity>
+          ) : null}
+          {(isClosed || submissionsClosed) ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.secondaryButton}
+              onPress={handleReopenEvent}
+            >
+              <Text style={styles.secondaryButtonText}>Reopen Event</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       );
     }
@@ -991,6 +1067,23 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </>
           ) : null}
+          {!submissionsClosed ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.secondaryButton}
+              onPress={handleCloseEvent}
+            >
+              <Text style={styles.secondaryButtonText}>Close Event</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.secondaryButton}
+              onPress={handleReopenEvent}
+            >
+              <Text style={styles.secondaryButtonText}>Reopen Event</Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     }

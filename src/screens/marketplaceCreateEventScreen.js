@@ -1524,6 +1524,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     route?.params?.eventId || route?.params?.draftEvent?.event_id;
   const draftEvent = route?.params?.draftEvent;
   const isReopenMode = !!route?.params?.reopenMode;
+  const reopenStrategy = route?.params?.reopenStrategy || "ARCHIVE";
   const reopenEventId = draftEvent?.event_id || editingEventId;
   const isEditingSubmittedEvent =
     !!editingEventId &&
@@ -2633,6 +2634,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ? form.vendors_required_to_giveaway_food
           : null,
       status,
+      ...(isReopenMode ? { reopen_mode: reopenStrategy } : {}),
     };
   };
 

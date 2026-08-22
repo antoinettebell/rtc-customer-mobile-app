@@ -874,6 +874,7 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "payment_responsibility",
   "event_close_date",
   "event_close_time",
+  "reopen_mode",
   "status",
 ];
 
