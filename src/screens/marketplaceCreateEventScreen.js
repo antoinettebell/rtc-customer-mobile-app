@@ -156,6 +156,7 @@ const initialForm = {
   ga_food_sales_allowed: null,
   waive_vendor_fee_for_combined_award: null,
   vendor_fee_payment_deadline: "",
+  vendor_fee_payment_time: "",
   separate_vip_vendor_required: false,
   vip_guest_count: "",
   cuisine_preferences: [],
@@ -379,6 +380,9 @@ const normalizeEventForForm = (event = {}) => ({
     !!event.waive_vendor_fee_for_combined_award,
   vendor_fee_payment_deadline: event.vendor_fee_payment_deadline
     ? formatDateForPayload(event.vendor_fee_payment_deadline)
+    : "",
+  vendor_fee_payment_time: event.vendor_fee_payment_deadline
+    ? formatTimeForPayload(event.vendor_fee_payment_deadline)
     : "",
   separate_vip_vendor_required: !!event.separate_vip_vendor_required,
   vip_guest_count: toFormString(event.vip_guest_count),
@@ -1823,6 +1827,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           next.waive_vendor_fee_for_combined_award = false;
           next.vendor_fee = "";
           next.vendor_fee_payment_deadline = "";
+          next.vendor_fee_payment_time = "";
         }
       }
       return next;
@@ -2492,24 +2497,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return false;
     }
     if (["VENDOR", "BOTH"].includes(form.payment_responsibility)) {
-      const paymentDeadline = combineFormDateTime(
-        form.vendor_fee_payment_deadline,
-        "11:59 PM",
-        true,
-      );
-      if (!paymentDeadline || paymentDeadline <= closeDateTime) {
+      if (!form.vendor_fee_payment_time) {
         setSnackbar({
           visible: true,
-          message:
-            "Last Date to Accept Payments must be after the application/bid deadline.",
+          message: "Select the Last Time to Accept Payments.",
         });
         return false;
       }
+      const paymentDeadline = combineFormDateTime(
+        form.vendor_fee_payment_deadline,
+        form.vendor_fee_payment_time,
+      );
       if (paymentDeadline >= eventDateTime) {
         setSnackbar({
           visible: true,
-          message:
-            "Last Date to Accept Payments must be before the event date.",
+          message: "Last Date and Time to Accept Payments must be before the event start time.",
         });
         return false;
       }
@@ -2543,6 +2545,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       event_duration_total_minutes: _eventDurationTotalMinutes,
       event_duration_hours: _eventDurationHours,
       event_duration_minutes: _eventDurationMinutes,
+      vendor_fee_payment_time: _vendorFeePaymentTime,
       ...formPayload
     } = form;
     const durationPayload = splitDurationForPayload(_eventDurationTotalMinutes);
@@ -2572,7 +2575,10 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       vendor_fee_payment_deadline: ["VENDOR", "BOTH"].includes(
         form.payment_responsibility,
       )
-        ? form.vendor_fee_payment_deadline
+        ? combineFormDateTime(
+            form.vendor_fee_payment_deadline,
+            form.vendor_fee_payment_time,
+          )?.toISOString() || null
         : null,
       separate_vip_vendor_required:
         !!form.catered_vip_section_enabled &&
@@ -5113,13 +5119,24 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     form.payment_responsibility === "VENDOR",
                   )}
                 </View>
-                {["VENDOR", "BOTH"].includes(form.payment_responsibility)
-                  ? renderDateTimePicker(
-                      "Last Date to Accept Payments *",
-                      "vendor_fee_payment_deadline",
-                      "date",
-                    )
-                  : null}
+                {["VENDOR", "BOTH"].includes(form.payment_responsibility) ? (
+                  <View style={localStyles.sideBySide}>
+                    <View style={localStyles.sideField}>
+                      {renderDateTimePicker(
+                        "Last Date to Accept Payments *",
+                        "vendor_fee_payment_deadline",
+                        "date",
+                      )}
+                    </View>
+                    <View style={localStyles.sideField}>
+                      {renderDateTimePicker(
+                        "Last Time to Accept Payments *",
+                        "vendor_fee_payment_time",
+                        "time",
+                      )}
+                    </View>
+                  </View>
+                ) : null}
                 {isCoordinatorBudgetRequired(form) ? (
                   <Text style={styles.meta}>
                     Minimum budget for this paid guest count is $
@@ -5245,7 +5262,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Payment & Budget",
-                  `Who Pays: ${form.payment_responsibility}\nExpected GA: ${budgetSummary.gaGuests} · Expected VIP: ${budgetSummary.vipGuests}\nCatered Guests: ${budgetSummary.cateredGuests} × $25 = $${budgetSummary.minimumBudget.toFixed(2)}\nEntered Budget: $${Number(form.budgeted_amount || 0).toFixed(2)}\nVendor Fee: $${Number(form.vendor_fee || 0).toFixed(2)}\nCombined Fee Waived: ${form.waive_vendor_fee_for_combined_award ? "Yes" : "No"}\nPayment Deadline: ${formatDateForDisplay(form.vendor_fee_payment_deadline) || "Not applicable"}`,
+                  `Who Pays: ${form.payment_responsibility}\nExpected GA: ${budgetSummary.gaGuests} · Expected VIP: ${budgetSummary.vipGuests}\nCatered Guests: ${budgetSummary.cateredGuests} × $25 = $${budgetSummary.minimumBudget.toFixed(2)}\nEntered Budget: $${Number(form.budgeted_amount || 0).toFixed(2)}\nVendor Fee: $${Number(form.vendor_fee || 0).toFixed(2)}\nCombined Fee Waived: ${form.waive_vendor_fee_for_combined_award ? "Yes" : "No"}\nPayment Deadline: ${form.vendor_fee_payment_deadline ? `${formatDateForDisplay(form.vendor_fee_payment_deadline)} ${formatTimeForDisplay(form.vendor_fee_payment_time)}` : "Not applicable"}`,
                 ],
                 [
                   "Requirements",
