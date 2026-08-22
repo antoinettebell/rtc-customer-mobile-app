@@ -189,6 +189,28 @@ export const resolveEventTimeZone = (event = {}) => {
 export const formatEventDeadlineDate = (value, event = {}) =>
   formatMarketplaceZonedDate(value, resolveEventTimeZone(event));
 
+export const formatEventDeadlineTime = (value, event = {}) => {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: resolveEventTimeZone(event),
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZoneName: "short",
+    }).format(date);
+  } catch (_error) {
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+};
+
 const parseEventTimeParts = (value) => {
   const text = String(value || "").trim();
   const match = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);

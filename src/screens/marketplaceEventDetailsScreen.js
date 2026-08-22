@@ -48,6 +48,7 @@ import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDoc
 import {
   formatDate,
   formatEventDeadlineDate,
+  formatEventDeadlineTime,
   formatEventTime,
   formatMoney,
   formatPermitList,
@@ -1257,10 +1258,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               />
             ) : null}
             {event?.vendor_fee_payment_deadline ? (
-              <DetailRow
-                label="Last Date to Accept Payments"
-                value={formatDate(event.vendor_fee_payment_deadline)}
-              />
+              <>
+                <DetailRow
+                  label="Last Date to Accept Payments"
+                  value={formatEventDeadlineDate(event.vendor_fee_payment_deadline, event)}
+                />
+                <DetailRow
+                  label="Last Time to Accept Payments"
+                  value={formatEventDeadlineTime(event.vendor_fee_payment_deadline, event)}
+                />
+              </>
             ) : null}
             <DetailRow
               label="# of VIP Guests"
