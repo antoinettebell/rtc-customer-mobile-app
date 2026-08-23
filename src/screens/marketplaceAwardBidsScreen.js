@@ -49,6 +49,29 @@ const getVendorName = (bid) => {
   return [vendor?.firstName, vendor?.lastName].filter(Boolean).join(" ") || "Vendor";
 };
 
+const getCategoryAwardSummary = (event = {}, bids = [], applications = []) => {
+  const awardedBids = bids.filter((bid) => bid.bid_status === "AWARDED");
+  const awardedApplications = applications.filter((item) => ["ACCEPTED", "PAYMENT_DUE", "PAID", "CONFIRMED"].includes(item.application_status));
+  const ga = new Set(awardedApplications.map((item) => String(item.vendor_user_id || "")));
+  const vip = new Set(); const desserts = new Set(); const drinks = new Set();
+  awardedBids.forEach((bid) => {
+    const vendorId = String(bid.vendor_user_id || "");
+    const coverage = bid.awarded_coverage || bid.guest_coverage;
+    if (["REGULAR", "BOTH"].includes(coverage)) ga.add(vendorId);
+    if (["VIP", "BOTH"].includes(coverage)) vip.add(vendorId);
+    const specialties = bid.awarded_specialty_services || bid.specialty_services || [];
+    if (specialties.includes("DESSERTS")) desserts.add(vendorId);
+    if (specialties.includes("DRINKS")) drinks.add(vendorId);
+  });
+  const gaNeed = Math.max(1, Math.ceil(Number(event.number_of_guests || 0) / 100));
+  return {
+    ga: `${ga.size} of ${gaNeed} selected · ${Math.max(0, gaNeed - ga.size)} remaining`,
+    vip: event.catered_vip_section_enabled ? `${vip.size} of 1 selected · ${Math.max(0, 1 - vip.size)} remaining` : null,
+    desserts: event.dessert_caterer_required ? `${desserts.size} of 1 selected · ${Math.max(0, 1 - desserts.size)} remaining` : null,
+    drinks: event.drinks_caterer_required ? `${drinks.size} of 1 selected · ${Math.max(0, 1 - drinks.size)} remaining` : null,
+  };
+};
+
 const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { eventId } = route.params || {};
@@ -261,6 +284,8 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             {(item.specialty_services || []).length ? (
               <Text style={styles.meta}>Specialty services: {(item.specialty_services || []).map((value) => value === "DESSERTS" ? "Desserts" : "Drinks").join(" · ")}</Text>
             ) : null}
+            {item.dessert_bid_amount != null ? <Text style={styles.meta}>Desserts: {formatMoney(item.dessert_bid_amount)} · {formatMoney(item.dessert_price_per_guest)} per guest</Text> : null}
+            {item.drinks_bid_amount != null ? <Text style={styles.meta}>Drinks: {formatMoney(item.drinks_bid_amount)} · {formatMoney(item.drinks_price_per_guest)} per guest</Text> : null}
             <Text style={styles.meta}>
               Round {item.submission_round || 1}
               {item.archived_at ? " • Previous submission" : ""}
@@ -542,6 +567,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
 
   const remainingFoodAwards = getRemainingFoodVendorAwards({ event, bids, applications });
   const estimatedAwardCounts = getEstimatedAwardVendorCounts(event);
+  const categoryAwards = getCategoryAwardSummary(event, bids, applications);
   const awardLocked = ["CLOSED", "CANCELLED"].includes(event?.status) ||
     (event?.status === "AWARDED" && remainingFoodAwards === 0);
 
@@ -593,6 +619,10 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 <Text style={styles.meta}>
                   Final submissions: {bids.length + applications.length} total, {applications.length} application(s).
                 </Text>
+                <Text style={styles.meta}>GA Food Services: {categoryAwards.ga}</Text>
+                {categoryAwards.vip ? <Text style={styles.meta}>VIP Catering: {categoryAwards.vip}</Text> : null}
+                {categoryAwards.desserts ? <Text style={styles.meta}>Desserts: {categoryAwards.desserts}</Text> : null}
+                {categoryAwards.drinks ? <Text style={styles.meta}>Drinks: {categoryAwards.drinks}</Text> : null}
                 {awardLocked ? (
                   <Text style={styles.meta}>
                     This event is {event?.status}; award selections are locked.

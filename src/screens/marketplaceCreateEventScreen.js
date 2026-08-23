@@ -442,9 +442,7 @@ const normalizeEventForForm = (event = {}) => ({
   payment_responsibility: event.fully_catered_event
     ? "COORDINATOR"
     : event.catered_vip_section_enabled
-      ? event.ga_food_sales_allowed
-        ? "BOTH"
-        : "COORDINATOR"
+      ? "BOTH"
       : "VENDOR",
   vendor_fee: toFormString(event.vendor_fee),
   budgeted_amount: toFormString(event.budgeted_amount),
@@ -1829,12 +1827,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         next.vendors_required_to_giveaway_food = null;
       }
       if (key === "ga_food_sales_allowed") {
-        next.payment_responsibility = value ? "BOTH" : "COORDINATOR";
+        next.payment_responsibility = "BOTH";
         if (!value) {
           next.waive_vendor_fee_for_combined_award = false;
-          next.vendor_fee = "";
-          next.vendor_fee_payment_deadline = "";
-          next.vendor_fee_payment_time = "";
         }
       }
       return next;
@@ -1888,9 +1883,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     const derived = form.fully_catered_event
       ? "COORDINATOR"
       : form.catered_vip_section_enabled
-        ? form.ga_food_sales_allowed
-          ? "BOTH"
-          : "COORDINATOR"
+        ? "BOTH"
         : "VENDOR";
     if (form.payment_responsibility !== derived) {
       setForm((previous) => ({
@@ -4327,7 +4320,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
             {form.catered_vip_section_enabled ? (
               <>
                 {renderRequiredYesNo(
-                  "Is GA selling permitted?",
+                  "Are VIP Vendors allowed to also setup as a GA Vendor?",
                   "ga_food_sales_allowed",
                 )}
                 {form.ga_food_sales_allowed
@@ -5264,7 +5257,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Catering Arrangement",
-                  `Fully Catered: ${form.fully_catered_event ? "Yes" : "No"}\nVIP Catering: ${form.catered_vip_section_enabled ? "Yes" : "No"}\nGA Food Sales: ${form.ga_food_sales_allowed ? "Allowed" : "Not allowed"}\nAdditional VIP Catering Service Slot: ${form.separate_vip_vendor_required ? "Yes" : "No"}\nDesserts Caterer: ${form.dessert_caterer_required ? "Yes" : "No"}\nDrinks Caterer: ${form.drinks_caterer_required ? "Yes" : "No"}`,
+                  `Fully Catered: ${form.fully_catered_event ? "Yes" : "No"}\nVIP Catering: ${form.catered_vip_section_enabled ? "Yes" : "No"}\nVIP Vendors may also setup as a GA Vendor: ${form.ga_food_sales_allowed ? "Yes" : "No"}\nAdditional VIP Catering Service Slot: ${form.separate_vip_vendor_required ? "Yes" : "No"}\nDesserts Caterer: ${form.dessert_caterer_required ? "Yes" : "No"}\nDrinks Caterer: ${form.drinks_caterer_required ? "Yes" : "No"}`,
                 ],
                 [
                   "Free Food",
