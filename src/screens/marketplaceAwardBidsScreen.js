@@ -60,6 +60,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const [selectedFoodApplicationIds, setSelectedFoodApplicationIds] = useState([]);
   const [selectedEventVendorApplicationIds, setSelectedEventVendorApplicationIds] = useState([]);
   const [awardCoverageByBidId, setAwardCoverageByBidId] = useState({});
+  const [awardSpecialtiesByBidId, setAwardSpecialtiesByBidId] = useState({});
   const [loading, setLoading] = useState(false);
   const [awarding, setAwarding] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
@@ -86,6 +87,12 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           nextBids.reduce((result, bid) => ({
             ...result,
             [bid.bid_id]: bid.awarded_coverage || bid.guest_coverage || "REGULAR",
+          }), {})
+        );
+        setAwardSpecialtiesByBidId(
+          nextBids.reduce((result, bid) => ({
+            ...result,
+            [bid.bid_id]: bid.awarded_specialty_services || [],
           }), {})
         );
         setSelectedBidIds([]);
@@ -153,6 +160,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
     const awardSelections = selectedBids.map((bid) => ({
       bid_id: bid.bid_id,
       award_coverage: awardCoverageByBidId[bid.bid_id] || bid.guest_coverage,
+      award_specialty_services: awardSpecialtiesByBidId[bid.bid_id] || [],
     }));
     Alert.alert(
       "Complete Booking",
@@ -209,7 +217,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
       ? event?.fully_catered_event
         ? [["REGULAR", "GA Catering"], ["VIP", "VIP Catering"], ["BOTH", "Both"]]
         : [["VIP", "VIP Catering"], ["BOTH", "VIP Catering + GA Sales"]]
-      : [[offeredCoverage, offeredCoverage === "VIP" ? "VIP Catering" : "GA / Event Catering"]];
+      : [[offeredCoverage, offeredCoverage === "VIP" ? "VIP Catering" : offeredCoverage === "SPECIALTY" ? "Desserts / Drinks Specialty" : "GA / Event Catering"]];
 
     return (
       <TouchableOpacity
@@ -250,6 +258,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 Regular: {formatMoney(item.regular_guest_amount)} · VIP Catering: {formatMoney(item.vip_catering_amount)}
               </Text>
             ) : null}
+            {(item.specialty_services || []).length ? (
+              <Text style={styles.meta}>Specialty services: {(item.specialty_services || []).map((value) => value === "DESSERTS" ? "Desserts" : "Drinks").join(" · ")}</Text>
+            ) : null}
             <Text style={styles.meta}>
               Round {item.submission_round || 1}
               {item.archived_at ? " • Previous submission" : ""}
@@ -289,6 +300,23 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                     ]}>{label}</Text>
                   </TouchableOpacity>
                 ))}
+              </View>
+            </View>
+          ) : null}
+          {selected && (item.specialty_services || []).length ? (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.label}>Award Specialty Services</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                {(item.specialty_services || []).map((value) => {
+                  const active = (awardSpecialtiesByBidId[item.bid_id] || []).includes(value);
+                  const label = value === "DESSERTS" ? "Desserts" : "Drinks";
+                  return <TouchableOpacity key={value} style={[styles.chip, active && styles.chipActive]} onPress={() => setAwardSpecialtiesByBidId((current) => {
+                    const currentValues = current[item.bid_id] || [];
+                    return { ...current, [item.bid_id]: active ? currentValues.filter((itemValue) => itemValue !== value) : [...currentValues, value] };
+                  })}>
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+                  </TouchableOpacity>;
+                })}
               </View>
             </View>
           ) : null}

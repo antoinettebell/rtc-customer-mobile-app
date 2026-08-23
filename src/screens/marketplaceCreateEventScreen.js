@@ -158,6 +158,8 @@ const initialForm = {
   vendor_fee_payment_deadline: "",
   vendor_fee_payment_time: "",
   separate_vip_vendor_required: false,
+  dessert_caterer_required: false,
+  drinks_caterer_required: false,
   vip_guest_count: "",
   cuisine_preferences: [],
   dietary_restrictions: [],
@@ -385,6 +387,8 @@ const normalizeEventForForm = (event = {}) => ({
     ? formatTimeForPayload(event.vendor_fee_payment_deadline)
     : "",
   separate_vip_vendor_required: !!event.separate_vip_vendor_required,
+  dessert_caterer_required: !!event.dessert_caterer_required,
+  drinks_caterer_required: !!event.drinks_caterer_required,
   vip_guest_count: toFormString(event.vip_guest_count),
   cuisine_preferences: normalizeOptionList(event.cuisine_preferences),
   dietary_restrictions: normalizeOptionList(event.dietary_restrictions),
@@ -1812,6 +1816,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           "fully_catered_event",
           "catered_vip_section_enabled",
           "separate_vip_vendor_required",
+          "dessert_caterer_required",
+          "drinks_caterer_required",
         ].includes(key)
       ) {
         next.number_of_vendors_needed = String(
@@ -1849,6 +1855,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     form.vip_section_enabled,
     form.ga_food_sales_allowed,
     form.separate_vip_vendor_required,
+    form.dessert_caterer_required,
+    form.drinks_caterer_required,
     form.catered_vip_section_enabled,
     form.fully_catered_event,
     form.service_types,
@@ -2582,8 +2590,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           )?.toISOString() || null
         : null,
       separate_vip_vendor_required:
-        !!form.catered_vip_section_enabled &&
-        !!form.separate_vip_vendor_required,
+        !!form.catered_vip_section_enabled,
+      dessert_caterer_required: !!form.dessert_caterer_required,
+      drinks_caterer_required: !!form.drinks_caterer_required,
       vip_guest_count: form.vip_section_enabled
         ? Number(form.vip_guest_count || 0)
         : 0,
@@ -4182,6 +4191,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         ga_food_sales_allowed: null,
         waive_vendor_fee_for_combined_award: null,
         separate_vip_vendor_required: false,
+        dessert_caterer_required: false,
+        drinks_caterer_required: false,
       }));
     };
 
@@ -4253,6 +4264,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ga_food_sales_allowed: null,
                 waive_vendor_fee_for_combined_award: null,
                 separate_vip_vendor_required: false,
+                dessert_caterer_required: false,
+                drinks_caterer_required: false,
                 payment_responsibility: enabled ? "COORDINATOR" : "VENDOR",
               };
               next.number_of_vendors_needed = String(
@@ -4285,7 +4298,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               onPress={() => {
                 const enabled = !form.catered_vip_section_enabled;
                 updateField("catered_vip_section_enabled", enabled);
-                if (!enabled) updateField("ga_food_sales_allowed", false);
+                if (!enabled) {
+                  updateField("ga_food_sales_allowed", false);
+                  updateField("dessert_caterer_required", false);
+                  updateField("drinks_caterer_required", false);
+                }
               }}
             >
               <View
@@ -4304,13 +4321,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ) : null}
               </View>
               <Text style={localStyles.checkboxLabel}>
-                Is VIP catering required?
+                Is VIP catering needed?
               </Text>
             </TouchableOpacity>
             {form.catered_vip_section_enabled ? (
               <>
                 {renderRequiredYesNo(
-                  "Are vendors allowed to sell food to GA guests?",
+                  "Is GA selling permitted?",
                   "ga_food_sales_allowed",
                 )}
                 {form.ga_food_sales_allowed
@@ -4319,24 +4336,14 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                       "waive_vendor_fee_for_combined_award",
                     )
                   : null}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={localStyles.checkboxRow}
-                  onPress={() =>
-                    updateField(
-                      "separate_vip_vendor_required",
-                      !form.separate_vip_vendor_required,
-                    )
-                  }
-                >
+                <View style={localStyles.checkboxRow}>
                   <View
                     style={[
                       localStyles.checkbox,
-                      form.separate_vip_vendor_required &&
-                        localStyles.checkboxActive,
+                      localStyles.checkboxActive,
                     ]}
                   >
-                    {form.separate_vip_vendor_required ? (
+                    {form.catered_vip_section_enabled ? (
                       <MaterialIcons
                         name="check"
                         size={16}
@@ -4347,11 +4354,31 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   <Text style={localStyles.checkboxLabel}>
                     Do you need an additional VIP catering service slot?
                   </Text>
-                </TouchableOpacity>
+                </View>
                 <Text style={styles.meta}>
                   This adds a VIP catering requirement to the event. A qualified
                   vendor may still offer both VIP Catering and GA Sales.
                 </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={localStyles.checkboxRow}
+                  onPress={() => updateField("dessert_caterer_required", !form.dessert_caterer_required)}
+                >
+                  <View style={[localStyles.checkbox, form.dessert_caterer_required && localStyles.checkboxActive]}>
+                    {form.dessert_caterer_required ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}
+                  </View>
+                  <Text style={localStyles.checkboxLabel}>Do you need an additional Caterer for Desserts?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={localStyles.checkboxRow}
+                  onPress={() => updateField("drinks_caterer_required", !form.drinks_caterer_required)}
+                >
+                  <View style={[localStyles.checkbox, form.drinks_caterer_required && localStyles.checkboxActive]}>
+                    {form.drinks_caterer_required ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}
+                  </View>
+                  <Text style={localStyles.checkboxLabel}>Do you need an additional Caterer for Drinks?</Text>
+                </TouchableOpacity>
               </>
             ) : null}
           </>
@@ -5237,7 +5264,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 ],
                 [
                   "Catering Arrangement",
-                  `Fully Catered: ${form.fully_catered_event ? "Yes" : "No"}\nVIP Catering: ${form.catered_vip_section_enabled ? "Yes" : "No"}\nGA Food Sales: ${form.ga_food_sales_allowed ? "Allowed" : "Not allowed"}\nAdditional VIP Catering Service Slot: ${form.separate_vip_vendor_required ? "Yes" : "No"}`,
+                  `Fully Catered: ${form.fully_catered_event ? "Yes" : "No"}\nVIP Catering: ${form.catered_vip_section_enabled ? "Yes" : "No"}\nGA Food Sales: ${form.ga_food_sales_allowed ? "Allowed" : "Not allowed"}\nAdditional VIP Catering Service Slot: ${form.separate_vip_vendor_required ? "Yes" : "No"}\nDesserts Caterer: ${form.dessert_caterer_required ? "Yes" : "No"}\nDrinks Caterer: ${form.drinks_caterer_required ? "Yes" : "No"}`,
                 ],
                 [
                   "Free Food",

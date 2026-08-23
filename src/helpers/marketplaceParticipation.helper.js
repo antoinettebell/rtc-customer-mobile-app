@@ -69,17 +69,20 @@ export const getMarketplaceVendorCapacity = (event = {}) => {
     };
   }
   if (event.catered_vip_section_enabled) {
-    const gaMaximum = event.ga_food_sales_allowed
-      ? ceilPerHundred(gaGuests)
-      : 0;
-    const vipRequirement = Math.max(1, ceilPerHundred(vipGuests));
-    const calculatedMaximum = event.separate_vip_vendor_required
-      ? gaMaximum + vipRequirement
-      : Math.max(gaMaximum, vipRequirement);
-    return { gaMaximum, vipRequirement, calculatedMaximum };
+    const gaMaximum = Math.max(1, ceilPerHundred(gaGuests));
+    const vipRequirement = 1;
+    const dessertRequirement = event.dessert_caterer_required ? 1 : 0;
+    const drinksRequirement = event.drinks_caterer_required ? 1 : 0;
+    return {
+      gaMaximum,
+      vipRequirement,
+      dessertRequirement,
+      drinksRequirement,
+      calculatedMaximum: gaMaximum + vipRequirement + dessertRequirement + drinksRequirement,
+    };
   }
   const gaMaximum = Math.max(1, ceilPerHundred(gaGuests));
-  return { gaMaximum, vipRequirement: 0, calculatedMaximum: gaMaximum };
+  return { gaMaximum, vipRequirement: 0, dessertRequirement: 0, drinksRequirement: 0, calculatedMaximum: gaMaximum };
 };
 
 export const getMarketplaceServiceRequirements = (event = {}, selectedRequirement) => {
@@ -91,15 +94,22 @@ export const getMarketplaceServiceRequirements = (event = {}, selectedRequiremen
     return {
       gaRequirement: capacity.gaMaximum,
       vipRequirement: capacity.vipRequirement,
+      ...(capacity.dessertRequirement ? { dessertRequirement: capacity.dessertRequirement } : {}),
+      ...(capacity.drinksRequirement ? { drinksRequirement: capacity.drinksRequirement } : {}),
     };
   }
   const vipRequirement = event.catered_vip_section_enabled
     ? capacity.vipRequirement
     : 0;
-  const gaRequirement = event.separate_vip_vendor_required
-    ? Math.max(0, selected - vipRequirement)
-    : Math.min(capacity.gaMaximum, selected);
-  return { gaRequirement, vipRequirement };
+  const dessertRequirement = capacity.dessertRequirement || 0;
+  const drinksRequirement = capacity.drinksRequirement || 0;
+  const gaRequirement = Math.max(0, selected - vipRequirement - dessertRequirement - drinksRequirement);
+  return {
+    gaRequirement,
+    vipRequirement,
+    ...(dessertRequirement ? { dessertRequirement } : {}),
+    ...(drinksRequirement ? { drinksRequirement } : {}),
+  };
 };
 
 export const getTicketInventory = (event = {}, type = "ga") => {
