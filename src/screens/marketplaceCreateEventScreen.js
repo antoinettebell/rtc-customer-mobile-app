@@ -1689,14 +1689,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const {
     gaRequirement: selectedGaRequirement,
     vipRequirement: selectedVipRequirement,
+    dessertRequirement: selectedDessertRequirement = 0,
+    drinksRequirement: selectedDrinksRequirement = 0,
   } = getMarketplaceServiceRequirements(form, selectedVendorRequirement);
   const filledSummary = getMarketplaceFilledSlotSummary({
     gaSlotsFilled: form.marketplace_metrics?.vendor_ga_slots_filled,
     vipSlotsFilled: form.marketplace_metrics?.vip_vendors_selected,
+    dessertSlotsFilled: form.marketplace_metrics?.dessert_vendors_selected,
+    drinksSlotsFilled: form.marketplace_metrics?.drinks_vendors_selected,
+    uniqueVendorsFilled: form.marketplace_metrics?.unique_vendors_selected,
     combinedVendors: form.marketplace_metrics?.combined_vendors_selected,
     separateVipVendorRequired: form.separate_vip_vendor_required,
     gaRequirement: selectedGaRequirement,
     vipRequirement: selectedVipRequirement,
+    dessertRequirement: selectedDessertRequirement,
+    drinksRequirement: selectedDrinksRequirement,
   });
   const filledVendorMinimum = filledSummary.minimumUniqueVendors;
 
@@ -2370,6 +2377,33 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         visible: true,
         message: "Vendors Needed must be at least 1.",
       });
+      return false;
+    }
+    const currentRequirements = getMarketplaceServiceRequirements(
+      form,
+      Number(form.number_of_vendors_needed || 0),
+    );
+    const requirementProtection = getVendorReductionProtection({
+      requested: Number(form.number_of_vendors_needed || 0),
+      filledMinimum: filledSummary.minimumUniqueVendors,
+      ...currentRequirements,
+      gaFilled: filledSummary.gaSlotsFilled,
+      vipFilled: filledSummary.vipSlotsFilled,
+      dessertFilled: filledSummary.dessertSlotsFilled,
+      drinksFilled: filledSummary.drinksSlotsFilled,
+    });
+    if (requirementProtection.blocked) {
+      const message =
+        Number(currentRequirements.gaRequirement || 0) < filledSummary.gaSlotsFilled
+          ? "GA vendor coverage cannot be reduced below the number already awarded."
+          : Number(currentRequirements.vipRequirement || 0) < filledSummary.vipSlotsFilled
+            ? "VIP Catering cannot be disabled or reduced after a VIP vendor has been awarded."
+            : Number(currentRequirements.dessertRequirement || 0) < filledSummary.dessertSlotsFilled
+              ? "Desserts cannot be disabled after a Dessert vendor has been awarded."
+              : Number(currentRequirements.drinksRequirement || 0) < filledSummary.drinksSlotsFilled
+                ? "Drinks cannot be disabled after a Drinks vendor has been awarded."
+                : "Vendors Needed cannot be reduced below the number of unique vendors already awarded.";
+      setSnackbar({ visible: true, message });
       return false;
     }
     if (status !== "DRAFT") {
@@ -4852,6 +4886,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
               ...getMarketplaceServiceRequirements(form, Number(digits)),
               gaFilled: filledSummary.gaSlotsFilled,
               vipFilled: filledSummary.vipSlotsFilled,
+              dessertFilled: filledSummary.dessertSlotsFilled,
+              drinksFilled: filledSummary.drinksSlotsFilled,
             }).blocked
           ) {
             Alert.alert(

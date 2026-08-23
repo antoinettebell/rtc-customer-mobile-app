@@ -87,9 +87,6 @@ export const getMarketplaceVendorCapacity = (event = {}) => {
 
 export const getMarketplaceServiceRequirements = (event = {}, selectedRequirement) => {
   const capacity = getMarketplaceVendorCapacity(event);
-  const selected = Number.isFinite(Number(selectedRequirement))
-    ? Math.max(0, Number(selectedRequirement))
-    : capacity.calculatedMaximum;
   if (event.fully_catered_event) {
     return {
       gaRequirement: capacity.gaMaximum,
@@ -103,7 +100,9 @@ export const getMarketplaceServiceRequirements = (event = {}, selectedRequiremen
     : 0;
   const dessertRequirement = capacity.dessertRequirement || 0;
   const drinksRequirement = capacity.drinksRequirement || 0;
-  const gaRequirement = Math.max(0, selected - vipRequirement - dessertRequirement - drinksRequirement);
+  // The overall vendor target may be lower when one vendor can satisfy
+  // multiple categories. That does not reduce the underlying GA need.
+  const gaRequirement = capacity.gaMaximum || 0;
   return {
     gaRequirement,
     vipRequirement,
@@ -134,29 +133,45 @@ export const isTicketInventorySoldOut = (event = {}) => {
 export const getMarketplaceFilledSlotSummary = ({
   gaSlotsFilled = 0,
   vipSlotsFilled = 0,
+  dessertSlotsFilled = 0,
+  drinksSlotsFilled = 0,
+  uniqueVendorsFilled,
   combinedVendors = 0,
   separateVipVendorRequired = false,
   gaRequirement = 0,
   vipRequirement = 0,
+  dessertRequirement = 0,
+  drinksRequirement = 0,
 } = {}) => {
   const gaFilled = Math.max(0, Number(gaSlotsFilled || 0));
   const vipFilled = Math.max(0, Number(vipSlotsFilled || 0));
+  const dessertFilled = Math.max(0, Number(dessertSlotsFilled || 0));
+  const drinksFilled = Math.max(0, Number(drinksSlotsFilled || 0));
   const combined = Math.min(gaFilled, vipFilled, Math.max(0, Number(combinedVendors || 0)));
-  const minimumUniqueVendors = gaFilled + vipFilled - combined;
+  const derivedMinimumUniqueVendors = gaFilled + vipFilled - combined;
+  const minimumUniqueVendors = Number.isFinite(Number(uniqueVendorsFilled))
+    ? Math.max(0, Number(uniqueVendorsFilled))
+    : derivedMinimumUniqueVendors;
   const remainingGaSlots = Math.max(0, Number(gaRequirement || 0) - gaFilled);
   const remainingVipSlots = Math.max(0, Number(vipRequirement || 0) - vipFilled);
+  const remainingDessertSlots = Math.max(0, Number(dessertRequirement || 0) - dessertFilled);
+  const remainingDrinksSlots = Math.max(0, Number(drinksRequirement || 0) - drinksFilled);
   return {
     gaSlotsFilled: gaFilled,
     vipSlotsFilled: vipFilled,
+    dessertSlotsFilled: dessertFilled,
+    drinksSlotsFilled: drinksFilled,
     combinedVendors: combined,
     separateVipVendorRequired: Boolean(separateVipVendorRequired),
     minimumUniqueVendors,
-    totalServiceSlotsRequired: Number(gaRequirement || 0) + Number(vipRequirement || 0),
-    totalServiceSlotsFilled: gaFilled + vipFilled,
+    totalServiceSlotsRequired: Number(gaRequirement || 0) + Number(vipRequirement || 0) + Number(dessertRequirement || 0) + Number(drinksRequirement || 0),
+    totalServiceSlotsFilled: gaFilled + vipFilled + dessertFilled + drinksFilled,
     remainingGaSlots,
     remainingVipSlots,
-    remainingTotalServiceSlots: remainingGaSlots + remainingVipSlots,
-    remainingUniqueVendors: Math.max(remainingGaSlots, remainingVipSlots),
+    remainingDessertSlots,
+    remainingDrinksSlots,
+    remainingTotalServiceSlots: remainingGaSlots + remainingVipSlots + remainingDessertSlots + remainingDrinksSlots,
+    remainingUniqueVendors: Math.max(remainingGaSlots, remainingVipSlots, remainingDessertSlots, remainingDrinksSlots),
   };
 };
 
@@ -165,12 +180,18 @@ export const getVendorReductionProtection = ({
   filledMinimum = 0,
   gaRequirement = 0,
   vipRequirement = 0,
+  dessertRequirement = 0,
+  drinksRequirement = 0,
   gaFilled = 0,
   vipFilled = 0,
+  dessertFilled = 0,
+  drinksFilled = 0,
 } = {}) => ({
   blocked:
     Number(requested) < Number(filledMinimum) ||
     Number(gaRequirement) < Number(gaFilled) ||
-    Number(vipRequirement) < Number(vipFilled),
+    Number(vipRequirement) < Number(vipFilled) ||
+    Number(dessertRequirement) < Number(dessertFilled) ||
+    Number(drinksRequirement) < Number(drinksFilled),
   minimum: Math.max(0, Number(filledMinimum || 0)),
 });
