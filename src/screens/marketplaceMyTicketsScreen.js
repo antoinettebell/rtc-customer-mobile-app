@@ -49,7 +49,6 @@ const MarketplaceMyTicketsScreen = ({ navigation }) => {
     await Share.share({
       title: `${eventName} ticket`,
       message: `${eventName} — ${ticket.attendee_label} (${ticket.ticket_type})\n${ticket.ticket_url}`,
-      url: ticket.ticket_url,
     });
   };
 
