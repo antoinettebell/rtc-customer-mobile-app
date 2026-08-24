@@ -1260,6 +1260,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             <DetailRow label="Expected GA Guests" value={String(event?.number_of_guests || 0)} />
             <DetailRow label="Expected VIP Guests" value={String(event?.vip_section_enabled ? event?.vip_guest_count || 0 : 0)} />
             <DetailRow label="VIP Section Details" value={event?.vip_section_details || "Not set"} />
+            <DetailRow
+              label="Additional Caterer for Desserts"
+              value={event?.dessert_caterer_required ? "Yes" : "No"}
+            />
+            <DetailRow
+              label="Additional Caterer for Drinks"
+              value={event?.drinks_caterer_required ? "Yes" : "No"}
+            />
             {ticketSalesEnabled ? (
               <>
                 <DetailRow label="GA Ticket Capacity" value={String(getTicketInventory(event, "ga").capacity)} />
