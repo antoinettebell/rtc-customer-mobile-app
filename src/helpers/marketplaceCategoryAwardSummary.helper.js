@@ -9,7 +9,10 @@ export const getCategoryAwardSummary = (event, bids = [], applications = []) => 
     const coverage = bid.awarded_coverage || bid.guest_coverage;
     if (["REGULAR", "BOTH"].includes(coverage)) ga.add(vendorId);
     if (["VIP", "BOTH"].includes(coverage)) vip.add(vendorId);
-    const specialties = bid.awarded_specialty_services || bid.specialty_services || [];
+    const specialties = Array.isArray(bid.awarded_specialty_services) &&
+      bid.awarded_specialty_services.length
+      ? bid.awarded_specialty_services
+      : bid.specialty_services || [];
     if (specialties.includes("DESSERTS")) desserts.add(vendorId);
     if (specialties.includes("DRINKS")) drinks.add(vendorId);
   });

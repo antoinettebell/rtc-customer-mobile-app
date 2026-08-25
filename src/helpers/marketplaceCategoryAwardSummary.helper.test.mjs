@@ -24,4 +24,39 @@ assert.deepEqual(getCategoryAwardSummary({
   drinks: "1 of 1 selected · 0 remaining",
 });
 
+for (const [name, awardedSpecialties, expectedDesserts, expectedDrinks] of [
+  ["Desserts only", ["DESSERTS"], "1 of 1 selected · 0 remaining", "0 of 1 selected · 1 remaining"],
+  ["Drinks only", ["DRINKS"], "0 of 1 selected · 1 remaining", "1 of 1 selected · 0 remaining"],
+  ["No specialties", [], "0 of 1 selected · 1 remaining", "0 of 1 selected · 1 remaining"],
+]) {
+  const summary = getCategoryAwardSummary({
+    number_of_guests: 100,
+    dessert_caterer_required: true,
+    drinks_caterer_required: true,
+  }, [{
+    bid_status: "AWARDED",
+    vendor_user_id: name,
+    awarded_coverage: "SPECIALTY",
+    awarded_specialty_services: awardedSpecialties,
+  }]);
+  assert.equal(summary.desserts, expectedDesserts, `${name} fills only its offered Dessert slot`);
+  assert.equal(summary.drinks, expectedDrinks, `${name} fills only its offered Drinks slot`);
+}
+
+const repairedSummaryFallback = getCategoryAwardSummary({
+  number_of_guests: 100,
+  dessert_caterer_required: true,
+}, [{
+  bid_status: "AWARDED",
+  vendor_user_id: "existing-award",
+  awarded_coverage: "VIP",
+  awarded_specialty_services: [],
+  specialty_services: ["DESSERTS"],
+}]);
+assert.equal(
+  repairedSummaryFallback.desserts,
+  "1 of 1 selected · 0 remaining",
+  "an older award with an empty persisted specialty list still reflects its offered specialty"
+);
+
 console.log("customer marketplace category award-summary tests passed");
