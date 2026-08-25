@@ -17,6 +17,10 @@ const actions = read("helpers/marketplaceCoordinatorSubmissionActions.helper.js"
 assert.match(shared, /marketplaceEventRequirements\.helper/);
 assert.match(requirements, /event_vendor_requirement_summary/);
 assert.match(eventDetails, /requested.*filled.*remaining/s);
+assert.match(eventDetails, /Dessert Vendors Selected/);
+assert.match(eventDetails, /Drinks Vendors Selected/);
+assert.match(eventDetails, /dessert_vendors_selected/);
+assert.match(eventDetails, /drinks_vendors_selected/);
 assert.match(eventDetails, /Manage Awarded Vendors/);
 assert.match(eventDetails, /navigation\.navigate\("marketplaceAwardBidsScreen", \{ eventId \}\)/);
 assert.match(awards, /marketplaceSubmissionDetailsScreen/);
