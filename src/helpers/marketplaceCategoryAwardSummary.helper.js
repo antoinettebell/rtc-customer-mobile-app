@@ -1,11 +1,20 @@
+const getVendorId = (submission = {}) => {
+  const vendorUser = submission.vendor_user_id;
+  if (vendorUser && typeof vendorUser === "object") {
+    return String(vendorUser._id || vendorUser.id || "");
+  }
+  return String(vendorUser || "");
+};
+
 export const getCategoryAwardSummary = (event, bids = [], applications = []) => {
   const safeEvent = event || {};
   const awardedBids = bids.filter((bid) => bid.bid_status === "AWARDED");
   const awardedApplications = applications.filter((item) => ["ACCEPTED", "PAYMENT_DUE", "PAID", "CONFIRMED"].includes(item.application_status));
-  const ga = new Set(awardedApplications.map((item) => String(item.vendor_user_id || "")));
+  const ga = new Set(awardedApplications.map(getVendorId).filter(Boolean));
   const vip = new Set(); const desserts = new Set(); const drinks = new Set();
   awardedBids.forEach((bid) => {
-    const vendorId = String(bid.vendor_user_id || "");
+    const vendorId = getVendorId(bid);
+    if (!vendorId) return;
     const coverage = bid.awarded_coverage || bid.guest_coverage;
     if (["REGULAR", "BOTH"].includes(coverage)) ga.add(vendorId);
     if (["VIP", "BOTH"].includes(coverage)) vip.add(vendorId);

@@ -59,4 +59,30 @@ assert.equal(
   "an older award with an empty persisted specialty list still reflects its offered specialty"
 );
 
+const combinedAwardSummary = getCategoryAwardSummary({
+  number_of_guests: 200,
+  catered_vip_section_enabled: true,
+}, [{
+  bid_status: "AWARDED",
+  vendor_user_id: { _id: "jazzy-user" },
+  awarded_coverage: "BOTH",
+}, {
+  bid_status: "AWARDED",
+  vendor_user_id: { _id: "pizza-user" },
+  awarded_coverage: "REGULAR",
+}], [{
+  application_status: "CONFIRMED",
+  vendor_user_id: { _id: "jazzy-user" },
+}]);
+assert.equal(
+  combinedAwardSummary.ga,
+  "2 of 2 selected · 0 remaining",
+  "two populated Food Vendor records count as two distinct GA selections"
+);
+assert.equal(
+  combinedAwardSummary.vip,
+  "1 of 1 selected · 0 remaining",
+  "the combined bid still fills the VIP selection"
+);
+
 console.log("customer marketplace category award-summary tests passed");
