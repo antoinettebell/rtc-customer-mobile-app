@@ -517,7 +517,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
   const remainingFoodAwards = getRemainingFoodVendorAwards({ event, bids, applications });
   const estimatedAwardCounts = getEstimatedAwardVendorCounts(event);
   const categoryAwards = getCategoryAwardSummary(event, bids, applications);
-  const awardLocked = ["CLOSED", "CANCELLED"].includes(event?.status) ||
+  // Closing stops new submissions and vendor edits, but coordinators may still
+  // award the submissions already received. Only cancelled events are locked.
+  const awardLocked = event?.status === "CANCELLED" ||
     (event?.status === "AWARDED" && remainingFoodAwards === 0);
 
   const toggleEventVendorAward = (application) => {
