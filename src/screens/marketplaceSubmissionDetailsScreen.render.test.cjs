@@ -141,4 +141,20 @@ for (const testCase of [
   assert.match(renderedText, new RegExp(testCase.status));
 }
 
+const combinedBidText = render({
+  bid_id: 'bid-combined',
+  event_id: 'event-1',
+  bid_status: 'SUBMITTED',
+  full_bid_amount: 1250,
+  specialty_services: ['DESSERTS', 'DRINKS'],
+  dessert_bid_amount: 150,
+  dessert_price_per_guest: 3,
+  drinks_bid_amount: 100,
+  drinks_price_per_guest: 2,
+}, 'Bid');
+assert.match(combinedBidText, /Desserts Bid Amount/);
+assert.match(combinedBidText, /Drinks Bid Amount/);
+assert.match(combinedBidText, /Total Bid Amount/);
+assert.match(combinedBidText, /1500/);
+
 console.log('marketplace submission details render tests passed');

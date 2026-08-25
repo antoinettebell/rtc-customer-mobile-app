@@ -57,6 +57,7 @@ import {
   styles,
   getEventVendorRequirementRows,
 } from "./marketplaceShared";
+import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -145,7 +146,9 @@ const isRecordPaymentFulfilled = (record) =>
   ["PAID", "NOT_REQUIRED"].includes(record?.payment_status || "NOT_REQUIRED");
 
 const getAwardAmount = (record, event) =>
-  Number(record?.full_bid_amount || record?.final_payment_base_amount || event?.budgeted_amount || 0);
+  Number(record?.bid_id
+    ? getMarketplaceBidTotal(record)
+    : record?.final_payment_base_amount || event?.budgeted_amount || 0);
 
 const getEventDurationMinutes = (event) => {
   const safeEvent = event || {};

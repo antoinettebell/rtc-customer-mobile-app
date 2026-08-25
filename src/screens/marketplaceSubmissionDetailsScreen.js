@@ -30,6 +30,7 @@ import {
 import { formatMoney, getMarketplaceMessageError, styles } from "./marketplaceShared";
 import ZoomableImageModal from "../components/ZoomableImageModal";
 import { getMarketplaceSubmissionMenuAttachments } from "../helpers/marketplaceSubmissionDocuments.helper";
+import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
 
 const DetailRow = ({ label, value }) => (
   <View style={{ marginTop: 12 }}>
@@ -228,7 +229,7 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
             }`}
           />
           <DetailRow
-            label="Proposal Bid Amount"
+            label="Bid Amount"
             value={formatMoney(submission.full_bid_amount || submission.vendor_fee_amount)}
           />
           {submission.guest_coverage ? (
@@ -242,6 +243,27 @@ const MarketplaceSubmissionDetailsScreen = ({ navigation, route }) => {
               <DetailRow label="Regular Guests Amount" value={formatMoney(submission.regular_guest_amount)} />
               <DetailRow label="VIP Catering Amount" value={formatMoney(submission.vip_catering_amount)} />
             </>
+          ) : null}
+          {(submission.specialty_services || []).length ? (
+            <DetailRow
+              label="Specialty Services"
+              value={(submission.specialty_services || []).map((service) => service === "DESSERTS" ? "Desserts" : "Drinks").join(", ")}
+            />
+          ) : null}
+          {submission.specialty_services?.includes("DESSERTS") ? (
+            <>
+              <DetailRow label="Desserts Bid Amount" value={formatMoney(submission.dessert_bid_amount)} />
+              <DetailRow label="Desserts Price Per Guest" value={formatMoney(submission.dessert_price_per_guest)} />
+            </>
+          ) : null}
+          {submission.specialty_services?.includes("DRINKS") ? (
+            <>
+              <DetailRow label="Drinks Bid Amount" value={formatMoney(submission.drinks_bid_amount)} />
+              <DetailRow label="Drinks Price Per Guest" value={formatMoney(submission.drinks_price_per_guest)} />
+            </>
+          ) : null}
+          {submission.bid_id ? (
+            <DetailRow label="Total Bid Amount" value={formatMoney(getMarketplaceBidTotal(submission))} />
           ) : null}
           <DetailRow
             label="Price Per Guest"

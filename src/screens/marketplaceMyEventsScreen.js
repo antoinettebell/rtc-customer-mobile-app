@@ -19,6 +19,7 @@ import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { formatMarketplaceSubmissionCounts } from "../helpers/marketplaceMyEventsCounts.helper";
 import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
+import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -100,7 +101,7 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
     return (
       <View key={bid.bid_id} style={{ marginTop: 12 }}>
         <Text style={styles.label}>{getVendorName(bid)}</Text>
-        <Text style={styles.meta}>Awarded Amount: {formatMoney(bid.full_bid_amount)}</Text>
+        <Text style={styles.meta}>Awarded Amount: {formatMoney(getMarketplaceBidTotal(bid))}</Text>
         <Text style={styles.meta}>Vendor Payment: {formatMarketplaceStatus(bid.payment_status)}</Text>
         <Text style={styles.meta}>
           Agreement / Signing: {formatMarketplaceStatus(bid.agreement_status)}

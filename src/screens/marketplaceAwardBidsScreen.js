@@ -31,6 +31,7 @@ import {
 import { getCoordinatorSubmissionActions } from "../helpers/marketplaceCoordinatorSubmissionActions.helper";
 import { getLockedFoodVendorDisplayName } from "../helpers/marketplaceFoodVendorDisplay.helper";
 import { getCategoryAwardSummary } from "../helpers/marketplaceCategoryAwardSummary.helper";
+import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
 
 const getVendorName = (bid) => {
   const detailsUnlocked = bid?.marketplace_unlock?.details_unlocked === true;
@@ -234,7 +235,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.title}>{getVendorName(item)}</Text>
-            <Text style={styles.meta}>Bid {formatMoney(item.full_bid_amount)}</Text>
+            <Text style={styles.meta}>Bid Amount: {formatMoney(item.full_bid_amount)}</Text>
             {event?.catered_vip_section_enabled ? (
               <Text style={styles.meta}>
                 Coverage: {item.guest_coverage === "VIP" ? "VIP Guests" : item.guest_coverage === "BOTH" ? "Regular & VIP Guests" : "Regular Guests"}
@@ -250,6 +251,7 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
             ) : null}
             {item.dessert_bid_amount != null ? <Text style={styles.meta}>Desserts: {formatMoney(item.dessert_bid_amount)} · {formatMoney(item.dessert_price_per_guest)} per guest</Text> : null}
             {item.drinks_bid_amount != null ? <Text style={styles.meta}>Drinks: {formatMoney(item.drinks_bid_amount)} · {formatMoney(item.drinks_price_per_guest)} per guest</Text> : null}
+            <Text style={styles.meta}>Total Bid Amount: {formatMoney(getMarketplaceBidTotal(item))}</Text>
             <Text style={styles.meta}>
               Round {item.submission_round || 1}
               {item.archived_at ? " • Previous submission" : ""}
