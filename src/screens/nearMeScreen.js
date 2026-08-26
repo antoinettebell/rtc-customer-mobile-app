@@ -30,6 +30,7 @@ import { Divider, RadioButton } from "react-native-paper";
 import { EVENT_TYPES, formatEventTime } from "./marketplaceShared";
 import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
 import { isEligiblePublicEvent } from "../helpers/customerPunchList.helper";
+import { isTicketInventorySoldOut } from "../helpers/marketplaceParticipation.helper";
 
 const { width, height } = Dimensions.get("window");
 const FILTERS = [
@@ -253,6 +254,8 @@ const NearMeScreen = ({ navigation }) => {
   const renderHorizontalTruckCard = useCallback(
     ({ item }) => {
       if (item.type === "EVENT") {
+        const event = item.raw || item;
+        const ticketInventorySoldOut = isTicketInventorySoldOut(event);
         return (
           <Pressable
             key={`event-${item.id}`}
@@ -284,6 +287,9 @@ const NearMeScreen = ({ navigation }) => {
                 {item.event_type || "Event"}
                 {item.event_time ? ` - ${formatEventTime(item.event_time, item)}` : ""}
               </Text>
+              {ticketInventorySoldOut ? (
+                <Text style={styles.eventSoldOutText}>SOLD OUT</Text>
+              ) : null}
             </View>
           </Pressable>
         );
@@ -1592,6 +1598,11 @@ const styles = StyleSheet.create({
     fontFamily: Mulish400,
     fontSize: 12,
     color: AppColor.textSecondary,
+  },
+  eventSoldOutText: {
+    color: "#B42318",
+    fontSize: 12,
+    fontFamily: Mulish700,
   },
   horizontalCardFooter: {
     flexDirection: "row",
