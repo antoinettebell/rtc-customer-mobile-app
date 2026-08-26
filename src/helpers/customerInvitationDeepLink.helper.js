@@ -1,2 +1,2 @@
 export const normalizeCustomerInvitationPath = (path = "") =>
-  String(path).replace(/^\/?events\//, "invite/");
+  String(path).replace(/^\/?events\//, "event-invitation/");
