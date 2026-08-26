@@ -23,7 +23,10 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
-import { normalizeCustomerInvitationPath } from "./src/helpers/customerInvitationDeepLink.helper";
+import {
+  consumePendingCustomerNavigation,
+  normalizeCustomerInvitationPath,
+} from "./src/helpers/customerInvitationDeepLink.helper";
 import {
   createAndroidChannel,
   requestNotificationPermission,
@@ -394,6 +397,21 @@ const App = () => {
   useEffect(() => {
     configureNotification();
   }, []);
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+
+    const destination = consumePendingCustomerNavigation();
+    if (!destination) return;
+
+    const timeout = setTimeout(() => {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate(destination.name, destination.params);
+      }
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [isSignedIn]);
 
   return (
     <NavigationContainer

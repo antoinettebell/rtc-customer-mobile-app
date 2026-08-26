@@ -40,6 +40,7 @@ import {
   isPdfAttachment,
   isTicketPurchaseAvailable,
 } from "../helpers/customerPunchList.helper";
+import { setPendingCustomerNavigation } from "../helpers/customerInvitationDeepLink.helper";
 import {
   getTicketInventory,
   isTicketInventorySoldOut,
@@ -446,6 +447,19 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         console.log("Marketplace ticket click tracking error", error);
       }
     }
+
+    // A recipient who opened a shared link in the installed app must sign in
+    // before purchasing.  Keep the ticket checkout destination through the
+    // signed-in navigator remount rather than sending them to guest checkout.
+    if (shareToken && !isSignedIn) {
+      setPendingCustomerNavigation({
+        name: "marketplaceTicketCheckoutScreen",
+        params: { event, shareToken },
+      });
+      navigation.navigate("signin", { returnToPrevious: true });
+      return;
+    }
+
     navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
   };
 

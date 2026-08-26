@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { normalizeCustomerInvitationPath } from "./customerInvitationDeepLink.helper.js";
+import {
+  consumePendingCustomerNavigation,
+  normalizeCustomerInvitationPath,
+  setPendingCustomerNavigation,
+} from "./customerInvitationDeepLink.helper.js";
 
 const appSource = readFileSync(new URL("../../App.js", import.meta.url), "utf8");
 const androidManifest = readFileSync(
@@ -39,11 +43,11 @@ assert.match(
 assert.match(appSource, /normalizeCustomerInvitationPath\(path\)/);
 assert.equal(
   normalizeCustomerInvitationPath("events/token-from-email"),
-  "invite/token-from-email",
+  "event-invitation/token-from-email",
 );
 assert.equal(
   normalizeCustomerInvitationPath("/events/token-from-email"),
-  "invite/token-from-email",
+  "event-invitation/token-from-email",
 );
 assert.equal(
   normalizeCustomerInvitationPath("invite/legacy-token"),
@@ -51,7 +55,7 @@ assert.equal(
 );
 assert.match(
   appSource,
-  /marketplaceTicketCheckoutScreen:\s*"invite\/:shareToken"/,
+  /marketplaceEventDetailsScreen:\s*"event-invitation\/:shareToken"/,
 );
 assert.match(
   androidManifest,
@@ -68,6 +72,8 @@ assert.match(
 );
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen"/);
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
+assert.match(appSource, /consumePendingCustomerNavigation\(\)/);
+assert.match(appSource, /navigationRef\.navigate\(destination\.name, destination\.params\)/);
 assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
 assert.match(checkoutSource, /Contact & Billing Information/);
 assert.match(checkoutSource, /Email address \(required\)/);
@@ -77,7 +83,10 @@ assert.match(checkoutSource, /Email: \{accountEmail/);
 assert.match(checkoutSource, /Phone: \{accountPhone/);
 assert.match(checkoutSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
 assert.match(ticketWebViewSource, /navigation\.reset\(\{ index: 0, routes: \[destination\] \}\)/);
-assert.doesNotMatch(ticketWebViewSource, /navigation\.goBack\(\)/);
+assert.match(
+  ticketWebViewSource,
+  /if \(isSignedIn && returnToMyTickets\)[\s\S]*navigation\.goBack\(\)/,
+);
 assert.match(checkoutSource, /<StatePickerModal/);
 assert.doesNotMatch(checkoutSource, /State \(2 letters\)/);
 assert.match(checkoutSource, /checkoutGuestMarketplaceTickets_API/);
@@ -85,8 +94,14 @@ assert.doesNotMatch(checkoutSource, /AsyncStorage|saveCart|persist(?:ed|ence|Che
 assert.doesNotMatch(eventDetailsSource, /if \(!isSignedIn && !shareToken\)/);
 assert.match(
   eventDetailsSource,
-  /handleBuyTickets[\s\S]*navigation\.navigate\("marketplaceTicketCheckoutScreen", \{ event, shareToken \}\)/,
+  /handleBuyTickets[\s\S]*if \(shareToken && !isSignedIn\)[\s\S]*navigation\.navigate\("signin", \{ returnToPrevious: true \}\)/,
 );
+setPendingCustomerNavigation({ name: "marketplaceTicketCheckoutScreen", params: { shareToken: "token" } });
+assert.deepEqual(consumePendingCustomerNavigation(), {
+  name: "marketplaceTicketCheckoutScreen",
+  params: { shareToken: "token" },
+});
+assert.equal(consumePendingCustomerNavigation(), null);
 assert.match(
   eventDetailsSource,
   /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,
