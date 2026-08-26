@@ -565,9 +565,6 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                   {estimatedAwardCounts.applicationVendorCount} Application Vendors in this award batch.
                 </Text>
                 <Text style={styles.meta}>
-                  Awards finalize after the marketplace booking payment is confirmed.
-                </Text>
-                <Text style={styles.meta}>
                   Final submissions: {bids.length + applications.length} total, {applications.length} application(s).
                 </Text>
                 <Text style={styles.meta}>GA Food Services: {categoryAwards.ga}</Text>

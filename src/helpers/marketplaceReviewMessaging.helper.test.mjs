@@ -16,7 +16,8 @@ const actions = read("helpers/marketplaceCoordinatorSubmissionActions.helper.js"
 
 assert.match(shared, /marketplaceEventRequirements\.helper/);
 assert.match(requirements, /event_vendor_requirement_summary/);
-assert.match(eventDetails, /requested.*filled.*remaining/s);
+assert.match(eventDetails, /Vendors Selected/);
+assert.doesNotMatch(eventDetails, /Awarded Vendor Documents/);
 assert.match(eventDetails, /Dessert Vendors Selected/);
 assert.match(eventDetails, /Drinks Vendors Selected/);
 assert.match(eventDetails, /dessert_vendors_selected/);
@@ -26,7 +27,7 @@ assert.match(eventDetails, /navigation\.navigate\("marketplaceAwardBidsScreen", 
 assert.match(awards, /marketplaceSubmissionDetailsScreen/);
 assert.match(awards, /Award Application/);
 assert.match(awards, /Selected to Award/);
-assert.match(awards, /Complete Booking/);
+assert.doesNotMatch(awards, /Awards finalize after the marketplace booking payment is confirmed/);
 assert.match(awards, /foodApplicationIds: selectedFoodApplicationIds/);
 assert.match(awards, /eventVendorApplicationIds: selectedEventVendorApplicationIds/);
 assert.match(awards, /Reject Bid/);

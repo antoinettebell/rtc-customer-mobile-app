@@ -46,7 +46,6 @@ import {
   isTicketInventorySoldOut,
 } from "../helpers/marketplaceParticipation.helper";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
-import { getMarketplaceAwardedDocuments } from "../helpers/marketplaceAwardedDocuments.helper";
 import {
   formatDate,
   formatEventDeadlineDate,
@@ -855,7 +854,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     );
   };
 
-	  const renderAwardedDocuments = () => {
+	  const renderAwardedPayments = () => {
 	    if (!canViewAwardedDocs) return null;
 
     const awardedRecords = [
@@ -866,20 +865,19 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     if (!awardedRecords.length) {
       return (
         <View style={styles.card}>
-          <Text style={styles.title}>Awarded Vendor Documents</Text>
-          <Text style={styles.emptyText}>No vendor documents are available yet.</Text>
+          <Text style={styles.title}>Awarded Vendor Payments</Text>
+          <Text style={styles.emptyText}>No awarded vendor payments are available yet.</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>Awarded Vendor Documents</Text>
+        <Text style={styles.title}>Awarded Vendor Payments</Text>
         <Text style={styles.meta}>
-          Download signed agreements, permits, licenses, menus, and vendor files.
+          Complete any final vendor payments when they become available.
         </Text>
 	        {awardedRecords.map((record, index) => {
-	          const documents = getMarketplaceAwardedDocuments(record);
 	          const key =
 	            record.bid_id || record.application_id || `${record.event_id}-${index}`;
 	          const finalPaymentStatus = record.final_payment_status || "NOT_STARTED";
@@ -928,20 +926,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 	              <Text style={styles.meta}>
 	                Final Payment: {formatMarketplaceStatus(finalPaymentStatus, { coordinatorPaid: true })}
 	              </Text>
-	              {documents.length ? (
-	                documents.map((document) => (
-	                  <TouchableOpacity
-                    key={`${key}-${document.label}-${document.url}`}
-                    activeOpacity={0.7}
-                    onPress={() => openDocument(document.url)}
-                    style={{ marginTop: 6 }}
-                  >
-                    <Text style={styles.secondaryButtonText}>{document.label}</Text>
-                  </TouchableOpacity>
-                ))
-	              ) : (
-	                <Text style={styles.meta}>Documents: Not available</Text>
-	              )}
 	              {finalPaymentStatus === "PAID" ? (
 	                <Text style={[styles.meta, { marginTop: 8 }]}>
 	                  Final payment has been completed for this award.
@@ -1229,7 +1213,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             ) : null}
             {getEventVendorRequirementRows(event).map((requirement) => (
               <Text key={requirement.vendorType} style={styles.label}>
-                {requirement.vendorType}: {requirement.requested} requested · {requirement.filled} filled · {requirement.remaining} remaining
+                {requirement.vendorType} Vendors Selected: {requirement.filled}
               </Text>
             ))}
           </View>
@@ -1480,7 +1464,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ))
             : null}
 
-          {renderAwardedDocuments()}
+          {renderAwardedPayments()}
           {renderCoordinatorActions()}
 
         </ScrollView>
