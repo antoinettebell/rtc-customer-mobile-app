@@ -1023,11 +1023,10 @@ export const getPublicMarketplaceEventById_API = async (eventId) => {
 
 export const trackPublicMarketplaceTicketClick_API = async (eventId) => {
   try {
-    const { authToken } = store.getState().userReducer;
     const response = await apiClient.post(
       PUBLIC_MARKETPLACE_EVENT_TICKET_CLICK(eventId),
       {},
-      { skipToken: authToken ? false : true }
+      { skipToken: true }
     );
     return response?.data;
   } catch (error) {

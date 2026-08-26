@@ -435,7 +435,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleCustomerEventImagePress = async () => {
     if (!ticketSalesEnabled) return;
+    navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
+  };
 
+  const handleBuyTickets = async () => {
     if (eventId) {
       try {
         await trackPublicMarketplaceTicketClick_API(eventId);
@@ -443,11 +446,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         console.log("Marketplace ticket click tracking error", error);
       }
     }
-
-    navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
-  };
-
-  const handleBuyTickets = () => {
     navigation.navigate("marketplaceTicketCheckoutScreen", { event, shareToken });
   };
 
@@ -1202,6 +1200,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.label}>Views: {event?.marketplace_metrics?.views ?? event?.event_impression_count ?? 0}</Text>
             <Text style={styles.label}>Ticket Checkout Clicks: {event?.marketplace_metrics?.ticket_checkout_clicks ?? event?.ticket_click_count ?? 0}</Text>
             <Text style={styles.label}>Tickets Sold: {event?.marketplace_metrics?.tickets_sold ?? 0}</Text>
+            <Text style={styles.label}>Tickets Remaining to Scan: {event?.marketplace_metrics?.tickets_remaining_to_scan ?? 0}</Text>
             <Text style={styles.label}>VIP Vendors Selected: {event?.marketplace_metrics?.vip_vendors_selected ?? 0}</Text>
             <Text style={styles.label}>Vendor GA Slots Filled: {event?.marketplace_metrics?.vendor_ga_slots_filled ?? 0}</Text>
             {event?.dessert_caterer_required ? (
