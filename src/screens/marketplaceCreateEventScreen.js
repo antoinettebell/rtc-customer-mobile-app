@@ -2551,6 +2551,29 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         });
         return false;
       }
+      if (isReopenMode) {
+        if (paymentDeadline <= new Date()) {
+          setSnackbar({
+            visible: true,
+            message: "Last Date and Time to Accept Payments must be in the future before reopening.",
+          });
+          return false;
+        }
+        const priorPaymentDeadline = draftEvent?.vendor_fee_payment_deadline
+          ? new Date(draftEvent.vendor_fee_payment_deadline)
+          : null;
+        if (
+          priorPaymentDeadline &&
+          !Number.isNaN(priorPaymentDeadline.getTime()) &&
+          paymentDeadline.getTime() === priorPaymentDeadline.getTime()
+        ) {
+          setSnackbar({
+            visible: true,
+            message: "Update the Last Date and Time to Accept Payments before reopening.",
+          });
+          return false;
+        }
+      }
     }
     if (
       form.payment_responsibility === "BOTH" &&

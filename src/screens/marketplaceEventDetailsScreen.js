@@ -541,7 +541,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleReopenEvent = () => Alert.alert(
     "Reopen Event",
-    "By reopening the event, outstanding bids and applications can either be archived or kept. Awarded and paid vendors are protected. Do you want to Archive or Keep Existing Bids?",
+    `By reopening the event, outstanding bids and applications can either be archived or kept. Awarded and paid vendors are protected.${["VENDOR", "BOTH"].includes(event?.payment_responsibility) ? " Because this event requires vendor fees, you must also update the Last Date and Time to Accept Payments." : ""} Do you want to Archive or Keep Existing Bids?`,
     [
       { text: "Cancel", style: "cancel" },
       {
@@ -553,7 +553,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         text: "Keep Existing Bids",
         onPress: () => Alert.alert(
           "Update Close Date",
-          "Please edit and enter new close date?",
+          ["VENDOR", "BOTH"].includes(event?.payment_responsibility)
+            ? "Please edit and enter a new close date/time and Last Date/Time to Accept Payments?"
+            : "Please edit and enter new close date?",
           [
             { text: "No", style: "cancel" },
             { text: "Yes", onPress: () => openReopenEditor("KEEP") },
