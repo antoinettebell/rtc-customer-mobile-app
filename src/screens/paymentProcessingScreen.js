@@ -50,7 +50,9 @@ const APPLE_PAY_METHOD_DATA = {
     ],
     countryCode: Config.PAYMENT_COUNTRY_CODE,
     currencyCode: Config.PAYMENT_CURRENCY_CODE,
-    requestBillingAddress: false,
+    // The installed payments library maps this flag to Apple's
+    // requiredBillingContactFields postal-address request.
+    requestBillingAddress: true,
     requestPayerEmail: false,
     requestShipping: false,
   },
@@ -81,6 +83,23 @@ const getErrorMessage = (error, fallback) =>
   error?.response?.data?.error?.message ||
   error?.message ||
   fallback;
+
+const normalizeApplePayBillingAddress = (billingAddress) => {
+  if (!billingAddress || typeof billingAddress !== "object") return undefined;
+
+  const normalizeText = (value) =>
+    typeof value === "string" ? value.trim() : undefined;
+
+  const normalized = {
+    address1: normalizeText(billingAddress.address1),
+    locality: normalizeText(billingAddress.address2),
+    administrativeArea: normalizeText(billingAddress.address3),
+    postalCode: normalizeText(billingAddress.postalCode),
+    country: normalizeText(billingAddress.countryCode)?.toUpperCase(),
+  };
+
+  return Object.values(normalized).some(Boolean) ? normalized : undefined;
+};
 
 const PaymentProcessingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -253,6 +272,9 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                   ? "APPLE_PAY"
                   : "CASH_ON_PICKUP",
             amount: String(payableAmount),
+            ...(Platform.OS === "ios" && {
+              billingAddress: normalizeApplePayBillingAddress(paymentResponse.details.billingAddress),
+            }),
           };
 
           // const respose_1 = {
