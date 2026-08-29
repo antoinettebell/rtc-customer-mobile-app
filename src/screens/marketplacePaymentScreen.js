@@ -29,6 +29,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
+import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 
 const RTC_PHONE = "800-410-7053";
 
@@ -42,8 +43,10 @@ const APPLE_PAY_METHOD_DATA = {
     ],
     countryCode: Config.PAYMENT_COUNTRY_CODE,
     currencyCode: Config.PAYMENT_CURRENCY_CODE,
-    requestBillingAddress: false,
-    requestPayerEmail: false,
+    requestBillingAddress: true,
+    requestPayerEmail: true,
+    requestPayerName: true,
+    requestPayerPhone: true,
     requestShipping: false,
   },
 };
@@ -55,15 +58,19 @@ const ANDROID_PAY_METHOD_DATA = {
       SupportedNetworkEnum.Visa,
       SupportedNetworkEnum.Mastercard,
     ],
-    environment: EnvironmentEnum.PRODUCTION,
+    environment: String(Config.GOOGLE_PAY_ENVIRONMENT).toUpperCase() === "TEST"
+      ? EnvironmentEnum.TEST
+      : EnvironmentEnum.PRODUCTION,
     countryCode: Config.PAYMENT_COUNTRY_CODE,
     currencyCode: Config.PAYMENT_CURRENCY_CODE,
-    requestBillingAddress: false,
-    requestPayerEmail: false,
+    requestBillingAddress: true,
+    requestPayerEmail: true,
+    requestPayerName: true,
+    requestPayerPhone: true,
     requestShipping: false,
     gatewayConfig: {
-      gateway: Config.ANDROID_PAYMENT_GATEWAY,
-      gatewayMerchantId: Config.ANDROID_PAYMENT_GATEWAY_MERCHANT_ID,
+      gateway: Config.GOOGLE_PAY_GATEWAY,
+      gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
     },
   },
 };
@@ -162,6 +169,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
         return;
       }
 
+      if (Platform.OS === "android") assertGooglePayConfiguration(Config);
       paymentResponse = await paymentRequest.show();
       const paymentRawToken =
         Platform.OS === "ios"
@@ -174,6 +182,12 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
           payment_method: method === "googlePay" ? "GOOGLE_PAY" : "APPLE_PAY",
           payment_data: paymentRawToken,
           expected_total: Number(checkoutPayment.total_amount || 0),
+          billing_address: normalizeWalletBillingAddress(paymentResponse.details.billingAddress, {
+            email: paymentResponse.details.payerEmail,
+            phone: paymentResponse.details.payerPhone,
+            firstName: paymentResponse.details.payerName?.givenName,
+            lastName: paymentResponse.details.payerName?.familyName,
+          }),
         },
       });
 

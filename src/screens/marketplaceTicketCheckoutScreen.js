@@ -36,6 +36,7 @@ import {
 import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 import { getGooglePlaceAddressSelection } from "../helpers/address.helper";
+import { assertGooglePayConfiguration } from "../helpers/walletBillingAddress.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -45,8 +46,10 @@ const walletMethod = Platform.OS === "ios"
         supportedNetworks: [SupportedNetworkEnum.Visa, SupportedNetworkEnum.Mastercard],
         countryCode: Config.PAYMENT_COUNTRY_CODE,
         currencyCode: Config.PAYMENT_CURRENCY_CODE,
-        requestBillingAddress: false,
-        requestPayerEmail: false,
+        requestBillingAddress: true,
+        requestPayerEmail: true,
+        requestPayerName: true,
+        requestPayerPhone: true,
         requestShipping: false,
       },
     }
@@ -54,15 +57,17 @@ const walletMethod = Platform.OS === "ios"
       supportedMethods: PaymentMethodNameEnum.AndroidPay,
       data: {
         supportedNetworks: [SupportedNetworkEnum.Visa, SupportedNetworkEnum.Mastercard],
-        environment: __DEV__ ? EnvironmentEnum.TEST : EnvironmentEnum.PRODUCTION,
+        environment: String(Config.GOOGLE_PAY_ENVIRONMENT).toUpperCase() === "TEST"
+          ? EnvironmentEnum.TEST
+          : EnvironmentEnum.PRODUCTION,
         countryCode: Config.PAYMENT_COUNTRY_CODE,
         currencyCode: Config.PAYMENT_CURRENCY_CODE,
         requestBillingAddress: false,
         requestPayerEmail: false,
         requestShipping: false,
         gatewayConfig: {
-          gateway: Config.ANDROID_PAYMENT_GATEWAY,
-          gatewayMerchantId: Config.ANDROID_PAYMENT_GATEWAY_MERCHANT_ID,
+          gateway: Config.GOOGLE_PAY_GATEWAY,
+          gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
         },
       },
     };
@@ -190,6 +195,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         total: { label: "ROUND THE CORNER LLC", amount: { currency: "USD", value: total } },
       });
       if (!(await request.canMakePayment())) throw new Error("Apple Pay or Google Pay is unavailable.");
+      if (Platform.OS === "android") assertGooglePayConfiguration(Config);
       response = await request.show();
       const paymentData = Platform.OS === "ios"
         ? response.details.applePayToken.paymentData
