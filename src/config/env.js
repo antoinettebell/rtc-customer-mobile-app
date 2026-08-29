@@ -16,8 +16,9 @@ const fallbackConfig = {
   APPLE_PAY_MERCHANT_ID: "merchant.roundthecorner.vendor",
   PAYMENT_CURRENCY_CODE: "USD",
   PAYMENT_COUNTRY_CODE: "US",
-  ANDROID_PAYMENT_GATEWAY: "authorizenet",
-  ANDROID_PAYMENT_GATEWAY_MERCHANT_ID: "2794197",
+  GOOGLE_PAY_GATEWAY: "",
+  GOOGLE_PAY_GATEWAY_MERCHANT_ID: "",
+  GOOGLE_PAY_ENVIRONMENT: "",
 };
 
 const Config = {

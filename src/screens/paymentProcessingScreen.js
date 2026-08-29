@@ -33,6 +33,7 @@ import TipSelector from "../components/TipSelector";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
+import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -65,15 +66,19 @@ const ANDROID_PAY_METHOD_DATA = {
       SupportedNetworkEnum.Visa,
       SupportedNetworkEnum.Mastercard,
     ],
-    environment: EnvironmentEnum.PRODUCTION,
+    environment: String(Config.GOOGLE_PAY_ENVIRONMENT).toUpperCase() === "TEST"
+      ? EnvironmentEnum.TEST
+      : EnvironmentEnum.PRODUCTION,
     countryCode: Config.PAYMENT_COUNTRY_CODE,
     currencyCode: Config.PAYMENT_CURRENCY_CODE,
-    requestBillingAddress: false,
-    requestPayerEmail: false,
+    requestBillingAddress: true,
+    requestPayerEmail: true,
+    requestPayerName: true,
+    requestPayerPhone: true,
     requestShipping: false,
     gatewayConfig: {
-      gateway: Config.ANDROID_PAYMENT_GATEWAY,
-      gatewayMerchantId: Config.ANDROID_PAYMENT_GATEWAY_MERCHANT_ID,
+      gateway: Config.GOOGLE_PAY_GATEWAY,
+      gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
     },
   },
 };
@@ -92,10 +97,10 @@ const normalizeApplePayBillingAddress = (billingAddress) => {
 
   const normalized = {
     address1: normalizeText(billingAddress.address1),
-    locality: normalizeText(billingAddress.address2),
-    administrativeArea: normalizeText(billingAddress.address3),
+    locality: normalizeText(billingAddress.locality),
+    administrativeArea: normalizeText(billingAddress.administrativeArea),
     postalCode: normalizeText(billingAddress.postalCode),
-    country: normalizeText(billingAddress.countryCode)?.toUpperCase(),
+    country: normalizeText(billingAddress.countryCode || billingAddress.country)?.toUpperCase(),
   };
 
   return Object.values(normalized).some(Boolean) ? normalized : undefined;
@@ -244,6 +249,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
 
         let paymentResponse;
         try {
+          if (Platform.OS === "android") assertGooglePayConfiguration(Config);
           paymentResponse = await paymentRequest.show();
           const paymentRawToken =
             Platform.OS === "ios"
@@ -272,9 +278,14 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                   ? "APPLE_PAY"
                   : "CASH_ON_PICKUP",
             amount: String(payableAmount),
-            ...(Platform.OS === "ios" && {
-              billingAddress: normalizeApplePayBillingAddress(paymentResponse.details.billingAddress),
-            }),
+            billingAddress: Platform.OS === "ios"
+              ? normalizeApplePayBillingAddress(paymentResponse.details.billingAddress)
+              : normalizeWalletBillingAddress(paymentResponse.details.billingAddress, {
+                  email: paymentResponse.details.payerEmail,
+                  phone: paymentResponse.details.payerPhone,
+                  firstName: paymentResponse.details.payerName?.givenName,
+                  lastName: paymentResponse.details.payerName?.familyName,
+                }),
           };
 
           // const respose_1 = {
