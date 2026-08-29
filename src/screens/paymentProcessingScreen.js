@@ -78,7 +78,7 @@ const ANDROID_PAY_METHOD_DATA = {
     requestShipping: false,
     gatewayConfig: {
       gateway: Config.GOOGLE_PAY_GATEWAY,
-      gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
+      gatewayMerchantId: Config.CYBERSOURCE_MERCHANT_ID,
     },
   },
 };
