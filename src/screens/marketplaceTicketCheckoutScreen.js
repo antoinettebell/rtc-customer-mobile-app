@@ -37,6 +37,7 @@ import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 import { getGooglePlaceAddressSelection } from "../helpers/address.helper";
 import { assertGooglePayConfiguration } from "../helpers/walletBillingAddress.helper";
+import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 
 const walletMethod = Platform.OS === "ios"
   ? {
@@ -168,6 +169,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     setLoading(true);
     let request;
     let response;
+    let responseSettled = false;
+    let walletStage = "canMakePayment";
     try {
       const idempotencyKey = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
         const random = Math.floor(Math.random() * 16);
@@ -194,9 +197,12 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         ],
         total: { label: "ROUND THE CORNER LLC", amount: { currency: "USD", value: total } },
       });
-      if (!(await request.canMakePayment())) throw new Error("Apple Pay or Google Pay is unavailable.");
+      const canMakePayment = await request.canMakePayment();
+      if (!canMakePayment) throw new Error("Apple Pay or Google Pay is unavailable.");
       if (Platform.OS === "android") assertGooglePayConfiguration(Config);
+      walletStage = "show";
       response = await request.show();
+      walletStage = "token extraction";
       const paymentData = Platform.OS === "ios"
         ? response.details.applePayToken.paymentData
         : response.details.androidPayToken.rawToken;
@@ -206,12 +212,14 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         payment_data: paymentData,
         idempotency_key: idempotencyKey,
       };
+      walletStage = "backend checkout";
       const checkout = guestCheckout
         ? shareToken
           ? await checkoutGuestMarketplaceTickets_API({ shareToken, payload: checkoutPayload })
           : await checkoutPublicGuestMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutPayload })
         : await checkoutMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutPayload });
-      response.complete("success");
+      completeWalletResponseSafely(response, "success");
+      responseSettled = true;
       const tickets = checkout.data?.tickets || [];
       Alert.alert("Tickets Purchased", `${tickets.length} ticket${tickets.length === 1 ? "" : "s"} sent by text and email.`, [
         {
@@ -225,8 +233,11 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         },
       ]);
     } catch (error) {
-      response?.complete?.("fail");
-      request?.abort?.();
+      logWalletCheckoutDiagnostic(walletStage, error);
+      if (response && !responseSettled) {
+        completeWalletResponseSafely(response, "fail");
+        responseSettled = true;
+      }
       Alert.alert("Ticket Purchase", error?.message || "Unable to complete ticket purchase.");
     } finally {
       setLoading(false);

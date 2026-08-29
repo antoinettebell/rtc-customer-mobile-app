@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator as NativeIndicator,
   Image,
@@ -34,7 +34,8 @@ import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
-import { calculateFinalTotal } from "../helpers/tip.helper";
+import { applyTipAmount, calculateFinalTotal } from "../helpers/tip.helper";
+import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -122,6 +123,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
   const [dataLoading, setDataLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(null);
   const [tipAmount, setTipAmount] = useState(0);
+  const tipAmountRef = useRef(0);
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
@@ -142,14 +144,19 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     validatedDetail?.fulfillmentType === "DELIVERY" ||
     Number(validatedDetail?.deliveryFee || 0) > 0;
 
+  const handleTipChange = (nextTipAmount) => {
+    applyTipAmount(nextTipAmount, tipAmountRef, setTipAmount);
+  };
+
   const handlePayment = async ({ paymentMethod = "cashOnPickup" }) => {
+    const paymentTipAmount = tipAmountRef.current;
     setPaymentLoading(paymentMethod);
     try {
       if (!paymentMethod || paymentMethod === "cashOnPickup") {
         try {
           const response = await placeFoodOrder_API({
             ...orderDetail,
-            tipsAmount: Number(tipAmount),
+            tipsAmount: paymentTipAmount,
           });
           console.log("Order placed response:", response);
           if (response?.success && response?.data) {
@@ -167,7 +174,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           });
         }
       } else {
-        const payableAmount = toAmount(calculateFinalTotal(finalAmount, tipAmount));
+        const payableAmount = toAmount(calculateFinalTotal(finalAmount, paymentTipAmount));
         const DISPLAY_DATA = {
           displayItems: [
             {
@@ -220,7 +227,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               label: "Food Truck Tip",
               amount: {
                 currency: "USD",
-                value: toAmount(tipAmount),
+                value: toAmount(paymentTipAmount),
               },
             },
           ],
@@ -239,8 +246,18 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           DISPLAY_DATA,
         );
 
-        const isPaymentPossible = await paymentRequest.canMakePayment();
+        let walletStage = "canMakePayment";
+        let paymentResponse;
+        let paymentResponseSettled = false;
+        let isPaymentPossible;
+        try {
+          isPaymentPossible = await paymentRequest.canMakePayment();
+        } catch (error) {
+          logWalletCheckoutDiagnostic(walletStage, error);
+          throw error;
+        }
         if (!isPaymentPossible) {
+          logWalletCheckoutDiagnostic(walletStage, new Error("Wallet unavailable"));
           showSnackbar({
             message: "Please try with different payment method.",
             type: "error",
@@ -248,10 +265,11 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           return;
         }
 
-        let paymentResponse;
         try {
           if (Platform.OS === "android") assertGooglePayConfiguration(Config);
+          walletStage = "show";
           paymentResponse = await paymentRequest.show();
+          walletStage = "token extraction";
           const paymentRawToken =
             Platform.OS === "ios"
               ? paymentResponse.details.applePayToken.paymentData
@@ -299,6 +317,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           //   message: "Payment checkout was successful",
           // };
 
+          walletStage = "backend checkout";
           const respose_1 = await paymentCheckout_API(reqPayload);
           if (respose_1.success && respose_1.data) {
             showSnackbar({
@@ -319,7 +338,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               invoiceNumber: respose_1.data.paymentsData.invoiceNumber,
               accountNumber: respose_1.data.paymentsData.accountNumber,
               accountType: respose_1.data.paymentsData.accountType,
-              tipsAmount: Number(tipAmount),
+              tipsAmount: paymentTipAmount,
             });
             if (respose_2.success && respose_2.data) {
               dispatch(clearCurrentOrder());
@@ -329,9 +348,14 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             }
           }
 
-          paymentResponse.complete("success");
+          completeWalletResponseSafely(paymentResponse, "success");
+          paymentResponseSettled = true;
         } catch (error) {
-          paymentResponse?.complete?.("fail");
+          logWalletCheckoutDiagnostic(walletStage, error);
+          if (paymentResponse && !paymentResponseSettled) {
+            completeWalletResponseSafely(paymentResponse, "fail");
+            paymentResponseSettled = true;
+          }
           showSnackbar({
             message: getErrorMessage(
               error,
@@ -339,7 +363,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             ),
             type: "error",
           });
-          paymentRequest.abort();
         }
       }
     } catch (error) {
@@ -532,7 +555,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               </View>
               <TipSelector
                 preTipTotal={parseFloat(finalAmount) || 0}
-                onTipChange={setTipAmount}
+                onTipChange={handleTipChange}
               />
             </>
 

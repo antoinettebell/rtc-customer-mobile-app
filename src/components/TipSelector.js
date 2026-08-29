@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { TextInput } from "react-native-paper";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
-import { calculatePresetTip } from "../helpers/tip.helper";
+import { calculatePresetTip, selectPresetTip } from "../helpers/tip.helper";
 
 const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
   const [selectedPercentage, setSelectedPercentage] = useState(null);
@@ -19,7 +19,7 @@ const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
   const tipPercentages = [5, 8, 10, 12];
 
   const handlePercentageSelect = (percentage) => {
-    onTipChange?.(calculatePresetTip(preTipTotal, percentage));
+    selectPresetTip(preTipTotal, percentage, onTipChange);
     setSelectedPercentage(percentage);
     setShowCustomInput(false);
     setCustomTip("");
