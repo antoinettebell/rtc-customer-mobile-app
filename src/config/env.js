@@ -1,6 +1,7 @@
 import { NativeModules } from "react-native";
+import EnvConfig from "react-native-config";
 
-const nativeConfig = NativeModules.RNCConfigModule?.getConfig?.()?.config ?? {};
+const nativeConfig = EnvConfig || {};
 
 const platformOS =
   NativeModules.PlatformConstants?.os ??
