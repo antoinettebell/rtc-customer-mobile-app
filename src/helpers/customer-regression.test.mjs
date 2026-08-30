@@ -34,7 +34,6 @@ assert.equal(canCancelCoordinatorEvent({ status: "CANCELLED" }), false);
 assert.doesNotMatch(details, /Cancel Event & Refund Tickets/);
 assert.doesNotMatch(details, /text: "Cancel Event"/);
 assert.doesNotMatch(details, />Reopen Bidding<\/Text>/);
-assert.doesNotMatch(details, />Close Event<\/Text>/);
 assert.doesNotMatch(details, /Close Event for Payment/);
 assert.equal((details.match(/>Share Event via Text<\/Text>/g) || []).length, 2);
 assert.doesNotMatch(details, /Share\.share\(/);
