@@ -15,6 +15,7 @@ import {
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 const createEvent = read("../screens/marketplaceCreateEventScreen.js");
+const paymentProcessing = read("../screens/paymentProcessingScreen.js");
 const marketplaceShared = read("../screens/marketplaceShared.js");
 const details = read("../screens/marketplaceEventDetailsScreen.js");
 assert.match(
@@ -73,6 +74,11 @@ assert.deepEqual(
     accountNumber: "XXXX1234",
     accountType: "VISA",
   },
+);
+assert.match(
+  paymentProcessing,
+  /placeFoodOrder_API\(\{[\s\S]*?\.\.\.orderDetail,[\s\S]*?getOptionalPaymentResponseFields/,
+  "wallet checkout must preserve the pickup or delivery fields from orderDetail",
 );
 assert.equal(normalizeEventDateForForm("2026-08-19T00:00:00.000Z"), "2026-08-19");
 assert.equal(normalizeEventDateForForm("2026-08-19"), "2026-08-19");
