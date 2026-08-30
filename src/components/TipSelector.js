@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { TextInput } from "react-native-paper";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
+import { calculatePresetTip, selectPresetTip } from "../helpers/tip.helper";
 
 const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
   const [selectedPercentage, setSelectedPercentage] = useState(null);
@@ -17,30 +18,8 @@ const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
 
   const tipPercentages = [5, 8, 10, 12];
 
-  useEffect(() => {
-    if (selectedPercentage !== null && !showCustomInput) {
-      const tipAmount = (preTipTotal * selectedPercentage) / 100;
-      onTipChange?.(tipAmount);
-    } else if (showCustomInput || customTip !== "") {
-      // Handle edge cases for custom tip
-      if (customTip === "" || customTip === ".") {
-        onTipChange?.(0);
-      } else {
-        const customAmount = parseFloat(customTip) || 0;
-        onTipChange?.(customAmount);
-      }
-    } else if (!showCustomInput && !selectedPercentage) {
-      onTipChange?.(0);
-    }
-  }, [
-    selectedPercentage,
-    customTip,
-    showCustomInput,
-    preTipTotal,
-    onTipChange,
-  ]);
-
   const handlePercentageSelect = (percentage) => {
+    selectPresetTip(preTipTotal, percentage, onTipChange);
     setSelectedPercentage(percentage);
     setShowCustomInput(false);
     setCustomTip("");
@@ -49,7 +28,7 @@ const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
   const handleCustomClick = () => {
     // If a percentage is selected, calculate the tip amount and set it as default value
     if (selectedPercentage !== null) {
-      const currentTipAmount = (preTipTotal * selectedPercentage) / 100;
+      const currentTipAmount = calculatePresetTip(preTipTotal, selectedPercentage);
       setCustomTip(currentTipAmount.toFixed(2));
     }
     setShowCustomInput(true);
@@ -75,6 +54,11 @@ const TipSelector = ({ preTipTotal = 0, onTipChange }) => {
       return;
     }
     setCustomTip(numericValue);
+    onTipChange?.(
+      numericValue === "" || numericValue === "."
+        ? 0
+        : parseFloat(numericValue) || 0,
+    );
   };
 
   const handleCustomInputBlur = () => {

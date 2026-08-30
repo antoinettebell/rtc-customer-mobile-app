@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator as NativeIndicator,
   Image,
@@ -34,6 +34,8 @@ import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
+import { applyTipAmount, calculateFinalTotal } from "../helpers/tip.helper";
+import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -78,7 +80,7 @@ const ANDROID_PAY_METHOD_DATA = {
     requestShipping: false,
     gatewayConfig: {
       gateway: Config.GOOGLE_PAY_GATEWAY,
-      gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
+      gatewayMerchantId: Config.CYBERSOURCE_MERCHANT_ID,
     },
   },
 };
@@ -121,6 +123,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
   const [dataLoading, setDataLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(null);
   const [tipAmount, setTipAmount] = useState(0);
+  const tipAmountRef = useRef(0);
   const [snackbar, setSnackbar] = useState({
     visible: false,
     message: "",
@@ -141,14 +144,19 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
     validatedDetail?.fulfillmentType === "DELIVERY" ||
     Number(validatedDetail?.deliveryFee || 0) > 0;
 
+  const handleTipChange = (nextTipAmount) => {
+    applyTipAmount(nextTipAmount, tipAmountRef, setTipAmount);
+  };
+
   const handlePayment = async ({ paymentMethod = "cashOnPickup" }) => {
+    const paymentTipAmount = tipAmountRef.current;
     setPaymentLoading(paymentMethod);
     try {
       if (!paymentMethod || paymentMethod === "cashOnPickup") {
         try {
           const response = await placeFoodOrder_API({
             ...orderDetail,
-            tipsAmount: Number(tipAmount),
+            tipsAmount: paymentTipAmount,
           });
           console.log("Order placed response:", response);
           if (response?.success && response?.data) {
@@ -166,7 +174,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           });
         }
       } else {
-        const payableAmount = toAmount(finalAmount + tipAmount);
+        const payableAmount = toAmount(calculateFinalTotal(finalAmount, paymentTipAmount));
         const DISPLAY_DATA = {
           displayItems: [
             {
@@ -219,7 +227,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               label: "Food Truck Tip",
               amount: {
                 currency: "USD",
-                value: toAmount(tipAmount),
+                value: toAmount(paymentTipAmount),
               },
             },
           ],
@@ -238,8 +246,18 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           DISPLAY_DATA,
         );
 
-        const isPaymentPossible = await paymentRequest.canMakePayment();
+        let walletStage = "canMakePayment";
+        let paymentResponse;
+        let paymentResponseSettled = false;
+        let isPaymentPossible;
+        try {
+          isPaymentPossible = await paymentRequest.canMakePayment();
+        } catch (error) {
+          logWalletCheckoutDiagnostic(walletStage, error);
+          throw error;
+        }
         if (!isPaymentPossible) {
+          logWalletCheckoutDiagnostic(walletStage, new Error("Wallet unavailable"));
           showSnackbar({
             message: "Please try with different payment method.",
             type: "error",
@@ -247,29 +265,17 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           return;
         }
 
-        let paymentResponse;
         try {
           if (Platform.OS === "android") assertGooglePayConfiguration(Config);
+          walletStage = "show";
           paymentResponse = await paymentRequest.show();
+          walletStage = "token extraction";
           const paymentRawToken =
             Platform.OS === "ios"
               ? paymentResponse.details.applePayToken.paymentData
               : paymentResponse.details.androidPayToken.rawToken;
 
           const reqPayload = {
-            // paymentData: {
-            //   data: "9/CYTcB0rjjCJsFnb6GxIeV7jc+MejfIY5o7uM39YIIFBXkW5NOSCqnMYCxyCHtuI6gMmfW1DB43D/CcP+SV11x33b4Go8HiGljGftFFs7X4GHtwRG1D1nMUc9vK7GCf17DWw8ZT1XvFpB7C1SehEEN1L/S3KOK7luJLFLgfiLtbGYa0ZAciUWOCYJBsOlHTU3gUB7eNllRbynQEzdJLP5oELiEB/d44iYDjlxX93CEpLZUY4qs5mpskloKSBADgKTCoDEeVtsmLAVL+iYs72Pfj+gt/3TxIpSOepq6uVld4Utx7VzFUOuGYaCkrFiQSGyiMRZzH0lTiEFqPGfi78pIkAt+bdywDx3MabPhVFt01bJB8+rZjhNx6HvaNaHxAJkeroTmC3GU01rn2m6XUGzCC4zYneqffqsFaWIQ=",
-            //   signature:
-            //     "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",
-            //   header: {
-            //     publicKeyHash: "RIPLjq/q7UqfvKVrv4elvNbnSzmcOs+e1x0AREFntKw=",
-            //     ephemeralPublicKey:
-            //       "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERP17WG+VIJaPEQrI6ld7adkXe4sRlgE82VR7Ni4kDm/MPhcb1yZfLNUD1oZzfFoCAK0DRSDjVjvWaw2KJePVyA==",
-            //     transactionId:
-            //       "f321506b31e9cf4ec86db9ed32af4a4be4b2f92fa0bad98b157b7c91ad39c699",
-            //   },
-            //   version: "EC_v1",
-            // },
             paymentData: paymentRawToken,
             paymentMethod:
               paymentMethod === "googlePay"
@@ -311,6 +317,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           //   message: "Payment checkout was successful",
           // };
 
+          walletStage = "backend checkout";
           const respose_1 = await paymentCheckout_API(reqPayload);
           if (respose_1.success && respose_1.data) {
             showSnackbar({
@@ -331,7 +338,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               invoiceNumber: respose_1.data.paymentsData.invoiceNumber,
               accountNumber: respose_1.data.paymentsData.accountNumber,
               accountType: respose_1.data.paymentsData.accountType,
-              tipsAmount: Number(tipAmount),
+              tipsAmount: paymentTipAmount,
             });
             if (respose_2.success && respose_2.data) {
               dispatch(clearCurrentOrder());
@@ -341,9 +348,14 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             }
           }
 
-          paymentResponse.complete("success");
+          completeWalletResponseSafely(paymentResponse, "success");
+          paymentResponseSettled = true;
         } catch (error) {
-          paymentResponse?.complete?.("fail");
+          logWalletCheckoutDiagnostic(walletStage, error);
+          if (paymentResponse && !paymentResponseSettled) {
+            completeWalletResponseSafely(paymentResponse, "fail");
+            paymentResponseSettled = true;
+          }
           showSnackbar({
             message: getErrorMessage(
               error,
@@ -351,7 +363,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
             ),
             type: "error",
           });
-          paymentRequest.abort();
         }
       }
     } catch (error) {
@@ -480,7 +491,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               <ItemContainer
                 key={"Final Total"}
                 title={"Final Total"}
-                value={`$${toAmount(finalAmount + tipAmount)}`}
+                value={`$${toAmount(calculateFinalTotal(finalAmount, tipAmount))}`}
               />
             </>
 
@@ -544,7 +555,7 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               </View>
               <TipSelector
                 preTipTotal={parseFloat(finalAmount) || 0}
-                onTipChange={setTipAmount}
+                onTipChange={handleTipChange}
               />
             </>
 

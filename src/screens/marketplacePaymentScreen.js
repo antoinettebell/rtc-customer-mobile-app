@@ -30,6 +30,7 @@ import {
 import { formatMoney, styles } from "./marketplaceShared";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
+import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 
 const RTC_PHONE = "800-410-7053";
 
@@ -70,7 +71,7 @@ const ANDROID_PAY_METHOD_DATA = {
     requestShipping: false,
     gatewayConfig: {
       gateway: Config.GOOGLE_PAY_GATEWAY,
-      gatewayMerchantId: Config.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
+      gatewayMerchantId: Config.CYBERSOURCE_MERCHANT_ID,
     },
   },
 };
@@ -131,6 +132,8 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
     setPaymentLoading(method);
     let paymentRequest;
     let paymentResponse;
+    let paymentResponseSettled = false;
+    let walletStage = "canMakePayment";
     try {
       let checkoutPayment = payment;
       if (payment.payment_type === "FINAL_EVENT_PAYMENT") {
@@ -165,17 +168,21 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
 
       const isPaymentPossible = await paymentRequest.canMakePayment();
       if (!isPaymentPossible) {
+        logWalletCheckoutDiagnostic(walletStage, new Error("Wallet unavailable"));
         Alert.alert("Wallet Unavailable", "Please use another payment option.");
         return;
       }
 
       if (Platform.OS === "android") assertGooglePayConfiguration(Config);
+      walletStage = "show";
       paymentResponse = await paymentRequest.show();
+      walletStage = "token extraction";
       const paymentRawToken =
         Platform.OS === "ios"
           ? paymentResponse.details.applePayToken.paymentData
           : paymentResponse.details.androidPayToken.rawToken;
 
+      walletStage = "backend checkout";
       const response = await checkoutMarketplacePayment_API({
         paymentId: payment.payment_id,
         payload: {
@@ -192,7 +199,8 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
       });
 
       if (response?.success) {
-        paymentResponse.complete("success");
+        completeWalletResponseSafely(paymentResponse, "success");
+        paymentResponseSettled = true;
         setPayment(response.data?.marketplacePayment);
         const agreementRequired = response.data?.routingResult?.agreement_required;
         Alert.alert(
@@ -212,8 +220,11 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
         );
       }
     } catch (error) {
-      paymentResponse?.complete?.("fail");
-      paymentRequest?.abort?.();
+      logWalletCheckoutDiagnostic(walletStage, error);
+      if (paymentResponse && !paymentResponseSettled) {
+        completeWalletResponseSafely(paymentResponse, "fail");
+        paymentResponseSettled = true;
+      }
       Alert.alert("Payment Failed", error?.message || "Please try again.");
     } finally {
       setPaymentLoading(null);
