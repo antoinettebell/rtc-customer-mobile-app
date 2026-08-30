@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   canCancelCoordinatorEvent,
+  getOptionalPaymentResponseFields,
   getPermissionRequestAction,
   getTicketAttendancePatch,
   initializeAddressEdit,
@@ -52,6 +53,27 @@ assert.equal(toFormString(150), "150");
 assert.equal(toFormString(0), "0");
 assert.equal(toFormString(null), "");
 assert.equal(toFormString(undefined), "");
+assert.deepEqual(
+  getOptionalPaymentResponseFields({
+    transactionId: "wallet-transaction",
+    accountNumber: null,
+    accountType: "GOOGLE_PAY",
+  }),
+  { accountType: "GOOGLE_PAY" },
+  "wallet responses must not send a null legacy account number",
+);
+assert.deepEqual(
+  getOptionalPaymentResponseFields({
+    invoiceNumber: "invoice-1",
+    accountNumber: "XXXX1234",
+    accountType: "VISA",
+  }),
+  {
+    invoiceNumber: "invoice-1",
+    accountNumber: "XXXX1234",
+    accountType: "VISA",
+  },
+);
 assert.equal(normalizeEventDateForForm("2026-08-19T00:00:00.000Z"), "2026-08-19");
 assert.equal(normalizeEventDateForForm("2026-08-19"), "2026-08-19");
 

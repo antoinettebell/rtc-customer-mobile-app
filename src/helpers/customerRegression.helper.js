@@ -68,3 +68,13 @@ export const leaveWithFallback = (navigation, fallbackRoute) => {
 };
 
 export const initializeAddressEdit = (address = {}) => ({ ...address });
+
+export const getOptionalPaymentResponseFields = (payment = {}) =>
+  ["invoiceNumber", "accountNumber", "accountType"].reduce(
+    (fields, key) => {
+      const value = payment?.[key];
+      if (typeof value === "string" && value.trim()) fields[key] = value;
+      return fields;
+    },
+    {},
+  );

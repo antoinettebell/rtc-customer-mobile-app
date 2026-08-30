@@ -36,6 +36,7 @@ import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 import { applyTipAmount, calculateFinalTotal } from "../helpers/tip.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
+import { getOptionalPaymentResponseFields } from "../helpers/customerRegression.helper";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -327,9 +328,9 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               paymentStatus: "PAID", //'PENDING', 'PAID'
               transactionId: respose_1.data.paymentsData.transactionId,
               authCode: respose_1.data.paymentsData.authCode,
-              invoiceNumber: respose_1.data.paymentsData.invoiceNumber,
-              accountNumber: respose_1.data.paymentsData.accountNumber,
-              accountType: respose_1.data.paymentsData.accountType,
+              ...getOptionalPaymentResponseFields(
+                respose_1.data.paymentsData,
+              ),
               tipsAmount: paymentTipAmount,
             });
             if (respose_2.success && respose_2.data) {
