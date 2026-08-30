@@ -22,7 +22,7 @@ react {
     //   The list of variants to that are debuggable. For those we're going to
     //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
-    // debuggableVariants = ["liteDebug", "prodDebug"]
+    debuggableVariants = ["devDebug", "liveGoogleDebug"]
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -83,8 +83,19 @@ android {
         applicationId "com.rounddacorner.dev.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 77
+        versionCode 78
         versionName "1.7"
+    }
+    flavorDimensions "distribution"
+    productFlavors {
+        dev {
+            dimension "distribution"
+            applicationId "com.rounddacorner.dev.customer"
+        }
+        liveGoogle {
+            dimension "distribution"
+            applicationId "com.ea.rtcuser"
+        }
     }
     signingConfigs {
         debug {
@@ -129,7 +140,9 @@ dependencies {
 }
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 project.ext.envConfigFiles = [
-    debug: ".env.debug",
-    release: ".env.production",
+    devdebug: ".env.debug",
+    devrelease: ".env.production",
+    livegoogledebug: ".env.debug",
+    livegooglerelease: ".env.live-google-dev",
 ]
 apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"

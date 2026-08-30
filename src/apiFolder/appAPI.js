@@ -865,6 +865,8 @@ const MARKETPLACE_EVENT_PAYLOAD_FIELDS = [
   "waive_vendor_fee_for_combined_award",
   "vendor_fee_payment_deadline",
   "separate_vip_vendor_required",
+  "dessert_caterer_required",
+  "drinks_caterer_required",
   "vip_guest_count",
   "cuisine_preferences",
   "dietary_restrictions",

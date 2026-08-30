@@ -1211,11 +1211,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 Drinks Vendors Selected: {event?.marketplace_metrics?.drinks_vendors_selected ?? 0} of 1
               </Text>
             ) : null}
-            {getEventVendorRequirementRows(event).map((requirement) => (
+            {getEventVendorRequirementRows(event)
+              .filter((requirement) => requirement.requested > 0)
+              .map((requirement) => (
               <Text key={requirement.vendorType} style={styles.label}>
-                {requirement.vendorType} Vendors Selected: {requirement.filled}
+                {requirement.vendorType} Vendors Selected: {requirement.filled} of {requirement.requested}
               </Text>
-            ))}
+              ))}
           </View>
           {renderMessagesEntry()}
           {renderSectionControls()}

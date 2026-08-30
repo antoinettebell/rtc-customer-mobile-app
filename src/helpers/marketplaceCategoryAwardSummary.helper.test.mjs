@@ -6,6 +6,9 @@ assert.deepEqual(getCategoryAwardSummary(null), {
   vip: null,
   desserts: null,
   drinks: null,
+  merchandise: null,
+  service: null,
+  other: null,
 });
 assert.deepEqual(getCategoryAwardSummary({
   number_of_guests: 100,
@@ -22,6 +25,9 @@ assert.deepEqual(getCategoryAwardSummary({
   vip: "1 of 1 selected · 0 remaining",
   desserts: "1 of 1 selected · 0 remaining",
   drinks: "1 of 1 selected · 0 remaining",
+  merchandise: null,
+  service: null,
+  other: null,
 });
 
 for (const [name, awardedSpecialties, expectedDesserts, expectedDrinks] of [
@@ -84,5 +90,28 @@ assert.equal(
   "1 of 1 selected · 0 remaining",
   "the combined bid still fills the VIP selection"
 );
+
+const marketplaceVendorSummary = getCategoryAwardSummary({
+  number_of_guests: 100,
+  event_vendor_needs: [
+    { vendor_type: "MERCHANDISE", quantity: 1 },
+    { vendor_type: "SERVICE", quantity: 2 },
+  ],
+}, [], [{
+  application_status: "AWARDED",
+  vendor_user_id: "merchandise-vendor",
+  vendor_types: ["MERCHANDISE"],
+}]);
+assert.equal(
+  marketplaceVendorSummary.merchandise,
+  "1 of 1 selected · 0 remaining",
+  "Marketplace Vendor awards show their selected and requested quantities",
+);
+assert.equal(
+  marketplaceVendorSummary.service,
+  "0 of 2 selected · 2 remaining",
+  "unawarded Marketplace Vendor needs remain visible",
+);
+assert.equal(marketplaceVendorSummary.other, null);
 
 console.log("customer marketplace category award-summary tests passed");

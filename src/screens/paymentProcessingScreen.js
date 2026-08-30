@@ -36,6 +36,7 @@ import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
 import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 import { applyTipAmount, calculateFinalTotal } from "../helpers/tip.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
+import { getOptionalPaymentResponseFields } from "../helpers/customerRegression.helper";
 import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -108,6 +109,11 @@ const normalizeApplePayBillingAddress = (billingAddress) => {
   return Object.values(normalized).some(Boolean) ? normalized : undefined;
 };
 
+const toNumericAmount = (value) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
 const PaymentProcessingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -143,9 +149,19 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
   const isDelivery =
     validatedDetail?.fulfillmentType === "DELIVERY" ||
     Number(validatedDetail?.deliveryFee || 0) > 0;
+  const renderedBaseAmount = toNumericAmount(finalAmount);
+  const renderedTipAmount = toNumericAmount(tipAmount);
+  const renderedFinalTotal = calculateFinalTotal(
+    renderedBaseAmount,
+    renderedTipAmount,
+  );
 
   const handleTipChange = (nextTipAmount) => {
-    applyTipAmount(nextTipAmount, tipAmountRef, setTipAmount);
+    applyTipAmount(
+      nextTipAmount,
+      tipAmountRef,
+      setTipAmount,
+    );
   };
 
   const handlePayment = async ({ paymentMethod = "cashOnPickup" }) => {
@@ -294,29 +310,6 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 }),
           };
 
-          // const respose_1 = {
-          //   code: 200,
-          //   success: true,
-          //   data: {
-          //     paymentsData: {
-          //       userId: "691487f6ab521ebc73863e06",
-          //       transactionId: "0",
-          //       authCode: "000000",
-          //       amount: "1.13",
-          //       taxAmount: 0,
-          //       subTotal: 0,
-          //       paymentMethod: "APPLE_PAY",
-          //       mode: "production",
-          //       invoiceNumber: "INV-1765115052542",
-          //       accountNumber: "XXXX8090",
-          //       accountType: "Visa",
-          //       date: "2025-12-07T13:44:13.060Z",
-          //     },
-          //   },
-          //   error: null,
-          //   message: "Payment checkout was successful",
-          // };
-
           walletStage = "backend checkout";
           const respose_1 = await paymentCheckout_API(reqPayload);
           if (respose_1.success && respose_1.data) {
@@ -335,9 +328,9 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
               paymentStatus: "PAID", //'PENDING', 'PAID'
               transactionId: respose_1.data.paymentsData.transactionId,
               authCode: respose_1.data.paymentsData.authCode,
-              invoiceNumber: respose_1.data.paymentsData.invoiceNumber,
-              accountNumber: respose_1.data.paymentsData.accountNumber,
-              accountType: respose_1.data.paymentsData.accountType,
+              ...getOptionalPaymentResponseFields(
+                respose_1.data.paymentsData,
+              ),
               tipsAmount: paymentTipAmount,
             });
             if (respose_2.success && respose_2.data) {

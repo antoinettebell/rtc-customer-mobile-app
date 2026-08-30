@@ -34,5 +34,7 @@ const detailsSource = await readFile(
 );
 assert.match(detailsSource, /useState\(!initialEvent\)/);
 assert.match(detailsSource, /\) : !event \? \(/);
+assert.match(detailsSource, /requirement\.requested > 0/);
+assert.match(detailsSource, /Vendors Selected: \{requirement\.filled\} of \{requirement\.requested\}/);
 
 console.log("Marketplace event requirement rows tests passed.");

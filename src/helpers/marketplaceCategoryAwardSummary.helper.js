@@ -9,9 +9,27 @@ const getVendorId = (submission = {}) => {
 export const getCategoryAwardSummary = (event, bids = [], applications = []) => {
   const safeEvent = event || {};
   const awardedBids = bids.filter((bid) => bid.bid_status === "AWARDED");
-  const awardedApplications = applications.filter((item) => ["ACCEPTED", "PAYMENT_DUE", "PAID", "CONFIRMED"].includes(item.application_status));
+  const awardedApplications = applications.filter((item) =>
+    ["AWARDED", "ACCEPTED", "PAYMENT_DUE", "PAID", "CONFIRMED"].includes(
+      item.application_status,
+    ),
+  );
   const ga = new Set(awardedApplications.map(getVendorId).filter(Boolean));
   const vip = new Set(); const desserts = new Set(); const drinks = new Set();
+  const marketplaceVendorAwards = {
+    MERCHANDISE: new Set(),
+    SERVICE: new Set(),
+    OTHER: new Set(),
+  };
+  awardedApplications.forEach((application) => {
+    const vendorId = getVendorId(application);
+    if (!vendorId) return;
+    (application.vendor_types || []).forEach((vendorType) => {
+      if (marketplaceVendorAwards[vendorType]) {
+        marketplaceVendorAwards[vendorType].add(vendorId);
+      }
+    });
+  });
   awardedBids.forEach((bid) => {
     const vendorId = getVendorId(bid);
     if (!vendorId) return;
@@ -26,10 +44,28 @@ export const getCategoryAwardSummary = (event, bids = [], applications = []) => 
     if (specialties.includes("DRINKS")) drinks.add(vendorId);
   });
   const gaNeed = Math.max(1, Math.ceil(Number(safeEvent.number_of_guests || 0) / 100));
+  const marketplaceNeeds = ["MERCHANDISE", "SERVICE", "OTHER"].reduce(
+    (needs, vendorType) => ({
+      ...needs,
+      [vendorType]: (safeEvent.event_vendor_needs || [])
+        .filter((need) => need?.vendor_type === vendorType)
+        .reduce((total, need) => total + Math.max(0, Number(need.quantity || 0)), 0),
+    }),
+    {},
+  );
+  const getMarketplaceVendorSummary = (vendorType) => {
+    const requested = marketplaceNeeds[vendorType];
+    if (!requested) return null;
+    const selected = marketplaceVendorAwards[vendorType].size;
+    return `${selected} of ${requested} selected · ${Math.max(0, requested - selected)} remaining`;
+  };
   return {
     ga: `${ga.size} of ${gaNeed} selected · ${Math.max(0, gaNeed - ga.size)} remaining`,
     vip: safeEvent.catered_vip_section_enabled ? `${vip.size} of 1 selected · ${Math.max(0, 1 - vip.size)} remaining` : null,
     desserts: safeEvent.dessert_caterer_required ? `${desserts.size} of 1 selected · ${Math.max(0, 1 - desserts.size)} remaining` : null,
     drinks: safeEvent.drinks_caterer_required ? `${drinks.size} of 1 selected · ${Math.max(0, 1 - drinks.size)} remaining` : null,
+    merchandise: getMarketplaceVendorSummary("MERCHANDISE"),
+    service: getMarketplaceVendorSummary("SERVICE"),
+    other: getMarketplaceVendorSummary("OTHER"),
   };
 };

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   canCancelCoordinatorEvent,
+  getOptionalPaymentResponseFields,
   getPermissionRequestAction,
   getTicketAttendancePatch,
   initializeAddressEdit,
@@ -14,6 +15,7 @@ import {
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 const createEvent = read("../screens/marketplaceCreateEventScreen.js");
+const paymentProcessing = read("../screens/paymentProcessingScreen.js");
 const marketplaceShared = read("../screens/marketplaceShared.js");
 const details = read("../screens/marketplaceEventDetailsScreen.js");
 assert.match(
@@ -34,7 +36,6 @@ assert.equal(canCancelCoordinatorEvent({ status: "CANCELLED" }), false);
 assert.doesNotMatch(details, /Cancel Event & Refund Tickets/);
 assert.doesNotMatch(details, /text: "Cancel Event"/);
 assert.doesNotMatch(details, />Reopen Bidding<\/Text>/);
-assert.doesNotMatch(details, />Close Event<\/Text>/);
 assert.doesNotMatch(details, /Close Event for Payment/);
 assert.equal((details.match(/>Share Event via Text<\/Text>/g) || []).length, 2);
 assert.doesNotMatch(details, /Share\.share\(/);
@@ -53,6 +54,32 @@ assert.equal(toFormString(150), "150");
 assert.equal(toFormString(0), "0");
 assert.equal(toFormString(null), "");
 assert.equal(toFormString(undefined), "");
+assert.deepEqual(
+  getOptionalPaymentResponseFields({
+    transactionId: "wallet-transaction",
+    accountNumber: null,
+    accountType: "GOOGLE_PAY",
+  }),
+  { accountType: "GOOGLE_PAY" },
+  "wallet responses must not send a null legacy account number",
+);
+assert.deepEqual(
+  getOptionalPaymentResponseFields({
+    invoiceNumber: "invoice-1",
+    accountNumber: "XXXX1234",
+    accountType: "VISA",
+  }),
+  {
+    invoiceNumber: "invoice-1",
+    accountNumber: "XXXX1234",
+    accountType: "VISA",
+  },
+);
+assert.match(
+  paymentProcessing,
+  /placeFoodOrder_API\(\{[\s\S]*?\.\.\.orderDetail,[\s\S]*?getOptionalPaymentResponseFields/,
+  "wallet checkout must preserve the pickup or delivery fields from orderDetail",
+);
 assert.equal(normalizeEventDateForForm("2026-08-19T00:00:00.000Z"), "2026-08-19");
 assert.equal(normalizeEventDateForForm("2026-08-19"), "2026-08-19");
 

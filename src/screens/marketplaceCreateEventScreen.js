@@ -95,6 +95,7 @@ import {
   MARKETPLACE_EVENT_REQUIRED_FIELDS,
   getMissingMarketplaceRequiredField,
 } from "../helpers/marketplaceEventRequiredFields.helper";
+import { shouldShowAdditionalCatererNeeds } from "../helpers/marketplaceAdditionalCatering.helper";
 
 const initialForm = {
   event_name: "",
@@ -4409,28 +4410,60 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   This adds a VIP catering requirement to the event. A qualified
                   vendor may still offer both VIP Catering and GA Sales.
                 </Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={localStyles.checkboxRow}
-                  onPress={() => updateField("dessert_caterer_required", !form.dessert_caterer_required)}
-                >
-                  <View style={[localStyles.checkbox, form.dessert_caterer_required && localStyles.checkboxActive]}>
-                    {form.dessert_caterer_required ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}
-                  </View>
-                  <Text style={localStyles.checkboxLabel}>Do you need an additional Caterer for Desserts?</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={localStyles.checkboxRow}
-                  onPress={() => updateField("drinks_caterer_required", !form.drinks_caterer_required)}
-                >
-                  <View style={[localStyles.checkbox, form.drinks_caterer_required && localStyles.checkboxActive]}>
-                    {form.drinks_caterer_required ? <MaterialIcons name="check" size={16} color={AppColor.white} /> : null}
-                  </View>
-                  <Text style={localStyles.checkboxLabel}>Do you need an additional Caterer for Drinks?</Text>
-                </TouchableOpacity>
               </>
             ) : null}
+          </>
+        ) : null}
+        {shouldShowAdditionalCatererNeeds(form) ? (
+          <>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={localStyles.checkboxRow}
+              onPress={() =>
+                updateField(
+                  "dessert_caterer_required",
+                  !form.dessert_caterer_required,
+                )
+              }
+            >
+              <View
+                style={[
+                  localStyles.checkbox,
+                  form.dessert_caterer_required && localStyles.checkboxActive,
+                ]}
+              >
+                {form.dessert_caterer_required ? (
+                  <MaterialIcons name="check" size={16} color={AppColor.white} />
+                ) : null}
+              </View>
+              <Text style={localStyles.checkboxLabel}>
+                Do you need an additional Caterer for Desserts?
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={localStyles.checkboxRow}
+              onPress={() =>
+                updateField(
+                  "drinks_caterer_required",
+                  !form.drinks_caterer_required,
+                )
+              }
+            >
+              <View
+                style={[
+                  localStyles.checkbox,
+                  form.drinks_caterer_required && localStyles.checkboxActive,
+                ]}
+              >
+                {form.drinks_caterer_required ? (
+                  <MaterialIcons name="check" size={16} color={AppColor.white} />
+                ) : null}
+              </View>
+              <Text style={localStyles.checkboxLabel}>
+                Do you need an additional Caterer for Drinks?
+              </Text>
+            </TouchableOpacity>
           </>
         ) : null}
       </View>

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "359273774611",
+    "project_id": "rtccustomermobile",
+    "storage_bucket": "rtccustomermobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:359273774611:android:3521e8569bde6c2ddfc9e6",
+        "android_client_info": {
+          "package_name": "com.ea.rtcuser"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUI2-6_vaQyFVAwXsZeXClUx3MOY4v3zE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:359273774611:android:3776a7edc4f1bdf7dfc9e6",
+        "android_client_info": {
+          "package_name": "com.rounddacorner.dev.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUI2-6_vaQyFVAwXsZeXClUx3MOY4v3zE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

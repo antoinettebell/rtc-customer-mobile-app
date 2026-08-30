@@ -56,6 +56,34 @@ assert.deepEqual(getMarketplaceServiceRequirements(fullyCateredGaOnly), {
   gaRequirement: 2,
   vipRequirement: 0,
 });
+assert.deepEqual(
+  getMarketplaceVendorCapacity({
+    ...fullyCateredGaOnly,
+    dessert_caterer_required: true,
+    drinks_caterer_required: true,
+  }),
+  {
+    gaMaximum: 2,
+    vipRequirement: 0,
+    dessertRequirement: 1,
+    drinksRequirement: 1,
+    calculatedMaximum: 4,
+  },
+  "Desserts and Drinks each add an awardable specialty slot to a fully catered GA event",
+);
+assert.deepEqual(
+  getMarketplaceServiceRequirements({
+    ...fullyCateredGaOnly,
+    dessert_caterer_required: true,
+    drinks_caterer_required: true,
+  }),
+  {
+    gaRequirement: 2,
+    vipRequirement: 0,
+    dessertRequirement: 1,
+    drinksRequirement: 1,
+  },
+);
 
 const mixed = {
   number_of_guests: 150,
@@ -68,7 +96,9 @@ assert.equal(getMarketplaceBudget(mixed).minimumBudget, 1250);
 assert.deepEqual(getMarketplaceVendorCapacity(mixed), {
   gaMaximum: 2,
   vipRequirement: 1,
-  calculatedMaximum: 2,
+  dessertRequirement: 0,
+  drinksRequirement: 0,
+  calculatedMaximum: 3,
 });
 assert.equal(
   getMarketplaceVendorCapacity({ ...mixed, separate_vip_vendor_required: true })
@@ -133,6 +163,8 @@ assert.deepEqual(
   getMarketplaceFilledSlotSummary({
     gaSlotsFilled: 1,
     vipSlotsFilled: 1,
+    dessertSlotsFilled: 0,
+    drinksSlotsFilled: 0,
     combinedVendors: 1,
     gaRequirement: 2,
     vipRequirement: 1,
@@ -140,6 +172,8 @@ assert.deepEqual(
   {
     gaSlotsFilled: 1,
     vipSlotsFilled: 1,
+    dessertSlotsFilled: 0,
+    drinksSlotsFilled: 0,
     combinedVendors: 1,
     separateVipVendorRequired: false,
     minimumUniqueVendors: 1,
@@ -147,6 +181,8 @@ assert.deepEqual(
     totalServiceSlotsFilled: 2,
     remainingGaSlots: 1,
     remainingVipSlots: 0,
+    remainingDessertSlots: 0,
+    remainingDrinksSlots: 0,
     remainingTotalServiceSlots: 1,
     remainingUniqueVendors: 1,
   },
@@ -155,6 +191,8 @@ assert.deepEqual(
   getMarketplaceFilledSlotSummary({
     gaSlotsFilled: 1,
     vipSlotsFilled: 1,
+    dessertSlotsFilled: 0,
+    drinksSlotsFilled: 0,
     combinedVendors: 1,
     separateVipVendorRequired: true,
     gaRequirement: 1,
@@ -163,6 +201,8 @@ assert.deepEqual(
   {
     gaSlotsFilled: 1,
     vipSlotsFilled: 1,
+    dessertSlotsFilled: 0,
+    drinksSlotsFilled: 0,
     combinedVendors: 1,
     separateVipVendorRequired: true,
     minimumUniqueVendors: 1,
@@ -170,6 +210,8 @@ assert.deepEqual(
     totalServiceSlotsFilled: 2,
     remainingGaSlots: 0,
     remainingVipSlots: 0,
+    remainingDessertSlots: 0,
+    remainingDrinksSlots: 0,
     remainingTotalServiceSlots: 0,
     remainingUniqueVendors: 0,
   },

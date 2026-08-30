@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "react-native run-android --mode devDebug",
     "ios": "react-native run-ios",
     "lint": "eslint App.js src/apiFolder/apiEndPoint.js src/apiFolder/appAPI.js src/screens/profileMenuScreen.js src/screens/marketplace*.js",
     "start": "react-native start --reset-cache",
