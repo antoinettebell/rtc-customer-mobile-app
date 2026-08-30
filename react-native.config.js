@@ -10,6 +10,15 @@ module.exports = {
           sourceDir: path.join(__dirname, "node_modules/react-native-config/android"),
           packageImportPath: "import com.lugg.RNCConfig.RNCConfigPackage;",
           packageInstance: "new RNCConfigPackage()",
+          // Preserve the library's New Architecture codegen metadata. The explicit
+          // package override predates TurboModules and otherwise strips these
+          // fields from the autolinking manifest.
+          libraryName: "RNCConfigSpec",
+          componentDescriptors: [],
+          cmakeListsPath: path.join(
+            __dirname,
+            "node_modules/react-native-config/android/build/generated/source/codegen/jni/CMakeLists.txt"
+          ),
         },
       },
     },
