@@ -571,6 +571,9 @@ const MarketplaceAwardBidsScreen = ({ navigation, route }) => {
                 {categoryAwards.vip ? <Text style={styles.meta}>VIP Catering: {categoryAwards.vip}</Text> : null}
                 {categoryAwards.desserts ? <Text style={styles.meta}>Desserts: {categoryAwards.desserts}</Text> : null}
                 {categoryAwards.drinks ? <Text style={styles.meta}>Drinks: {categoryAwards.drinks}</Text> : null}
+                {categoryAwards.merchandise ? <Text style={styles.meta}>Merchandise: {categoryAwards.merchandise}</Text> : null}
+                {categoryAwards.service ? <Text style={styles.meta}>Service: {categoryAwards.service}</Text> : null}
+                {categoryAwards.other ? <Text style={styles.meta}>Other: {categoryAwards.other}</Text> : null}
                 {awardLocked ? (
                   <Text style={styles.meta}>
                     This event is {event?.status}; award selections are locked.
