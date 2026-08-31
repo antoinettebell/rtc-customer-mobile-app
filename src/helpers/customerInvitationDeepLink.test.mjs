@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   consumePendingCustomerNavigation,
+  getCustomerInvitationShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
 } from "./customerInvitationDeepLink.helper.js";
@@ -65,6 +66,20 @@ assert.equal(
   normalizeCustomerInvitationPath("invite/legacy-token"),
   "event-invitation/legacy-token",
 );
+const invitationShareToken = "abcdefghijklmnopqrstuvwxyz123456";
+assert.equal(
+  getCustomerInvitationShareTokenFromUrl(
+    `https://tickets.roundthecornerapp.com/events/${invitationShareToken}?source=sms`,
+  ),
+  invitationShareToken,
+);
+assert.equal(
+  getCustomerInvitationShareTokenFromUrl(
+    `rtc-customer://invite/${invitationShareToken}`,
+  ),
+  invitationShareToken,
+);
+assert.equal(getCustomerInvitationShareTokenFromUrl("https://example.com/events/short"), null);
 assert.match(
   appSource,
   /marketplaceEventDetailsScreen:\s*"event-invitation\/:shareToken"/,
@@ -86,6 +101,8 @@ assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
 assert.match(appSource, /consumePendingCustomerNavigation\(\)/);
 assert.match(appSource, /navigationRef\.navigate\(destination\.name, destination\.params\)/);
+assert.match(appSource, /Linking\.getInitialURL\(\)\.then\(rememberTicketInvitation\)/);
+assert.match(appSource, /source: "universal-link"/);
 assert.match(appSource, /pendingTicketInvitationShareToken/);
 assert.match(appSource, /TicketInstallReferrer.*getTicketInvitationShareToken/);
 assert.match(appSource, /source: "android-install-referrer"/);

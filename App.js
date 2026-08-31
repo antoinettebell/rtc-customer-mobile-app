@@ -7,6 +7,7 @@ import {
   Platform,
   TouchableOpacity,
   NativeModules,
+  Linking,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -27,6 +28,7 @@ import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
 import {
   consumePendingCustomerNavigation,
+  getCustomerInvitationShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
 } from "./src/helpers/customerInvitationDeepLink.helper";
@@ -404,6 +406,28 @@ const App = () => {
   useEffect(() => {
     configureNotification();
   }, []);
+
+  useEffect(() => {
+    if (isSignedIn) return undefined;
+
+    const rememberTicketInvitation = (url) => {
+      const shareToken = getCustomerInvitationShareTokenFromUrl(url);
+      if (!isValidTicketInvitationShareToken(shareToken)) return;
+
+      setPendingCustomerNavigation({
+        name: "marketplaceEventDetailsScreen",
+        params: { shareToken },
+        source: "universal-link",
+      });
+    };
+
+    Linking.getInitialURL().then(rememberTicketInvitation).catch(() => undefined);
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      rememberTicketInvitation(url);
+    });
+
+    return () => subscription.remove();
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
