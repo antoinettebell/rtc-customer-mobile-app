@@ -18,6 +18,7 @@ export const getCustomerInvitationShareTokenFromUrl = (url = "") => {
 // remounts the root navigator, so retain the one requested destination until
 // the signed-in navigator is ready to receive it.
 let pendingCustomerNavigation = null;
+let suppressInitialCustomerInvitationLink = false;
 
 export const setPendingCustomerNavigation = (destination) => {
   pendingCustomerNavigation = destination;
@@ -31,3 +32,16 @@ export const consumePendingCustomerNavigation = () => {
 
 export const hasPendingCustomerNavigation = () =>
   Boolean(pendingCustomerNavigation);
+
+// An explicit logout must start the signed-out flow. Without this one-shot
+// guard, React Navigation replays the original Universal Link on remount and
+// immediately reopens the shared event.
+export const suppressCustomerInvitationLinkAfterLogout = () => {
+  suppressInitialCustomerInvitationLink = true;
+};
+
+export const consumeCustomerInvitationLinkSuppression = () => {
+  const suppressed = suppressInitialCustomerInvitationLink;
+  suppressInitialCustomerInvitationLink = false;
+  return suppressed;
+};

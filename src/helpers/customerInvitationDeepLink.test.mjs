@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   consumePendingCustomerNavigation,
+  consumeCustomerInvitationLinkSuppression,
   getCustomerInvitationShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
+  suppressCustomerInvitationLinkAfterLogout,
 } from "./customerInvitationDeepLink.helper.js";
 
 const appSource = readFileSync(new URL("../../App.js", import.meta.url), "utf8");
@@ -137,6 +139,10 @@ assert.deepEqual(consumePendingCustomerNavigation(), {
   params: { shareToken: "token" },
 });
 assert.equal(consumePendingCustomerNavigation(), null);
+suppressCustomerInvitationLinkAfterLogout();
+assert.equal(consumeCustomerInvitationLinkSuppression(), true);
+assert.equal(consumeCustomerInvitationLinkSuppression(), false);
+assert.match(appSource, /linking=\{suppressInitialInvitationLink \? undefined : linking\}/);
 assert.match(
   eventDetailsSource,
   /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,

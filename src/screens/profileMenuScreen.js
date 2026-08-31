@@ -39,6 +39,7 @@ import { PROFILE_AVATAR } from "../utils/constants";
 import { addOrUpdateUser, updateUserKey } from "../redux/slices/userInfoSlice";
 import AppImage from "../components/AppImage";
 import ChangePasswordModal from "../components/ChangePasswordModal";
+import { suppressCustomerInvitationLinkAfterLogout } from "../helpers/customerInvitationDeepLink.helper";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -81,6 +82,7 @@ const ProfileMenuScreen = ({ navigation }) => {
     dispatch(clearOrderSlice());
     dispatch(clearFoodTruckProfileSlice());
     dispatch(clearLocationSlice());
+    suppressCustomerInvitationLinkAfterLogout();
     dispatch(onSignOut());
   };
 
