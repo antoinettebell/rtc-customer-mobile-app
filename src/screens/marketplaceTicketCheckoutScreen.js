@@ -35,6 +35,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
+import { hasConfiguredTicketBucket } from "../helpers/marketplaceTicketAvailability.helper";
 import { getGooglePlaceAddressSelection } from "../helpers/address.helper";
 import { assertGooglePayConfiguration } from "../helpers/walletBillingAddress.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
@@ -102,6 +103,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const accountEmail = String(user?.email || "").trim();
   const accountPhone = `${user?.countryCode || ""}${user?.mobileNumber || ""}`.trim();
+  const hasGaTickets = hasConfiguredTicketBucket(event, "ga");
+  const hasVipTickets = hasConfiguredTicketBucket(event, "vip");
 
   useEffect(() => {
     if (event || !shareToken) return;
@@ -267,8 +270,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
     <StatusBarManager /><AppHeader headerTitle="Get Tickets" onBackPress={goBackWithoutSaving} />
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="always">
       <View style={styles.card}><Text style={styles.title}>{event?.event_name}</Text>
-        <TicketRow type="ga" label="General Admission" price={event?.ga_ticket_price} quantity={ga} />
-        <TicketRow type="vip" label="VIP" price={event?.vip_ticket_price} quantity={vip} />
+        {hasGaTickets ? <TicketRow type="ga" label="General Admission" price={event?.ga_ticket_price} quantity={ga} /> : null}
+        {hasVipTickets ? <TicketRow type="vip" label="VIP" price={event?.vip_ticket_price} quantity={vip} /> : null}
       </View>
       <View style={styles.card}>
         <Text style={styles.title}>Contact & Billing Information</Text>

@@ -28,6 +28,7 @@ import { AppColor, customerTheme, Mulish400 } from "./src/utils/theme";
 import { navigationRef } from "./src/helpers/navigation.helper";
 import {
   consumePendingCustomerNavigation,
+  consumeCustomerInvitationLinkSuppression,
   getCustomerInvitationShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
@@ -397,6 +398,8 @@ const configureNotification = async () => {
 const App = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isGuest } = useSelector((state) => state.authReducer);
+  const suppressInitialInvitationLink =
+    consumeCustomerInvitationLinkSuppression();
   const navigationMode = isSignedIn
     ? "signed-in"
     : isGuest
@@ -487,7 +490,7 @@ const App = () => {
       key={navigationMode}
       ref={navigationRef}
       theme={DefaultTheme}
-      linking={linking}
+      linking={suppressInitialInvitationLink ? undefined : linking}
     >
       <GlobalSnackbar />
       {isSignedIn ? (

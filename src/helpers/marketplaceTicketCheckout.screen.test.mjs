@@ -21,6 +21,10 @@ assert.doesNotMatch(source, /placesList: \{ position: "absolute"/);
 assert.match(source, /text: guestCheckout \? "View Ticket" : "View All Tickets"/);
 assert.match(source, /navigation\.replace\("marketplaceMyTicketsScreen"\)/);
 assert.doesNotMatch(source, /text: "View First Ticket"/);
+assert.match(source, /hasConfiguredTicketBucket\(event, "ga"\)/);
+assert.match(source, /hasConfiguredTicketBucket\(event, "vip"\)/);
+assert.match(source, /hasGaTickets \? <TicketRow type="ga"/);
+assert.match(source, /hasVipTickets \? <TicketRow type="vip"/);
 
 const ticketListSource = fs.readFileSync(
   new URL("../screens/marketplaceMyTicketsScreen.js", import.meta.url),
