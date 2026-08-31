@@ -19,6 +19,14 @@ const iosEntitlements = readFileSync(
   new URL("../../ios/foodtruck/foodtruck.entitlements", import.meta.url),
   "utf8",
 );
+const installReferrerModule = readFileSync(
+  new URL("../../android/app/src/main/java/com/foodtruck/TicketInstallReferrerModule.kt", import.meta.url),
+  "utf8",
+);
+const mainApplication = readFileSync(
+  new URL("../../android/app/src/main/java/com/foodtruck/MainApplication.kt", import.meta.url),
+  "utf8",
+);
 const checkoutSource = readFileSync(
   new URL("../screens/marketplaceTicketCheckoutScreen.js", import.meta.url),
   "utf8",
@@ -50,8 +58,12 @@ assert.equal(
   "event-invitation/token-from-email",
 );
 assert.equal(
+  normalizeCustomerInvitationPath("invite/token-from-download"),
+  "event-invitation/token-from-download",
+);
+assert.equal(
   normalizeCustomerInvitationPath("invite/legacy-token"),
-  "invite/legacy-token",
+  "event-invitation/legacy-token",
 );
 assert.match(
   appSource,
@@ -74,6 +86,12 @@ assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceEventDetailsScreen
 assert.match(appSource, /AuthNavigator[\s\S]*name="marketplaceTicketCheckoutScreen"/);
 assert.match(appSource, /consumePendingCustomerNavigation\(\)/);
 assert.match(appSource, /navigationRef\.navigate\(destination\.name, destination\.params\)/);
+assert.match(appSource, /pendingTicketInvitationShareToken/);
+assert.match(appSource, /TicketInstallReferrer.*getTicketInvitationShareToken/);
+assert.match(appSource, /source: "android-install-referrer"/);
+assert.match(installReferrerModule, /InstallReferrerClient/);
+assert.match(installReferrerModule, /rtc_ticket_share=/);
+assert.match(mainApplication, /add\(TicketInstallReferrerPackage\(\)\)/);
 assert.match(checkoutSource, /headerTitle="Get Tickets" onBackPress={goBackWithoutSaving}/);
 assert.match(checkoutSource, /Contact & Billing Information/);
 assert.match(checkoutSource, /Email address \(required\)/);

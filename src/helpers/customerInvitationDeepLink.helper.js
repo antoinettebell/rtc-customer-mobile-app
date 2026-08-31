@@ -1,5 +1,7 @@
 export const normalizeCustomerInvitationPath = (path = "") =>
-  String(path).replace(/^\/?events\//, "event-invitation/");
+  String(path)
+    .replace(/^\/?events\//, "event-invitation/")
+    .replace(/^\/?invite\//, "event-invitation/");
 
 // A shared ticket link can begin in the signed-out navigator.  Signing in
 // remounts the root navigator, so retain the one requested destination until
@@ -15,3 +17,6 @@ export const consumePendingCustomerNavigation = () => {
   pendingCustomerNavigation = null;
   return destination;
 };
+
+export const hasPendingCustomerNavigation = () =>
+  Boolean(pendingCustomerNavigation);
