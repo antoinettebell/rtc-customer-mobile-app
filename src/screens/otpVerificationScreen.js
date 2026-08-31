@@ -46,6 +46,7 @@ import { clearFavorites } from "../redux/slices/favoritesSlice";
 import { clearOrderSlice } from "../redux/slices/orderSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
 import { addOrUpdateUser } from "../redux/slices/userInfoSlice";
+import { hasPendingCustomerNavigation } from "../helpers/customerInvitationDeepLink.helper";
 
 const API_URL = Config.API_URL;
 const API_PREFIX = Config.API_PREFIX;
@@ -371,7 +372,9 @@ const OtpVerificationScreen = ({ route }) => {
             style={styles.modalTitle}
           >{`Hello, ${params?.data?.user?.firstName}`}</Text>
           <Text style={styles.modalSubtitle}>
-            {"Your account has been created successfully!"}
+            {hasPendingCustomerNavigation()
+              ? "Your account has been created successfully! We’ll take you back to the event."
+              : "Your account has been created successfully!"}
           </Text>
 
           <TouchableOpacity

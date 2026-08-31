@@ -6,7 +6,9 @@ import {
   Image,
   Platform,
   TouchableOpacity,
+  NativeModules,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DefaultTheme,
   NavigationContainer,
@@ -26,6 +28,7 @@ import { navigationRef } from "./src/helpers/navigation.helper";
 import {
   consumePendingCustomerNavigation,
   normalizeCustomerInvitationPath,
+  setPendingCustomerNavigation,
 } from "./src/helpers/customerInvitationDeepLink.helper";
 import {
   createAndroidChannel,
@@ -86,6 +89,10 @@ import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
 const BottomTab = createBottomTabNavigator();
+const pendingTicketInvitationStorageKey = "pendingTicketInvitationShareToken";
+
+const isValidTicketInvitationShareToken = (value) =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{16,256}$/.test(value);
 
 const linking = {
   prefixes: ["rtc-customer://", "https://tickets.roundthecornerapp.com"],
@@ -399,10 +406,48 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    let cancelled = false;
+
+    const restoreTicketInvitation = async () => {
+      try {
+        let shareToken = await AsyncStorage.getItem(pendingTicketInvitationStorageKey);
+        if (!isValidTicketInvitationShareToken(shareToken)) {
+          shareToken = await NativeModules.TicketInstallReferrer?.getTicketInvitationShareToken?.();
+          if (isValidTicketInvitationShareToken(shareToken)) {
+            await AsyncStorage.setItem(pendingTicketInvitationStorageKey, shareToken);
+          }
+        }
+
+        if (!cancelled && isValidTicketInvitationShareToken(shareToken)) {
+          setPendingCustomerNavigation({
+            name: "marketplaceEventDetailsScreen",
+            params: { shareToken },
+            source: "android-install-referrer",
+          });
+        }
+      } catch {
+        // Install-referrer recovery is optional; never block normal app startup.
+      }
+    };
+
+    restoreTicketInvitation();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isSignedIn) return;
 
     const destination = consumePendingCustomerNavigation();
     if (!destination) return;
+
+    if (destination.source === "android-install-referrer") {
+      AsyncStorage.removeItem(pendingTicketInvitationStorageKey).catch(() => undefined);
+      NativeModules.TicketInstallReferrer?.consumeTicketInvitationShareToken?.();
+    }
 
     const timeout = setTimeout(() => {
       if (navigationRef.isReady()) {
