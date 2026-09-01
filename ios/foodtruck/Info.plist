@@ -34,7 +34,7 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
@@ -63,6 +63,8 @@
 	<string>This permission allows you to upload photos from your camera, such as updating your profile picture or for uploading images for your truck.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show nearby places.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to show nearby places.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This permission allows you to select photos from your photo library, such as updating your profile picture or for uploading images for your truck.</string>
 	<key>RCTNewArchEnabled</key>
