@@ -15,6 +15,7 @@ const fallbackConfig = {
   API_PREFIX: "/api/v1",
   GOOGLE_MAP_API_KEY: "AIzaSyCdjHeKOYBUcpocHw5-NsdfMy2-dHkBoFY",
   APPLE_PAY_MERCHANT_ID: "merchant.roundthecorner.vendor",
+  APPLE_PAY_ENABLED: "true",
   PAYMENT_CURRENCY_CODE: "USD",
   PAYMENT_COUNTRY_CODE: "US",
   GOOGLE_PAY_GATEWAY: "",

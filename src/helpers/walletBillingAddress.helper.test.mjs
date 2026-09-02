@@ -8,7 +8,13 @@ const helperSource = await readFile(
 const helperModuleUrl = `data:text/javascript;base64,${Buffer.from(
   helperSource,
 ).toString("base64")}`;
-const { normalizeWalletBillingAddress } = await import(helperModuleUrl);
+const {
+  assertApplePayConfiguration,
+  normalizeWalletBillingAddress,
+} = await import(helperModuleUrl);
+
+// The iOS payments package currently puts Apple's city/state in address2/3.
+// Preserve those fields as CyberSource locality/administrativeArea.
 
 assert.deepEqual(
   normalizeWalletBillingAddress({
@@ -28,6 +34,14 @@ assert.deepEqual(
   },
 );
 
+assert.doesNotThrow(() => assertApplePayConfiguration({
+  APPLE_PAY_ENABLED: "true",
+  APPLE_PAY_MERCHANT_ID: "merchant.example.customer",
+}));
+assert.throws(
+  () => assertApplePayConfiguration({ APPLE_PAY_ENABLED: "false" }),
+  /Apple Pay is disabled/,
+);
 assert.deepEqual(
   normalizeWalletBillingAddress({
     address1: "123 Main St",

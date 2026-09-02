@@ -33,7 +33,7 @@ import TipSelector from "../components/TipSelector";
 import { AppColor, Mulish400, Mulish600, Mulish700 } from "../utils/theme";
 import { onlinePyamentApplicablePlanList } from "../utils/constants";
 import { paymentCheckout_API, placeFoodOrder_API } from "../apiFolder/appAPI";
-import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
+import { assertApplePayConfiguration, assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 import { applyTipAmount, calculateFinalTotal } from "../helpers/tip.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 import { getOptionalPaymentResponseFields } from "../helpers/customerRegression.helper";
@@ -91,23 +91,6 @@ const getErrorMessage = (error, fallback) =>
   error?.response?.data?.error?.message ||
   error?.message ||
   fallback;
-
-const normalizeApplePayBillingAddress = (billingAddress) => {
-  if (!billingAddress || typeof billingAddress !== "object") return undefined;
-
-  const normalizeText = (value) =>
-    typeof value === "string" ? value.trim() : undefined;
-
-  const normalized = {
-    address1: normalizeText(billingAddress.address1),
-    locality: normalizeText(billingAddress.locality),
-    administrativeArea: normalizeText(billingAddress.administrativeArea),
-    postalCode: normalizeText(billingAddress.postalCode),
-    country: normalizeText(billingAddress.countryCode || billingAddress.country)?.toUpperCase(),
-  };
-
-  return Object.values(normalized).some(Boolean) ? normalized : undefined;
-};
 
 const toNumericAmount = (value) => {
   const amount = Number(value);
@@ -253,6 +236,8 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
           },
         };
 
+        if (Platform.OS === "ios") assertApplePayConfiguration(Config);
+
         const paymentRequest = new PaymentRequest(
           [
             Platform.OS === "ios"
@@ -300,14 +285,12 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                   ? "APPLE_PAY"
                   : "CASH_ON_PICKUP",
             amount: String(payableAmount),
-            billingAddress: Platform.OS === "ios"
-              ? normalizeApplePayBillingAddress(paymentResponse.details.billingAddress)
-              : normalizeWalletBillingAddress(paymentResponse.details.billingAddress, {
-                  email: paymentResponse.details.payerEmail,
-                  phone: paymentResponse.details.payerPhone,
-                  firstName: paymentResponse.details.payerName?.givenName,
-                  lastName: paymentResponse.details.payerName?.familyName,
-                }),
+            billingAddress: normalizeWalletBillingAddress(paymentResponse.details.billingAddress, {
+              email: paymentResponse.details.payerEmail,
+              phone: paymentResponse.details.payerPhone,
+              firstName: paymentResponse.details.payerName?.givenName,
+              lastName: paymentResponse.details.payerName?.familyName,
+            }),
           };
 
           walletStage = "backend checkout";

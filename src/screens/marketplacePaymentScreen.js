@@ -29,7 +29,7 @@ import {
 } from "../apiFolder/appAPI";
 import { formatMoney, styles } from "./marketplaceShared";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
-import { assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
+import { assertApplePayConfiguration, assertGooglePayConfiguration, normalizeWalletBillingAddress } from "../helpers/walletBillingAddress.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 
 const RTC_PHONE = "800-410-7053";
@@ -150,6 +150,7 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
         setPayment(checkoutPayment);
       }
       const amount = toAmount(checkoutPayment.total_amount);
+      if (Platform.OS === "ios") assertApplePayConfiguration(Config);
       paymentRequest = new PaymentRequest(
         [Platform.OS === "ios" ? APPLE_PAY_METHOD_DATA : ANDROID_PAY_METHOD_DATA],
         {

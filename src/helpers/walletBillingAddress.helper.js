@@ -1,5 +1,6 @@
 const text = (value) => (typeof value === "string" ? value.trim() : "");
 const firstText = (...values) => values.map(text).find(Boolean) || "";
+const enabled = (value) => text(value).toLowerCase() !== "false";
 
 export const normalizeWalletBillingAddress = (billingAddress, payer = {}) => {
   if (!billingAddress || typeof billingAddress !== "object") return undefined;
@@ -46,4 +47,13 @@ export const assertGooglePayConfiguration = (config) => {
     throw new Error(`Google Pay ${environment} configuration is missing CYBERSOURCE_MERCHANT_ID.`);
   }
   return environment;
+};
+
+export const assertApplePayConfiguration = (config) => {
+  if (!enabled(config?.APPLE_PAY_ENABLED)) {
+    throw new Error("Apple Pay is disabled by APPLE_PAY_ENABLED.");
+  }
+  if (!text(config?.APPLE_PAY_MERCHANT_ID)) {
+    throw new Error("Apple Pay configuration is missing APPLE_PAY_MERCHANT_ID.");
+  }
 };

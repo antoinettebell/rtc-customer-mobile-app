@@ -37,7 +37,7 @@ import { formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 import { hasConfiguredTicketBucket } from "../helpers/marketplaceTicketAvailability.helper";
 import { getGooglePlaceAddressSelection } from "../helpers/address.helper";
-import { assertGooglePayConfiguration } from "../helpers/walletBillingAddress.helper";
+import { assertApplePayConfiguration, assertGooglePayConfiguration } from "../helpers/walletBillingAddress.helper";
 import { completeWalletResponseSafely, logWalletCheckoutDiagnostic } from "../helpers/walletCheckoutDiagnostics.helper";
 
 const walletMethod = Platform.OS === "ios"
@@ -192,6 +192,7 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         : await quoteMarketplaceTickets_API({ eventId: event.event_id, payload });
       const quote = quoteResponse.data?.quote;
       const total = Number(quote?.totalAmount || 0).toFixed(2);
+      if (Platform.OS === "ios") assertApplePayConfiguration(Config);
       request = new PaymentRequest([walletMethod], {
         displayItems: [
           { label: "Tickets", amount: { currency: "USD", value: Number(quote.ticketSubtotal).toFixed(2) } },
