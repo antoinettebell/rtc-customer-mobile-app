@@ -28,7 +28,10 @@ import ActionSheet, { ScrollView } from "react-native-actions-sheet";
 import { setDefaultLocation } from "../redux/slices/locationSlice";
 import { Divider, RadioButton } from "react-native-paper";
 import { EVENT_TYPES, formatEventTime } from "./marketplaceShared";
-import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import {
+  formatRatingWithSanitationGrade,
+  getSanitationGrade,
+} from "../helpers/review.helper";
 import { isEligiblePublicEvent } from "../helpers/customerPunchList.helper";
 import { isTicketInventorySoldOut } from "../helpers/marketplaceParticipation.helper";
 
@@ -350,11 +353,18 @@ const NearMeScreen = ({ navigation }) => {
               </Text>
             ) : null}
             <View style={styles.horizontalCardDetails}>
-              <View style={styles.ratingContainer}>
-                <MaterialIcons name="star" size={16} color={AppColor.text} />
-                <Text
-                  style={styles.horizontalRatingText}
-                >{formatRatingWithSanitationGrade(item.raw)}</Text>
+              <View>
+                <View style={styles.ratingContainer}>
+                  <MaterialIcons name="star" size={16} color={AppColor.text} />
+                  <Text
+                    style={styles.horizontalRatingText}
+                  >{formatRatingWithSanitationGrade(item.raw)}</Text>
+                </View>
+                {getSanitationGrade(item.raw) ? (
+                  <Text style={styles.horizontalSanitationText}>
+                    {`Sanitation Grade - (${getSanitationGrade(item.raw)})`}
+                  </Text>
+                ) : null}
               </View>
               <Text style={styles.horizontalDistanceText}>
                 {formatCuisineNames(item?.raw?.cuisine)}
@@ -1593,6 +1603,12 @@ const styles = StyleSheet.create({
     color: AppColor.text,
     marginLeft: 2,
     // marginRight: 12,
+  },
+  horizontalSanitationText: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textSecondary,
+    marginTop: 2,
   },
   horizontalDistanceText: {
     fontFamily: Mulish400,

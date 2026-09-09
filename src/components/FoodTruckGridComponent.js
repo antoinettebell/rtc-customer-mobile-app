@@ -23,6 +23,7 @@ const FoodTruckGridComponent = ({
   onContainerPress,
   foodTruckId,
   reviews,
+  sanitationGrade,
   distance,
   showReviews = true,
   showDistance = true,
@@ -76,6 +77,11 @@ const FoodTruckGridComponent = ({
             </Text>
           </View>
         )}
+        {sanitationGrade ? (
+          <Text style={styles.sanitationGradeText} numberOfLines={1}>
+            {`Sanitation Grade - (${sanitationGrade})`}
+          </Text>
+        ) : null}
         {showDistance ? (
           <View style={styles.reatingContainer}>
             <View style={styles.iconContainer}>
@@ -165,6 +171,11 @@ const styles = StyleSheet.create({
   ratingText: {
     fontFamily: Mulish400,
     fontSize: 14,
+    color: "#8C8F9A",
+  },
+  sanitationGradeText: {
+    fontFamily: Mulish400,
+    fontSize: 13,
     color: "#8C8F9A",
   },
   likeContainer: {

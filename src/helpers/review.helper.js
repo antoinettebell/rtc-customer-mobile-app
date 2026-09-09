@@ -24,17 +24,13 @@ export const formatRatingWithSanitationGrade = (foodTruck) => {
     Number.isFinite(rating) &&
     Number.isFinite(rawReviewCount) &&
     rawReviewCount > 0;
-  const grade = getSanitationGrade(foodTruck);
-
   if (!hasReviews) {
-    return grade ? `New vendor (${grade})` : "New vendor";
+    return "New vendor";
   }
 
   const reviews = formatReviewCount(rawReviewCount);
   const reviewLabel = rawReviewCount === 1 ? "review" : "reviews";
   const ratingLabel = rating.toFixed(1);
 
-  return grade
-    ? `${ratingLabel} (${grade} - ${reviews} ${reviewLabel})`
-    : `${ratingLabel} (${reviews} ${reviewLabel})`;
+  return `${ratingLabel} (${reviews} ${reviewLabel})`;
 };

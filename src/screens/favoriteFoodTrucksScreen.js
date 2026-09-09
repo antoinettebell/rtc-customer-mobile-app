@@ -21,7 +21,10 @@ import AppHeader from "../components/AppHeader";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFavorites, toggleFavorite } from "../redux/slices/favoritesSlice";
 import AppImage from "../components/AppImage";
-import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import {
+  formatRatingWithSanitationGrade,
+  getSanitationGrade,
+} from "../helpers/review.helper";
 
 const favTruck1 = require("../assets/images/FT-Demo-01.png");
 
@@ -141,6 +144,11 @@ const FavoriteFoodTrucksScreen = ({ navigation }) => {
                 <Text style={{ color: AppColor.ratingStar }}>★ </Text>
                 {formatRatingWithSanitationGrade(item.foodTruck)}
               </Text>
+              {getSanitationGrade(item.foodTruck) ? (
+                <Text style={styles.sanitationGradeText}>
+                  {`Sanitation Grade - (${getSanitationGrade(item.foodTruck)})`}
+                </Text>
+              ) : null}
             </View>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -284,6 +292,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: AppColor.textHighlighter,
     marginTop: 4,
+  },
+  sanitationGradeText: {
+    fontFamily: Mulish400,
+    fontSize: 12,
+    color: AppColor.textHighlighter,
+    marginTop: 2,
   },
   centerContainer: {
     flex: 1,

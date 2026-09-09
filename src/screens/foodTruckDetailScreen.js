@@ -51,7 +51,10 @@ import DishItemDetailsModal from "../components/DishItemDetailsModal";
 import DishItemComponent from "../components/DishItemComponent";
 import AppImage from "../components/AppImage";
 import { Divider, IconButton } from "react-native-paper";
-import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import {
+  formatRatingWithSanitationGrade,
+  getSanitationGrade,
+} from "../helpers/review.helper";
 import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 
 const socialMediaIcons = {
@@ -911,7 +914,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
               {/* Ratings & Food Types */}
               <View style={styles.ratingAndHeartContainer}>
                 <TouchableOpacity
-                  style={styles.ratingsRow}
+                  style={styles.ratingDetails}
                   activeOpacity={0.7}
                   onPress={() =>
                     navigation.navigate("rateReviewScreen", {
@@ -919,18 +922,25 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                     })
                   }
                 >
-                  <FontAwesome
-                    name="star"
-                    size={16}
-                    color={AppColor.ratingStar}
-                  />
-                  <Text
-                    style={styles.ratingText}
-                  >{` ${formatRatingWithSanitationGrade(foodTruckDetail)}`}</Text>
-                  <Text style={styles.dot}>|</Text>
-                  <Text style={styles.cuisineText}>
-                    {formatCuisines(foodTruckDetail?.cuisine)}
-                  </Text>
+                  <View style={styles.ratingsRow}>
+                    <FontAwesome
+                      name="star"
+                      size={16}
+                      color={AppColor.ratingStar}
+                    />
+                    <Text
+                      style={styles.ratingText}
+                    >{` ${formatRatingWithSanitationGrade(foodTruckDetail)}`}</Text>
+                    <Text style={styles.dot}>|</Text>
+                    <Text style={styles.cuisineText}>
+                      {formatCuisines(foodTruckDetail?.cuisine)}
+                    </Text>
+                  </View>
+                  {getSanitationGrade(foodTruckDetail) ? (
+                    <Text style={styles.sanitationGradeText}>
+                      {`Sanitation Grade - (${getSanitationGrade(foodTruckDetail)})`}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
                 {foodTruckDetail && isSignedIn && (
                   <TouchableOpacity
@@ -1483,10 +1493,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  ratingDetails: {
+    alignItems: "flex-start",
+  },
   ratingText: {
     fontFamily: Mulish400,
     fontSize: 14,
     color: AppColor.textHighlighter,
+  },
+  sanitationGradeText: {
+    fontFamily: Mulish400,
+    fontSize: 13,
+    color: AppColor.textHighlighter,
+    marginTop: 3,
   },
   dot: {
     color: AppColor.textHighlighter,

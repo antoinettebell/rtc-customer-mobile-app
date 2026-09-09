@@ -57,7 +57,10 @@ import AppImage from "../components/AppImage";
 import { onGuest, onSignOut } from "../redux/slices/authSlice";
 import { clearUserSlice } from "../redux/slices/userSlice";
 import { clearFoodTruckProfileSlice } from "../redux/slices/foodTruckProfileSlice";
-import { formatRatingWithSanitationGrade } from "../helpers/review.helper";
+import {
+  formatRatingWithSanitationGrade,
+  getSanitationGrade,
+} from "../helpers/review.helper";
 
 const LocationPinWhite = require("../assets/images/locationPinWhite.png");
 const RoundBellWhite = require("../assets/images/roundBellWhite.png");
@@ -547,6 +550,7 @@ const ExploreScreen = (props) => {
             showLikeButton={isSignedIn}
             foodTruckId={item._id}
             reviews={formatRatingWithSanitationGrade(item)}
+            sanitationGrade={getSanitationGrade(item)}
             distance={item.distanceInMeters || 0}
             showDistance={item?.distanceInMeters !== undefined}
             onContainerPress={() =>
@@ -793,6 +797,7 @@ const ExploreScreen = (props) => {
                 uri={item.logo}
                 foodTruckId={item._id}
                 reviews={formatRatingWithSanitationGrade(item)}
+                sanitationGrade={getSanitationGrade(item)}
                 showLikeButton={isSignedIn}
                 showDistance={false}
                 onContainerPress={() =>
