@@ -30,6 +30,7 @@ export const normalizeWalletBillingAddress = (billingAddress, payer = {}) => {
 export const assertGooglePayConfiguration = (config) => {
   const environment = text(config?.GOOGLE_PAY_ENVIRONMENT).toUpperCase();
   const gateway = text(config?.GOOGLE_PAY_GATEWAY).toLowerCase();
+  const googlePayMerchantId = text(config?.GOOGLE_PAY_MERCHANT_ID);
   const merchantId = text(config?.CYBERSOURCE_MERCHANT_ID);
   const allowLiveDebug = text(config?.GOOGLE_PAY_ALLOW_LIVE_DEBUG).toLowerCase() === "true";
   if (!['TEST', 'PRODUCTION'].includes(environment)) {
@@ -42,6 +43,9 @@ export const assertGooglePayConfiguration = (config) => {
   }
   if (gateway !== 'cybersource') {
     throw new Error('Google Pay configuration must set GOOGLE_PAY_GATEWAY to cybersource.');
+  }
+  if (!googlePayMerchantId) {
+    throw new Error(`Google Pay ${environment} configuration is missing GOOGLE_PAY_MERCHANT_ID.`);
   }
   if (!merchantId) {
     throw new Error(`Google Pay ${environment} configuration is missing CYBERSOURCE_MERCHANT_ID.`);

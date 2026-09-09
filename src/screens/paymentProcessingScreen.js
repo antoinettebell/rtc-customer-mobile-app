@@ -79,6 +79,7 @@ const ANDROID_PAY_METHOD_DATA = {
     requestPayerName: true,
     requestPayerPhone: true,
     requestShipping: false,
+    merchantId: Config.GOOGLE_PAY_MERCHANT_ID,
     gatewayConfig: {
       gateway: Config.GOOGLE_PAY_GATEWAY,
       gatewayMerchantId: Config.CYBERSOURCE_MERCHANT_ID,

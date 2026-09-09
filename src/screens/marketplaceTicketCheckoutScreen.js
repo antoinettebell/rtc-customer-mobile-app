@@ -67,6 +67,7 @@ const walletMethod = Platform.OS === "ios"
         requestBillingAddress: false,
         requestPayerEmail: false,
         requestShipping: false,
+        merchantId: Config.GOOGLE_PAY_MERCHANT_ID,
         gatewayConfig: {
           gateway: Config.GOOGLE_PAY_GATEWAY,
           gatewayMerchantId: Config.CYBERSOURCE_MERCHANT_ID,

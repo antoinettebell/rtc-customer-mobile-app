@@ -8,8 +8,10 @@ const helperSource = await readFile(
 const helperModuleUrl = `data:text/javascript;base64,${Buffer.from(
   helperSource,
 ).toString("base64")}`;
+globalThis.__DEV__ = false;
 const {
   assertApplePayConfiguration,
+  assertGooglePayConfiguration,
   normalizeWalletBillingAddress,
 } = await import(helperModuleUrl);
 
@@ -41,6 +43,20 @@ assert.doesNotThrow(() => assertApplePayConfiguration({
 assert.throws(
   () => assertApplePayConfiguration({ APPLE_PAY_ENABLED: "false" }),
   /Apple Pay is disabled/,
+);
+assert.doesNotThrow(() => assertGooglePayConfiguration({
+  GOOGLE_PAY_ENVIRONMENT: "PRODUCTION",
+  GOOGLE_PAY_GATEWAY: "cybersource",
+  GOOGLE_PAY_MERCHANT_ID: "google-pay-merchant-id",
+  CYBERSOURCE_MERCHANT_ID: "cybersource-merchant-id",
+}));
+assert.throws(
+  () => assertGooglePayConfiguration({
+    GOOGLE_PAY_ENVIRONMENT: "TEST",
+    GOOGLE_PAY_GATEWAY: "cybersource",
+    CYBERSOURCE_MERCHANT_ID: "cybersource-merchant-id",
+  }),
+  /GOOGLE_PAY_MERCHANT_ID/,
 );
 assert.deepEqual(
   normalizeWalletBillingAddress({
