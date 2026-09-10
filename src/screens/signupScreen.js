@@ -54,6 +54,9 @@ const formatTaxIdInput = (value, type) => {
 
 const trimValue = (value) => String(value || "").trim();
 
+const OFF_GRID_INFO =
+  "Underground of Wisdom Lane is a nonprofit community-resilience network connecting people, skills, and local resources by ZIP code. Customers and event coordinators may share practical knowledge or resources—such as farming, personal care, transportation, repair, communications, environmental stewardship, or professional experience—to help neighbors find support during emergencies or major service disruptions. Members check in monthly, and participation is always voluntary.\n\nExample: During a widespread disruption, a member could ask whether someone nearby has a useful skill, resource, or reliable local information to share.\n\nThis network is not a substitute for 911, emergency responders, or professional medical care.";
+
 const SignupScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
 
@@ -82,7 +85,7 @@ const SignupScreen = ({ navigation }) => {
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
   const [agreed, setAgreed] = useState(true);
-  const [offGrid] = useState(true);
+  const [offGrid, setOffGrid] = useState(false);
   const [smsAgreed, setSmsAgreed] = useState(false);
   const [isEventCoordinator, setIsEventCoordinator] = useState(false);
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
@@ -1067,6 +1070,41 @@ const SignupScreen = ({ navigation }) => {
                 </HelperText>
               ) : null}
 
+              <View style={[styles.termsContainer, styles.offGridConsentContainer]}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setOffGrid((currentValue) => !currentValue)}
+                  style={styles.iconBox}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: offGrid }}
+                  accessibilityLabel="Join Underground of Wisdom Lane"
+                >
+                  <Ionicons
+                    name={offGrid ? "checkbox" : "square-outline"}
+                    size={22}
+                    color={AppColor.primary}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.termsText}>
+                  {"Join Underground of Wisdom Lane, an off-grid community resilience network."}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert("Underground of Wisdom Lane", OFF_GRID_INFO)}
+                  style={styles.offGridInfoButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Learn about Underground of Wisdom Lane"
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={22}
+                    color={AppColor.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.offGridOptionalText}>{"Optional"}</Text>
+
               {/* T&C */}
               <View style={[styles.termsContainer, { marginTop: 12 }]}>
                 <TouchableOpacity
@@ -1310,6 +1348,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: AppColor.text,
     fontFamily: Mulish400,
+  },
+  offGridConsentContainer: {
+    alignItems: "flex-start",
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 12,
+  },
+  offGridInfoButton: {
+    marginLeft: 6,
+    padding: 2,
+  },
+  offGridOptionalText: {
+    color: AppColor.textHighlighter,
+    fontFamily: Mulish400,
+    fontSize: 12,
+    marginLeft: 12,
+    marginTop: 2,
   },
   eventCoordinatorBox: {
     gap: 10,
