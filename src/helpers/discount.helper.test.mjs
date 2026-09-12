@@ -133,4 +133,23 @@ assert.equal(
   13.5
 );
 
+assert.equal(
+  calculateItemTotalWithDiscount({
+    price: 12,
+    quantity: 1,
+    itemType: "COMBO",
+    selectedSubItems: [
+      { name: "Fries", hasAdditionalCost: false, additionalCost: 0 },
+      {
+        name: "McChicken",
+        isAddOn: true,
+        price: 3.5,
+        hasAdditionalCost: false,
+        additionalCost: 0,
+      },
+    ],
+  }),
+  15.5
+);
+
 console.log("discount helper tests passed");
