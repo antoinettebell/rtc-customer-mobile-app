@@ -912,7 +912,9 @@ const CheckoutScreen = ({ navigation, route }) => {
                   containerStyle={styles.nestedFoodImg}
                 />
                 <View style={styles.nestedItemDetails}>
-                  <Text style={styles.nestedItemBadge}>Combo item</Text>
+                  <Text style={styles.nestedItemBadge}>
+                    {itm.isAddOn ? "Add On" : "Combo item"}
+                  </Text>
                   <Text style={styles.nestedItemTitle} numberOfLines={2}>
                     {itm.name}
                   </Text>
@@ -941,11 +943,16 @@ const CheckoutScreen = ({ navigation, route }) => {
                       {itm.customizationInput}
                     </Text>
                   ) : null}
-	                  <Text style={styles.nestedItemPriceMuted}>
-	                    {itm.hasAdditionalCost && Number(itm.additionalCost) > 0
-	                      ? `+$${Number(itm.additionalCost).toFixed(2)}`
-	                      : "Included in combo"}
-	                  </Text>
+                  <Text style={styles.nestedItemPriceMuted}>
+                    {itm.isAddOn
+                      ? `+$${(
+                          (Number(itm.price) || 0) *
+                          (Number(itm.qty) || 1)
+                        ).toFixed(2)}`
+                      : itm.hasAdditionalCost && Number(itm.additionalCost) > 0
+                        ? `+$${Number(itm.additionalCost).toFixed(2)}`
+                        : "Included in combo"}
+                  </Text>
                 </View>
                 <View style={styles.nestedQtyCol}>
                   <Text

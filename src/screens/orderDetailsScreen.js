@@ -543,7 +543,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                               />
                               <View style={styles.nestedItemDetails}>
                                 <Text style={styles.nestedItemBadgeCombo}>
-                                  Combo item
+                                  {comboItem.isAddOn ? "Add On" : "Combo item"}
                                 </Text>
                                 <Text
                                   style={styles.nestedItemTitle}
@@ -592,7 +592,17 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                                   </Text>
                                 ) : null}
                                 <Text style={styles.nestedItemPriceMuted}>
-                                  Part of combo
+                                  {comboItem.isAddOn
+                                    ? `+$${(
+                                        (Number(comboItem.price) || 0) *
+                                        (Number(comboItem.qty) || 1)
+                                      ).toFixed(2)}`
+                                    : comboItem.hasAdditionalCost &&
+                                        Number(comboItem.additionalCost) > 0
+                                      ? `+$${Number(
+                                          comboItem.additionalCost,
+                                        ).toFixed(2)}`
+                                      : "Included in combo"}
                                 </Text>
                               </View>
                               <View style={styles.nestedRowRight}>
