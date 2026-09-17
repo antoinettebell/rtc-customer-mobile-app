@@ -1,17 +1,20 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import apiClient from "../../apiFolder/apiClient";
+import axios from "axios";
+import Config from "../../config/env";
 import {
   ADD_FAVORITE_FOODTRUCK,
   GET_FAVORITE_FOODTRUCK,
   REMOVE_FAVORITE_FOODTRUCK,
 } from "../../apiFolder/apiEndPoint";
 
-const favoriteRequest = async ({ method, url, data }) => {
-  const response = await apiClient({
+const apiBaseUrl = `${Config.API_URL}${Config.API_PREFIX}`;
+
+const favoriteRequest = async ({ method, url, authToken, data }) => {
+  const response = await axios({
     method,
-    url,
+    url: `${apiBaseUrl}${url}`,
     data,
-    skipToken: false,
+    headers: { Authorization: authToken },
   });
 
   return response?.data;
@@ -24,6 +27,7 @@ export const fetchFavorites = createAsyncThunk(
     try {
       const state = getState();
       const { defaultLocation } = state.locationReducer ?? {}; // Get defaultLocation from the Redux store
+      const { authToken } = state.userReducer ?? {};
       let params = {};
       if (defaultLocation && defaultLocation.lat && defaultLocation.long) {
         params = {
@@ -44,6 +48,7 @@ export const fetchFavorites = createAsyncThunk(
       const response = await favoriteRequest({
         method: "get",
         url,
+        authToken,
       });
       console.log("Response => ", response);
       if (response?.success) {
@@ -87,11 +92,14 @@ export const toggleFavorite = createAsyncThunk(
     { getState, rejectWithValue }
   ) => {
     try {
+      const { authToken } = getState().userReducer ?? {};
+
       if (isCurrentlyLiked) {
         // Remove from favorites
         const response = await favoriteRequest({
           method: "delete",
           url: `${REMOVE_FAVORITE_FOODTRUCK}/${foodTruckId}`,
+          authToken,
         });
         if (response?.success) {
           return { foodTruckId, action: "removed" };
@@ -106,6 +114,7 @@ export const toggleFavorite = createAsyncThunk(
           method: "post",
           url: `${ADD_FAVORITE_FOODTRUCK}/${foodTruckId}`,
           data: {},
+          authToken,
         });
         console.log("added to fav foodtruck response => ", response);
         if (response?.success) {
