@@ -551,9 +551,6 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.comboSidesPerOrder,
     comboSideOptions.length
   );
-  const hasComboSideChoices =
-    selectedMenuItem?.itemType === foodTypeStrings.combo &&
-    comboSideOptions.length > 0;
   const configuredComboItems =
     selectedMenuItem?.itemType === foodTypeStrings.combo
       ? (selectedMenuItem?.subItem || []).filter((item) => !item?.isAddOn)
@@ -562,6 +559,10 @@ const DishItemDetailsModal = ({
     selectedMenuItem?.itemType === foodTypeStrings.combo
       ? (selectedMenuItem?.subItem || []).filter((item) => item?.isAddOn)
       : [];
+  const hasPrimaryComboSideChoices =
+    selectedMenuItem?.itemType === foodTypeStrings.combo &&
+    configuredComboItems.length === 0 &&
+    comboSideOptions.length > 0;
   const configuredDiscountComboItems =
     hasDiscountOffer && discountSourceItem?.itemType === foodTypeStrings.combo
       ? discountSourceItem?.subItem || []
@@ -575,7 +576,7 @@ const DishItemDetailsModal = ({
     configuredDiscountComboItems,
     selectedDiscountSubItems
   );
-  const primaryRequirementsComplete =
+  const primaryRequiredSelectionsComplete =
     (!hasFlavorChoices ||
       isOptionSelectionComplete(
         hasFlavorChoices,
@@ -588,14 +589,21 @@ const DishItemDetailsModal = ({
         selectedToppings,
         toppingsMaxCount
       )) &&
-    (!hasComboSideChoices ||
+    (!hasPrimaryComboSideChoices ||
       selectedComboSides.length === comboSidesRequiredCount) &&
     hasAllRequiredComboItems &&
-    selectedSubItems.every(isChildSelectionComplete);
+    selectedSubItems
+      .filter((item) => !item?.isAddOn)
+      .every(isChildSelectionComplete);
+  const selectedAddOnRequirementsComplete = selectedSubItems
+    .filter((item) => item?.isAddOn)
+    .every(isChildSelectionComplete);
+  const primaryRequirementsComplete =
+    primaryRequiredSelectionsComplete && selectedAddOnRequirementsComplete;
   const hasPrimaryRequirements =
     hasFlavorChoices ||
     hasToppingChoices ||
-    hasComboSideChoices ||
+    hasPrimaryComboSideChoices ||
     !!selectedMenuItem?.allowCustomize ||
     configuredComboItems.length > 0 ||
     configuredAddOnItems.length > 0;
@@ -791,7 +799,7 @@ const DishItemDetailsModal = ({
     }
 
     if (
-      hasComboSideChoices &&
+      hasPrimaryComboSideChoices &&
       selectedComboSides.length !== comboSidesRequiredCount
     ) {
       Alert.alert(
@@ -848,7 +856,7 @@ const DishItemDetailsModal = ({
     discountFlavorsMaxCount,
     discountToppingsMaxCount,
     flavorsMaxCount,
-    hasComboSideChoices,
+    hasPrimaryComboSideChoices,
     hasDiscountComboSideChoices,
     hasDiscountFlavorChoices,
     hasDiscountToppingChoices,
@@ -869,7 +877,7 @@ const DishItemDetailsModal = ({
   ]);
 
   const selectionsComplete =
-    (!hasComboSideChoices ||
+    (!hasPrimaryComboSideChoices ||
       selectedComboSides.length === comboSidesRequiredCount) &&
     (!hasDiscountComboSideChoices ||
       selectedDiscountComboSides.length === discountComboSidesRequiredCount) &&
@@ -906,7 +914,7 @@ const DishItemDetailsModal = ({
       customizationInput,
       selectedFlavors: hasFlavorChoices ? selectedFlavors : [],
       selectedToppings: hasToppingChoices ? selectedToppings : [],
-      selectedComboSides: hasComboSideChoices ? selectedComboSides : [],
+      selectedComboSides: hasPrimaryComboSideChoices ? selectedComboSides : [],
       selectedDiscountFlavors: hasDiscountFlavorChoices
         ? selectedDiscountFlavors
         : [],
@@ -959,7 +967,7 @@ const DishItemDetailsModal = ({
     customizationInput,
     getItemQuantity,
     handleAddItem,
-    hasComboSideChoices,
+    hasPrimaryComboSideChoices,
     hasDiscountComboSideChoices,
     isAddingSeparateItem,
     hasDiscountCustomization,
@@ -1504,6 +1512,10 @@ const DishItemDetailsModal = ({
                 complete={primaryRequirementsComplete}
                 expanded={isRequirementExpanded("primary-item")}
                 onPress={() => toggleRequirementSection("primary-item")}
+                showStatus={
+                  !primaryRequiredSelectionsComplete ||
+                  primaryRequirementsComplete
+                }
               />
             ) : null}
 
@@ -1566,6 +1578,7 @@ const DishItemDetailsModal = ({
                           complete={sectionComplete}
                           expanded={sectionExpanded}
                           onPress={() => toggleRequirementSection(sectionKey)}
+                          showStatus={!!selectedChild || !hasAllRequiredComboItems}
                         />
                       ) : null}
                       {selectedChild && hasRequirements && sectionExpanded
@@ -1750,7 +1763,7 @@ const DishItemDetailsModal = ({
               </View>
             )}
 
-            {isRequirementExpanded("primary-item") && hasComboSideChoices && (
+            {isRequirementExpanded("primary-item") && hasPrimaryComboSideChoices && (
               <View style={styles.actionSheetSection}>
                 <Text style={styles.sectionTitle}>
                   {`Choose exactly ${comboSidesRequiredCount} Side${
