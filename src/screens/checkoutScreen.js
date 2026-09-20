@@ -55,6 +55,7 @@ import {
   getDeliveryAddressPayload,
   getSelectedOptionLabels,
 } from "../helpers/customerPunchList.helper";
+import { hasMissingConfiguredComboChildren } from "../helpers/comboSelection.helper";
 import { foodTypeStrings } from "../utils/constants";
 
 const CUSTOMER_FEE_TIERS = [
@@ -156,12 +157,6 @@ const hasIncompleteOptionSelection = (requiredCount, selectedOptions) => {
   return selectedCount < 1 || selectedCount > requiredCount;
 };
 
-const hasMissingConfiguredChildren = (configuredItems, selectedItems, limit) => {
-  const configuredCount = Array.isArray(configuredItems) ? configuredItems.length : 0;
-  const requiredCount = getRequiredCount(limit, configuredCount);
-  return (Array.isArray(selectedItems) ? selectedItems : []).length !== requiredCount;
-};
-
 const buildComboItemPayload = (subItem, fallbackQty = 1) => {
   const menuItem = subItem?.menuItem || subItem;
   const comboMenuItemId = subItem?.comboMenuItemId || menuItem?._id;
@@ -174,6 +169,10 @@ const buildComboItemPayload = (subItem, fallbackQty = 1) => {
     comboMenuItemId,
     qty: Number(subItem?.qty || fallbackQty || 1),
   };
+
+  if (typeof subItem?.isAddOn === "boolean") {
+    payload.isAddOn = subItem.isAddOn;
+  }
 
   if (subItem?.selectedFlavors?.length > 0) {
     payload.selectedFlavors = subItem.selectedFlavors;
@@ -215,6 +214,7 @@ const buildConfiguredComboPayloads = ({
           ...configuredChild,
           ...selectedItem,
           comboMenuItemId: configuredId,
+          isAddOn: !!configuredItem?.isAddOn,
           qty: configuredItem?.qty || selectedItem?.qty || fallbackQty,
         },
         fallbackQty,
@@ -306,12 +306,12 @@ const hasIncompleteRequiredSelections = (item) => {
     (requiredDiscountComboSides > 0 &&
       (item?.selectedDiscountComboSides || []).length !==
         requiredDiscountComboSides) ||
-    hasMissingConfiguredChildren(
+    hasMissingConfiguredComboChildren(
       configuredComboItems,
       item?.selectedSubItems,
       item?.comboSidesPerOrder,
     ) ||
-    hasMissingConfiguredChildren(
+    hasMissingConfiguredComboChildren(
       configuredDiscountComboItems,
       item?.selectedDiscountSubItems,
     ) ||
