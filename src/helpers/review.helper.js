@@ -25,7 +25,7 @@ export const formatRatingWithSanitationGrade = (foodTruck) => {
     Number.isFinite(rawReviewCount) &&
     rawReviewCount > 0;
   if (!hasReviews) {
-    return "New vendor";
+    return foodTruck?.featured === true ? "Featured Vendor" : "New vendor";
   }
 
   const reviews = formatReviewCount(rawReviewCount);

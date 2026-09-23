@@ -421,14 +421,20 @@ export const getFoodTruckDetailById_API = async (foodTruck_id) => {
 };
 
 // Get FoodTruckMenu Details By Id
-export const getFoodTruckMenuDetailById_API = async (foodTruck_id) => {
+export const getFoodTruckMenuDetailById_API = async (
+  foodTruck_id,
+  truckUnitId = null
+) => {
   try {
     const { isSignedIn } = store.getState().authReducer;
 
     const URL = GET_FOOD_TRUCK_MENU_BY_ID_FOR_PUBLIC(foodTruck_id);
     const response = await apiClient.get(URL, {
       skipToken: !isSignedIn,
-      params: { refreshedAt: Date.now() },
+      params: {
+        refreshedAt: Date.now(),
+        ...(truckUnitId ? { truckUnitId } : {}),
+      },
     });
     return response?.data;
   } catch (error) {

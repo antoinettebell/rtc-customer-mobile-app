@@ -184,7 +184,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
         fetchMenuDetails(false);
       }, 15000);
       return () => clearInterval(menuRefreshInterval);
-    }, [dispatch, isSignedIn, item?._id])
+    }, [dispatch, isSignedIn, item?._id, selectedTruckUnitId])
   );
 
   const fetchFoodTruckDetails = async () => {
@@ -205,7 +205,10 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const fetchMenuDetails = async (showLoading = true) => {
     if (showLoading) setMenuLoading(true);
     try {
-      const response = await getFoodTruckMenuDetailById_API(item?._id);
+      const response = await getFoodTruckMenuDetailById_API(
+        item?._id,
+        selectedTruckUnitId
+      );
       console.log("response => ", response);
       if (response?.success && response?.data) {
         let menuItems = response.data.menuList;
@@ -919,6 +922,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   onPress={() =>
                     navigation.navigate("rateReviewScreen", {
                       foodTruckId: item?._id,
+                      featured: foodTruckDetail?.featured === true,
                     })
                   }
                 >
