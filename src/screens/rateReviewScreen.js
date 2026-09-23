@@ -105,7 +105,11 @@ const RateReviewScreen = ({ navigation, route }) => {
       <View style={styles.statsContainer}>
         <View style={{ flex: 0.6 }}>
           <Text style={styles.statsTitle}>
-            {hasReviews ? `★ ${averageRating.toFixed(1)}` : "New vendor"}
+            {hasReviews
+              ? `★ ${averageRating.toFixed(1)}`
+              : param?.featured
+                ? "Featured Vendor"
+                : "New vendor"}
           </Text>
           <Text style={styles.totalReviews}>
             {reviewCount}
