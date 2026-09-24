@@ -88,6 +88,7 @@ import MarketplaceTicketCheckoutScreen from "./src/screens/marketplaceTicketChec
 import MarketplaceMyTicketsScreen from "./src/screens/marketplaceMyTicketsScreen";
 import MarketplaceAwardBidsScreen from "./src/screens/marketplaceAwardBidsScreen";
 import MarketplacePaymentScreen from "./src/screens/marketplacePaymentScreen";
+import MarketplaceTicketStaffScreen from "./src/screens/marketplaceTicketStaffScreen";
 import GlobalSnackbar from "./src/components/GlobalSnackbar";
 
 const Stack = createNativeStackNavigator();
@@ -108,6 +109,7 @@ const linking = {
     screens: {
       rateTruckScreen: "review",
       marketplaceEventDetailsScreen: "event-invitation/:shareToken",
+      marketplaceTicketStaffScreen: "ticket-staff/:assignmentId",
     },
   },
 };
@@ -385,6 +387,7 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
       name="marketplacePaymentScreen"
       component={MarketplacePaymentScreen}
     />
+    <Stack.Screen name="marketplaceTicketStaffScreen" component={MarketplaceTicketStaffScreen} />
   </Stack.Navigator>
 );
 

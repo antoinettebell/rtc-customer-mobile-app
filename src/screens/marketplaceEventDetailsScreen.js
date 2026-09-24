@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -33,6 +34,14 @@ import {
   getMarketplaceTicketSummary_API,
   getMarketplaceTicketInvitation_API,
   createMarketplaceFinalPayment_API,
+  getMarketplaceAwardAmendments_API,
+  acceptMarketplaceAwardAmendment_API,
+  rejectMarketplaceAwardAmendment_API,
+  getMarketplaceTicketStaff_API,
+  assignMarketplaceTicketStaff_API,
+  resendMarketplaceTicketStaff_API,
+  revokeMarketplaceTicketStaff_API,
+  updateMarketplaceAwardedVipGuestCount_API,
 } from "../apiFolder/appAPI";
 import AppImage from "../components/AppImage";
 import ImageCarousel from "../components/ImageCarousel";
@@ -330,6 +339,12 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [finalPaymentLoadingId, setFinalPaymentLoadingId] = useState(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [ticketSummary, setTicketSummary] = useState(null);
+  const [awardAmendments, setAwardAmendments] = useState([]);
+  const [amendmentRejectReasons, setAmendmentRejectReasons] = useState({});
+  const [amendmentActionId, setAmendmentActionId] = useState(null);
+  const [ticketStaff, setTicketStaff] = useState([]);
+  const [ticketStaffIdentifier, setTicketStaffIdentifier] = useState("");
+  const [awardedVipGuestCount, setAwardedVipGuestCount] = useState("");
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
@@ -366,11 +381,18 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           : await getMarketplaceEventById_API(eventId);
       if (response?.success) {
         setEvent(response.data?.marketplaceEvent);
+        setAwardedVipGuestCount(String(response.data?.marketplaceEvent?.vip_guest_count || ""));
       }
       await loadQuestions();
       if (!customerView && eventId) {
-        const summaryResponse = await getMarketplaceTicketSummary_API(eventId).catch(() => null);
+        const [summaryResponse, amendmentResponse, staffResponse] = await Promise.all([
+          getMarketplaceTicketSummary_API(eventId).catch(() => null),
+          getMarketplaceAwardAmendments_API(eventId).catch(() => null),
+          getMarketplaceTicketStaff_API(eventId).catch(() => null),
+        ]);
         setTicketSummary(summaryResponse?.data || null);
+        setAwardAmendments(amendmentResponse?.data?.amendments || []);
+        setTicketStaff(staffResponse?.data?.assignmentList || []);
       }
     } catch (error) {
       Alert.alert("Event", error?.message || "Failed to load event.");
@@ -416,6 +438,13 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const isClosed = event?.status === "CLOSED";
   const submissionsClosed = !!event?.vendor_applications_closed_at;
   const isAwarded = eventStatus === "AWARDED";
+  const hasAwardedVipCaterer =
+    ["OPEN", "REOPENED", "CLOSED", "AWARDED"].includes(eventStatus) &&
+    (event?.awarded_bids || []).some((bid) =>
+      ["VIP", "BOTH"].includes(
+        String(bid?.awarded_coverage || bid?.guest_coverage || "").toUpperCase()
+      )
+    );
   const canEditEvent = isPublished;
   const canViewAwardedDocs =
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
@@ -769,6 +798,96 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     navigateToEditor();
   };
 
+  const refreshAwardAmendments = async () => {
+    const response = await getMarketplaceAwardAmendments_API(eventId);
+    setAwardAmendments(response?.data?.amendments || []);
+  };
+
+  const submitAwardedVipGuestCount = () => {
+    const requestedCount = Number(awardedVipGuestCount);
+    const currentCount = Number(event?.vip_guest_count || 0);
+    if (!Number.isInteger(requestedCount) || requestedCount <= currentCount) {
+      Alert.alert("VIP Guest Count", `Enter a whole number greater than ${currentCount}.`);
+      return;
+    }
+    Alert.alert(
+      "Update Awarded VIP Guest Count?",
+      "The awarded vendor will be asked to reconfirm or revise the affected awarded price. The current award remains active until you accept an amendment.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Continue", onPress: async () => {
+          setAmendmentActionId("vip-guest-count");
+          try {
+            await updateMarketplaceAwardedVipGuestCount_API(eventId, requestedCount);
+            await loadEvent();
+            Alert.alert("Vendor Notified", "The awarded vendor was asked to review the updated VIP guest count.");
+          } catch (error) {
+            Alert.alert("VIP Guest Count", error?.message || "Unable to update the awarded VIP guest count.");
+          } finally {
+            setAmendmentActionId(null);
+          }
+        } },
+      ]
+    );
+  };
+
+  const acceptAwardAmendment = (amendment) => {
+    Alert.alert(
+      "Accept Award Amendment",
+      "Accepting archives the prior award and makes this amended price active for final payment.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Accept",
+          onPress: async () => {
+            setAmendmentActionId(amendment.amendment_id);
+            try {
+              await acceptMarketplaceAwardAmendment_API(amendment.amendment_id);
+              await refreshAwardAmendments();
+            } catch (error) {
+              Alert.alert("Award Amendment", error?.message || "Unable to accept the amendment.");
+            } finally {
+              setAmendmentActionId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const rejectAwardAmendment = (amendment) => {
+    const reason = String(amendmentRejectReasons[amendment.amendment_id] || "").trim();
+    if (!reason) {
+      Alert.alert("Award Amendment", "Enter a reason before rejecting the amendment.");
+      return;
+    }
+    Alert.alert(
+      "Reject Award Amendment",
+      "The original awarded price will remain active.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reject",
+          style: "destructive",
+          onPress: async () => {
+            setAmendmentActionId(amendment.amendment_id);
+            try {
+              await rejectMarketplaceAwardAmendment_API({
+                amendmentId: amendment.amendment_id,
+                reason,
+              });
+              await refreshAwardAmendments();
+            } catch (error) {
+              Alert.alert("Award Amendment", error?.message || "Unable to reject the amendment.");
+            } finally {
+              setAmendmentActionId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const openDocument = async (url) => {
     if (!url) return;
     try {
@@ -1091,6 +1210,28 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
     return null;
   };
+
+  const assignTicketStaff = async () => {
+    if (!ticketStaffIdentifier.trim()) return Alert.alert("Assigned Ticket Staff", "Enter an existing customer email or mobile number.");
+    try {
+      await assignMarketplaceTicketStaff_API(eventId, ticketStaffIdentifier.trim());
+      setTicketStaffIdentifier("");
+      await loadEvent();
+      Alert.alert("Invitation Sent", "The customer received a ticket staff invitation in the app.");
+    } catch (error) { Alert.alert("Assigned Ticket Staff", error?.message || "Unable to send the invitation."); }
+  };
+
+  const confirmTicketStaffAction = (assignment, action) => Alert.alert(
+    action === "revoke" ? "Revoke Ticket Access?" : "Resend Invitation?",
+    action === "revoke" ? "This immediately removes ticket-scanning access." : "Send another in-app notification to this customer?",
+    [{ text: "Cancel", style: "cancel" }, { text: action === "revoke" ? "Revoke" : "Resend", style: action === "revoke" ? "destructive" : "default", onPress: async () => {
+      try {
+        if (action === "revoke") await revokeMarketplaceTicketStaff_API(assignment.assignment_id);
+        else await resendMarketplaceTicketStaff_API(assignment.assignment_id);
+        await loadEvent();
+      } catch (error) { Alert.alert("Assigned Ticket Staff", error?.message || "Unable to update this assignment."); }
+    } }],
+  );
 
   if (customerView) {
     return (
@@ -1466,7 +1607,110 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ))
             : null}
 
+          {!customerView && hasAwardedVipCaterer ? (
+            <View style={styles.card}>
+              <Text style={styles.title}>Post-Award VIP Headcount</Text>
+              <Text style={[styles.meta, { marginTop: 6 }]}>Only the VIP guest count can be increased here. All other awarded event terms remain locked.</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>VIP Guest Count</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 12 }}
+                keyboardType="number-pad"
+                value={awardedVipGuestCount}
+                onChangeText={(value) => setAwardedVipGuestCount(value.replace(/\D/g, ""))}
+              />
+              <TouchableOpacity style={[styles.button, { marginTop: 12 }]} disabled={amendmentActionId === "vip-guest-count"} onPress={submitAwardedVipGuestCount}>
+                {amendmentActionId === "vip-guest-count" ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Notify Awarded Vendor</Text>}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {!customerView && awardAmendments.length ? (
+            <View style={styles.card}>
+              <Text style={styles.title}>Award Amendments</Text>
+              <Text style={[styles.meta, { marginTop: 6 }]}>The existing award remains active until an amendment is accepted.</Text>
+              {awardAmendments.map((amendment) => (
+                <View
+                  key={amendment.amendment_id}
+                  style={{ borderTopWidth: 1, borderTopColor: "#E5E7EB", marginTop: 14, paddingTop: 14 }}
+                >
+                  <DetailRow label="Status" value={formatMarketplaceStatus(amendment.status)} />
+                  <DetailRow
+                    label="VIP Guest Count"
+                    value={`${amendment.previous_vip_guest_count} to ${amendment.requested_vip_guest_count}`}
+                  />
+                  <DetailRow label="Original Award Amount" value={formatMoney(amendment.original_amount)} />
+                  {amendment.proposed_amount != null ? (
+                    <DetailRow label="Proposed Award Amount" value={formatMoney(amendment.proposed_amount)} />
+                  ) : null}
+                  {amendment.status === "PENDING_REVIEW" ? (
+                    <>
+                      <TextInput
+                        accessibilityLabel="Award amendment rejection reason"
+                        placeholder="Reason required only when rejecting"
+                        value={amendmentRejectReasons[amendment.amendment_id] || ""}
+                        onChangeText={(value) => setAmendmentRejectReasons((current) => ({
+                          ...current,
+                          [amendment.amendment_id]: value,
+                        }))}
+                        style={{
+                          borderWidth: 1,
+                          borderColor: "#D1D5DB",
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          marginTop: 12,
+                        }}
+                      />
+                      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                        <TouchableOpacity
+                          style={[styles.secondaryButton, { flex: 1 }]}
+                          disabled={amendmentActionId === amendment.amendment_id}
+                          onPress={() => rejectAwardAmendment(amendment)}
+                        >
+                          <Text style={styles.secondaryButtonText}>Reject</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.button, { flex: 1 }]}
+                          disabled={amendmentActionId === amendment.amendment_id}
+                          onPress={() => acceptAwardAmendment(amendment)}
+                        >
+                          {amendmentActionId === amendment.amendment_id ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                          ) : (
+                            <Text style={styles.buttonText}>Accept Amendment</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : null}
+                  {amendment.rejection_reason ? (
+                    <DetailRow label="Review Note" value={amendment.rejection_reason} />
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {renderAwardedPayments()}
+          {!customerView && ticketSalesEnabled ? (
+            <View style={styles.card}>
+              <Text style={styles.title}>Assigned Ticket Staff</Text>
+              <Text style={styles.meta}>Invite an existing Round Da' Corner customer by email or mobile number. Accepted staff can scan tickets for this event only.</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 12, marginTop: 12 }}
+                placeholder="Customer email or mobile number"
+                autoCapitalize="none"
+                value={ticketStaffIdentifier}
+                onChangeText={setTicketStaffIdentifier}
+              />
+              <TouchableOpacity style={[styles.button, { marginTop: 10 }]} onPress={assignTicketStaff}><Text style={styles.buttonText}>Assign Ticket Staff</Text></TouchableOpacity>
+              {ticketStaff.map((assignment) => {
+                const staff = assignment.staff_customer_user_id || {};
+                const name = [staff.firstName, staff.lastName].filter(Boolean).join(" ") || staff.email || "Customer";
+                return <View key={assignment.assignment_id} style={{ borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12, marginTop: 12 }}><Text style={styles.label}>{name}</Text><Text style={styles.meta}>{assignment.status}</Text><View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>{["PENDING", "DECLINED", "REVOKED"].includes(assignment.status) ? <TouchableOpacity style={[styles.secondaryButton, { flex: 1 }]} onPress={() => confirmTicketStaffAction(assignment, "resend")}><Text style={styles.secondaryButtonText}>Resend</Text></TouchableOpacity> : null}{["PENDING", "ACCEPTED"].includes(assignment.status) ? <TouchableOpacity style={[styles.secondaryButton, { flex: 1 }]} onPress={() => confirmTicketStaffAction(assignment, "revoke")}><Text style={styles.secondaryButtonText}>Revoke</Text></TouchableOpacity> : null}</View></View>;
+              })}
+            </View>
+          ) : null}
           {renderCoordinatorActions()}
 
         </ScrollView>

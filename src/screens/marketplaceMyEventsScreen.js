@@ -15,17 +15,19 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
-import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
+import { getMarketplaceMyEvents_API, getMyMarketplaceTicketStaff_API } from "../apiFolder/appAPI";
 import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { formatMarketplaceSubmissionCounts } from "../helpers/marketplaceMyEventsCounts.helper";
 import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
+import { hasAcceptedTicketStaffGig } from "../helpers/marketplaceTicketStaff.helper";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasTicketStaffAssignments, setHasTicketStaffAssignments] = useState(false);
   const statusFilter = route?.params?.statusFilter;
   const visibleEvents = statusFilter
     ? events.filter((event) => event.status === statusFilter)
@@ -41,10 +43,14 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const loadEvents = async () => {
     setLoading(true);
     try {
-      const response = await getMarketplaceMyEvents_API();
+      const [response, staffResponse] = await Promise.all([
+        getMarketplaceMyEvents_API(),
+        getMyMarketplaceTicketStaff_API().catch(() => null),
+      ]);
       if (response?.success) {
         setEvents(response.data?.marketplaceEventList || []);
       }
+      setHasTicketStaffAssignments(hasAcceptedTicketStaffGig(staffResponse?.data?.assignmentList || []));
     } catch (error) {
       console.log("Marketplace events error", error);
     } finally {
@@ -245,6 +251,11 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
                 </View>
               ) : null}
             </TouchableOpacity>
+            {hasTicketStaffAssignments ? (
+              <TouchableOpacity hitSlop={10} activeOpacity={0.7} onPress={() => navigation.navigate("marketplaceTicketStaffScreen")}>
+                <MaterialIcons name="badge" size={24} color={AppColor.primary} />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               hitSlop={10}
               activeOpacity={0.7}

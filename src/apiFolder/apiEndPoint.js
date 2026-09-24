@@ -129,6 +129,8 @@ export const MARKETPLACE_EVENT_IMAGE = (event_id, image_id) =>
   `/marketplace/events/${event_id}/images/${image_id}`;
 export const MARKETPLACE_EVENT_BIDS = (event_id) =>
   `/marketplace/events/${event_id}/bids`;
+export const MARKETPLACE_AWARDED_VIP_GUEST_COUNT = (event_id) =>
+  `/marketplace/events/${event_id}/award-amendments/vip-guest-count`;
 export const MARKETPLACE_EVENT_QUESTIONS = (event_id) =>
   `/marketplace/events/${event_id}/questions`;
 export const MARKETPLACE_EVENT_QUESTION_ANSWER = (event_id, question_id) =>
@@ -153,6 +155,12 @@ export const MARKETPLACE_TICKET_QUOTE = (event_id) =>
   `/marketplace/events/${event_id}/tickets/quote`;
 export const MARKETPLACE_SCANNER_SESSION = (event_id) =>
   `/marketplace/events/${event_id}/tickets/scanner-session`;
+export const MARKETPLACE_EVENT_TICKET_STAFF = (event_id) => `/marketplace/events/${event_id}/ticket-staff`;
+export const MARKETPLACE_TICKET_STAFF_RESEND = (assignment_id) => `/marketplace/ticket-staff/${assignment_id}/resend`;
+export const MARKETPLACE_TICKET_STAFF_REVOKE = (assignment_id) => `/marketplace/ticket-staff/${assignment_id}/revoke`;
+export const MARKETPLACE_TICKET_STAFF_MY = "/marketplace/ticket-staff/my";
+export const MARKETPLACE_TICKET_STAFF_RESPOND = (assignment_id) => `/marketplace/ticket-staff/${assignment_id}/respond`;
+export const MARKETPLACE_TICKET_STAFF_SCANNER = (assignment_id) => `/marketplace/ticket-staff/${assignment_id}/scanner-session`;
 export const MARKETPLACE_CLOSE_SCANNER = (event_id) =>
   `/marketplace/events/${event_id}/tickets/close-scanner`;
 export const MARKETPLACE_CLOSE_TICKET_SALES = (event_id) =>
