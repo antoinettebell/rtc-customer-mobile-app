@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   StyleSheet,
   Text,
@@ -27,6 +28,7 @@ import {
   getUserDetail_API,
   getFreeDessertDetail_API,
   updatePassword_API,
+  getMyMarketplaceTicketStaff_API,
 } from "../apiFolder/appAPI";
 import { Snackbar, Portal } from "react-native-paper";
 import { getBuildNumber, getVersion } from "react-native-device-info";
@@ -40,6 +42,7 @@ import { addOrUpdateUser, updateUserKey } from "../redux/slices/userInfoSlice";
 import AppImage from "../components/AppImage";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 import { suppressCustomerInvitationLinkAfterLogout } from "../helpers/customerInvitationDeepLink.helper";
+import { hasAcceptedTicketStaffGig } from "../helpers/marketplaceTicketStaff.helper";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -55,6 +58,7 @@ const ProfileMenuScreen = ({ navigation }) => {
   const [changePWDModalVisible, setChangePWDModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [freeDessertDetail, setFreeDessertDetail] = useState(null);
+  const [hasAcceptedEventGig, setHasAcceptedEventGig] = useState(false);
 
   const [snackbarPWD, setSnackbarPWD] = useState({
     visible: false,
@@ -210,11 +214,21 @@ const ProfileMenuScreen = ({ navigation }) => {
     }
   };
 
+  const loadTicketStaffGigs = useCallback(async () => {
+    try {
+      const response = await getMyMarketplaceTicketStaff_API();
+      setHasAcceptedEventGig(hasAcceptedTicketStaffGig(response?.data?.assignmentList || []));
+    } catch (_error) {
+      setHasAcceptedEventGig(false);
+    }
+  }, []);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       getUserDetailFromAPI();
       getFreeDessertDetail();
+      loadTicketStaffGigs();
     } catch (error) {
       console.error("Error during refresh:", error);
     } finally {
@@ -226,6 +240,8 @@ const ProfileMenuScreen = ({ navigation }) => {
     getUserDetailFromAPI();
     getFreeDessertDetail();
   }, []);
+
+  useFocusEffect(useCallback(() => { loadTicketStaffGigs(); }, [loadTicketStaffGigs]));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -348,6 +364,17 @@ const ProfileMenuScreen = ({ navigation }) => {
               onPress={() => navigation.navigate("marketplaceMyTicketsScreen")}
             />
             <HR />
+            {hasAcceptedEventGig ? (
+              <>
+                <CustomProfileItem
+                  imageUri={require("../assets/images/ordersMenuInactive.png")}
+                  label="My Event Gigs"
+                  rightIcon={true}
+                  onPress={() => navigation.navigate("marketplaceTicketStaffScreen")}
+                />
+                <HR />
+              </>
+            ) : null}
             <CustomProfileItem
               imageUri={require("../assets/images/diet.png")}
               label="Diet Restriction"

@@ -74,6 +74,13 @@ import {
   MARKETPLACE_TICKET_CHECKOUT,
   MARKETPLACE_TICKET_QUOTE,
   MARKETPLACE_SCANNER_SESSION,
+  MARKETPLACE_EVENT_TICKET_STAFF,
+  MARKETPLACE_AWARDED_VIP_GUEST_COUNT,
+  MARKETPLACE_TICKET_STAFF_RESEND,
+  MARKETPLACE_TICKET_STAFF_REVOKE,
+  MARKETPLACE_TICKET_STAFF_MY,
+  MARKETPLACE_TICKET_STAFF_RESPOND,
+  MARKETPLACE_TICKET_STAFF_SCANNER,
   MARKETPLACE_CLOSE_SCANNER,
   MARKETPLACE_CLOSE_TICKET_SALES,
   MARKETPLACE_TICKET_SHARE_LINK,
@@ -1053,6 +1060,57 @@ export const getMarketplaceEventBids_API = async (eventId) => {
   }
 };
 
+export const getMarketplaceAwardAmendments_API = async (eventId) => {
+  try {
+    const response = await apiClient.get(
+      `/marketplace/events/${eventId}/award-amendments`,
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const updateMarketplaceAwardedVipGuestCount_API = async (eventId, vipGuestCount) => {
+  try {
+    const response = await apiClient.patch(
+      MARKETPLACE_AWARDED_VIP_GUEST_COUNT(eventId),
+      { vip_guest_count: Number(vipGuestCount) },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const acceptMarketplaceAwardAmendment_API = async (amendmentId) => {
+  try {
+    const response = await apiClient.post(
+      `/marketplace/award-amendments/${amendmentId}/accept`,
+      {},
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const rejectMarketplaceAwardAmendment_API = async ({ amendmentId, reason }) => {
+  try {
+    const response = await apiClient.post(
+      `/marketplace/award-amendments/${amendmentId}/reject`,
+      { reason },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
 export const getMarketplaceEventQuestions_API = async (eventId, options = {}) => {
   try {
     const params = {
@@ -1365,6 +1423,35 @@ export const createMarketplaceScannerSession_API = async (eventId) => {
   } catch (error) {
     throw error?.response?.data || error;
   }
+};
+
+export const getMarketplaceTicketStaff_API = async (eventId) => {
+  try { return (await apiClient.get(MARKETPLACE_EVENT_TICKET_STAFF(eventId), { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const assignMarketplaceTicketStaff_API = async (eventId, identifier) => {
+  try { return (await apiClient.post(MARKETPLACE_EVENT_TICKET_STAFF(eventId), { identifier }, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const resendMarketplaceTicketStaff_API = async (assignmentId) => {
+  try { return (await apiClient.post(MARKETPLACE_TICKET_STAFF_RESEND(assignmentId), {}, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const revokeMarketplaceTicketStaff_API = async (assignmentId) => {
+  try { return (await apiClient.post(MARKETPLACE_TICKET_STAFF_REVOKE(assignmentId), {}, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const getMyMarketplaceTicketStaff_API = async () => {
+  try { return (await apiClient.get(MARKETPLACE_TICKET_STAFF_MY, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const respondMarketplaceTicketStaff_API = async (assignmentId, response) => {
+  try { return (await apiClient.post(MARKETPLACE_TICKET_STAFF_RESPOND(assignmentId), { response }, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
+};
+export const createTicketStaffScannerSession_API = async (assignmentId) => {
+  try { return (await apiClient.post(MARKETPLACE_TICKET_STAFF_SCANNER(assignmentId), {}, { skipToken: false }))?.data; }
+  catch (error) { throw error?.response?.data || error; }
 };
 
 export const closeMarketplaceScanner_API = async (eventId) => {
