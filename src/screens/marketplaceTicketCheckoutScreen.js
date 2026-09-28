@@ -228,6 +228,10 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
       const tickets = checkout.data?.tickets || [];
       Alert.alert("Tickets Purchased", `${tickets.length} ticket${tickets.length === 1 ? "" : "s"} sent by text and email.`, [
         {
+          text: "Home",
+          onPress: goBackWithoutSaving,
+        },
+        {
           text: guestCheckout ? "View Ticket" : "View All Tickets",
           onPress: () => guestCheckout
             ? tickets[0]?.ticket_url && navigation.replace("marketplaceTicketWebViewScreen", {

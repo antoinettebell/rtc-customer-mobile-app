@@ -21,6 +21,7 @@ import {
   MY_TICKET_FILTERS,
 } from "../helpers/marketplaceMyTickets.helper";
 import { formatDate, formatMoney, styles } from "./marketplaceShared";
+import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 
 const MarketplaceMyTicketsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,12 @@ const MarketplaceMyTicketsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState(MY_TICKET_FILTERS.UPCOMING);
   const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set());
+  const returnHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [getMarketplaceTicketExitRoute(true)],
+    });
+  };
 
   const load = async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -68,7 +75,8 @@ const MarketplaceMyTicketsScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBarManager /><AppHeader headerTitle="My Tickets" />
+      <StatusBarManager />
+      <AppHeader headerTitle="My Tickets" onBackPress={returnHome} />
       {loading ? <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={AppColor.primary} size="large" /></View> :
         <ScrollView contentContainerStyle={styles.body} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={AppColor.primary} />}>
           {!orders.length ? <View style={styles.card}><Text style={styles.title}>No tickets yet</Text><Text style={styles.meta}>Tickets purchased through Round Da&apos; Corner will appear here.</Text></View> : null}
