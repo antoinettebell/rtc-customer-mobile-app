@@ -346,6 +346,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [ticketStaff, setTicketStaff] = useState([]);
   const [ticketStaffIdentifier, setTicketStaffIdentifier] = useState("");
   const [awardedVipGuestCount, setAwardedVipGuestCount] = useState("");
+  const [awardedVipCoordinatorBudget, setAwardedVipCoordinatorBudget] = useState("");
   const [editingAwardedVipGuestCount, setEditingAwardedVipGuestCount] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
@@ -389,6 +390,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
       if (response?.success) {
         setEvent(response.data?.marketplaceEvent);
         setAwardedVipGuestCount(String(response.data?.marketplaceEvent?.vip_guest_count || ""));
+        setAwardedVipCoordinatorBudget(String(response.data?.marketplaceEvent?.budgeted_amount || ""));
       }
       await loadQuestions();
       if (!customerView && eventId) {
@@ -813,8 +815,16 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const submitAwardedVipGuestCount = () => {
     const requestedCount = Number(awardedVipGuestCount);
     const currentCount = Number(event?.vip_guest_count || 0);
+    const coordinatorFundsEvent = ["COORDINATOR", "BOTH"].includes(
+      String(event?.payment_responsibility || "").toUpperCase(),
+    );
+    const requestedBudget = Number(awardedVipCoordinatorBudget);
     if (!Number.isInteger(requestedCount) || requestedCount <= currentCount) {
       Alert.alert("VIP Guest Count", `Enter a whole number greater than ${currentCount}.`);
+      return;
+    }
+    if (coordinatorFundsEvent && (!Number.isFinite(requestedBudget) || requestedBudget <= 0)) {
+      Alert.alert("Coordinator Budget", "Enter the revised coordinator budget.");
       return;
     }
     Alert.alert(
@@ -825,7 +835,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         { text: "Continue", onPress: async () => {
           setAmendmentActionId("vip-guest-count");
           try {
-            await updateMarketplaceAwardedVipGuestCount_API(eventId, requestedCount);
+            await updateMarketplaceAwardedVipGuestCount_API(
+              eventId,
+              requestedCount,
+              coordinatorFundsEvent ? requestedBudget : null,
+            );
             await loadEvent();
             setEditingAwardedVipGuestCount(false);
             Alert.alert("Vendor Notified", "The awarded vendor was asked to review the updated VIP guest count.");
@@ -1637,6 +1651,31 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                 editable={editingAwardedVipGuestCount}
                 onChangeText={(value) => setAwardedVipGuestCount(value.replace(/\D/g, ""))}
               />
+              {["COORDINATOR", "BOTH"].includes(
+                String(event?.payment_responsibility || "").toUpperCase(),
+              ) ? (
+                <>
+                  <Text style={[styles.label, { marginTop: 12 }]}>Coordinator Budget</Text>
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: editingAwardedVipGuestCount ? "#D1D5DB" : "#E5E7EB",
+                      borderRadius: 8,
+                      padding: 12,
+                      backgroundColor: editingAwardedVipGuestCount ? "#FFFFFF" : "#F3F4F6",
+                      color: editingAwardedVipGuestCount ? "#111827" : "#6B7280",
+                    }}
+                    keyboardType="decimal-pad"
+                    value={awardedVipCoordinatorBudget}
+                    editable={editingAwardedVipGuestCount}
+                    onChangeText={(value) =>
+                      setAwardedVipCoordinatorBudget(
+                        value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"),
+                      )
+                    }
+                  />
+                </>
+              ) : null}
               {!editingAwardedVipGuestCount ? (
                 <TouchableOpacity
                   style={[styles.secondaryButton, { marginTop: 12 }]}
@@ -1651,6 +1690,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
                     disabled={amendmentActionId === "vip-guest-count"}
                     onPress={() => {
                       setAwardedVipGuestCount(String(event?.vip_guest_count || ""));
+                      setAwardedVipCoordinatorBudget(String(event?.budgeted_amount || ""));
                       setEditingAwardedVipGuestCount(false);
                     }}
                   >

@@ -1072,11 +1072,21 @@ export const getMarketplaceAwardAmendments_API = async (eventId) => {
   }
 };
 
-export const updateMarketplaceAwardedVipGuestCount_API = async (eventId, vipGuestCount) => {
+export const updateMarketplaceAwardedVipGuestCount_API = async (
+  eventId,
+  vipGuestCount,
+  budgetedAmount,
+) => {
   try {
     const response = await apiClient.patch(
       MARKETPLACE_AWARDED_VIP_GUEST_COUNT(eventId),
-      { vip_guest_count: Number(vipGuestCount) },
+      {
+        vip_guest_count: Number(vipGuestCount),
+        budgeted_amount:
+          budgetedAmount == null || budgetedAmount === ""
+            ? null
+            : Number(budgetedAmount),
+      },
       { skipToken: false }
     );
     return response?.data;
