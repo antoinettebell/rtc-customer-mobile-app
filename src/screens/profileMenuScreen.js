@@ -42,7 +42,7 @@ import { addOrUpdateUser, updateUserKey } from "../redux/slices/userInfoSlice";
 import AppImage from "../components/AppImage";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 import { suppressCustomerInvitationLinkAfterLogout } from "../helpers/customerInvitationDeepLink.helper";
-import { hasAcceptedTicketStaffGig } from "../helpers/marketplaceTicketStaff.helper";
+import { hasVisibleTicketStaffGig } from "../helpers/marketplaceTicketStaff.helper";
 
 const HR = () => <View style={styles.HR} />;
 
@@ -217,7 +217,7 @@ const ProfileMenuScreen = ({ navigation }) => {
   const loadTicketStaffGigs = useCallback(async () => {
     try {
       const response = await getMyMarketplaceTicketStaff_API();
-      setHasAcceptedEventGig(hasAcceptedTicketStaffGig(response?.data?.assignmentList || []));
+      setHasAcceptedEventGig(hasVisibleTicketStaffGig(response?.data?.assignmentList || []));
     } catch (_error) {
       setHasAcceptedEventGig(false);
     }

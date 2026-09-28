@@ -6,7 +6,7 @@ import {
   requestPermission,
   AuthorizationStatus,
 } from "@react-native-firebase/messaging";
-import notifee from "@notifee/react-native";
+import notifee, { AndroidImportance } from "@notifee/react-native";
 import { navigate } from "./navigation.helper";
 
 const installationsInstance = getInstallations();
@@ -55,8 +55,11 @@ export const requestNotificationPermission = async () => {
 
 export const createAndroidChannel = async () => {
   await notifee.createChannel({
-    id: "default",
-    name: "Default Channel",
+    id: "rtc-notifications-v2",
+    name: "RTC Notifications",
+    importance: AndroidImportance.HIGH,
+    sound: "default",
+    vibration: true,
   });
 };
 
@@ -66,10 +69,16 @@ export const onDisplayNotification = async (remoteMessage) => {
       title: remoteMessage.notification.title,
       body: remoteMessage.notification.body,
       android: {
-        channelId: "default",
+        channelId: "rtc-notifications-v2",
+        importance: AndroidImportance.HIGH,
+        sound: "default",
+        vibrationPattern: [300, 500],
         pressAction: {
           id: "default",
         },
+      },
+      ios: {
+        sound: "default",
       },
       data: remoteMessage.data,
     });
@@ -93,5 +102,11 @@ export const handleNotificationAction = async (notification) => {
     notificationData?.orderId
   ) {
     navigate("orderDetailsScreen", { orderId: notificationData.orderId });
+  }
+
+  if (notificationData?.notificationType === "MARKETPLACE_TICKET_STAFF") {
+    navigate("marketplaceTicketStaffScreen", {
+      assignmentId: notificationData.assignmentId,
+    });
   }
 };

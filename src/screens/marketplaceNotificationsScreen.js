@@ -10,24 +10,45 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
-import { getMarketplaceMyEvents_API } from "../apiFolder/appAPI";
+import {
+  getMarketplaceMyEvents_API,
+  getMyMarketplaceTicketStaff_API,
+} from "../apiFolder/appAPI";
 import { formatDate, styles } from "./marketplaceShared";
+import { pendingTicketStaffAssignments } from "../helpers/marketplaceTicketStaff.helper";
+
+const DISMISSED_TICKET_STAFF_KEY = "marketplace-dismissed-ticket-staff-notifications";
 
 const MarketplaceNotificationsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [events, setEvents] = useState([]);
+  const [staffAssignments, setStaffAssignments] = useState([]);
+  const [dismissedStaffIds, setDismissedStaffIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadEvents = async () => {
     setLoading(true);
     try {
-      const response = await getMarketplaceMyEvents_API();
+      const [response, staffResponse, dismissedValue] = await Promise.all([
+        getMarketplaceMyEvents_API(),
+        getMyMarketplaceTicketStaff_API().catch(() => null),
+        AsyncStorage.getItem(DISMISSED_TICKET_STAFF_KEY),
+      ]);
       if (response?.success) {
         setEvents(response.data?.marketplaceEventList || []);
+      }
+      setStaffAssignments(
+        pendingTicketStaffAssignments(staffResponse?.data?.assignmentList || []),
+      );
+      try {
+        setDismissedStaffIds(JSON.parse(dismissedValue || "[]"));
+      } catch (_error) {
+        setDismissedStaffIds([]);
       }
     } catch (error) {
       console.log("Marketplace notifications error", error);
@@ -48,7 +69,21 @@ const MarketplaceNotificationsScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const notifications = events.flatMap((event) => {
+  const notifications = [
+    ...staffAssignments
+      .filter((assignment) => !dismissedStaffIds.includes(assignment.assignment_id))
+      .map((assignment) => ({
+        id: `ticket-staff-${assignment.assignment_id}`,
+        assignmentId: assignment.assignment_id,
+        eventName: assignment.marketplaceEvent?.event_name || "Event",
+        eventDate: formatDate(assignment.marketplaceEvent?.event_date),
+        count: 1,
+        icon: "badge",
+        title: "Ticket staff assignment",
+        subtitle: "Accept or decline this ticket-scanning assignment.",
+        screen: "marketplaceTicketStaffScreen",
+      })),
+    ...events.flatMap((event) => {
     const eventId = event.event_id;
     const eventName = event.event_name || "Untitled Event";
     const eventDate = formatDate(event.event_date);
@@ -84,20 +119,30 @@ const MarketplaceNotificationsScreen = ({ navigation }) => {
       });
     }
 
-    return rows;
-  });
+      return rows;
+    }),
+  ];
 
   const openNotification = (item) => {
-    navigation.navigate(item.screen, { eventId: item.eventId });
+    navigation.navigate(item.screen, {
+      eventId: item.eventId,
+      assignmentId: item.assignmentId,
+    });
+  };
+
+  const dismissTicketStaffNotification = async (item) => {
+    const nextIds = [...new Set([...dismissedStaffIds, item.assignmentId])];
+    setDismissedStaffIds(nextIds);
+    await AsyncStorage.setItem(DISMISSED_TICKET_STAFF_KEY, JSON.stringify(nextIds));
   };
 
   const renderNotification = ({ item }) => (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={styles.card}
-      onPress={() => openNotification(item)}
-    >
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+    <View style={styles.card}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => openNotification(item)}
+      >
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
         <View
           style={{
             width: 38,
@@ -121,8 +166,18 @@ const MarketplaceNotificationsScreen = ({ navigation }) => {
           <Text style={styles.meta}>{item.eventDate}</Text>
           <Text style={styles.meta}>{item.subtitle}</Text>
         </View>
-      </View>
-    </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+      {item.assignmentId ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ marginTop: 10, alignSelf: "flex-start" }}
+          onPress={() => dismissTicketStaffNotification(item)}
+        >
+          <Text style={styles.secondaryButtonText}>Clear notification</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 
   return (
@@ -162,7 +217,7 @@ const MarketplaceNotificationsScreen = ({ navigation }) => {
                 No unread notifications
               </Text>
               <Text style={styles.emptyText}>
-                New messages and new bids/applications will appear here.
+                New messages, bids/applications, and ticket staff assignments will appear here.
               </Text>
             </View>
           )

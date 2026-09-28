@@ -12,6 +12,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
 import { AppColor } from "../utils/theme";
@@ -20,7 +21,12 @@ import { formatMarketplaceStatus } from "../helpers/marketplaceStatus.helper";
 import { formatMarketplaceSubmissionCounts } from "../helpers/marketplaceMyEventsCounts.helper";
 import { formatDate, formatEventTime, formatMoney, styles } from "./marketplaceShared";
 import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
-import { hasAcceptedTicketStaffGig } from "../helpers/marketplaceTicketStaff.helper";
+import {
+  hasVisibleTicketStaffGig,
+  pendingTicketStaffAssignments,
+} from "../helpers/marketplaceTicketStaff.helper";
+
+const DISMISSED_TICKET_STAFF_KEY = "marketplace-dismissed-ticket-staff-notifications";
 
 const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -28,11 +34,12 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasTicketStaffAssignments, setHasTicketStaffAssignments] = useState(false);
+  const [pendingStaffCount, setPendingStaffCount] = useState(0);
   const statusFilter = route?.params?.statusFilter;
   const visibleEvents = statusFilter
     ? events.filter((event) => event.status === statusFilter)
     : events;
-  const notificationCount = visibleEvents.reduce(
+  const notificationCount = pendingStaffCount + visibleEvents.reduce(
     (total, event) =>
       total +
       Number(event.unread_message_count || 0) +
@@ -43,14 +50,27 @@ const MarketplaceMyEventsScreen = ({ navigation, route }) => {
   const loadEvents = async () => {
     setLoading(true);
     try {
-      const [response, staffResponse] = await Promise.all([
+      const [response, staffResponse, dismissedValue] = await Promise.all([
         getMarketplaceMyEvents_API(),
         getMyMarketplaceTicketStaff_API().catch(() => null),
+        AsyncStorage.getItem(DISMISSED_TICKET_STAFF_KEY),
       ]);
       if (response?.success) {
         setEvents(response.data?.marketplaceEventList || []);
       }
-      setHasTicketStaffAssignments(hasAcceptedTicketStaffGig(staffResponse?.data?.assignmentList || []));
+      const staffAssignments = staffResponse?.data?.assignmentList || [];
+      setHasTicketStaffAssignments(hasVisibleTicketStaffGig(staffAssignments));
+      let dismissedIds = [];
+      try {
+        dismissedIds = JSON.parse(dismissedValue || "[]");
+      } catch (_error) {
+        dismissedIds = [];
+      }
+      setPendingStaffCount(
+        pendingTicketStaffAssignments(staffAssignments).filter(
+          (assignment) => !dismissedIds.includes(assignment.assignment_id),
+        ).length,
+      );
     } catch (error) {
       console.log("Marketplace events error", error);
     } finally {

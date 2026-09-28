@@ -1,6 +1,14 @@
 export const hasAcceptedTicketStaffGig = (assignments = []) =>
   assignments.some((assignment) => assignment?.status === "ACCEPTED");
 
+export const hasVisibleTicketStaffGig = (assignments = []) =>
+  assignments.some((assignment) =>
+    ["PENDING", "ACCEPTED"].includes(assignment?.status),
+  );
+
+export const pendingTicketStaffAssignments = (assignments = []) =>
+  assignments.filter((assignment) => assignment?.status === "PENDING");
+
 export const visibleTicketStaffAssignments = (assignments = []) =>
   assignments.filter((assignment) => ["PENDING", "ACCEPTED"].includes(assignment?.status));
 
