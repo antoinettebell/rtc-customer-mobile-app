@@ -41,6 +41,10 @@ assert.equal((details.match(/>Share Event via Text<\/Text>/g) || []).length, 2);
 assert.doesNotMatch(details, /Share\.share\(/);
 assert.match(details, /Linking\.openURL\(`sms:\$\{smsSeparator\}body=\$\{encodeURIComponent\(message\)\}`\)/);
 assert.doesNotMatch(details, /Ticket invitations are available for private events/);
+assert.match(details, /const canEditEvent = isPublished \|\| isAwarded/);
+assert.match(details, /editable=\{editingAwardedVipGuestCount\}/);
+assert.match(details, />Edit VIP Guest Count<\/Text>/);
+assert.match(details, /setEditingAwardedVipGuestCount\(false\)/);
 
 assert.equal(sanitizeCurrencyInput(""), "");
 assert.equal(normalizeCurrencyOnBlur(""), "");

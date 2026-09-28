@@ -346,6 +346,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const [ticketStaff, setTicketStaff] = useState([]);
   const [ticketStaffIdentifier, setTicketStaffIdentifier] = useState("");
   const [awardedVipGuestCount, setAwardedVipGuestCount] = useState("");
+  const [editingAwardedVipGuestCount, setEditingAwardedVipGuestCount] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
@@ -451,7 +452,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
         String(bid?.awarded_coverage || bid?.guest_coverage || "").toUpperCase()
       )
     );
-  const canEditEvent = isPublished;
+  const canEditEvent = isPublished || isAwarded;
   const canViewAwardedDocs =
     isAwarded && ["PAID", "NOT_REQUIRED"].includes(event?.award_payment_status);
   let ticketAvailabilityMessage =
@@ -785,7 +786,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
 
   const handleEditDraft = () => {
     if (!event) return;
-    if (!isDraft && !isPublished) return;
+    if (!isDraft && !isPublished && !isAwarded) return;
 
     const navigateToEditor = () =>
       navigation.navigate("marketplaceCreateEventScreen", {
@@ -826,6 +827,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           try {
             await updateMarketplaceAwardedVipGuestCount_API(eventId, requestedCount);
             await loadEvent();
+            setEditingAwardedVipGuestCount(false);
             Alert.alert("Vendor Notified", "The awarded vendor was asked to review the updated VIP guest count.");
           } catch (error) {
             Alert.alert("VIP Guest Count", error?.message || "Unable to update the awarded VIP guest count.");
@@ -1619,17 +1621,50 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           {!customerView && hasAwardedVipCaterer ? (
             <View style={styles.card}>
               <Text style={styles.title}>Post-Award VIP Headcount</Text>
-              <Text style={[styles.meta, { marginTop: 6 }]}>Only the VIP guest count can be increased here. All other awarded event terms remain locked.</Text>
+              <Text style={[styles.meta, { marginTop: 6 }]}>Use this section for a post-award VIP increase, or use Edit Event for other permitted event changes.</Text>
               <Text style={[styles.label, { marginTop: 12 }]}>VIP Guest Count</Text>
               <TextInput
-                style={{ borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 12 }}
+                style={{
+                  borderWidth: 1,
+                  borderColor: editingAwardedVipGuestCount ? "#D1D5DB" : "#E5E7EB",
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: editingAwardedVipGuestCount ? "#FFFFFF" : "#F3F4F6",
+                  color: editingAwardedVipGuestCount ? "#111827" : "#6B7280",
+                }}
                 keyboardType="number-pad"
                 value={awardedVipGuestCount}
+                editable={editingAwardedVipGuestCount}
                 onChangeText={(value) => setAwardedVipGuestCount(value.replace(/\D/g, ""))}
               />
-              <TouchableOpacity style={[styles.button, { marginTop: 12 }]} disabled={amendmentActionId === "vip-guest-count"} onPress={submitAwardedVipGuestCount}>
-                {amendmentActionId === "vip-guest-count" ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Notify Awarded Vendor</Text>}
-              </TouchableOpacity>
+              {!editingAwardedVipGuestCount ? (
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { marginTop: 12 }]}
+                  onPress={() => setEditingAwardedVipGuestCount(true)}
+                >
+                  <Text style={styles.secondaryButtonText}>Edit VIP Guest Count</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.row, { marginTop: 12 }]}>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { flex: 1 }]}
+                    disabled={amendmentActionId === "vip-guest-count"}
+                    onPress={() => {
+                      setAwardedVipGuestCount(String(event?.vip_guest_count || ""));
+                      setEditingAwardedVipGuestCount(false);
+                    }}
+                  >
+                    <Text style={styles.secondaryButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, { flex: 1 }]}
+                    disabled={amendmentActionId === "vip-guest-count"}
+                    onPress={submitAwardedVipGuestCount}
+                  >
+                    {amendmentActionId === "vip-guest-count" ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Notify Awarded Vendor</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ) : null}
 
