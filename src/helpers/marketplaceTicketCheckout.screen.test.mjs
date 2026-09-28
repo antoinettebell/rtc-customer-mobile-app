@@ -19,6 +19,7 @@ assert.match(
 assert.match(source, /placesList: \{ maxHeight: 220, marginTop: 4,/);
 assert.doesNotMatch(source, /placesList: \{ position: "absolute"/);
 assert.match(source, /text: guestCheckout \? "View Ticket" : "View All Tickets"/);
+assert.match(source, /text: "Home"[\s\S]*onPress: goBackWithoutSaving/);
 assert.match(source, /navigation\.replace\("marketplaceMyTicketsScreen"\)/);
 assert.doesNotMatch(source, /text: "View First Ticket"/);
 assert.match(source, /hasConfiguredTicketBucket\(event, "ga"\)/);
@@ -35,6 +36,7 @@ const ticketViewerSource = fs.readFileSync(
   "utf8",
 );
 assert.match(ticketListSource, /returnToMyTickets: true/);
+assert.match(ticketListSource, /onBackPress=\{returnHome\}/);
 assert.match(ticketViewerSource, /isSignedIn && returnToMyTickets/);
 assert.match(ticketViewerSource, /navigation\.goBack\(\)/);
 

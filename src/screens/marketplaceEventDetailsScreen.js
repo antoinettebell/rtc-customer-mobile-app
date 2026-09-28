@@ -67,6 +67,7 @@ import {
   getEventVendorRequirementRows,
 } from "./marketplaceShared";
 import { getMarketplaceBidTotal } from "../helpers/marketplaceBidTotal.helper";
+import { getMarketplaceTicketExitRoute } from "../helpers/marketplaceTicketNavigation.helper";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -353,6 +354,11 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     budget: true,
     visibility: true,
   });
+
+  const returnToCustomerHome = useCallback(() => {
+    const destination = getMarketplaceTicketExitRoute(isSignedIn);
+    navigation.reset({ index: 0, routes: [destination] });
+  }, [isSignedIn, navigation]);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 30000);
@@ -1237,7 +1243,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBarManager />
-        <AppHeader headerTitle="Event Details" />
+        <AppHeader
+          headerTitle="Event Details"
+          onBackPress={returnToCustomerHome}
+        />
         {loading ? (
           <View style={safeStyles.loadingWrap}>
             <ActivityIndicator color={AppColor.primary} size="large" />
