@@ -1,6 +1,10 @@
 const text = (value) => (typeof value === "string" ? value.trim() : "");
 const firstText = (...values) => values.map(text).find(Boolean) || "";
 const enabled = (value) => text(value).toLowerCase() !== "false";
+const validEmail = (value) => {
+  const normalized = text(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : "";
+};
 
 export const normalizeWalletBillingAddress = (billingAddress, payer = {}) => {
   if (!billingAddress || typeof billingAddress !== "object") return undefined;
@@ -21,7 +25,7 @@ export const normalizeWalletBillingAddress = (billingAddress, payer = {}) => {
     country: /^[A-Z]{2}$/.test(country) ? country : "",
     firstName: text(payer.firstName),
     lastName: text(payer.lastName),
-    email: text(payer.email),
+    email: validEmail(payer.email),
     phone: text(payer.phone),
   };
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item));

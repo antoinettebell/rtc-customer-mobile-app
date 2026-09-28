@@ -34,17 +34,22 @@ assert.deepEqual(
 assert.match(ticketStaffDeclineConfirmation, /Are you sure\?/);
 assert.match(ticketStaffDeclineConfirmation, /new invitation/);
 
-const [myEventsSource, notificationsSource, profileSource, notificationHelper] =
+const [myEventsSource, notificationsSource, profileSource, ticketStaffSource, notificationHelper] =
   await Promise.all([
     readFile(new URL("../screens/marketplaceMyEventsScreen.js", import.meta.url), "utf8"),
     readFile(new URL("../screens/marketplaceNotificationsScreen.js", import.meta.url), "utf8"),
     readFile(new URL("../screens/profileMenuScreen.js", import.meta.url), "utf8"),
+    readFile(new URL("../screens/marketplaceTicketStaffScreen.js", import.meta.url), "utf8"),
     readFile(new URL("./notification.helper.js", import.meta.url), "utf8"),
   ]);
 assert.match(myEventsSource, /hasVisibleTicketStaffGig/);
 assert.match(notificationsSource, /Ticket staff assignment/);
 assert.match(notificationsSource, /Clear notification/);
 assert.match(profileSource, /hasVisibleTicketStaffGig/);
+assert.match(ticketStaffSource, /notifications-active/);
+assert.match(ticketStaffSource, /marketplaceNotificationsScreen/);
+assert.match(ticketStaffSource, /marketplace-dismissed-ticket-staff-notifications/);
+assert.match(ticketStaffSource, /dismissedAssignmentIds\.includes/);
 assert.match(notificationHelper, /notificationType === "MARKETPLACE_TICKET_STAFF"/);
 assert.match(notificationHelper, /navigate\("marketplaceTicketStaffScreen"/);
 assert.match(notificationHelper, /id: "rtc-notifications-v2"/);
