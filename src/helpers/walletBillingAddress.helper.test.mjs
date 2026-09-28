@@ -36,6 +36,14 @@ assert.deepEqual(
   },
 );
 
+assert.deepEqual(
+  normalizeWalletBillingAddress(
+    { address1: "123 Main St", countryCode: "US" },
+    { email: "billing_address_email" },
+  ),
+  { address1: "123 Main St", country: "US" },
+);
+
 assert.doesNotThrow(() => assertApplePayConfiguration({
   APPLE_PAY_ENABLED: "true",
   APPLE_PAY_MERCHANT_ID: "merchant.example.customer",
