@@ -52,7 +52,8 @@ assert.match(ticketStaffSource, /marketplace-dismissed-ticket-staff-notification
 assert.match(ticketStaffSource, /dismissedAssignmentIds\.includes/);
 assert.match(notificationHelper, /notificationType === "MARKETPLACE_TICKET_STAFF"/);
 assert.match(notificationHelper, /navigate\("marketplaceTicketStaffScreen"/);
-assert.match(notificationHelper, /id: "rtc-notifications-v2"/);
+assert.match(notificationHelper, /id: "rtc-notifications-v3"/);
+assert.match(notificationHelper, /vibrationPattern: \[300, 500\]/);
 assert.match(notificationHelper, /sound: "default"/);
 
 console.log("Marketplace ticket staff helper tests passed.");
