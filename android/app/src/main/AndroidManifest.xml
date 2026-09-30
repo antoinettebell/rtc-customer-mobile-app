@@ -53,6 +53,10 @@
           android:scheme="https"
           android:host="tickets.roundthecornerapp.com"
           android:pathPrefix="/events/" />
+        <data
+          android:scheme="https"
+          android:host="tickets.roundthecornerapp.com"
+          android:pathPrefix="/event-share/" />
       </intent-filter>
     </activity>
   </application>

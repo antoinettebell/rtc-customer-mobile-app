@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   consumePendingCustomerNavigation,
   consumeCustomerInvitationLinkSuppression,
+  getCustomerEventShareTokenFromUrl,
   getCustomerInvitationShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
@@ -69,6 +70,7 @@ assert.equal(
   "event-invitation/legacy-token",
 );
 const invitationShareToken = "abcdefghijklmnopqrstuvwxyz123456";
+const eventShareToken = "zyxwvutsrqponmlkjihgfedcba654321";
 assert.equal(
   getCustomerInvitationShareTokenFromUrl(
     `https://tickets.roundthecornerapp.com/events/${invitationShareToken}?source=sms`,
@@ -82,10 +84,21 @@ assert.equal(
   invitationShareToken,
 );
 assert.equal(getCustomerInvitationShareTokenFromUrl("https://example.com/events/short"), null);
+assert.equal(
+  getCustomerEventShareTokenFromUrl(
+    `https://tickets.roundthecornerapp.com/event-share/${eventShareToken}?source=social`,
+  ),
+  eventShareToken,
+);
+assert.equal(
+  getCustomerEventShareTokenFromUrl(`rtc-customer://event-share/${eventShareToken}`),
+  eventShareToken,
+);
 assert.match(
   appSource,
   /marketplaceEventDetailsScreen:\s*"event-invitation\/:shareToken"/,
 );
+assert.match(appSource, /marketplaceSharedEventDetailsScreen:\s*"event-share\/:eventShareToken"/);
 assert.match(
   androidManifest,
   /<data android:scheme="rtc-customer" android:host="invite"\s*\/>/,
@@ -94,6 +107,7 @@ assert.match(androidManifest, /android:autoVerify="true"/);
 assert.match(androidManifest, /android:scheme="https"/);
 assert.match(androidManifest, /android:host="tickets\.roundthecornerapp\.com"/);
 assert.match(androidManifest, /android:pathPrefix="\/events\/"/);
+assert.match(androidManifest, /android:pathPrefix="\/event-share\/"/);
 assert.match(iosInfoPlist, /<key>CFBundleURLSchemes<\/key>[\s\S]*<string>rtc-customer<\/string>/);
 assert.match(
   iosEntitlements,
@@ -147,10 +161,10 @@ assert.match(
   eventDetailsSource,
   /shareSubject = `\$\{event\.event_name\} - \$\{formatDate\(event\.event_date\)\} @ \$\{formatEventTime\(event\.event_time, event\)\}`/,
 );
-assert.match(eventDetailsSource, /message = `\$\{shareSubject\}\\nGet Tickets: \$\{url\}`/);
-assert.match(eventDetailsSource, /smsSeparator = Platform\.OS === "ios" \? "&" : "\?"/);
-assert.match(eventDetailsSource, /Linking\.openURL\(`sms:\$\{smsSeparator\}body=\$\{encodeURIComponent\(message\)\}`\)/);
-assert.doesNotMatch(eventDetailsSource, /Share\.share\(/);
+assert.match(eventDetailsSource, /createMarketplaceEventShareLink_API\(event\.event_id, selectedImageUrl\)/);
+assert.match(eventDetailsSource, /Share\.share\(\{ title: shareSubject, message, url: shareableImageUrl \}\)/);
+assert.match(eventDetailsSource, /Share Private Link/);
+assert.doesNotMatch(eventDetailsSource, /Make Public/);
 assert.match(apiSource, /MARKETPLACE_GUEST_TICKET_CHECKOUT\(shareToken\)[\s\S]*skipToken: true/);
 
 console.log("customer invitation deep-link wiring checks passed");
