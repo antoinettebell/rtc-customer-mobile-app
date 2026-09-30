@@ -84,6 +84,7 @@ import {
   MARKETPLACE_CLOSE_SCANNER,
   MARKETPLACE_CLOSE_TICKET_SALES,
   MARKETPLACE_TICKET_SHARE_LINK,
+  MARKETPLACE_EVENT_SHARE_LINK,
   MARKETPLACE_TICKET_SUMMARY,
   MARKETPLACE_CANCEL_TICKETED_EVENT,
   EVENT_VENDOR_EVENT_APPLICATIONS,
@@ -91,6 +92,7 @@ import {
   EVENT_VENDOR_DECLINE_APPLICATION,
   EVENT_VENDOR_REVOKE_APPLICATION,
   MARKETPLACE_TICKET_INVITATION,
+  MARKETPLACE_EVENT_SHARE,
   MARKETPLACE_GUEST_TICKET_QUOTE,
   MARKETPLACE_GUEST_TICKET_CHECKOUT,
   PUBLIC_MARKETPLACE_GUEST_TICKET_QUOTE,
@@ -1491,6 +1493,17 @@ export const createMarketplaceTicketShareLink_API = async (eventId) => {
   } catch (error) { throw error?.response?.data || error; }
 };
 
+export const createMarketplaceEventShareLink_API = async (eventId, imageUrl) => {
+  try {
+    const response = await apiClient.post(
+      MARKETPLACE_EVENT_SHARE_LINK(eventId),
+      { image_url: imageUrl },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+
 export const getMarketplaceTicketSummary_API = async (eventId) => {
   try {
     const response = await apiClient.get(MARKETPLACE_TICKET_SUMMARY(eventId), { skipToken: false });
@@ -1512,6 +1525,12 @@ export const cancelMarketplaceTicketedEvent_API = async (eventId) => {
 export const getMarketplaceTicketInvitation_API = async (shareToken) => {
   try {
     const response = await apiClient.get(MARKETPLACE_TICKET_INVITATION(shareToken), { skipToken: true });
+    return response?.data;
+  } catch (error) { throw error?.response?.data || error; }
+};
+export const getMarketplaceEventShare_API = async (shareToken) => {
+  try {
+    const response = await apiClient.get(MARKETPLACE_EVENT_SHARE(shareToken), { skipToken: true });
     return response?.data;
   } catch (error) { throw error?.response?.data || error; }
 };

@@ -30,6 +30,7 @@ import {
   consumePendingCustomerNavigation,
   consumeCustomerInvitationLinkSuppression,
   getCustomerInvitationShareTokenFromUrl,
+  getCustomerEventShareTokenFromUrl,
   normalizeCustomerInvitationPath,
   setPendingCustomerNavigation,
 } from "./src/helpers/customerInvitationDeepLink.helper";
@@ -109,6 +110,7 @@ const linking = {
     screens: {
       rateTruckScreen: "review",
       marketplaceEventDetailsScreen: "event-invitation/:shareToken",
+      marketplaceSharedEventDetailsScreen: "event-share/:eventShareToken",
       marketplaceTicketStaffScreen: "ticket-staff/:assignmentId",
     },
   },
@@ -173,6 +175,10 @@ const AuthNavigator = () => (
     <Stack.Screen name="privacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen
       name="marketplaceEventDetailsScreen"
+      component={MarketplaceEventDetailsScreen}
+    />
+    <Stack.Screen
+      name="marketplaceSharedEventDetailsScreen"
       component={MarketplaceEventDetailsScreen}
     />
     <Stack.Screen
@@ -356,6 +362,10 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
       component={MarketplaceEventDetailsScreen}
     />
     <Stack.Screen
+      name="marketplaceSharedEventDetailsScreen"
+      component={MarketplaceEventDetailsScreen}
+    />
+    <Stack.Screen
       name="marketplaceEventMessagesScreen"
       component={MarketplaceEventMessagesScreen}
     />
@@ -417,6 +427,15 @@ const App = () => {
     if (isSignedIn) return undefined;
 
     const rememberTicketInvitation = (url) => {
+      const eventShareToken = getCustomerEventShareTokenFromUrl(url);
+      if (isValidTicketInvitationShareToken(eventShareToken)) {
+        setPendingCustomerNavigation({
+          name: "marketplaceSharedEventDetailsScreen",
+          params: { eventShareToken },
+          source: "universal-link",
+        });
+        return;
+      }
       const shareToken = getCustomerInvitationShareTokenFromUrl(url);
       if (!isValidTicketInvitationShareToken(shareToken)) return;
 

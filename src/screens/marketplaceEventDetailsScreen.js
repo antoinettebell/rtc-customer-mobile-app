@@ -6,6 +6,7 @@ import {
   Linking,
   Modal,
   Platform,
+  Share,
   StyleSheet,
   ScrollView,
   Text,
@@ -30,9 +31,10 @@ import {
   createMarketplaceScannerSession_API,
   closeMarketplaceScanner_API,
   closeMarketplaceTicketSales_API,
-  createMarketplaceTicketShareLink_API,
+  createMarketplaceEventShareLink_API,
   getMarketplaceTicketSummary_API,
   getMarketplaceTicketInvitation_API,
+  getMarketplaceEventShare_API,
   createMarketplaceFinalPayment_API,
   getMarketplaceAwardAmendments_API,
   acceptMarketplaceAwardAmendment_API,
@@ -143,6 +145,23 @@ const getEventImageUrls = (event) => {
     event?.image_url,
   ];
   return [...new Set(candidates.flatMap(normalizeEventImageUrls))];
+};
+
+const getShareableImageUrl = async (imageUrl) => {
+  if (Platform.OS !== "ios") return imageUrl;
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return imageUrl;
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : imageUrl);
+      reader.onerror = () => resolve(imageUrl);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return imageUrl;
+  }
 };
 
 const getVendorName = (record) => {
@@ -332,7 +351,8 @@ const safeStyles = StyleSheet.create({
 const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSelector((state) => state.authReducer);
-  const { eventId, shareToken, customerSafe = false, initialEvent = null } = route.params || {};
+  const { eventId, shareToken: ticketShareToken, eventShareToken, customerSafe = false, initialEvent = null } = route.params || {};
+  const shareToken = ticketShareToken || eventShareToken;
   const customerView = customerSafe || !!shareToken;
   const [event, setEvent] = useState(initialEvent);
   const [loading, setLoading] = useState(!initialEvent);
@@ -382,8 +402,10 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   const loadEvent = async () => {
     setLoading(true);
     try {
-      const response = shareToken
-        ? await getMarketplaceTicketInvitation_API(shareToken)
+      const response = eventShareToken
+        ? await getMarketplaceEventShare_API(eventShareToken)
+        : ticketShareToken
+          ? await getMarketplaceTicketInvitation_API(ticketShareToken)
         : customerSafe
           ? await getPublicMarketplaceEventById_API(eventId)
           : await getMarketplaceEventById_API(eventId);
@@ -413,7 +435,7 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       loadEvent();
-    }, [eventId, customerSafe, shareToken])
+    }, [eventId, customerSafe, ticketShareToken, eventShareToken])
   );
 
   const imageUrls = getEventImageUrls(event);
@@ -514,18 +536,56 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleShareTickets = async () => {
+  const shareEventWithImage = async (selectedImageUrl) => {
     try {
-      const response = await createMarketplaceTicketShareLink_API(event.event_id);
+      const response = await createMarketplaceEventShareLink_API(event.event_id, selectedImageUrl);
       const url = response?.data?.share_url;
       if (!url) throw new Error("Event link unavailable.");
       const shareSubject = `${event.event_name} - ${formatDate(event.event_date)} @ ${formatEventTime(event.event_time, event)}`;
-      const message = `${shareSubject}\nGet Tickets: ${url}`;
-      const smsSeparator = Platform.OS === "ios" ? "&" : "?";
-      await Linking.openURL(`sms:${smsSeparator}body=${encodeURIComponent(message)}`);
+      const action = ticketSalesEnabled && !event?.ticket_sales_closed_at ? "View Event & Tickets" : "View Event Details";
+      const message = `${shareSubject}\n${action}: ${url}`;
+      const shareableImageUrl = await getShareableImageUrl(selectedImageUrl);
+      await Share.share({ title: shareSubject, message, url: shareableImageUrl });
     } catch (error) {
-      Alert.alert("Share Event via Text", error?.message || "Unable to open text messages.");
+      Alert.alert("Share Event", error?.message || "Unable to share this event.");
     }
+  };
+
+  const chooseShareImage = () => {
+    if (!imageUrls.length) {
+      Alert.alert("Share Event", "Add at least one event image before sharing this event.");
+      return;
+    }
+    if (imageUrls.length === 1) {
+      shareEventWithImage(imageUrls[0]);
+      return;
+    }
+    Alert.alert(
+      "Choose Event Image",
+      "Select the image to include with this event post.",
+      [
+        ...imageUrls.map((imageUrl, index) => ({
+          text: `Image ${index + 1}`,
+          onPress: () => shareEventWithImage(imageUrl),
+        })),
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
+  const handleShareEvent = () => {
+    if (event?.event_visibility !== "PRIVATE") {
+      chooseShareImage();
+      return;
+    }
+    Alert.alert(
+      "Share Private Event?",
+      "Anyone with the shared link can view the customer-safe event details. The event will remain hidden from public event discovery.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Share Private Link", onPress: chooseShareImage },
+      ]
+    );
   };
 
   const handleCloseTicketSales = () => Alert.alert(
@@ -1138,9 +1198,6 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ) : null}
               {!event?.ticket_sales_closed_at && eventStatus !== "CANCELLED" ? (
                 <>
-                  <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                    <Text style={styles.secondaryButtonText}>Share Event via Text</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                     <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
                   </TouchableOpacity>
@@ -1148,6 +1205,9 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
               ) : null}
             </>
           ) : null}
+          <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareEvent}>
+            <Text style={styles.secondaryButtonText}>Share Event</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.button}
@@ -1201,14 +1261,14 @@ const MarketplaceEventDetailsScreen = ({ navigation, route }) => {
           ) : null}
           {ticketPurchaseAvailable ? (
             <>
-              <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareTickets}>
-                <Text style={styles.secondaryButtonText}>Share Event via Text</Text>
-              </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleCloseTicketSales}>
                 <Text style={styles.secondaryButtonText}>Close Ticket Sales</Text>
               </TouchableOpacity>
             </>
           ) : null}
+          <TouchableOpacity activeOpacity={0.7} style={styles.secondaryButton} onPress={handleShareEvent}>
+            <Text style={styles.secondaryButtonText}>Share Event</Text>
+          </TouchableOpacity>
           {!submissionsClosed ? (
             <TouchableOpacity
               activeOpacity={0.7}
