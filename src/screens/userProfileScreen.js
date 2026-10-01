@@ -49,6 +49,11 @@ import {
   normalizeAddressStateInput,
 } from "../helpers/address.helper";
 import { getPaymentQrPreview } from "../helpers/attachmentPreview.helper";
+import {
+  SOCIAL_MEDIA_PLATFORMS,
+  displaySocialMediaHandle,
+  normalizeSocialMediaObject,
+} from "../helpers/socialMedia.helper";
 
 const COORDINATOR_PAYMENT_OPTIONS = [
   { label: "Cash App", value: "CASHAPP" },
@@ -59,6 +64,12 @@ const COORDINATOR_PAYMENT_OPTIONS = [
 ];
 
 const trimAddressValue = (value) => String(value || "").trim();
+
+const socialMediaInputs = (value) =>
+  Object.fromEntries(SOCIAL_MEDIA_PLATFORMS.map(({ key }) => [
+    key,
+    displaySocialMediaHandle(value?.[key], key),
+  ]));
 
 const normalizeTaxIdType = (value) =>
   String(value || "").toUpperCase() === "SSN" ? "SSN" : "EIN";
@@ -174,6 +185,9 @@ const UserProfileScreen = ({ navigation, route }) => {
   );
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
     useState(user?.eventCoordinatorCompanyName || "");
+  const [eventCoordinatorSocialMedia, setEventCoordinatorSocialMedia] = useState(
+    socialMediaInputs(user?.socialMedia)
+  );
   const initialCoordinatorTax = getTaxIdDisplayParts(
     user?.eventCoordinatorTaxIdMasked,
     user?.eventCoordinatorTaxIdType
@@ -251,6 +265,7 @@ const UserProfileScreen = ({ navigation, route }) => {
       setTempLastName(user.lastName || "");
       setIsEventCoordinator(!!user.isEventCoordinator);
       setEventCoordinatorCompanyName(user.eventCoordinatorCompanyName || "");
+      setEventCoordinatorSocialMedia(socialMediaInputs(user.socialMedia));
       const coordinatorTax = getTaxIdDisplayParts(
         user.eventCoordinatorTaxIdMasked,
         user.eventCoordinatorTaxIdType
@@ -383,6 +398,7 @@ const UserProfileScreen = ({ navigation, route }) => {
 
     setIsEventCoordinator(!!user?.isEventCoordinator);
     setEventCoordinatorCompanyName(user?.eventCoordinatorCompanyName || "");
+    setEventCoordinatorSocialMedia(socialMediaInputs(user?.socialMedia));
     setEventCoordinatorTaxIdType(coordinatorTax.type);
     setEventCoordinatorTaxId("");
     setEventCoordinatorTaxIdMasked(coordinatorTax.masked);
@@ -421,6 +437,14 @@ const UserProfileScreen = ({ navigation, route }) => {
   };
 
   const saveCoordinatorProfile = async () => {
+    let normalizedSocialMedia;
+    try {
+      normalizedSocialMedia = normalizeSocialMediaObject(eventCoordinatorSocialMedia);
+    } catch (error) {
+      setCoordinatorError(error.message);
+      return;
+    }
+
     if (isEventCoordinator) {
       if (!eventCoordinatorCompanyName.trim()) {
         setCoordinatorError("Company name is required");
@@ -487,6 +511,7 @@ const UserProfileScreen = ({ navigation, route }) => {
         payload: {
           isEventCoordinator,
           eventCoordinatorCompanyName: eventCoordinatorCompanyName.trim(),
+          socialMedia: normalizedSocialMedia,
           eventCoordinatorCompanyAddress:
             trimAddressValue(eventCoordinatorFormattedAddress) ||
             [
@@ -1113,6 +1138,41 @@ const UserProfileScreen = ({ navigation, route }) => {
                   !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
               />
+              <View style={styles.coordinatorInfoHeadingRow}>
+                <Text style={styles.coordinatorSectionTitle}>
+                  Social Media (Optional)
+                </Text>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={18}
+                  color={AppColor.textHighlighter}
+                />
+              </View>
+              <Text style={styles.coordinatorHelpText}>
+                Enter handles only. These may be used to tag your social account in customized marketing ads featuring your events.
+              </Text>
+              {SOCIAL_MEDIA_PLATFORMS.map(({ key, label, prefix, maxLength }) => (
+                <TextInput
+                  key={key}
+                  value={eventCoordinatorSocialMedia[key] || ""}
+                  onChangeText={(value) =>
+                    setEventCoordinatorSocialMedia((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  editable={isCoordinatorProfileEditing}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={maxLength + (prefix ? 1 : 0)}
+                  placeholder={`${label} ${prefix || ""}username`}
+                  placeholderTextColor={AppColor.placeholderTextColor}
+                  style={[
+                    styles.coordinatorInput,
+                    !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
+                  ]}
+                />
+              ))}
               <View style={styles.taxTypeRow}>
                 {["EIN", "SSN"].map((type) => {
                   const active = eventCoordinatorTaxIdType === type;
@@ -1734,6 +1794,11 @@ const styles = StyleSheet.create({
     fontFamily: Mulish700,
     color: AppColor.text,
     marginTop: 6,
+  },
+  coordinatorInfoHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   coordinatorInput: {
     minHeight: 48,
