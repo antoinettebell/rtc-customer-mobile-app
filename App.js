@@ -64,6 +64,7 @@ import AuthMapScreen from "./src/screens/authMapScreen";
 import OrderDetailsScreen from "./src/screens/orderDetailsScreen";
 import OrderTrackingScreen from "./src/screens/orderTrackingScreen";
 import CancelOrderScreen from "./src/screens/cancelOrderScreen";
+import OrderHelpScreen from "./src/screens/orderHelpScreen";
 import RateTruckScreen from "./src/screens/rateTruckScreen";
 import PrivacyPolicyScreen from "./src/screens/privacyPolicyScreen";
 import CheckoutScreen from "./src/screens/checkoutScreen";
@@ -331,6 +332,7 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
     <Stack.Screen name="orderPlacedScreen" component={OrderPlacedScreen} />
     <Stack.Screen name="rateReviewScreen" component={RateReviewScreen} />
     <Stack.Screen name="cancelOrderScreen" component={CancelOrderScreen} />
+    <Stack.Screen name="orderHelpScreen" component={OrderHelpScreen} />
     <Stack.Screen name="appPrivacyPolicy" component={PrivacyPolicyScreen} />
     <Stack.Screen name="rateTruckScreen" component={RateTruckScreen} />
     <Stack.Screen name="seeAllTrucksScreen" component={SeeAllTrucksScreen} />

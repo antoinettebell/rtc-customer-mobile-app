@@ -805,6 +805,15 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               </Text>
             </View>
           )}
+          {!isRefundedOrder(order) && (
+            <TouchableOpacity
+              style={[styles.cancelBtn, { marginTop: 10, backgroundColor: AppColor.white, borderWidth: 1, borderColor: AppColor.primary }]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("orderHelpScreen", { order })}
+            >
+              <Text style={[styles.cancelBtnText, { color: AppColor.primary }]}>Get help with this order</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
