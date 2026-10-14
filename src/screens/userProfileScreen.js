@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSelector, useDispatch } from "react-redux";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "react-native-vector-icons/Feather";
@@ -34,6 +36,9 @@ import {
   getUserDetail_API,
   updateUserDetail_API,
   uploadImage_API,
+  getCoordinatorCompliance_API,
+  startCoordinatorW9Signing_API,
+  completeCoordinatorW9Signing_API,
 } from "../apiFolder/appAPI";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
@@ -57,6 +62,7 @@ const COORDINATOR_PAYMENT_OPTIONS = [
   { label: "ACH", value: "ACH" },
   { label: "Check", value: "CHECK" },
 ];
+const COORDINATOR_W9_ENVELOPE_STORAGE_KEY = "rtc.coordinatorW9Envelope";
 
 const trimAddressValue = (value) => String(value || "").trim();
 
@@ -172,6 +178,12 @@ const UserProfileScreen = ({ navigation, route }) => {
   const [isEventCoordinator, setIsEventCoordinator] = useState(
     !!user?.isEventCoordinator
   );
+  const [eventCoordinatorExpectsTicketSales, setEventCoordinatorExpectsTicketSales] = useState(
+    !!user?.eventCoordinatorExpectsTicketSales
+  );
+  const [eventCoordinatorExpectsVendorFees, setEventCoordinatorExpectsVendorFees] = useState(
+    !!user?.eventCoordinatorExpectsVendorFees
+  );
   const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
     useState(user?.eventCoordinatorCompanyName || "");
   const initialCoordinatorTax = getTaxIdDisplayParts(
@@ -235,6 +247,9 @@ const UserProfileScreen = ({ navigation, route }) => {
   const [isCoordinatorProfileEditing, setIsCoordinatorProfileEditing] =
     useState(false);
   const [isCoordinatorAddressEditing, setIsCoordinatorAddressEditing] = useState(false);
+  const [coordinatorW9Session, setCoordinatorW9Session] = useState(null);
+  const [coordinatorW9Loading, setCoordinatorW9Loading] = useState(false);
+  const pendingCoordinatorW9EnvelopeRef = useRef(null);
 
   const [snackbar, setSnackbar] = useState({
     visible: false,
@@ -250,6 +265,8 @@ const UserProfileScreen = ({ navigation, route }) => {
       setTempFirstName(user.firstName || "");
       setTempLastName(user.lastName || "");
       setIsEventCoordinator(!!user.isEventCoordinator);
+      setEventCoordinatorExpectsTicketSales(!!user.eventCoordinatorExpectsTicketSales);
+      setEventCoordinatorExpectsVendorFees(!!user.eventCoordinatorExpectsVendorFees);
       setEventCoordinatorCompanyName(user.eventCoordinatorCompanyName || "");
       const coordinatorTax = getTaxIdDisplayParts(
         user.eventCoordinatorTaxIdMasked,
@@ -289,6 +306,25 @@ const UserProfileScreen = ({ navigation, route }) => {
       setIsCoordinatorProfileEditing(false);
     }
   }, [user]);
+
+  const loadCoordinatorCompliance = useCallback(async () => {
+    if (!user?.isEventCoordinator) {
+      setCoordinatorW9Session(null);
+      return;
+    }
+    try {
+      const response = await getCoordinatorCompliance_API();
+      if (response?.success) {
+        setCoordinatorW9Session(response?.data?.w9_session || null);
+      }
+    } catch (_error) {
+      // The profile remains usable until coordinator compliance is configured.
+    }
+  }, [user?.isEventCoordinator]);
+
+  useEffect(() => {
+    loadCoordinatorCompliance();
+  }, [loadCoordinatorCompliance]);
 
   useEffect(() => {
     const selectedLocation = route?.params?.selectedCoordinatorLocation;
@@ -363,6 +399,73 @@ const UserProfileScreen = ({ navigation, route }) => {
     }
   };
 
+  const completeCoordinatorW9Signing = useCallback(async (envelopeId) => {
+    if (!envelopeId) return;
+    setCoordinatorW9Loading(true);
+    try {
+      const response = await completeCoordinatorW9Signing_API(envelopeId);
+      if (response?.success) {
+        setCoordinatorW9Session(response?.data?.w9_session || null);
+        pendingCoordinatorW9EnvelopeRef.current = null;
+        await AsyncStorage.removeItem(COORDINATOR_W9_ENVELOPE_STORAGE_KEY);
+        setSnackbar({
+          visible: true,
+          message: "Your W-9 was received and is awaiting verification.",
+          type: "success",
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        visible: true,
+        message:
+          error?.message ||
+          "DocuSign is still finalizing your W-9. Please try again shortly.",
+        type: "info",
+      });
+    } finally {
+      setCoordinatorW9Loading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleDocuSignReturn = async ({ url }) => {
+      if (!String(url || "").startsWith("rtc-customer://docusign/return")) return;
+      const envelopeId =
+        pendingCoordinatorW9EnvelopeRef.current ||
+        (await AsyncStorage.getItem(COORDINATOR_W9_ENVELOPE_STORAGE_KEY));
+      if (envelopeId) completeCoordinatorW9Signing(envelopeId);
+    };
+    const subscription = Linking.addEventListener("url", handleDocuSignReturn);
+    Linking.getInitialURL().then((url) => handleDocuSignReturn({ url }));
+    return () => subscription.remove();
+  }, [completeCoordinatorW9Signing]);
+
+  const startCoordinatorW9Signing = async () => {
+    setCoordinatorW9Loading(true);
+    try {
+      const response = await startCoordinatorW9Signing_API();
+      const envelopeId = response?.data?.envelope_id;
+      const signingUrl = response?.data?.signing_url;
+      if (!response?.success || !envelopeId || !signingUrl) {
+        throw new Error("Could not start your W-9 signing session.");
+      }
+      setCoordinatorW9Session(response?.data?.w9_session || null);
+      pendingCoordinatorW9EnvelopeRef.current = envelopeId;
+      await AsyncStorage.setItem(COORDINATOR_W9_ENVELOPE_STORAGE_KEY, envelopeId);
+      const canOpen = await Linking.canOpenURL(signingUrl);
+      if (!canOpen) throw new Error("Could not open DocuSign on this device.");
+      await Linking.openURL(signingUrl);
+    } catch (error) {
+      setSnackbar({
+        visible: true,
+        message: error?.message || "Unable to open DocuSign. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setCoordinatorW9Loading(false);
+    }
+  };
+
   const promptEnableEventCoordinator = () => {
     Alert.alert(
       "Add Event Coordination?",
@@ -382,6 +485,8 @@ const UserProfileScreen = ({ navigation, route }) => {
     const coordinatorAddress = getLegacyCoordinatorAddress(user);
 
     setIsEventCoordinator(!!user?.isEventCoordinator);
+    setEventCoordinatorExpectsTicketSales(!!user?.eventCoordinatorExpectsTicketSales);
+    setEventCoordinatorExpectsVendorFees(!!user?.eventCoordinatorExpectsVendorFees);
     setEventCoordinatorCompanyName(user?.eventCoordinatorCompanyName || "");
     setEventCoordinatorTaxIdType(coordinatorTax.type);
     setEventCoordinatorTaxId("");
@@ -421,17 +526,51 @@ const UserProfileScreen = ({ navigation, route }) => {
   };
 
   const saveCoordinatorProfile = async () => {
+    // Identity, tax, business, documents, and payout data belong to the
+    // dedicated Compliance screen. The profile owns only enablement and the
+    // paid-capability choices that control free-event enforcement.
+    setCoordinatorError("");
+    setCoordinatorLoading(true);
+    try {
+      const response = await updateUserDetail_API({
+        user_id: user._id,
+        payload: {
+          isEventCoordinator,
+          eventCoordinatorExpectsTicketSales,
+          eventCoordinatorExpectsVendorFees,
+        },
+      });
+      if (response?.success) {
+        setSnackbar({
+          visible: true,
+          message: isEventCoordinator
+            ? "Event coordination preferences updated"
+            : "Event coordination removed from your profile",
+          type: "success",
+        });
+        setIsCoordinatorProfileEditing(false);
+        await fetchUserDataFromAPI();
+      }
+    } catch (error) {
+      setSnackbar({ visible: true, message: error?.message || "Failed to update event coordination", type: "error" });
+    } finally {
+      setCoordinatorLoading(false);
+    }
+    return;
+
+    // eslint-disable-next-line no-unreachable
     if (isEventCoordinator) {
       if (!eventCoordinatorCompanyName.trim()) {
         setCoordinatorError("Company name is required");
         return;
       }
-      if (!eventCoordinatorTaxId.trim() && !eventCoordinatorTaxIdMasked) {
+      const coordinatorRequestsPayouts = eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees;
+      if (coordinatorRequestsPayouts && !eventCoordinatorTaxId.trim() && !eventCoordinatorTaxIdMasked) {
         setCoordinatorError(`${eventCoordinatorTaxIdType} is required`);
         return;
       }
       if (
-        eventCoordinatorTaxId.trim() &&
+        coordinatorRequestsPayouts && eventCoordinatorTaxId.trim() &&
         eventCoordinatorTaxId.replace(/\D/g, "").length !== 9
       ) {
         setCoordinatorError(`${eventCoordinatorTaxIdType} must be 9 digits`);
@@ -453,11 +592,11 @@ const UserProfileScreen = ({ navigation, route }) => {
         setCoordinatorError("Zip is required");
         return;
       }
-      if (!eventCoordinatorPaymentPreference) {
+      if (coordinatorRequestsPayouts && !eventCoordinatorPaymentPreference) {
         setCoordinatorError("Select a coordinator payout method");
         return;
       }
-      if (["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)) {
+      if (coordinatorRequestsPayouts && ["ACH", "CHECK"].includes(eventCoordinatorPaymentPreference)) {
         if (!eventCoordinatorDirectDepositRoutingNumber.trim()) {
           setCoordinatorError("Routing number is required for ACH or check payments");
           return;
@@ -471,7 +610,7 @@ const UserProfileScreen = ({ navigation, route }) => {
           return;
         }
       } else if (
-        eventCoordinatorPaymentPreference &&
+        coordinatorRequestsPayouts && eventCoordinatorPaymentPreference &&
         !eventCoordinatorPaymentQrCodeUrl
       ) {
         setCoordinatorError("Upload the QR code for your selected payment method");
@@ -486,6 +625,8 @@ const UserProfileScreen = ({ navigation, route }) => {
         user_id: user._id,
         payload: {
           isEventCoordinator,
+          eventCoordinatorExpectsTicketSales,
+          eventCoordinatorExpectsVendorFees,
           eventCoordinatorCompanyName: eventCoordinatorCompanyName.trim(),
           eventCoordinatorCompanyAddress:
             trimAddressValue(eventCoordinatorFormattedAddress) ||
@@ -1100,8 +1241,83 @@ const UserProfileScreen = ({ navigation, route }) => {
           {isEventCoordinator ? (
             <View style={styles.coordinatorBox}>
               <Text style={styles.coordinatorHelpText}>
-                Company name, protected federal tax ID, and address are required for event coordination access.
+                Payout Eligibility: {user?.eventCoordinatorPayoutEligibility === "ENABLED" ? "Enabled" : "Free events only until compliance is verified"}
               </Text>
+              <TouchableOpacity
+                disabled={!isCoordinatorProfileEditing}
+                style={[styles.coordinatorToggle, !isCoordinatorProfileEditing && styles.coordinatorControlReadOnly]}
+                onPress={() => setEventCoordinatorExpectsTicketSales((value) => !value)}
+              >
+                <Ionicons name={eventCoordinatorExpectsTicketSales ? "checkbox" : "square-outline"} size={21} color={AppColor.primary} />
+                <Text style={styles.coordinatorToggleText}>Do you expect to generate ticket sales?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={!isCoordinatorProfileEditing}
+                style={[styles.coordinatorToggle, !isCoordinatorProfileEditing && styles.coordinatorControlReadOnly]}
+                onPress={() => setEventCoordinatorExpectsVendorFees((value) => !value)}
+              >
+                <Ionicons name={eventCoordinatorExpectsVendorFees ? "checkbox" : "square-outline"} size={21} color={AppColor.primary} />
+                <Text style={styles.coordinatorToggleText}>Do you expect to charge vendors to attend events?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.coordinatorSaveButton}
+                onPress={() => navigation.navigate("coordinatorComplianceScreen")}
+              >
+                <Text style={styles.coordinatorSaveText}>Open Event Coordinator Compliance</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {false ? (
+            <View style={styles.coordinatorBox}>
+              <Text style={styles.coordinatorHelpText}>
+                Payout Eligibility: {user?.eventCoordinatorPayoutEligibility === "ENABLED" ? "Enabled" : "Disabled"}
+              </Text>
+              <TouchableOpacity
+                disabled={!isCoordinatorProfileEditing}
+                style={[styles.coordinatorToggle, !isCoordinatorProfileEditing && styles.coordinatorControlReadOnly]}
+                onPress={() => setEventCoordinatorExpectsTicketSales((value) => !value)}
+              >
+                <Ionicons name={eventCoordinatorExpectsTicketSales ? "checkbox" : "square-outline"} size={21} color={AppColor.primary} />
+                <Text style={styles.coordinatorToggleText}>Do you expect to generate ticket sales?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={!isCoordinatorProfileEditing}
+                style={[styles.coordinatorToggle, !isCoordinatorProfileEditing && styles.coordinatorControlReadOnly]}
+                onPress={() => setEventCoordinatorExpectsVendorFees((value) => !value)}
+              >
+                <Ionicons name={eventCoordinatorExpectsVendorFees ? "checkbox" : "square-outline"} size={21} color={AppColor.primary} />
+                <Text style={styles.coordinatorToggleText}>Do you expect to charge vendors to attend events?</Text>
+              </TouchableOpacity>
+              {!(eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees) ? (
+                <Text style={styles.coordinatorHelpText}>Your profile is only eligible for free events. Please update your profile and compliance checks to receive eligible payouts.</Text>
+              ) : null}
+              {user?.eventCoordinatorExpectsTicketSales ||
+              user?.eventCoordinatorExpectsVendorFees ? (
+                <View style={styles.coordinatorW9Card}>
+                  <Text style={styles.coordinatorSectionTitle}>Coordinator W-9</Text>
+                  <Text style={styles.coordinatorHelpText}>
+                    {coordinatorW9Session?.status === "SIGNED"
+                      ? "Signed W-9 received. It is awaiting compliance verification."
+                      : "Sign the W-9 in DocuSign to continue payout compliance."}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={styles.coordinatorW9Button}
+                    disabled={coordinatorW9Loading}
+                    onPress={startCoordinatorW9Signing}
+                  >
+                    {coordinatorW9Loading ? (
+                      <ActivityIndicator size="small" color={AppColor.white} />
+                    ) : (
+                      <Text style={styles.coordinatorSaveText}>
+                        {coordinatorW9Session ? "Replace W-9" : "Sign W-9"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : null}
               <TextInput
                 value={eventCoordinatorCompanyName}
                 onChangeText={setEventCoordinatorCompanyName}
@@ -1113,7 +1329,7 @@ const UserProfileScreen = ({ navigation, route }) => {
                   !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
               />
-              <View style={styles.taxTypeRow}>
+              {eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees ? <><View style={styles.taxTypeRow}>
                 {["EIN", "SSN"].map((type) => {
                   const active = eventCoordinatorTaxIdType === type;
                   return (
@@ -1163,7 +1379,7 @@ const UserProfileScreen = ({ navigation, route }) => {
                   styles.coordinatorInput,
                   !isCoordinatorProfileEditing && styles.coordinatorInputReadOnly,
                 ]}
-              />
+              /></> : null}
               {!isCoordinatorProfileEditing ? (
                 <TextInput
                   value={eventCoordinatorAddressLine1}
@@ -1923,6 +2139,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
     marginVertical: 12,
+  },
+  coordinatorW9Card: {
+    backgroundColor: AppColor.screenBg,
+    borderColor: AppColor.borderColor,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    marginVertical: 4,
+    padding: 12,
+  },
+  coordinatorW9Button: {
+    alignItems: "center",
+    backgroundColor: AppColor.primary,
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 42,
   },
   coordinatorSaveText: {
     color: AppColor.white,

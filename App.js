@@ -76,6 +76,7 @@ import GlobalSearchScreen from "./src/screens/globalSearchScreen";
 import OneTapSignInScreen from "./src/screens/oneTapSigninScreen";
 import SearchResultScreen from "./src/screens/searchResultScreen";
 import UserProfileScreen from "./src/screens/userProfileScreen";
+import CoordinatorComplianceScreen from "./src/screens/coordinatorComplianceScreen";
 import DietRestrictionScreen from "./src/screens/dietRestrictionScreen";
 import PaymentProcessingScreen from "./src/screens/paymentProcessingScreen";
 import MarketplaceMyEventsScreen from "./src/screens/marketplaceMyEventsScreen";
@@ -341,6 +342,7 @@ const AppNavigator = ({ insets, initialRouteName = "splash" }) => (
       component={OtpVerificationScreen}
     />
     <Stack.Screen name="userProfileScreen" component={UserProfileScreen} />
+    <Stack.Screen name="coordinatorComplianceScreen" component={CoordinatorComplianceScreen} />
     <Stack.Screen
       name="dietRestrictionScreen"
       component={DietRestrictionScreen}

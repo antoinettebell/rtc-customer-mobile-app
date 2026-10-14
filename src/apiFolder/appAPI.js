@@ -5,6 +5,11 @@ import {
   PUBLIC_CUISINE,
   GET_FAVORITE_FOODTRUCK,
   GET_USER_DETAILS,
+  COORDINATOR_COMPLIANCE,
+  COORDINATOR_COMPLIANCE_W9_SIGNING,
+  COORDINATOR_COMPLIANCE_W9_COMPLETE,
+  COORDINATOR_COMPLIANCE_PROFILE,
+  COORDINATOR_COMPLIANCE_DOCUMENTS,
   MEDIA_UPLOAD,
   REMOVE_FAVORITE_FOODTRUCK,
   REVERSE_LOCATION,
@@ -160,6 +165,61 @@ export const updateUserDetail_API = async ({ payload, user_id }) => {
   try {
     const URL = `${UPDATE_USER_DETAILS}/${user_id}`;
     const response = await apiClient.put(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getCoordinatorCompliance_API = async () => {
+  try {
+    const response = await apiClient.get(COORDINATOR_COMPLIANCE, {
+      skipToken: false,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const startCoordinatorW9Signing_API = async () => {
+  try {
+    const response = await apiClient.post(
+      COORDINATOR_COMPLIANCE_W9_SIGNING,
+      {},
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const completeCoordinatorW9Signing_API = async (envelopeId) => {
+  try {
+    const response = await apiClient.post(
+      COORDINATOR_COMPLIANCE_W9_COMPLETE,
+      { envelope_id: envelopeId },
+      { skipToken: false }
+    );
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const saveCoordinatorComplianceProfile_API = async (payload) => {
+  try {
+    const response = await apiClient.put(COORDINATOR_COMPLIANCE_PROFILE, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const uploadCoordinatorComplianceDocument_API = async (payload) => {
+  try {
+    const response = await apiClient.post(COORDINATOR_COMPLIANCE_DOCUMENTS, payload, { skipToken: false, formData: true });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

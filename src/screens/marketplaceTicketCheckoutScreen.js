@@ -193,6 +193,36 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         : await quoteMarketplaceTickets_API({ eventId: event.event_id, payload });
       const quote = quoteResponse.data?.quote;
       const total = Number(quote?.totalAmount || 0).toFixed(2);
+      const isFreeCheckout = Number(quote?.totalAmount || 0) <= 0;
+      const checkoutBasePayload = {
+        ...payload,
+        payment_method: isFreeCheckout
+          ? "FREE"
+          : Platform.OS === "ios" ? "APPLE_PAY" : "GOOGLE_PAY",
+        idempotency_key: idempotencyKey,
+      };
+      if (isFreeCheckout) {
+        walletStage = "free checkout";
+        const checkout = guestCheckout
+          ? shareToken
+            ? await checkoutGuestMarketplaceTickets_API({ shareToken, payload: checkoutBasePayload })
+            : await checkoutPublicGuestMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutBasePayload })
+          : await checkoutMarketplaceTickets_API({ eventId: event.event_id, payload: checkoutBasePayload });
+        const tickets = checkout.data?.tickets || [];
+        Alert.alert("Registration Confirmed", `${tickets.length} ticket${tickets.length === 1 ? "" : "s"} sent by text and email.`, [
+          { text: "Home", onPress: goBackWithoutSaving },
+          {
+            text: guestCheckout ? "View Ticket" : "View All Tickets",
+            onPress: () => guestCheckout
+              ? tickets[0]?.ticket_url && navigation.replace("marketplaceTicketWebViewScreen", {
+                url: tickets[0].ticket_url,
+                title: event.event_name,
+              })
+              : navigation.replace("marketplaceMyTicketsScreen"),
+          },
+        ]);
+        return;
+      }
       if (Platform.OS === "ios") assertApplePayConfiguration(Config);
       request = new PaymentRequest([walletMethod], {
         displayItems: [
@@ -212,10 +242,8 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         ? response.details.applePayToken.paymentData
         : response.details.androidPayToken.rawToken;
       const checkoutPayload = {
-        ...payload,
-        payment_method: Platform.OS === "ios" ? "APPLE_PAY" : "GOOGLE_PAY",
+        ...checkoutBasePayload,
         payment_data: paymentData,
-        idempotency_key: idempotencyKey,
       };
       walletStage = "backend checkout";
       const checkout = guestCheckout
@@ -376,9 +404,9 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
           style={local.input}
         />
       </View>
-      <Text style={styles.meta}>A 3.5% processing fee and applicable sales tax are shown in the wallet before payment.</Text>
+      <Text style={styles.meta}>{event?.is_free_event ? "Free registration confirms your ticket without a payment wallet." : "A 3.5% processing fee and applicable sales tax are shown in the wallet before payment."}</Text>
       <TouchableOpacity style={[styles.button, loading && { opacity: 0.6 }]} disabled={loading} onPress={purchase}>
-        {loading ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.buttonText}>Continue to {Platform.OS === "ios" ? "Apple Pay" : "Google Pay"}</Text>}
+        {loading ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.buttonText}>{event?.is_free_event ? "Complete Free Registration" : `Continue to ${Platform.OS === "ios" ? "Apple Pay" : "Google Pay"}`}</Text>}
       </TouchableOpacity>
     </ScrollView>
   </View>;

@@ -78,7 +78,6 @@ const SignupScreen = ({ navigation }) => {
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const mobileNumberRef = useRef(null);
-  const coordinatorAddressRef = useRef(null);
 
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
@@ -88,27 +87,8 @@ const SignupScreen = ({ navigation }) => {
   const [offGrid, setOffGrid] = useState(false);
   const [smsAgreed, setSmsAgreed] = useState(false);
   const [isEventCoordinator, setIsEventCoordinator] = useState(false);
-  const [eventCoordinatorCompanyName, setEventCoordinatorCompanyName] =
-    useState("");
-  const [eventCoordinatorTaxIdType, setEventCoordinatorTaxIdType] =
-    useState("EIN");
-  const [eventCoordinatorTaxId, setEventCoordinatorTaxId] = useState("");
-  const [eventCoordinatorAddressLine1, setEventCoordinatorAddressLine1] =
-    useState("");
-  const [eventCoordinatorAddressLine2, setEventCoordinatorAddressLine2] =
-    useState("");
-  const [eventCoordinatorAddressCity, setEventCoordinatorAddressCity] =
-    useState("");
-  const [eventCoordinatorAddressState, setEventCoordinatorAddressState] =
-    useState("");
-  const [eventCoordinatorAddressZip, setEventCoordinatorAddressZip] =
-    useState("");
-  const [eventCoordinatorFormattedAddress, setEventCoordinatorFormattedAddress] =
-    useState("");
-  const [eventCoordinatorPlaceId, setEventCoordinatorPlaceId] = useState("");
-  const [eventCoordinatorAddressCountry, setEventCoordinatorAddressCountry] = useState("US");
-  const [eventCoordinatorAddressLatitude, setEventCoordinatorAddressLatitude] = useState("");
-  const [eventCoordinatorAddressLongitude, setEventCoordinatorAddressLongitude] = useState("");
+  const [eventCoordinatorExpectsTicketSales, setEventCoordinatorExpectsTicketSales] = useState(false);
+  const [eventCoordinatorExpectsVendorFees, setEventCoordinatorExpectsVendorFees] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -124,12 +104,6 @@ const SignupScreen = ({ navigation }) => {
     password: "",
     mobileNumber: "",
     smsAgreed: "",
-    eventCoordinatorCompanyName: "",
-    eventCoordinatorTaxId: "",
-    eventCoordinatorAddressLine1: "",
-    eventCoordinatorAddressCity: "",
-    eventCoordinatorAddressState: "",
-    eventCoordinatorAddressZip: "",
   });
 
   const togglePasswordVisibility = () => {
@@ -148,17 +122,6 @@ const SignupScreen = ({ navigation }) => {
     setAgreed(false);
     setSmsAgreed(false);
     setIsEventCoordinator(false);
-    setEventCoordinatorCompanyName("");
-    setEventCoordinatorTaxIdType("EIN");
-    setEventCoordinatorTaxId("");
-    setEventCoordinatorAddressLine1("");
-    setEventCoordinatorAddressLine2("");
-    setEventCoordinatorAddressCity("");
-    setEventCoordinatorAddressState("");
-    setEventCoordinatorAddressZip("");
-    setEventCoordinatorFormattedAddress("");
-    setEventCoordinatorPlaceId("");
-    coordinatorAddressRef.current?.setAddressText("");
     setErrors({
       fname: "",
       lname: "",
@@ -166,12 +129,6 @@ const SignupScreen = ({ navigation }) => {
       password: "",
       mobileNumber: "",
       smsAgreed: "",
-      eventCoordinatorCompanyName: "",
-      eventCoordinatorTaxId: "",
-      eventCoordinatorAddressLine1: "",
-      eventCoordinatorAddressCity: "",
-      eventCoordinatorAddressState: "",
-      eventCoordinatorAddressZip: "",
     });
   };
 
@@ -209,34 +166,6 @@ const SignupScreen = ({ navigation }) => {
       password: validatePassword(password),
       mobileNumber: validateMobileNumber(mobileNumber),
       smsAgreed: !smsAgreed ? "You must agree to receive SMS" : "",
-      eventCoordinatorCompanyName:
-        isEventCoordinator && !eventCoordinatorCompanyName.trim()
-          ? "Company name is required"
-          : "",
-      eventCoordinatorTaxId:
-        isEventCoordinator && !eventCoordinatorTaxId.trim()
-          ? `${eventCoordinatorTaxIdType} is required`
-          : isEventCoordinator &&
-              eventCoordinatorTaxId.trim() &&
-              eventCoordinatorTaxId.replace(/\D/g, "").length !== 9
-            ? `${eventCoordinatorTaxIdType} must be 9 digits`
-            : "",
-      eventCoordinatorAddressLine1:
-        isEventCoordinator && !eventCoordinatorAddressLine1.trim()
-          ? "Street address is required"
-          : "",
-      eventCoordinatorAddressCity:
-        isEventCoordinator && !eventCoordinatorAddressCity.trim()
-          ? "City is required"
-          : "",
-      eventCoordinatorAddressState:
-        isEventCoordinator && !eventCoordinatorAddressState.trim()
-          ? "State is required"
-          : "",
-      eventCoordinatorAddressZip:
-        isEventCoordinator && !eventCoordinatorAddressZip.trim()
-          ? "Zip is required"
-          : "",
     };
 
     setErrors(newErrors);
@@ -251,7 +180,7 @@ const SignupScreen = ({ navigation }) => {
 
     Alert.alert(
       "Add Event Coordination?",
-      "Would you like to add event coordination? If Yes, please have your company name and EIN/SSN ready for input.",
+      "You can complete identity and document requirements later in the Event Coordinator Compliance section.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Yes", onPress: () => setIsEventCoordinator(true) },
@@ -285,53 +214,8 @@ const SignupScreen = ({ navigation }) => {
       formData.append("subscribedForOffGrid", offGrid);
       formData.append("isEventCoordinator", isEventCoordinator);
       if (isEventCoordinator) {
-        const companyAddress =
-          trimValue(eventCoordinatorFormattedAddress) ||
-          [
-            eventCoordinatorAddressLine1,
-            eventCoordinatorAddressLine2,
-            eventCoordinatorAddressCity,
-            eventCoordinatorAddressState,
-            eventCoordinatorAddressZip,
-          ]
-            .map(trimValue)
-            .filter(Boolean)
-            .join(", ");
-        formData.append(
-          "eventCoordinatorCompanyName",
-          trimValue(eventCoordinatorCompanyName)
-        );
-        formData.append("eventCoordinatorCompanyAddress", companyAddress);
-        formData.append("eventCoordinatorTaxIdType", eventCoordinatorTaxIdType);
-        formData.append(
-          "eventCoordinatorTaxId",
-          eventCoordinatorTaxId.replace(/\D/g, "")
-        );
-        formData.append(
-          "eventCoordinatorAddressLine1",
-          trimValue(eventCoordinatorAddressLine1)
-        );
-        formData.append(
-          "eventCoordinatorAddressLine2",
-          trimValue(eventCoordinatorAddressLine2)
-        );
-        formData.append(
-          "eventCoordinatorAddressCity",
-          trimValue(eventCoordinatorAddressCity)
-        );
-        formData.append(
-          "eventCoordinatorAddressState",
-          trimValue(eventCoordinatorAddressState).toUpperCase()
-        );
-        formData.append(
-          "eventCoordinatorAddressZip",
-          trimValue(eventCoordinatorAddressZip)
-        );
-        formData.append("eventCoordinatorFormattedAddress", companyAddress);
-        formData.append("eventCoordinatorPlaceId", eventCoordinatorPlaceId);
-        formData.append("eventCoordinatorAddressCountry", eventCoordinatorAddressCountry);
-        formData.append("eventCoordinatorAddressLatitude", eventCoordinatorAddressLatitude);
-        formData.append("eventCoordinatorAddressLongitude", eventCoordinatorAddressLongitude);
+        formData.append("eventCoordinatorExpectsTicketSales", eventCoordinatorExpectsTicketSales);
+        formData.append("eventCoordinatorExpectsVendorFees", eventCoordinatorExpectsVendorFees);
       }
 
       if (selectedPhoto) {
@@ -822,6 +706,31 @@ const SignupScreen = ({ navigation }) => {
 
               {isEventCoordinator ? (
                 <View style={styles.eventCoordinatorBox}>
+                  <Text style={styles.coordinatorHelpText}>
+                    Compliance information and documents are completed after signup in your Event Coordinator Compliance section.
+                  </Text>
+                  <View style={styles.termsContainer}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => setEventCoordinatorExpectsTicketSales((value) => !value)} style={styles.iconBox}>
+                      <Ionicons name={eventCoordinatorExpectsTicketSales ? "checkbox" : "square-outline"} size={22} color={AppColor.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.termsText}>Do you expect to generate ticket sales?</Text>
+                  </View>
+                  <View style={styles.termsContainer}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => setEventCoordinatorExpectsVendorFees((value) => !value)} style={styles.iconBox}>
+                      <Ionicons name={eventCoordinatorExpectsVendorFees ? "checkbox" : "square-outline"} size={22} color={AppColor.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.termsText}>Do you expect to charge vendors to attend events?</Text>
+                  </View>
+                  <Text style={styles.coordinatorHelpText}>
+                    {eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees
+                      ? "Compliance must be completed and verified before you can collect event funds."
+                      : "You can create free events now. Paid capabilities can be enabled later after compliance is completed."}
+                  </Text>
+                </View>
+              ) : null}
+
+              {false ? (
+                <View style={styles.eventCoordinatorBox}>
                   <TextInput
                     label="Company Name *"
                     mode="outlined"
@@ -840,11 +749,30 @@ const SignupScreen = ({ navigation }) => {
                     </HelperText>
                   ) : null}
 
-                  <Text style={styles.coordinatorHelpText}>
-                    Protected federal tax ID and exact business address are required.
-                  </Text>
+                  <View style={styles.termsContainer}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => setEventCoordinatorExpectsTicketSales((value) => !value)} style={styles.iconBox}>
+                      <Ionicons name={eventCoordinatorExpectsTicketSales ? "checkbox" : "square-outline"} size={22} color={AppColor.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.termsText}>Do you expect to generate ticket sales?</Text>
+                  </View>
+                  <View style={styles.termsContainer}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => setEventCoordinatorExpectsVendorFees((value) => !value)} style={styles.iconBox}>
+                      <Ionicons name={eventCoordinatorExpectsVendorFees ? "checkbox" : "square-outline"} size={22} color={AppColor.primary} />
+                    </TouchableOpacity>
+                    <Text style={styles.termsText}>Do you expect to charge vendors to attend events?</Text>
+                  </View>
 
-                  <View style={styles.taxTypeRow}>
+                  {eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees ? (
+                    <Text style={styles.coordinatorHelpText}>
+                      A protected federal tax ID, completed W-9, payout details, and verification are required before you can collect event funds.
+                    </Text>
+                  ) : (
+                    <Text style={styles.coordinatorHelpText}>
+                      Your profile is eligible for free events only. You can add payout information later.
+                    </Text>
+                  )}
+
+                  {eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees ? <><View style={styles.taxTypeRow}>
                     {["EIN", "SSN"].map((type) => {
                       const active = eventCoordinatorTaxIdType === type;
                       return (
@@ -896,7 +824,7 @@ const SignupScreen = ({ navigation }) => {
                     >
                       {errors.eventCoordinatorTaxId}
                     </HelperText>
-                  ) : null}
+                  ) : null}</> : null}
 
 	                  <View style={styles.placesWrapper}>
 	                    <GooglePlacesAutocomplete

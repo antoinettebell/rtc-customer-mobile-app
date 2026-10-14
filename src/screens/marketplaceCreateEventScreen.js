@@ -22,6 +22,7 @@ import { pick, types } from "@react-native-documents/picker";
 import { RESULTS } from "react-native-permissions";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSelector } from "react-redux";
 import { Snackbar } from "react-native-paper";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -103,6 +104,7 @@ const initialForm = {
   event_vendor_needs: [],
   event_vendor_electricity_fee: "",
   ticket_sales_enabled: false,
+  is_free_event: false,
   ticket_url: "",
   ga_ticket_quantity: "",
   ga_ticket_price: "",
@@ -1069,6 +1071,9 @@ const localStyles = StyleSheet.create({
   disabledMoneyBox: {
     backgroundColor: "#F2F4F7",
   },
+  coordinatorControlReadOnly: {
+    opacity: 0.72,
+  },
   budgetInfoBox: {
     marginTop: 8,
     borderWidth: 1,
@@ -1523,6 +1528,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const EVENT_IMAGE_CONTACT_INFO_MESSAGE =
     "This image was not uploaded because it appears to include contact information. Please choose an event image without phone numbers, emails, websites, or social handles.";
   const insets = useSafeAreaInsets();
+  const coordinator = useSelector((state) => state.userReducer?.user);
+  const payoutEligible = coordinator?.eventCoordinatorPayoutEligibility === "ENABLED";
   const editingEventId =
     route?.params?.eventId || route?.params?.draftEvent?.event_id;
   const draftEvent = route?.params?.draftEvent;
@@ -1803,6 +1810,13 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
+      if (key === "is_free_event" && value) {
+        next.ga_ticket_price = "0.00";
+        next.vip_ticket_price = "0.00";
+        next.vendor_fee = "0.00";
+        next.vendor_fee_payment_deadline = "";
+        next.vendor_fee_payment_time = "";
+      }
       if (key === "ticket_sales_enabled" && value) {
         Object.assign(next, getTicketAttendancePatch(next));
       }
@@ -1843,6 +1857,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (payoutEligible) return;
+    setForm((previous) => (
+      previous.is_free_event ? previous : {
+        ...previous,
+        is_free_event: true,
+        ga_ticket_price: "0.00",
+        vip_ticket_price: "0.00",
+        vendor_fee: "0.00",
+        vendor_fee_payment_deadline: "",
+        vendor_fee_payment_time: "",
+      }
+    ));
+  }, [payoutEligible]);
 
   useEffect(() => {
     if (!usesCalculatedFoodVendorCount(form)) return;
@@ -2483,7 +2512,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return false;
     }
     if (
-      form.payment_responsibility === "VENDOR" &&
+      !form.is_free_event && form.payment_responsibility === "VENDOR" &&
       Number(form.vendor_fee || 0) <= 0
     ) {
       setSnackbar({ visible: true, message: "Vendor fee is required." });
@@ -2491,13 +2520,21 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
     }
     if (
       form.payment_responsibility === "BOTH" &&
-      (Number(form.budgeted_amount || 0) <= 0 ||
-        Number(form.vendor_fee || 0) <= 0)
+      Number(form.budgeted_amount || 0) <= 0
     ) {
       setSnackbar({
         visible: true,
-        message: "Budget amount and vendor fee are required.",
+        message: form.is_free_event
+          ? "Budget amount is required when the event coordinator pays vendors."
+          : "Budget amount and vendor fee are required.",
       });
+      return false;
+    }
+    if (
+      !form.is_free_event && form.payment_responsibility === "BOTH" &&
+      Number(form.vendor_fee || 0) <= 0
+    ) {
+      setSnackbar({ visible: true, message: "Budget amount and vendor fee are required." });
       return false;
     }
     if (
@@ -2524,7 +2561,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return false;
     }
     if (
-      ["VENDOR", "BOTH"].includes(form.payment_responsibility) &&
+      !form.is_free_event && ["VENDOR", "BOTH"].includes(form.payment_responsibility) &&
       !form.vendor_fee_payment_deadline
     ) {
       setSnackbar({
@@ -2533,7 +2570,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       });
       return false;
     }
-    if (["VENDOR", "BOTH"].includes(form.payment_responsibility)) {
+    if (!form.is_free_event && ["VENDOR", "BOTH"].includes(form.payment_responsibility)) {
       if (!form.vendor_fee_payment_time) {
         setSnackbar({
           visible: true,
@@ -2632,7 +2669,8 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         !!form.catered_vip_section_enabled &&
         !!form.ga_food_sales_allowed &&
         !!form.waive_vendor_fee_for_combined_award,
-      vendor_fee_payment_deadline: ["VENDOR", "BOTH"].includes(
+      is_free_event: !!form.is_free_event,
+      vendor_fee_payment_deadline: !form.is_free_event && ["VENDOR", "BOTH"].includes(
         form.payment_responsibility,
       )
         ? combineFormDateTime(
@@ -2668,7 +2706,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         ? normalizeOptionList(form.food_truck_options)
         : [],
       vendor_fee:
-        form.payment_responsibility === "COORDINATOR"
+        form.is_free_event || form.payment_responsibility === "COORDINATOR"
           ? 0
           : Number(form.vendor_fee || 0),
       budgeted_amount:
@@ -2678,11 +2716,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       ticket_sales_enabled: !!form.ticket_sales_enabled,
       ticket_url: "",
       ga_ticket_quantity: Number(form.ga_ticket_quantity || 0),
-      ga_ticket_price: Number(form.ga_ticket_price || 0),
+      ga_ticket_price: form.is_free_event ? 0 : Number(form.ga_ticket_price || 0),
       vip_ticket_quantity: form.vip_section_enabled
         ? Number(form.vip_ticket_quantity || 0)
         : 0,
-      vip_ticket_price: form.vip_section_enabled
+      vip_ticket_price: !form.is_free_event && form.vip_section_enabled
         ? Number(form.vip_ticket_price || 0)
         : 0,
       charitable_event: !!form.charitable_event,
@@ -3378,7 +3416,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
   const renderTicketPriceInput = (label, key) => (
     <View style={localStyles.fieldGroup}>
       {renderLabel(label)}
-      <View style={localStyles.moneyBox}>
+      <View style={[localStyles.moneyBox, form.is_free_event && localStyles.disabledMoneyBox]}>
         <Text style={localStyles.moneyPrefix}>$</Text>
         <TextInput
           value={form[key]}
@@ -3387,9 +3425,46 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           placeholder="0.00"
           placeholderTextColor={AppColor.textPlaceholder}
           keyboardType="decimal-pad"
+          editable={!form.is_free_event}
           style={localStyles.moneyInput}
         />
       </View>
+    </View>
+  );
+
+  const renderFreeEventControl = () => (
+    <View style={localStyles.fieldGroup}>
+      {renderLabel("Is this a free event?")}
+      <View style={localStyles.segmented}>
+        {[["Yes", true], ["No", false]].map(([label, value], index) => {
+          const active = form.is_free_event === value;
+          const disabled = !payoutEligible;
+          return (
+            <TouchableOpacity
+              key={label}
+              disabled={disabled}
+              activeOpacity={0.7}
+              onPress={() => updateField("is_free_event", value)}
+              style={[
+                localStyles.segment,
+                index > 0 && localStyles.segmentDivider,
+                active && localStyles.segmentActive,
+                disabled && localStyles.coordinatorControlReadOnly,
+              ]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {!payoutEligible ? (
+        <View style={localStyles.labelWithAction}>
+          <Text style={[styles.meta, { flex: 1 }]}>Your profile is only eligible for free events. Please update your profile and compliance checks to receive eligible payouts.</Text>
+          <MaterialIcons name="info-outline" size={19} color={AppColor.primary} />
+        </View>
+      ) : (
+        <Text style={styles.meta}>Free events keep ticket and vendor attendance prices at $0.00. Catering budgets remain unchanged.</Text>
+      )}
     </View>
   );
 
@@ -5058,6 +5133,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                 {renderInput("Description", "event_description", {
                   multiline: true,
                 })}
+                {renderFreeEventControl()}
                 {renderEventTypeCards()}
                 {renderVisibilityToggle()}
                 {renderEventToneSelect()}
@@ -5221,7 +5297,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     "Food Vendor Fee",
                     "vendor_fee",
                     "Fee vendors pay if this event requires attendance payment.",
-                    form.payment_responsibility === "COORDINATOR",
+                    form.is_free_event || form.payment_responsibility === "COORDINATOR",
                   )}
                   {renderMoneyInput(
                     form.catered_vip_section_enabled &&
@@ -5233,7 +5309,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                     form.payment_responsibility === "VENDOR",
                   )}
                 </View>
-                {["VENDOR", "BOTH"].includes(form.payment_responsibility) ? (
+                {!form.is_free_event && ["VENDOR", "BOTH"].includes(form.payment_responsibility) ? (
                   <View style={localStyles.sideBySide}>
                     <View style={localStyles.sideField}>
                       {renderDateTimePicker(
