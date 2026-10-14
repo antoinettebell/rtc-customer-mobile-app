@@ -1814,6 +1814,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         next.ga_ticket_price = "0.00";
         next.vip_ticket_price = "0.00";
         next.vendor_fee = "0.00";
+        next.waive_vendor_fee_for_combined_award = false;
         next.event_vendor_needs = (next.event_vendor_needs || []).map((need) => ({
           ...need,
           fee: "0",
@@ -2554,6 +2555,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       return false;
     }
     if (
+      !form.is_free_event &&
       form.ga_food_sales_allowed === true &&
       form.waive_vendor_fee_for_combined_award !== true &&
       form.waive_vendor_fee_for_combined_award !== false
@@ -2671,6 +2673,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
       ga_food_sales_allowed:
         !!form.catered_vip_section_enabled && !!form.ga_food_sales_allowed,
       waive_vendor_fee_for_combined_award:
+        !form.is_free_event &&
         !!form.catered_vip_section_enabled &&
         !!form.ga_food_sales_allowed &&
         !!form.waive_vendor_fee_for_combined_award,
@@ -4461,7 +4464,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   "Are VIP Vendors allowed to also setup as a GA Vendor?",
                   "ga_food_sales_allowed",
                 )}
-                {form.ga_food_sales_allowed
+                {form.ga_food_sales_allowed && !form.is_free_event
                   ? renderRequiredYesNo(
                       "If one vendor receives both awards, waive the vendor fee?",
                       "waive_vendor_fee_for_combined_award",
