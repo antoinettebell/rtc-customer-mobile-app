@@ -10,6 +10,7 @@ import {
   COORDINATOR_COMPLIANCE_W9_COMPLETE,
   COORDINATOR_COMPLIANCE_PROFILE,
   COORDINATOR_COMPLIANCE_DOCUMENTS,
+  COORDINATOR_COMPLIANCE_OCR,
   MEDIA_UPLOAD,
   REMOVE_FAVORITE_FOODTRUCK,
   REVERSE_LOCATION,
@@ -220,6 +221,15 @@ export const saveCoordinatorComplianceProfile_API = async (payload) => {
 export const uploadCoordinatorComplianceDocument_API = async (payload) => {
   try {
     const response = await apiClient.post(COORDINATOR_COMPLIANCE_DOCUMENTS, payload, { skipToken: false, formData: true });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const submitCoordinatorComplianceOcr_API = async () => {
+  try {
+    const response = await apiClient.post(COORDINATOR_COMPLIANCE_OCR, {}, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;

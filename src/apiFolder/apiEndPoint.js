@@ -26,6 +26,7 @@ export const COORDINATOR_COMPLIANCE_W9_COMPLETE =
   "/coordinator-compliance/w9/complete";
 export const COORDINATOR_COMPLIANCE_PROFILE = "/coordinator-compliance/profile";
 export const COORDINATOR_COMPLIANCE_DOCUMENTS = "/coordinator-compliance/documents";
+export const COORDINATOR_COMPLIANCE_OCR = "/coordinator-compliance/ocr";
 
 // Free Desert
 export const GET_FREE_DESERT_DETAIL = "/user/free-dessert/progress";
