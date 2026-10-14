@@ -552,7 +552,14 @@ const UserProfileScreen = ({ navigation, route }) => {
         await fetchUserDataFromAPI();
       }
     } catch (error) {
-      setSnackbar({ visible: true, message: error?.message || "Failed to update event coordination", type: "error" });
+      const message = error?.message || "Failed to update event coordination";
+      setSnackbar({
+        visible: true,
+        message: message.includes("eventCoordinatorCompanyName")
+          ? "Please cancel the edit or answer the eligibility question, then proceed to Compliance."
+          : message,
+        type: "error",
+      });
     } finally {
       setCoordinatorLoading(false);
     }

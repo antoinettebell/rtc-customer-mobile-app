@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { TextInput } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ImagePicker from "react-native-image-crop-picker";
 import { useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -17,6 +18,7 @@ import {
 const entityTypes = ["SOLE_PROPRIETOR", "LLC", "CORPORATION", "PARTNERSHIP", "S_CORPORATION"];
 
 const CoordinatorComplianceScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useSelector((state) => state.userReducer);
   const [profile, setProfile] = useState(null);
   const [compliance, setCompliance] = useState(null);
@@ -32,6 +34,10 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [w9Session, setW9Session] = useState(null);
   const [pendingEnvelopeId, setPendingEnvelopeId] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const requiresPaidCompliance = Boolean(
+    user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees,
+  );
 
   const load = useCallback(async () => {
     try {
@@ -47,8 +53,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       setRegistrationState(next?.registration_state || "");
       setBusinessAddress(next?.business_address || "");
       setTaxIdType(next?.tax_id_type || (next?.party_type === "BUSINESS" ? "EIN" : "SSN"));
-    } catch (error) {
-      Alert.alert("Compliance", error?.message || "Could not load coordinator compliance.");
+    } catch (_error) {
+      // The screen remains usable if a delayed deployment or retry briefly
+      // prevents the optional summary from loading.
     } finally {
       setLoading(false);
     }
@@ -78,6 +85,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       return Alert.alert("Compliance", "Business address and registration state are required.");
     }
     if (taxId && taxId.replace(/\D/g, "").length !== 9) return Alert.alert("Compliance", "Enter a nine-digit EIN or SSN.");
+    if (requiresPaidCompliance && !taxId && !profile?.tax_id_masked) {
+      return Alert.alert("Compliance", `Your ${taxIdType} is required after selecting paid event eligibility.`);
+    }
     setSaving(true);
     try {
       const response = await saveCoordinatorComplianceProfile_API({
@@ -90,32 +100,36 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         ...(taxId ? { tax_id_type: taxIdType, tax_id: taxId.replace(/\D/g, "") } : {}),
       });
       if (!response?.success) throw new Error(response?.message || "Could not save compliance.");
-      setProfile(response?.data?.profile || null);
+      const savedProfile = response?.data?.profile || null;
+      setProfile(savedProfile);
       setTaxId("");
+      if (selectedDocument) {
+        const payload = new FormData();
+        payload.append("document_type", partyType === "BUSINESS" ? "BUSINESS_LICENSE" : "DRIVER_LICENSE_FRONT");
+        payload.append("file", selectedDocument);
+        const uploadResponse = await uploadCoordinatorComplianceDocument_API(payload);
+        if (!uploadResponse?.success) throw new Error(uploadResponse?.message || "Could not upload document.");
+        setSelectedDocument(null);
+      }
       await load();
-      Alert.alert("Compliance", "Compliance information saved.");
+      Alert.alert("Compliance", "Compliance information saved and submitted.");
     } catch (error) {
       Alert.alert("Compliance", error?.message || "Could not save compliance.");
     } finally { setSaving(false); }
   };
 
-  const upload = async () => {
-    if (!profile) return Alert.alert("Compliance", "Save your compliance information first.");
+  const selectDocument = async () => {
     try {
       const image = await ImagePicker.openPicker({ mediaType: "photo", compressImageQuality: 0.9 });
       const documentType = partyType === "BUSINESS" ? "BUSINESS_LICENSE" : "DRIVER_LICENSE_FRONT";
-      const payload = new FormData();
-      payload.append("document_type", documentType);
-      payload.append("file", { uri: image.path, name: image.filename || `${documentType}.jpg`, type: image.mime || "image/jpeg" });
-      setSaving(true);
-      const response = await uploadCoordinatorComplianceDocument_API(payload);
-      if (!response?.success) throw new Error(response?.message || "Could not upload document.");
-      setProfile(response?.data?.profile || null);
-      await load();
-      Alert.alert("Compliance", "Document uploaded for RTC records.");
+      setSelectedDocument({
+        uri: image.path,
+        name: image.filename || `${documentType}.${String(image.mime || "").includes("heic") ? "heic" : "jpg"}`,
+        type: image.mime || "image/jpeg",
+      });
     } catch (error) {
-      if (error?.code !== "E_PICKER_CANCELLED") Alert.alert("Compliance", error?.message || "Could not upload document.");
-    } finally { setSaving(false); }
+      if (error?.code !== "E_PICKER_CANCELLED") Alert.alert("Compliance", error?.message || "Could not select document.");
+    }
   };
 
   const startW9 = async () => {
@@ -139,13 +153,13 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
 
   return <View style={styles.container}>
     <StatusBarManager backgroundColor={AppColor.white} barStyle="dark-content" />
-    <View style={styles.header}><TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={28} color={AppColor.black} /></TouchableOpacity><Text style={styles.title}>Coordinator Compliance</Text><View style={{ width: 28 }} /></View>
+    <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}><TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={28} color={AppColor.black} /></TouchableOpacity><Text style={styles.title}>Coordinator Compliance</Text><View style={{ width: 28 }} /></View>
     <ScrollView contentContainerStyle={styles.content}>
       <View style={[styles.complianceCard, { borderColor: compliance?.score_color === "green" ? "#176B43" : compliance?.score_color === "yellow" ? "#B77900" : "#F97316" }]}>
         <View style={styles.complianceHeader}>
           <View style={styles.complianceCopy}>
             <Text style={styles.complianceTitle}>{compliance?.score_label || "Compliance"}</Text>
-            <Text style={styles.copy}>{compliance?.remaining?.length ? `Remaining: ${compliance.remaining.join(" • ")}` : "All currently applicable requirements are complete."}</Text>
+            <Text style={styles.copy}>{compliance?.remaining?.length ? `Remaining: ${compliance.remaining.join(" • ")}` : compliance ? "All currently applicable requirements are complete." : "Complete the required information below."}</Text>
           </View>
           <View style={[styles.scoreBadge, { backgroundColor: compliance?.score_color === "green" ? "#176B43" : compliance?.score_color === "yellow" ? "#B77900" : "#F97316" }]}><Text style={styles.scoreText}>{Number(compliance?.score || 0)}%</Text></View>
         </View>
@@ -157,11 +171,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
       <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} value={legalName} onChangeText={setLegalName} mode="outlined" style={styles.input} />
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><TextInput label="State of registration *" value={registrationState} onChangeText={setRegistrationState} autoCapitalize="characters" maxLength={2} mode="outlined" style={styles.input} /><TextInput label="Business address *" value={businessAddress} onChangeText={setBusinessAddress} mode="outlined" style={styles.input} /></> : null}
-      <TextInput label={`${taxIdType} (optional until paid capabilities are selected)`} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
+      <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
-      <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save Compliance</Text>}</TouchableOpacity>
-      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only."}</Text><Text style={styles.status}>{uploaded ? "Uploaded" : "Not uploaded"}</Text><TouchableOpacity disabled={saving} onPress={upload} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded ? "Replace Document" : "Upload Document"}</Text></TouchableOpacity></View>
+      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? "Uploaded" : "Not uploaded"}</Text><TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
       <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees ? "Required before paid event capabilities can be verified." : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? "Signed — awaiting verification" : "Not signed"}</Text>{user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
+      <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save & Run OCR</Text>}</TouchableOpacity>
     </ScrollView>
   </View>;
 };
