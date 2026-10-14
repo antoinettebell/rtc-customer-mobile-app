@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, AppState, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ImagePicker from "react-native-image-crop-picker";
@@ -17,6 +18,25 @@ import {
 } from "../apiFolder/appAPI";
 
 const entityTypes = ["SOLE_PROPRIETOR", "LLC", "CORPORATION", "PARTNERSHIP", "S_CORPORATION"];
+const W9_SIGNING_STORAGE_KEY = "coordinator-compliance-w9-envelope";
+
+const parsePendingW9Signing = (value) => {
+  try {
+    return JSON.parse(value || "{}").envelope_id || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const formatOcrStatus = (status) => String(status || "Pending")
+  .replace(/_/g, " ")
+  .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const getOcrStatusText = (document = {}) => {
+  if (!document?.ocr_status) return "OCR: Pending";
+  const status = formatOcrStatus(document.ocr_status);
+  return document.ocr_error_message ? `OCR: ${status} - ${document.ocr_error_message}` : `OCR: ${status}`;
+};
 
 const CoordinatorComplianceScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -34,8 +54,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [w9Session, setW9Session] = useState(null);
-  const [pendingEnvelopeId, setPendingEnvelopeId] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const pendingW9EnvelopeRef = useRef(null);
+  const completingW9Ref = useRef(false);
+  const w9RecoveryRetryRef = useRef(null);
+  const w9RecoveryAttemptRef = useRef(0);
   const [requiresPaidCompliance, setRequiresPaidCompliance] = useState(Boolean(
     user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees,
   ));
@@ -67,21 +90,87 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    const complete = async ({ url }) => {
-      if (!pendingEnvelopeId || !String(url || "").startsWith("rtc-customer://docusign/return")) return;
-      try {
-        const response = await completeCoordinatorW9Signing_API(pendingEnvelopeId);
-        setW9Session(response?.data?.w9_session || null);
-        setPendingEnvelopeId(null);
-        Alert.alert("Compliance", "Your signed W-9 was received.");
-      } catch (error) {
-        Alert.alert("Compliance", error?.message || "DocuSign is still finalizing the W-9. Please reopen Compliance shortly.");
+  const clearW9RecoveryRetry = useCallback(() => {
+    if (w9RecoveryRetryRef.current) {
+      clearTimeout(w9RecoveryRetryRef.current);
+      w9RecoveryRetryRef.current = null;
+    }
+  }, []);
+
+  const getPendingW9EnvelopeId = useCallback(async () => {
+    if (pendingW9EnvelopeRef.current) return pendingW9EnvelopeRef.current;
+    const storedValue = await AsyncStorage.getItem(W9_SIGNING_STORAGE_KEY);
+    const envelopeId = parsePendingW9Signing(storedValue) || (
+      w9Session?.status === "SENT" ? w9Session.envelope_id : null
+    );
+    if (envelopeId) pendingW9EnvelopeRef.current = envelopeId;
+    return envelopeId;
+  }, [w9Session?.envelope_id, w9Session?.status]);
+
+  const completeW9Signing = useCallback(async (envelopeId, { quiet = false } = {}) => {
+    if (!envelopeId || completingW9Ref.current) return false;
+    completingW9Ref.current = true;
+    setSaving(true);
+    let completed = false;
+    try {
+      const response = await completeCoordinatorW9Signing_API(envelopeId);
+      if (!response?.success) throw new Error(response?.message || "Could not receive the signed W-9.");
+      setW9Session(response?.data?.w9_session || null);
+      await load();
+      if (!quiet) Alert.alert("W-9 Submitted", "Your signed W-9 was received and submitted for verification.");
+      completed = true;
+      return true;
+    } catch (error) {
+      if (!quiet) Alert.alert("W-9 Verification", error?.message || "We could not confirm the signed W-9 yet.");
+      return false;
+    } finally {
+      if (completed) {
+        clearW9RecoveryRetry();
+        w9RecoveryAttemptRef.current = 0;
+        pendingW9EnvelopeRef.current = null;
+        await AsyncStorage.removeItem(W9_SIGNING_STORAGE_KEY);
       }
+      completingW9Ref.current = false;
+      setSaving(false);
+    }
+  }, [clearW9RecoveryRetry, load]);
+
+  const reconcilePendingW9 = useCallback(async ({ quiet = true } = {}) => {
+    const envelopeId = await getPendingW9EnvelopeId();
+    if (!envelopeId || completingW9Ref.current) return false;
+    const completed = await completeW9Signing(envelopeId, { quiet });
+    if (completed) return true;
+    const retryDelays = [1500, 4000, 8000];
+    const delay = retryDelays[w9RecoveryAttemptRef.current];
+    if (delay !== undefined) {
+      w9RecoveryAttemptRef.current += 1;
+      clearW9RecoveryRetry();
+      w9RecoveryRetryRef.current = setTimeout(() => {
+        reconcilePendingW9({ quiet: true }).catch(() => {});
+      }, delay);
+    }
+    return false;
+  }, [clearW9RecoveryRetry, completeW9Signing, getPendingW9EnvelopeId]);
+
+  useEffect(() => {
+    const handleUrl = async ({ url }) => {
+      if (!String(url || "").includes("docusign/return")) return;
+      reconcilePendingW9({ quiet: false }).catch(() => {});
     };
-    const subscription = Linking.addEventListener("url", complete);
-    return () => subscription.remove();
-  }, [pendingEnvelopeId]);
+    const subscription = Linking.addEventListener("url", handleUrl);
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") reconcilePendingW9({ quiet: true }).catch(() => {});
+    });
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+      else reconcilePendingW9({ quiet: true }).catch(() => {});
+    });
+    return () => {
+      clearW9RecoveryRetry();
+      subscription.remove();
+      appStateSubscription.remove();
+    };
+  }, [clearW9RecoveryRetry, reconcilePendingW9]);
 
   const save = async () => {
     if (!legalName.trim()) return Alert.alert("Compliance", "Legal name is required.");
@@ -145,10 +234,16 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       const envelopeId = response?.data?.envelope_id;
       const signingUrl = response?.data?.signing_url;
       if (!response?.success || !envelopeId || !signingUrl) throw new Error("Could not start W-9 signing.");
-      setPendingEnvelopeId(envelopeId);
+      pendingW9EnvelopeRef.current = envelopeId;
+      w9RecoveryAttemptRef.current = 0;
       setW9Session(response?.data?.w9_session || null);
+      await AsyncStorage.setItem(
+        W9_SIGNING_STORAGE_KEY,
+        JSON.stringify({ envelope_id: envelopeId, started_at: new Date().toISOString() }),
+      );
       await Linking.openURL(signingUrl);
     } catch (error) {
+      pendingW9EnvelopeRef.current = null;
       Alert.alert("Compliance", error?.message || "Could not open DocuSign.");
     } finally { setSaving(false); }
   };
@@ -179,8 +274,8 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><TextInput label="State of registration *" value={registrationState} onChangeText={setRegistrationState} autoCapitalize="characters" maxLength={2} mode="outlined" style={styles.input} /><TextInput label="Business address *" value={businessAddress} onChangeText={setBusinessAddress} mode="outlined" style={styles.input} /></> : null}
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
-      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only and OCR is matched to the legal name above."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? profile?.documents?.find((item) => item.document_type === requiredDocument)?.ocr_status === "completed" ? "Verified" : `OCR: ${profile?.documents?.find((item) => item.document_type === requiredDocument)?.ocr_status || "Pending"}` : "Not uploaded"}</Text><TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
-      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? "Required before paid event capabilities can be verified. OCR compares it to the business compliance name and EIN." : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? w9Session?.ocr_status === "completed" ? "Verified" : `Signed — OCR: ${w9Session?.ocr_status || "Pending"}` : "Not signed"}</Text>{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
+      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only and OCR is matched to the legal name above."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getOcrStatusText(profile?.documents?.find((item) => item.document_type === requiredDocument)) : "Not uploaded"}</Text><TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
+      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? "Required before paid event capabilities can be verified. OCR compares it to the business compliance name and EIN." : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? getOcrStatusText(w9Session) : w9Session?.status === "SENT" ? "Waiting for DocuSign signature confirmation" : "Not signed"}</Text>{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
       <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save & Run OCR</Text>}</TouchableOpacity>
     </ScrollView>
   </View>;
