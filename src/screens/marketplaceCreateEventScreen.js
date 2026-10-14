@@ -1814,6 +1814,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         next.ga_ticket_price = "0.00";
         next.vip_ticket_price = "0.00";
         next.vendor_fee = "0.00";
+        next.event_vendor_needs = (next.event_vendor_needs || []).map((need) => ({
+          ...need,
+          fee: "0",
+        }));
+        next.event_vendor_electricity_fee = "0";
         next.vendor_fee_payment_deadline = "";
         next.vendor_fee_payment_time = "";
       }
@@ -2691,9 +2696,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ? String(need.type_description || "").trim()
           : null,
         quantity: Number(need.quantity || 0),
-        fee: Number(need.fee || 0),
+        fee: form.is_free_event ? 0 : Number(need.fee || 0),
       })),
-      event_vendor_electricity_fee: Number(
+      event_vendor_electricity_fee: form.is_free_event ? 0 : Number(
         form.event_vendor_electricity_fee || 0,
       ),
       number_of_vendors_needed: usesCalculatedFoodVendorCount(form)
@@ -4593,7 +4598,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
         <Text style={styles.label}>Merchandise / Service / Other Vendors</Text>
         <Text style={styles.meta}>
           Select each vendor type needed and enter its independent quantity and
-          event fee.
+          event fee. Free events request vendors with no fee.
         </Text>
         {types.map((type) => {
           const need = form.event_vendor_needs.find(
@@ -4651,8 +4656,9 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                   </View>
                   <View style={localStyles.sideField}>
                     {renderInput(`${type} Fee`, `event_vendor_${type}_fee`, {
-                      value: need.fee,
+                      value: form.is_free_event ? "0" : need.fee,
                       keyboardType: "decimal-pad",
+                      editable: !form.is_free_event,
                       onChangeText: (value) =>
                         updateNeed(type, "fee", value.replace(/[^0-9.]/g, "")),
                     })}
@@ -4666,7 +4672,11 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
           ? renderInput(
               "Electricity Hookup Fee",
               "event_vendor_electricity_fee",
-              { keyboardType: "decimal-pad" },
+              {
+                value: form.is_free_event ? "0" : form.event_vendor_electricity_fee,
+                keyboardType: "decimal-pad",
+                editable: !form.is_free_event,
+              },
             )
           : null}
       </View>
