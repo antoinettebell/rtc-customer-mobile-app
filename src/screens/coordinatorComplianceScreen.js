@@ -35,9 +35,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [w9Session, setW9Session] = useState(null);
   const [pendingEnvelopeId, setPendingEnvelopeId] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const requiresPaidCompliance = Boolean(
+  const [requiresPaidCompliance, setRequiresPaidCompliance] = useState(Boolean(
     user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees,
-  );
+  ));
 
   const load = useCallback(async () => {
     try {
@@ -46,6 +46,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       setProfile(next);
       setCompliance(response?.data?.compliance || null);
       setW9Session(response?.data?.w9_session || null);
+      if (typeof response?.data?.requires_payout_compliance === "boolean") {
+        setRequiresPaidCompliance(response.data.requires_payout_compliance);
+      }
       setPartyType(next?.party_type || "INDIVIDUAL");
       setLegalName(next?.legal_name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim());
       setDbaName(next?.dba_name || "");
@@ -174,7 +177,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
       <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? "Uploaded" : "Not uploaded"}</Text><TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
-      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees ? "Required before paid event capabilities can be verified." : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? "Signed — awaiting verification" : "Not signed"}</Text>{user?.eventCoordinatorExpectsTicketSales || user?.eventCoordinatorExpectsVendorFees ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
+      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? "Required before paid event capabilities can be verified." : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? "Signed — awaiting verification" : "Not signed"}</Text>{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
       <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save & Run OCR</Text>}</TouchableOpacity>
     </ScrollView>
   </View>;

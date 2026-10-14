@@ -550,6 +550,12 @@ const UserProfileScreen = ({ navigation, route }) => {
         });
         setIsCoordinatorProfileEditing(false);
         await fetchUserDataFromAPI();
+        if (
+          isEventCoordinator &&
+          (eventCoordinatorExpectsTicketSales || eventCoordinatorExpectsVendorFees)
+        ) {
+          navigation.navigate("coordinatorComplianceScreen");
+        }
       }
     } catch (error) {
       const message = error?.message || "Failed to update event coordination";
