@@ -5,10 +5,13 @@ import { TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ImagePicker from "react-native-image-crop-picker";
 import { pick, types } from "@react-native-documents/picker";
+import { RESULTS } from "react-native-permissions";
 import { useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Mulish400, Mulish700 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
+import usePermission from "../hooks/usePermission";
+import { permission } from "../helpers/permission.helper";
 import {
   getCoordinatorCompliance_API,
   startCoordinatorW9Signing_API,
@@ -70,6 +73,8 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [taxId, setTaxId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { checkAndRequestPermission: photosPermissionStatus } = usePermission(permission.photos);
+  const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(permission.camera);
   const [w9Session, setW9Session] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const pendingW9EnvelopeRef = useRef(null);
@@ -252,19 +257,64 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     } finally { setSaving(false); }
   };
 
+  const setBusinessLicenseImage = (image) => {
+    setSelectedDocument({
+      uri: image.path,
+      name: image.filename || "BUSINESS_LICENSE.jpg",
+      type: image.mime || "image/jpeg",
+    });
+  };
+
+  const chooseBusinessLicense = () => {
+    Alert.alert("Upload Business License", "Choose how to add the document.", [
+      {
+        text: "Files",
+        onPress: async () => {
+          try {
+            const [file] = await pick({ type: [types.pdf, types.images], allowMultiSelection: false });
+            setSelectedDocument({
+              uri: file.uri,
+              name: file.name || "BUSINESS_LICENSE.pdf",
+              type: file.type || "application/octet-stream",
+            });
+          } catch (error) {
+            if (!String(error?.message || "").toLowerCase().includes("cancel")) {
+              Alert.alert("Compliance", error?.message || "Could not select document.");
+            }
+          }
+        },
+      },
+      {
+        text: "Photo Library",
+        onPress: async () => {
+          try {
+            if ((await photosPermissionStatus()) !== RESULTS.GRANTED) return;
+            setBusinessLicenseImage(await ImagePicker.openPicker({ mediaType: "photo", compressImageQuality: 0.9 }));
+          } catch (error) {
+            if (error?.code !== "E_PICKER_CANCELLED") Alert.alert("Compliance", error?.message || "Could not select photo.");
+          }
+        },
+      },
+      {
+        text: "Camera",
+        onPress: async () => {
+          try {
+            if ((await cameraPermissionStatus()) !== RESULTS.GRANTED) return;
+            setBusinessLicenseImage(await ImagePicker.openCamera({ mediaType: "photo", compressImageQuality: 0.9 }));
+          } catch (error) {
+            if (error?.code !== "E_PICKER_CANCELLED") Alert.alert("Compliance", error?.message || "Could not take photo.");
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   const selectDocument = async () => {
     try {
       const documentType = partyType === "BUSINESS" ? "BUSINESS_LICENSE" : "DRIVER_LICENSE_FRONT";
       if (partyType === "BUSINESS") {
-        const [file] = await pick({
-          type: [types.pdf, types.images],
-          allowMultiSelection: false,
-        });
-        setSelectedDocument({
-          uri: file.uri,
-          name: file.name || `${documentType}.pdf`,
-          type: file.type || "application/octet-stream",
-        });
+        chooseBusinessLicense();
         return;
       }
       const image = await ImagePicker.openPicker({ mediaType: "photo", compressImageQuality: 0.9 });
