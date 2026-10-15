@@ -38,6 +38,22 @@ const getOcrStatusText = (document = {}) => {
   return document.ocr_error_message ? `OCR: ${status} - ${document.ocr_error_message}` : `OCR: ${status}`;
 };
 
+const getDocumentLifecycleText = (document = {}) => {
+  if (document?.review_status) return formatOcrStatus(document.review_status);
+  if (["queued", "processing"].includes(document?.ocr_status)) return "Pending Review";
+  if (document?.ocr_status === "completed") return "Verified";
+  return "Uploaded";
+};
+
+const getW9LifecycleText = (session = {}) => {
+  if (session?.verification_status === "PENDING" || ["queued", "processing"].includes(session?.ocr_status)) {
+    return "Pending Review";
+  }
+  if (session?.verification_status === "PASSED") return "Verified";
+  if (session?.verification_status) return formatOcrStatus(session.verification_status);
+  return "Not signed";
+};
+
 const CoordinatorComplianceScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useSelector((state) => state.userReducer);
@@ -225,6 +241,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       }
       const ocrResponse = await submitCoordinatorComplianceOcr_API();
       if (!ocrResponse?.success) throw new Error(ocrResponse?.message || "Could not submit documents for OCR.");
+      if (ocrResponse?.data?.profile) setProfile(ocrResponse.data.profile);
+      if (ocrResponse?.data?.w9_session) setW9Session(ocrResponse.data.w9_session);
+      if (ocrResponse?.data?.compliance) setCompliance(ocrResponse.data.compliance);
       await load();
       Alert.alert("Compliance", "Compliance information saved. Changed documents were submitted for OCR.");
     } catch (error) {
@@ -302,8 +321,8 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><TextInput label="State of registration *" value={registrationState} onChangeText={setRegistrationState} autoCapitalize="characters" maxLength={2} mode="outlined" style={styles.input} /><TextInput label="Business address *" value={businessAddress} onChangeText={setBusinessAddress} mode="outlined" style={styles.input} /></> : null}
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
-      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only and OCR is matched to the legal name above."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getOcrStatusText(uploadedDocument) : "Not uploaded"}</Text>{uploadedDocument?.original_name ? <Text style={styles.copy}>Uploaded: {uploadedDocument.original_name}</Text> : null}{uploadedDocument?.file_url ? <TouchableOpacity onPress={() => openDocument(uploadedDocument.file_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}<TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
-      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? `Required before paid event capabilities can be verified. OCR compares it to the ${partyType === "BUSINESS" ? "business compliance name and EIN" : "legal name and SSN"}.` : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? getOcrStatusText(w9Session) : w9Session?.status === "SENT" ? "Waiting for DocuSign signature confirmation" : "Not signed"}</Text>{w9Session?.signed_document_url ? <TouchableOpacity onPress={() => openDocument(w9Session.signed_document_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
+      <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only and OCR is matched to the legal name above."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getDocumentLifecycleText(uploadedDocument) : "Not uploaded"}</Text>{uploaded ? <Text style={styles.copy}>{getOcrStatusText(uploadedDocument)}</Text> : null}{uploadedDocument?.original_name ? <Text style={styles.copy}>Uploaded: {uploadedDocument.original_name}</Text> : null}{uploadedDocument?.file_url ? <TouchableOpacity onPress={() => openDocument(uploadedDocument.file_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}<TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
+      <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? `Required before paid event capabilities can be verified. OCR compares it to the ${partyType === "BUSINESS" ? "business compliance name and EIN" : "legal name and SSN"}.` : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? getW9LifecycleText(w9Session) : w9Session?.status === "SENT" ? "Waiting for DocuSign signature confirmation" : "Not signed"}</Text>{w9Session?.status === "SIGNED" ? <Text style={styles.copy}>{getOcrStatusText(w9Session)}</Text> : null}{w9Session?.signed_document_url ? <TouchableOpacity onPress={() => openDocument(w9Session.signed_document_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
       <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save & Run OCR</Text>}</TouchableOpacity>
     </ScrollView>
   </View>;
