@@ -395,9 +395,16 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     FAILED: { label: "Not Verified", tone: "failed" },
     NOT_STARTED: { label: "Not Started", tone: "notStarted" },
   }[verificationStatus] || { label: "Not Started", tone: "notStarted" };
+  const cobaltChecksByType = Object.fromEntries(
+    (compliance?.external_verification?.checks || []).map((check) => [check.check_type, check]),
+  );
+  const cobaltVerificationChecks = [
+    { type: "TIN", label: "EIN Verification" },
+    { type: "SOS", label: "State Verification" },
+  ].map((item) => ({ ...item, status: cobaltChecksByType[item.type]?.status || "NOT_STARTED" }));
   const internalVerificationReady = Boolean(requiresPaidCompliance) && (
     compliance?.requirements || []
-  ).filter((requirement) => requirement.key !== "EXTERNAL_IDENTITY_VERIFICATION")
+  ).filter((requirement) => !["EXTERNAL_IDENTITY_VERIFICATION", "COBALT_TIN", "COBALT_SOS"].includes(requirement.key))
     .every((requirement) => requirement.complete);
   const verificationCanRefresh = verificationStatus === "PENDING" && verificationProvider === "COMPLYCUBE";
   const verificationDisabled = !internalVerificationReady || requestingVerification || (
@@ -419,12 +426,21 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, Number(compliance?.score || 0)))}%`, backgroundColor: compliance?.score_color === "green" ? "#176B43" : compliance?.score_color === "yellow" ? "#B77900" : "#F97316" }]} /></View>
         {compliance?.provider_verification_pending ? <Text style={styles.copy}>Documents are complete; identity verification is still pending.</Text> : null}
       </View>
-      <View style={styles.externalVerificationRow}>
+      {verificationProvider === "COBALT" ? <View style={styles.externalVerificationRow}>
+        <Text style={styles.externalVerificationLabel}>External Verification</Text>
+        <View style={styles.verificationChecks}>
+          {cobaltVerificationChecks.map((check) => <View key={check.type} style={styles.verificationCheck}>
+            <Ionicons name={check.status === "PASSED" ? "checkbox" : "square-outline"} size={19} color={check.status === "PASSED" ? "#176B43" : "#64748B"} />
+            <Text style={styles.verificationCheckText}>{check.label}</Text>
+            <Text style={styles.verificationCheckStatus}>{formatOcrStatus(check.status)}</Text>
+          </View>)}
+        </View>
+      </View> : <View style={styles.externalVerificationRow}>
         <Text style={styles.externalVerificationLabel}>External Verification</Text>
         <View style={[styles.externalVerificationPill, styles[`externalVerification${verificationDisplay.tone.charAt(0).toUpperCase()}${verificationDisplay.tone.slice(1)}`]]}>
           <Text style={styles.externalVerificationPillText}>{verificationDisplay.label}</Text>
         </View>
-      </View>
+      </View>}
       <Text style={styles.copy}>This information is kept separately from your customer profile. Your driver license stays in RTC records and is not sent to ComplyCube.</Text>
       <Text style={styles.label}>This is for</Text>
       <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
@@ -440,6 +456,6 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   </View>;
 };
 
-const styles = StyleSheet.create({ container:{flex:1,backgroundColor:AppColor.white}, loading:{flex:1,alignItems:"center",justifyContent:"center"}, header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderColor:"#eee"}, title:{fontFamily:Mulish700,fontSize:21,color:AppColor.black}, content:{padding:20,paddingBottom:40}, complianceCard:{borderWidth:2,borderRadius:14,padding:16,marginBottom:18}, complianceHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12}, complianceCopy:{flex:1}, complianceTitle:{fontFamily:Mulish700,fontSize:20,color:AppColor.black,marginBottom:4}, scoreBadge:{width:58,height:58,borderRadius:29,alignItems:"center",justifyContent:"center",paddingHorizontal:4}, scoreText:{fontFamily:Mulish700,fontSize:14,color:AppColor.white}, progressTrack:{height:8,borderRadius:4,backgroundColor:"#E5E7EB",overflow:"hidden",marginBottom:12}, progressFill:{height:"100%",borderRadius:4}, externalVerificationRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",borderWidth:1,borderColor:"#e2e6ea",borderRadius:10,paddingHorizontal:14,paddingVertical:11,marginBottom:18}, externalVerificationLabel:{fontFamily:Mulish700,fontSize:14,color:AppColor.black}, externalVerificationPill:{borderRadius:14,paddingHorizontal:10,paddingVertical:5}, externalVerificationPillText:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, externalVerificationPassed:{backgroundColor:"#176B43"}, externalVerificationPending:{backgroundColor:"#B77900"}, externalVerificationReview:{backgroundColor:"#B77900"}, externalVerificationFailed:{backgroundColor:"#C53030"}, externalVerificationNotStarted:{backgroundColor:"#64748B"}, copy:{fontFamily:Mulish400,fontSize:14,lineHeight:21,color:"#5f6d7e",marginBottom:14}, label:{fontFamily:Mulish700,fontSize:15,color:AppColor.black,marginTop:8,marginBottom:8}, choiceRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:10}, choice:{borderWidth:1,borderColor:"#cbd2da",borderRadius:18,paddingHorizontal:12,paddingVertical:8}, choiceActive:{backgroundColor:AppColor.primary,borderColor:AppColor.primary}, choiceText:{fontFamily:Mulish400,fontSize:12,color:AppColor.black}, choiceTextActive:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, input:{backgroundColor:AppColor.white,marginBottom:12}, primary:{alignItems:"center",backgroundColor:AppColor.primary,borderRadius:10,padding:16,marginTop:8}, disabled:{opacity:0.5}, primaryText:{fontFamily:Mulish700,color:AppColor.white,fontSize:16}, documentCard:{borderWidth:1,borderColor:"#e2e6ea",borderRadius:12,padding:16,marginTop:20}, status:{fontFamily:Mulish700,color:AppColor.primary,marginBottom:12}, secondary:{alignItems:"center",borderWidth:1,borderColor:AppColor.primary,borderRadius:10,padding:14}, secondaryText:{fontFamily:Mulish700,color:AppColor.primary} });
+const styles = StyleSheet.create({ container:{flex:1,backgroundColor:AppColor.white}, loading:{flex:1,alignItems:"center",justifyContent:"center"}, header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderColor:"#eee"}, title:{fontFamily:Mulish700,fontSize:21,color:AppColor.black}, content:{padding:20,paddingBottom:40}, complianceCard:{borderWidth:2,borderRadius:14,padding:16,marginBottom:18}, complianceHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12}, complianceCopy:{flex:1}, complianceTitle:{fontFamily:Mulish700,fontSize:20,color:AppColor.black,marginBottom:4}, scoreBadge:{width:58,height:58,borderRadius:29,alignItems:"center",justifyContent:"center",paddingHorizontal:4}, scoreText:{fontFamily:Mulish700,fontSize:14,color:AppColor.white}, progressTrack:{height:8,borderRadius:4,backgroundColor:"#E5E7EB",overflow:"hidden",marginBottom:12}, progressFill:{height:"100%",borderRadius:4}, externalVerificationRow:{borderWidth:1,borderColor:"#e2e6ea",borderRadius:10,paddingHorizontal:14,paddingVertical:11,marginBottom:18,gap:10}, externalVerificationLabel:{fontFamily:Mulish700,fontSize:14,color:AppColor.black}, verificationChecks:{gap:8}, verificationCheck:{flexDirection:"row",alignItems:"center",gap:8}, verificationCheckText:{fontFamily:Mulish700,fontSize:13,color:AppColor.black,flex:1}, verificationCheckStatus:{fontFamily:Mulish400,fontSize:12,color:"#5f6d7e"}, externalVerificationPill:{alignSelf:"flex-end",borderRadius:14,paddingHorizontal:10,paddingVertical:5}, externalVerificationPillText:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, externalVerificationPassed:{backgroundColor:"#176B43"}, externalVerificationPending:{backgroundColor:"#B77900"}, externalVerificationReview:{backgroundColor:"#B77900"}, externalVerificationFailed:{backgroundColor:"#C53030"}, externalVerificationNotStarted:{backgroundColor:"#64748B"}, copy:{fontFamily:Mulish400,fontSize:14,lineHeight:21,color:"#5f6d7e",marginBottom:14}, label:{fontFamily:Mulish700,fontSize:15,color:AppColor.black,marginTop:8,marginBottom:8}, choiceRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:10}, choice:{borderWidth:1,borderColor:"#cbd2da",borderRadius:18,paddingHorizontal:12,paddingVertical:8}, choiceActive:{backgroundColor:AppColor.primary,borderColor:AppColor.primary}, choiceText:{fontFamily:Mulish400,fontSize:12,color:AppColor.black}, choiceTextActive:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, input:{backgroundColor:AppColor.white,marginBottom:12}, primary:{alignItems:"center",backgroundColor:AppColor.primary,borderRadius:10,padding:16,marginTop:8}, disabled:{opacity:0.5}, primaryText:{fontFamily:Mulish700,color:AppColor.white,fontSize:16}, documentCard:{borderWidth:1,borderColor:"#e2e6ea",borderRadius:12,padding:16,marginTop:20}, status:{fontFamily:Mulish700,color:AppColor.primary,marginBottom:12}, secondary:{alignItems:"center",borderWidth:1,borderColor:AppColor.primary,borderRadius:10,padding:14}, secondaryText:{fontFamily:Mulish700,color:AppColor.primary} });
 
 export default CoordinatorComplianceScreen;
