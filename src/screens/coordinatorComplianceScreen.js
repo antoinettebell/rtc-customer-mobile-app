@@ -79,6 +79,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(permission.camera);
   const [w9Session, setW9Session] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const formDirtyRef = useRef(false);
   const pendingW9EnvelopeRef = useRef(null);
   const completingW9Ref = useRef(false);
   const w9RecoveryRetryRef = useRef(null);
@@ -97,13 +98,17 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       if (typeof response?.data?.requires_payout_compliance === "boolean") {
         setRequiresPaidCompliance(response.data.requires_payout_compliance);
       }
-      setPartyType(next?.party_type || "INDIVIDUAL");
-      setLegalName(next?.legal_name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim());
-      setDbaName(next?.dba_name || "");
-      setEntityType(next?.entity_type || "LLC");
-      setRegistrationState(next?.registration_state || "");
-      setBusinessAddress(next?.business_address || "");
-      setTaxIdType(next?.tax_id_type || (next?.party_type === "BUSINESS" ? "EIN" : "SSN"));
+      // Refresh status while verification is pending, but never overwrite an
+      // in-progress compliance edit with the previously saved profile.
+      if (!formDirtyRef.current) {
+        setPartyType(next?.party_type || "INDIVIDUAL");
+        setLegalName(next?.legal_name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim());
+        setDbaName(next?.dba_name || "");
+        setEntityType(next?.entity_type || "LLC");
+        setRegistrationState(next?.registration_state || "");
+        setBusinessAddress(next?.business_address || "");
+        setTaxIdType(next?.tax_id_type || (next?.party_type === "BUSINESS" ? "EIN" : "SSN"));
+      }
     } catch (_error) {
       // The screen remains usable if a delayed deployment or retry briefly
       // prevents the optional summary from loading.
@@ -238,6 +243,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       if (!response?.success) throw new Error(response?.message || "Could not save compliance.");
       const savedProfile = response?.data?.profile || null;
       setProfile(savedProfile);
+      formDirtyRef.current = false;
       setTaxId("");
       if (selectedDocument) {
         const payload = new FormData();
@@ -422,7 +428,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <Text style={styles.copy}>This information is kept separately from your customer profile. Your driver license stays in RTC records and is not sent to ComplyCube.</Text>
       <Text style={styles.label}>This is for</Text>
       <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
-      <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} value={legalName} onChangeText={setLegalName} mode="outlined" style={styles.input} />
+      <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} value={legalName} onChangeText={(value) => { formDirtyRef.current = true; setLegalName(value); }} mode="outlined" style={styles.input} />
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><TextInput label="State of registration *" value={registrationState} onChangeText={setRegistrationState} autoCapitalize="characters" maxLength={2} mode="outlined" style={styles.input} /><TextInput label="Business address *" value={businessAddress} onChangeText={setBusinessAddress} mode="outlined" style={styles.input} /></> : null}
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
