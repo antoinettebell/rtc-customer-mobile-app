@@ -16,6 +16,7 @@ const StatePickerModal = ({
   disabled = false,
   error,
   label = "State *",
+  labelStyle,
   onChange,
   onChangeText,
   value,
@@ -29,7 +30,7 @@ const StatePickerModal = ({
 
   return (
     <View>
-      <Text style={styles.inputLabel}>{label}</Text>
+      <Text style={[styles.inputLabel, labelStyle]}>{label}</Text>
       <TouchableOpacity
         activeOpacity={0.7}
         disabled={disabled}

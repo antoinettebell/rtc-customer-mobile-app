@@ -5200,6 +5200,7 @@ const MarketplaceCreateEventScreen = ({ navigation, route }) => {
                         })
                       ) : (
                         <StatePickerModal
+                          labelStyle={styles.label}
                           value={form.event_state}
                           onChange={(value) =>
                             updateField("event_state", value)
