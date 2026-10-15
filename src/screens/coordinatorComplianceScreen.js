@@ -18,6 +18,7 @@ import {
   completeCoordinatorW9Signing_API,
   saveCoordinatorComplianceProfile_API,
   submitCoordinatorComplianceOcr_API,
+  startCoordinatorComplianceVerification_API,
   uploadCoordinatorComplianceDocument_API,
 } from "../apiFolder/appAPI";
 
@@ -73,6 +74,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [taxId, setTaxId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [requestingVerification, setRequestingVerification] = useState(false);
   const { checkAndRequestPermission: photosPermissionStatus } = usePermission(permission.photos);
   const { checkAndRequestPermission: cameraPermissionStatus } = usePermission(permission.camera);
   const [w9Session, setW9Session] = useState(null);
@@ -207,10 +209,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     );
     const hasActiveOcr = [document?.ocr_status, w9Session?.ocr_status]
       .some((status) => ["queued", "processing"].includes(status));
-    if (!hasActiveOcr) return undefined;
+    const hasPendingProviderVerification = compliance?.external_verification?.status === "PENDING";
+    if (!hasActiveOcr && !hasPendingProviderVerification) return undefined;
     const timer = setTimeout(() => load(), 5000);
     return () => clearTimeout(timer);
-  }, [load, partyType, profile?.documents, w9Session?.ocr_status]);
+  }, [compliance?.external_verification?.status, load, partyType, profile?.documents, w9Session?.ocr_status]);
 
   const save = async () => {
     if (!legalName.trim()) return Alert.alert("Compliance", "Legal name is required.");
@@ -255,6 +258,21 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     } catch (error) {
       Alert.alert("Compliance", error?.message || "Could not save compliance.");
     } finally { setSaving(false); }
+  };
+
+  const requestVerification = async () => {
+    setRequestingVerification(true);
+    try {
+      const response = await startCoordinatorComplianceVerification_API();
+      if (!response?.success) throw new Error(response?.message || "Could not request verification.");
+      setCompliance(response?.data?.compliance || compliance);
+      await load();
+      Alert.alert("Verification Requested", "Your identity verification request was submitted. The compliance status will update when the provider responds.");
+    } catch (error) {
+      Alert.alert("Verification", error?.message || "Unable to request identity verification.");
+    } finally {
+      setRequestingVerification(false);
+    }
   };
 
   const setBusinessLicenseImage = (image) => {
@@ -362,6 +380,13 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     }
   };
 
+  const verificationStatus = compliance?.external_verification?.status || "NOT_STARTED";
+  const internalVerificationReady = Boolean(requiresPaidCompliance) && (
+    compliance?.requirements || []
+  ).filter((requirement) => requirement.key !== "EXTERNAL_IDENTITY_VERIFICATION")
+    .every((requirement) => requirement.complete);
+  const verificationDisabled = !internalVerificationReady || requestingVerification || ["PENDING", "PASSED"].includes(verificationStatus);
+
   return <View style={styles.container}>
     <StatusBarManager backgroundColor={AppColor.white} barStyle="dark-content" />
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}><TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={28} color={AppColor.black} /></TouchableOpacity><Text style={styles.title}>Coordinator Compliance</Text><View style={{ width: 28 }} /></View>
@@ -387,10 +412,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>{partyType === "BUSINESS" ? "Required for a business coordinator." : "Required for an individual coordinator. This is retained by RTC only and OCR is matched to the legal name above."}</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getDocumentLifecycleText(uploadedDocument) : "Not uploaded"}</Text>{uploaded ? <Text style={styles.copy}>{getOcrStatusText(uploadedDocument)}</Text> : null}{uploadedDocument?.original_name ? <Text style={styles.copy}>Uploaded: {uploadedDocument.original_name}</Text> : null}{uploadedDocument?.file_url ? <TouchableOpacity onPress={() => openDocument(uploadedDocument.file_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}<TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
       <View style={styles.documentCard}><Text style={styles.label}>Signed W-9</Text><Text style={styles.copy}>{requiresPaidCompliance ? `Required before paid event capabilities can be verified. OCR compares it to the ${partyType === "BUSINESS" ? "business compliance name and EIN" : "legal name and SSN"}.` : "Optional while you only create free events. Select ticket sales or vendor fees in your profile to sign it."}</Text><Text style={styles.status}>{w9Session?.status === "SIGNED" ? getW9LifecycleText(w9Session) : w9Session?.status === "SENT" ? "Waiting for DocuSign signature confirmation" : "Not signed"}</Text>{w9Session?.status === "SIGNED" ? <Text style={styles.copy}>{getOcrStatusText(w9Session)}</Text> : null}{w9Session?.signed_document_url ? <TouchableOpacity onPress={() => openDocument(w9Session.signed_document_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}{requiresPaidCompliance ? <TouchableOpacity disabled={saving} onPress={startW9} style={styles.secondary}><Text style={styles.secondaryText}>{w9Session ? "Replace W-9" : "Sign W-9"}</Text></TouchableOpacity> : null}</View>
       <TouchableOpacity disabled={saving} onPress={save} style={styles.primary}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>Save & Run OCR</Text>}</TouchableOpacity>
+      <TouchableOpacity disabled={verificationDisabled} onPress={requestVerification} style={[styles.primary, verificationDisabled && styles.disabled]}>{requestingVerification ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.primaryText}>{verificationStatus === "PENDING" ? "Verification Pending" : verificationStatus === "PASSED" ? "Verification Complete" : "Verification"}</Text>}</TouchableOpacity>
     </ScrollView>
   </View>;
 };
 
-const styles = StyleSheet.create({ container:{flex:1,backgroundColor:AppColor.white}, loading:{flex:1,alignItems:"center",justifyContent:"center"}, header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderColor:"#eee"}, title:{fontFamily:Mulish700,fontSize:21,color:AppColor.black}, content:{padding:20,paddingBottom:40}, complianceCard:{borderWidth:2,borderRadius:14,padding:16,marginBottom:18}, complianceHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12}, complianceCopy:{flex:1}, complianceTitle:{fontFamily:Mulish700,fontSize:20,color:AppColor.black,marginBottom:4}, scoreBadge:{width:58,height:58,borderRadius:29,alignItems:"center",justifyContent:"center",paddingHorizontal:4}, scoreText:{fontFamily:Mulish700,fontSize:14,color:AppColor.white}, progressTrack:{height:8,borderRadius:4,backgroundColor:"#E5E7EB",overflow:"hidden",marginBottom:12}, progressFill:{height:"100%",borderRadius:4}, copy:{fontFamily:Mulish400,fontSize:14,lineHeight:21,color:"#5f6d7e",marginBottom:14}, label:{fontFamily:Mulish700,fontSize:15,color:AppColor.black,marginTop:8,marginBottom:8}, choiceRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:10}, choice:{borderWidth:1,borderColor:"#cbd2da",borderRadius:18,paddingHorizontal:12,paddingVertical:8}, choiceActive:{backgroundColor:AppColor.primary,borderColor:AppColor.primary}, choiceText:{fontFamily:Mulish400,fontSize:12,color:AppColor.black}, choiceTextActive:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, input:{backgroundColor:AppColor.white,marginBottom:12}, primary:{alignItems:"center",backgroundColor:AppColor.primary,borderRadius:10,padding:16,marginTop:8}, primaryText:{fontFamily:Mulish700,color:AppColor.white,fontSize:16}, documentCard:{borderWidth:1,borderColor:"#e2e6ea",borderRadius:12,padding:16,marginTop:20}, status:{fontFamily:Mulish700,color:AppColor.primary,marginBottom:12}, secondary:{alignItems:"center",borderWidth:1,borderColor:AppColor.primary,borderRadius:10,padding:14}, secondaryText:{fontFamily:Mulish700,color:AppColor.primary} });
+const styles = StyleSheet.create({ container:{flex:1,backgroundColor:AppColor.white}, loading:{flex:1,alignItems:"center",justifyContent:"center"}, header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",padding:20,borderBottomWidth:1,borderColor:"#eee"}, title:{fontFamily:Mulish700,fontSize:21,color:AppColor.black}, content:{padding:20,paddingBottom:40}, complianceCard:{borderWidth:2,borderRadius:14,padding:16,marginBottom:18}, complianceHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12}, complianceCopy:{flex:1}, complianceTitle:{fontFamily:Mulish700,fontSize:20,color:AppColor.black,marginBottom:4}, scoreBadge:{width:58,height:58,borderRadius:29,alignItems:"center",justifyContent:"center",paddingHorizontal:4}, scoreText:{fontFamily:Mulish700,fontSize:14,color:AppColor.white}, progressTrack:{height:8,borderRadius:4,backgroundColor:"#E5E7EB",overflow:"hidden",marginBottom:12}, progressFill:{height:"100%",borderRadius:4}, copy:{fontFamily:Mulish400,fontSize:14,lineHeight:21,color:"#5f6d7e",marginBottom:14}, label:{fontFamily:Mulish700,fontSize:15,color:AppColor.black,marginTop:8,marginBottom:8}, choiceRow:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:10}, choice:{borderWidth:1,borderColor:"#cbd2da",borderRadius:18,paddingHorizontal:12,paddingVertical:8}, choiceActive:{backgroundColor:AppColor.primary,borderColor:AppColor.primary}, choiceText:{fontFamily:Mulish400,fontSize:12,color:AppColor.black}, choiceTextActive:{fontFamily:Mulish700,fontSize:12,color:AppColor.white}, input:{backgroundColor:AppColor.white,marginBottom:12}, primary:{alignItems:"center",backgroundColor:AppColor.primary,borderRadius:10,padding:16,marginTop:8}, disabled:{opacity:0.5}, primaryText:{fontFamily:Mulish700,color:AppColor.white,fontSize:16}, documentCard:{borderWidth:1,borderColor:"#e2e6ea",borderRadius:12,padding:16,marginTop:20}, status:{fontFamily:Mulish700,color:AppColor.primary,marginBottom:12}, secondary:{alignItems:"center",borderWidth:1,borderColor:AppColor.primary,borderRadius:10,padding:14}, secondaryText:{fontFamily:Mulish700,color:AppColor.primary} });
 
 export default CoordinatorComplianceScreen;

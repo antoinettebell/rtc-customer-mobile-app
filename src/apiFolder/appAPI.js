@@ -11,6 +11,7 @@ import {
   COORDINATOR_COMPLIANCE_PROFILE,
   COORDINATOR_COMPLIANCE_DOCUMENTS,
   COORDINATOR_COMPLIANCE_OCR,
+  COORDINATOR_COMPLIANCE_VERIFICATION,
   MEDIA_UPLOAD,
   REMOVE_FAVORITE_FOODTRUCK,
   REVERSE_LOCATION,
@@ -230,6 +231,15 @@ export const uploadCoordinatorComplianceDocument_API = async (payload) => {
 export const submitCoordinatorComplianceOcr_API = async () => {
   try {
     const response = await apiClient.post(COORDINATOR_COMPLIANCE_OCR, {}, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const startCoordinatorComplianceVerification_API = async () => {
+  try {
+    const response = await apiClient.post(COORDINATOR_COMPLIANCE_VERIFICATION, {}, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
