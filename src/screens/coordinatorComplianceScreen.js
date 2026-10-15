@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TextInput } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ImagePicker from "react-native-image-crop-picker";
+import { pick, types } from "@react-native-documents/picker";
 import { useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Mulish400, Mulish700 } from "../utils/theme";
@@ -253,8 +254,20 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
 
   const selectDocument = async () => {
     try {
-      const image = await ImagePicker.openPicker({ mediaType: "photo", compressImageQuality: 0.9 });
       const documentType = partyType === "BUSINESS" ? "BUSINESS_LICENSE" : "DRIVER_LICENSE_FRONT";
+      if (partyType === "BUSINESS") {
+        const [file] = await pick({
+          type: [types.pdf, types.images],
+          allowMultiSelection: false,
+        });
+        setSelectedDocument({
+          uri: file.uri,
+          name: file.name || `${documentType}.pdf`,
+          type: file.type || "application/octet-stream",
+        });
+        return;
+      }
+      const image = await ImagePicker.openPicker({ mediaType: "photo", compressImageQuality: 0.9 });
       setSelectedDocument({
         uri: image.path,
         name: image.filename || `${documentType}.${String(image.mime || "").includes("heic") ? "heic" : "jpg"}`,
