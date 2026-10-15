@@ -202,6 +202,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         payload.append("file", selectedDocument);
         const uploadResponse = await uploadCoordinatorComplianceDocument_API(payload);
         if (!uploadResponse?.success) throw new Error(uploadResponse?.message || "Could not upload document.");
+        setProfile(uploadResponse?.data?.profile || savedProfile);
         setSelectedDocument(null);
       }
       const ocrResponse = await submitCoordinatorComplianceOcr_API();

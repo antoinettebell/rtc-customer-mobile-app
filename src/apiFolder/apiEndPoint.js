@@ -19,7 +19,10 @@ export const UPDATE_USER_DETAILS = "/user";
 export const UPDATE_PASSWORD = (user_id) => `/user/${user_id}/change-password`;
 
 // Event coordinator payout compliance
-export const COORDINATOR_COMPLIANCE = "/coordinator-compliance";
+// The backend status route is deliberately scoped to the authenticated
+// coordinator. Calling the collection root returned a 404 that the screen
+// previously swallowed, making saved compliance appear to disappear.
+export const COORDINATOR_COMPLIANCE = "/coordinator-compliance/me";
 export const COORDINATOR_COMPLIANCE_W9_SIGNING =
   "/coordinator-compliance/w9/signing";
 export const COORDINATOR_COMPLIANCE_W9_COMPLETE =
