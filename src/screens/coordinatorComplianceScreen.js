@@ -172,6 +172,24 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     };
   }, [clearW9RecoveryRetry, reconcilePendingW9]);
 
+  // Mirror vendor compliance: a queued OCR request refreshes until the
+  // Function callback replaces it with Completed, Revalidation Needed, or
+  // Manual Review. The coordinator screen must not require navigation away
+  // and back to reveal that result.
+  useEffect(() => {
+    const requiredDocumentType = partyType === "BUSINESS"
+      ? "BUSINESS_LICENSE"
+      : "DRIVER_LICENSE_FRONT";
+    const document = profile?.documents?.find(
+      (item) => item.document_type === requiredDocumentType,
+    );
+    const hasActiveOcr = [document?.ocr_status, w9Session?.ocr_status]
+      .some((status) => ["queued", "processing"].includes(status));
+    if (!hasActiveOcr) return undefined;
+    const timer = setTimeout(() => load(), 5000);
+    return () => clearTimeout(timer);
+  }, [load, partyType, profile?.documents, w9Session?.ocr_status]);
+
   const save = async () => {
     if (!legalName.trim()) return Alert.alert("Compliance", "Legal name is required.");
     if (partyType === "BUSINESS" && (!businessAddress.trim() || !registrationState.trim())) {
