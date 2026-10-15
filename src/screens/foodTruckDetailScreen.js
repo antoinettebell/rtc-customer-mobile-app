@@ -55,6 +55,7 @@ import {
   formatRatingWithSanitationGrade,
   getSanitationGrade,
 } from "../helpers/review.helper";
+import { getSocialMediaLinks } from "../helpers/socialMediaLinks.helper";
 import { showGuestSignupRequired } from "../helpers/guestAction.helper";
 
 const socialMediaIcons = {
@@ -288,6 +289,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     foodTruckDetail?.photos && foodTruckDetail?.photos?.length > 0
       ? foodTruckDetail?.photos
       : [];
+  const socialMediaLinks = getSocialMediaLinks(foodTruckDetail?.socialMedia);
 
   const handleTabPress = (idx) => {
     setSelectedTab(idx);
@@ -980,7 +982,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
               {/* Social Media Icons */}
               <View style={styles.socialRow}>
-                {foodTruckDetail?.socialMedia?.map((social, index) => {
+                {socialMediaLinks.map((social, index) => {
                   const iconSource = socialMediaIcons[social.mediaType];
                   if (!iconSource) return null;
 
