@@ -269,7 +269,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const requestVerification = async () => {
     setRequestingVerification(true);
     try {
-      const response = await startCoordinatorComplianceVerification_API();
+      const response = await startCoordinatorComplianceVerification_API(
+        cobaltTinCanRetry ? "TIN" : (cobaltStateCanRetry || cobaltStateCanRefresh ? "SOS" : null),
+      );
       if (!response?.success) throw new Error(response?.message || "Could not request verification.");
       setCompliance(response?.data?.compliance || compliance);
       await load();

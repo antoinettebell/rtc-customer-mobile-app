@@ -237,9 +237,9 @@ export const submitCoordinatorComplianceOcr_API = async () => {
   }
 };
 
-export const startCoordinatorComplianceVerification_API = async () => {
+export const startCoordinatorComplianceVerification_API = async (check_type = null) => {
   try {
-    const response = await apiClient.post(COORDINATOR_COMPLIANCE_VERIFICATION, {}, { skipToken: false });
+    const response = await apiClient.post(COORDINATOR_COMPLIANCE_VERIFICATION, check_type ? { check_type } : {}, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
