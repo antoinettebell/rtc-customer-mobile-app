@@ -263,6 +263,11 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
           <Text style={styles.meta}>
             Amount due: {formatMoney(payment?.total_amount || 0)}
           </Text>
+          {isFinalEventPayment && Number(payment?.fee_amount || 0) > 0 ? (
+            <Text style={styles.meta}>
+              POS fee ({(Number(payment?.fee_rate || 0) * 100).toFixed(1)}%): {formatMoney(payment.fee_amount)}
+            </Text>
+          ) : null}
           <Text style={styles.meta}>
             Type: {payment?.payment_type?.replaceAll("_", " ") || "Marketplace Payment"}
           </Text>
