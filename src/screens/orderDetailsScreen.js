@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
   Pressable,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -23,7 +24,10 @@ import {
 } from "../utils/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppHeader from "../components/AppHeader";
-import { getOrderByOrderId_API } from "../apiFolder/appAPI";
+import {
+  getOrderByOrderId_API,
+  submitCustomerOrderSupportIssue_API,
+} from "../apiFolder/appAPI";
 import {
   orderCurrentStatusNames,
   orderStatusStrings,
@@ -58,6 +62,8 @@ const OrderDetailsScreen = ({ navigation, route }) => {
   const [error, setError] = useState(null);
   const [order, setOrder] = useState(null);
   const [locationTimeAdvanceData, setLocationTimeAdvanceData] = useState(null);
+  const [showHelpOptions, setShowHelpOptions] = useState(false);
+  const [helpSubmitting, setHelpSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails({ type: "init" });
@@ -97,6 +103,43 @@ const OrderDetailsScreen = ({ navigation, route }) => {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const submitHelpIssue = (issueType, label) => {
+    Alert.alert(
+      "Send support request?",
+      `${label}. We'll review this order and let you know the outcome.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send Request",
+          onPress: async () => {
+            setHelpSubmitting(true);
+            try {
+              const response = await submitCustomerOrderSupportIssue_API(
+                order?._id,
+                issueType
+              );
+              setShowHelpOptions(false);
+              Alert.alert(
+                "Request received",
+                response?.data?.message ||
+                  "Your request has been sent to Support for review."
+              );
+              await fetchOrderDetails({ type: "refresh" });
+            } catch (err) {
+              Alert.alert(
+                "Unable to send request",
+                err?.message ||
+                  "Please try again or contact Support if the problem continues."
+              );
+            } finally {
+              setHelpSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -791,18 +834,67 @@ const OrderDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.cancelBtnText}>Cancel Order</Text>
             </TouchableOpacity>
           ) : (
-            <View
-              style={{
-                height: 48,
-                borderRadius: 5,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: AppColor.primary + 20,
-              }}
-            >
-              <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
-                {getDisplayOrderStatus(order)}
-              </Text>
+            <View style={styles.completedOrderActions}>
+              <View style={styles.orderStatusContainer}>
+                <Text style={[styles.cancelBtnText, { color: AppColor.black }]}>
+                  {getDisplayOrderStatus(order)}
+                </Text>
+              </View>
+              {!isRefundedOrder(order) && (
+                <>
+                  <TouchableOpacity
+                    style={styles.helpButton}
+                    onPress={() => setShowHelpOptions((current) => !current)}
+                    disabled={helpSubmitting}
+                    accessibilityRole="button"
+                    accessibilityLabel="Get help with this order"
+                  >
+                    {helpSubmitting ? (
+                      <ActivityIndicator color={AppColor.primary} />
+                    ) : (
+                      <Text style={styles.helpButtonText}>Help with this order</Text>
+                    )}
+                  </TouchableOpacity>
+                  {showHelpOptions && (
+                    <View style={styles.helpOptions}>
+                      <Text style={styles.helpOptionsTitle}>What happened?</Text>
+                      <TouchableOpacity
+                        style={styles.helpOptionButton}
+                        onPress={() =>
+                          submitHelpIssue(
+                            "FOOD_NOT_DELIVERED",
+                            "My food never arrived"
+                          )
+                        }
+                        disabled={helpSubmitting}
+                      >
+                        <Text style={styles.helpOptionText}>My food never arrived</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.helpOptionButton}
+                        onPress={() =>
+                          submitHelpIssue(
+                            "FOOD_QUALITY",
+                            "There was a food quality problem"
+                          )
+                        }
+                        disabled={helpSubmitting}
+                      >
+                        <Text style={styles.helpOptionText}>Food quality problem</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.helpOptionButton}
+                        onPress={() =>
+                          submitHelpIssue("OTHER", "I need help with this order")
+                        }
+                        disabled={helpSubmitting}
+                      >
+                        <Text style={styles.helpOptionText}>Something else</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              )}
             </View>
           )}
         </View>
@@ -929,6 +1021,50 @@ const styles = StyleSheet.create({
   footerContainer: {
     padding: 16,
     marginBottom: 20,
+  },
+  completedOrderActions: {
+    gap: 10,
+  },
+  orderStatusContainer: {
+    height: 48,
+    borderRadius: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: AppColor.primary + 20,
+  },
+  helpButton: {
+    height: 48,
+    borderRadius: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: AppColor.primary,
+  },
+  helpButtonText: {
+    color: AppColor.primary,
+    fontFamily: Mulish700,
+  },
+  helpOptions: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  helpOptionsTitle: {
+    fontFamily: Mulish700,
+    color: AppColor.black,
+  },
+  helpOptionButton: {
+    borderWidth: 1,
+    borderColor: AppColor.border,
+    borderRadius: 5,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  helpOptionText: {
+    fontFamily: Mulish600,
+    color: AppColor.black,
   },
   totalAmountRow: {
     flexDirection: "row",

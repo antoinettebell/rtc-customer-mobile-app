@@ -30,6 +30,7 @@ import {
   GET_ALL_COUPON_CODES,
   VALIDATE_COUPON_CODE,
   CANCEL_FOOD_ORDER,
+  CUSTOMER_ORDER_SUPPORT_ISSUE,
   SET_FCM_TOKEN,
   UPDATE_FCM_TOKEN,
   REMOVE_FCM_TOKEN,
@@ -595,6 +596,24 @@ export const cancelFoodOrder_API = async (orderId, payload) => {
   try {
     const URL = `${CANCEL_FOOD_ORDER}/${orderId}`;
     const response = await apiClient.put(URL, payload, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+// The server derives the refund amount and original transaction from the
+// authenticated customer's order; the app supplies only the issue category.
+export const submitCustomerOrderSupportIssue_API = async (
+  orderId,
+  issueType
+) => {
+  try {
+    const response = await apiClient.post(
+      CUSTOMER_ORDER_SUPPORT_ISSUE(orderId),
+      { issueType },
+      { skipToken: false }
+    );
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
