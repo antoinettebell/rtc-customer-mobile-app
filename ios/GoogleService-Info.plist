@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.rounddacorner.dev.customer</string>
+	<string>com.ea.rtcuser</string>
 	<key>PROJECT_ID</key>
 	<string>rtccustomermobile</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:359273774611:ios:9136895929c262dddfc9e6</string>
+	<string>1:359273774611:ios:1fb895e473261f52dfc9e6</string>
 </dict>
 </plist>
