@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Mulish400, Mulish700 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
+import StatePickerModal from "../components/StatePickerModal";
 import usePermission from "../hooks/usePermission";
 import { permission } from "../helpers/permission.helper";
 import {
@@ -226,8 +227,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
 
   const save = async () => {
     if (!legalName.trim()) return Alert.alert("Compliance", "Legal name is required.");
-    if (partyType === "BUSINESS" && (!businessAddress.trim() || !registrationState.trim())) {
-      return Alert.alert("Compliance", "Business address and registration state are required.");
+    if (requiresPaidCompliance && !businessAddress.trim()) {
+      return Alert.alert("Compliance", "Mailing address is required for payout compliance.");
+    }
+    if (partyType === "BUSINESS" && !registrationState.trim()) {
+      return Alert.alert("Compliance", "Registration state is required for a business coordinator.");
     }
     if (taxId && taxId.replace(/\D/g, "").length !== 9) return Alert.alert("Compliance", "Enter a nine-digit EIN or SSN.");
     if (requiresPaidCompliance && !taxId && !profile?.tax_id_masked) {
@@ -241,7 +245,9 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         dba_name: dbaName.trim(),
         entity_type: partyType === "BUSINESS" ? entityType : null,
         registration_state: partyType === "BUSINESS" ? registrationState.trim().toUpperCase() : null,
-        business_address: partyType === "BUSINESS" ? businessAddress.trim() : null,
+        // Kept on the isolated coordinator-compliance profile, not on the
+        // customer's delivery/discovery address.
+        business_address: businessAddress.trim() || null,
         ...(taxId ? { tax_id_type: taxIdType, tax_id: taxId.replace(/\D/g, "") } : {}),
       });
       if (!response?.success) throw new Error(response?.message || "Could not save compliance.");
@@ -457,7 +463,8 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <Text style={styles.label}>This is for</Text>
       <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
       <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} placeholder={`Legal Name must be exactly as printed on the ${partyType === "BUSINESS" ? "Business License" : "Driver License"}.`} value={legalName} onChangeText={(value) => { formDirtyRef.current = true; setLegalName(value); }} mode="outlined" style={styles.input} />
-      {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><TextInput label="State of registration *" value={registrationState} onChangeText={(value) => setRegistrationState(normalizeStateAbbreviation(value))} autoCapitalize="characters" maxLength={2} mode="outlined" style={styles.input} /><TextInput label="Business address *" value={businessAddress} onChangeText={setBusinessAddress} mode="outlined" style={styles.input} /></> : null}
+      {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><View style={{ marginTop: 16 }}><StatePickerModal label="State of registration *" value={registrationState} onChange={(value) => { formDirtyRef.current = true; setRegistrationState(value); }} /></View></> : null}
+      <TextInput label={requiresPaidCompliance ? "Mailing Address *" : "Mailing Address"} value={businessAddress} onChangeText={(value) => { formDirtyRef.current = true; setBusinessAddress(value); }} mode="outlined" style={styles.input} />
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
       <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>Required before paid event capabilities can be verified.</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getDocumentLifecycleText(uploadedDocument) : "Not uploaded"}</Text>{uploaded ? <Text style={styles.copy}>{getOcrStatusText(uploadedDocument)}</Text> : null}{uploadedDocument?.original_name ? <Text style={styles.copy}>Uploaded: {uploadedDocument.original_name}</Text> : null}{uploadedDocument?.file_url ? <TouchableOpacity onPress={() => openDocument(uploadedDocument.file_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}<TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
