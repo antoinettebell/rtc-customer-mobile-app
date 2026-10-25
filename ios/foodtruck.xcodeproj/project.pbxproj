@@ -465,7 +465,7 @@
 				APP_DISPLAY_NAME = "Round Da’ Corner Eats";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = foodtruck/foodtruck.entitlements;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 5G26GFF98P;
 				INFOPLIST_FILE = foodtruck/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
