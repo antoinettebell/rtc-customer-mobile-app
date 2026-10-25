@@ -295,6 +295,34 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     } finally { setSaving(false); }
   };
 
+  const selectPartyType = (nextType) => {
+    if (nextType === partyType) return;
+    const nextLabel = nextType === "BUSINESS" ? "Business" : "Individual";
+    Alert.alert(
+      "Switch account type?",
+      `Switching to ${nextLabel} clears incompatible unsaved tax-ID details. When you tap Save & Run OCR, a prior 100% compliant legal payee is archived; incomplete legal-payee information is permanently deleted.`,
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Switch",
+          style: "destructive",
+          onPress: () => {
+            formDirtyRef.current = true;
+            setPartyType(nextType);
+            setTaxIdType(nextType === "BUSINESS" ? "EIN" : "SSN");
+            setTaxId("");
+            setSelectedDocument(null);
+            if (nextType === "INDIVIDUAL") {
+              setDbaName("");
+              setEntityType("LLC");
+              setRegistrationState("");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const requestVerification = async () => {
     setRequestingVerification(true);
     try {
@@ -480,7 +508,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         </View>
       </View>}
       <Text style={styles.label}>This is for</Text>
-      <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
+      <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => selectPartyType(value)}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
       <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} placeholder={`Legal Name must be exactly as printed on the ${partyType === "BUSINESS" ? "Business License" : "Driver License"}.`} value={legalName} onChangeText={(value) => { formDirtyRef.current = true; setLegalName(value); }} mode="outlined" style={styles.input} />
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><View style={{ marginTop: 16 }}><StatePickerModal label="State of registration *" value={registrationState} onChange={(value) => { formDirtyRef.current = true; setRegistrationState(value); }} /></View></> : null}
       <Text style={styles.label}>Mailing Address</Text>
