@@ -74,7 +74,11 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
   const [dbaName, setDbaName] = useState("");
   const [entityType, setEntityType] = useState("LLC");
   const [registrationState, setRegistrationState] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
+  const [mailingAddressLine1, setMailingAddressLine1] = useState("");
+  const [mailingAddressLine2, setMailingAddressLine2] = useState("");
+  const [mailingCity, setMailingCity] = useState("");
+  const [mailingState, setMailingState] = useState("");
+  const [mailingPostal, setMailingPostal] = useState("");
   const [taxIdType, setTaxIdType] = useState("SSN");
   const [taxId, setTaxId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -111,7 +115,12 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         setDbaName(next?.dba_name || "");
         setEntityType(next?.entity_type || "LLC");
         setRegistrationState(normalizeStateAbbreviation(next?.registration_state));
-        setBusinessAddress(next?.business_address || "");
+        const mailingAddress = next?.mailing_address || {};
+        setMailingAddressLine1(mailingAddress.address_line1 || "");
+        setMailingAddressLine2(mailingAddress.address_line2 || "");
+        setMailingCity(mailingAddress.city || "");
+        setMailingState(normalizeStateAbbreviation(mailingAddress.state));
+        setMailingPostal(mailingAddress.postal || "");
         setTaxIdType(next?.tax_id_type || (next?.party_type === "BUSINESS" ? "EIN" : "SSN"));
       }
     } catch (_error) {
@@ -227,8 +236,8 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
 
   const save = async () => {
     if (!legalName.trim()) return Alert.alert("Compliance", "Legal name is required.");
-    if (requiresPaidCompliance && !businessAddress.trim()) {
-      return Alert.alert("Compliance", "Mailing address is required for payout compliance.");
+    if (requiresPaidCompliance && (!mailingAddressLine1.trim() || !mailingCity.trim() || !mailingState || !mailingPostal.trim())) {
+      return Alert.alert("Compliance", "Mailing address, city, state, and ZIP code are required for payout compliance.");
     }
     if (partyType === "BUSINESS" && !registrationState.trim()) {
       return Alert.alert("Compliance", "Registration state is required for a business coordinator.");
@@ -247,7 +256,17 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
         registration_state: partyType === "BUSINESS" ? registrationState.trim().toUpperCase() : null,
         // Kept on the isolated coordinator-compliance profile, not on the
         // customer's delivery/discovery address.
-        business_address: businessAddress.trim() || null,
+        ...([mailingAddressLine1, mailingAddressLine2, mailingCity, mailingState, mailingPostal]
+          .some((value) => String(value || "").trim()) ? {
+            mailing_address: {
+              address_line1: mailingAddressLine1.trim() || null,
+              address_line2: mailingAddressLine2.trim() || null,
+              city: mailingCity.trim() || null,
+              state: mailingState || null,
+              postal: mailingPostal.trim() || null,
+              country: "US",
+            },
+          } : {}),
         ...(taxId ? { tax_id_type: taxIdType, tax_id: taxId.replace(/\D/g, "") } : {}),
       });
       if (!response?.success) throw new Error(response?.message || "Could not save compliance.");
@@ -464,7 +483,13 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       <View style={styles.choiceRow}>{["INDIVIDUAL", "BUSINESS"].map((value) => <TouchableOpacity key={value} style={[styles.choice, partyType === value && styles.choiceActive]} onPress={() => { setPartyType(value); setTaxIdType(value === "BUSINESS" ? "EIN" : "SSN"); }}><Text style={partyType === value ? styles.choiceTextActive : styles.choiceText}>{value === "INDIVIDUAL" ? "An Individual" : "A Business"}</Text></TouchableOpacity>)}</View>
       <TextInput label={partyType === "BUSINESS" ? "Legal business name *" : "Legal name *"} placeholder={`Legal Name must be exactly as printed on the ${partyType === "BUSINESS" ? "Business License" : "Driver License"}.`} value={legalName} onChangeText={(value) => { formDirtyRef.current = true; setLegalName(value); }} mode="outlined" style={styles.input} />
       {partyType === "BUSINESS" ? <><TextInput label="DBA (optional)" value={dbaName} onChangeText={setDbaName} mode="outlined" style={styles.input} /><Text style={styles.label}>Business type</Text><View style={styles.choiceRow}>{entityTypes.map((value) => <TouchableOpacity key={value} style={[styles.choice, entityType === value && styles.choiceActive]} onPress={() => setEntityType(value)}><Text style={entityType === value ? styles.choiceTextActive : styles.choiceText}>{value.replace(/_/g, " ")}</Text></TouchableOpacity>)}</View><View style={{ marginTop: 16 }}><StatePickerModal label="State of registration *" value={registrationState} onChange={(value) => { formDirtyRef.current = true; setRegistrationState(value); }} /></View></> : null}
-      <TextInput label={requiresPaidCompliance ? "Mailing Address *" : "Mailing Address"} value={businessAddress} onChangeText={(value) => { formDirtyRef.current = true; setBusinessAddress(value); }} mode="outlined" style={styles.input} />
+      <Text style={styles.label}>Mailing Address</Text>
+      <Text style={styles.copy}>This address is used only for coordinator compliance and payout records; it does not change customer delivery or discovery addresses.</Text>
+      <TextInput label={requiresPaidCompliance ? "Address Line 1 *" : "Address Line 1"} value={mailingAddressLine1} onChangeText={(value) => { formDirtyRef.current = true; setMailingAddressLine1(value); }} mode="outlined" style={styles.input} />
+      <TextInput label="Address Line 2" value={mailingAddressLine2} onChangeText={(value) => { formDirtyRef.current = true; setMailingAddressLine2(value); }} mode="outlined" style={styles.input} />
+      <TextInput label={requiresPaidCompliance ? "City *" : "City"} value={mailingCity} onChangeText={(value) => { formDirtyRef.current = true; setMailingCity(value); }} mode="outlined" style={styles.input} />
+      <View style={{ marginBottom: 12 }}><StatePickerModal label={requiresPaidCompliance ? "Mailing State *" : "Mailing State"} value={mailingState} onChange={(value) => { formDirtyRef.current = true; setMailingState(value); }} /></View>
+      <TextInput label={requiresPaidCompliance ? "ZIP Code *" : "ZIP Code"} value={mailingPostal} onChangeText={(value) => { formDirtyRef.current = true; setMailingPostal(value); }} keyboardType="numbers-and-punctuation" mode="outlined" style={styles.input} />
       <TextInput label={requiresPaidCompliance ? `${taxIdType} *` : taxIdType} value={taxId} onChangeText={setTaxId} keyboardType="number-pad" secureTextEntry mode="outlined" style={styles.input} />
       {profile?.tax_id_masked ? <Text style={styles.copy}>Saved tax ID: {profile.tax_id_masked}</Text> : null}
       <View style={styles.documentCard}><Text style={styles.label}>{partyType === "BUSINESS" ? "Business License" : "Driver License — Front Only"}</Text><Text style={styles.copy}>Required before paid event capabilities can be verified.</Text><Text style={styles.status}>{selectedDocument ? `Ready to upload: ${selectedDocument.name}` : uploaded ? getDocumentLifecycleText(uploadedDocument) : "Not uploaded"}</Text>{uploaded ? <Text style={styles.copy}>{getOcrStatusText(uploadedDocument)}</Text> : null}{uploadedDocument?.original_name ? <Text style={styles.copy}>Uploaded: {uploadedDocument.original_name}</Text> : null}{uploadedDocument?.file_url ? <TouchableOpacity onPress={() => openDocument(uploadedDocument.file_url)} style={styles.secondary}><Text style={styles.secondaryText}>Open</Text></TouchableOpacity> : null}<TouchableOpacity disabled={saving} onPress={selectDocument} style={styles.secondary}><Text style={styles.secondaryText}>{uploaded || selectedDocument ? "Replace Document" : "Choose Document"}</Text></TouchableOpacity></View>
