@@ -83,7 +83,7 @@ android {
         applicationId "com.rounddacorner.dev.customer"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 81
+        versionCode 82
         versionName "1.8"
     }
     flavorDimensions "distribution"
