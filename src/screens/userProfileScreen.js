@@ -1279,6 +1279,15 @@ const UserProfileScreen = ({ navigation, route }) => {
               >
                 <Text style={styles.coordinatorSaveText}>Open Event Coordinator Compliance</Text>
               </TouchableOpacity>
+              {user?.eventCoordinatorPayoutEligibility === "ENABLED" ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.coordinatorSaveButton}
+                  onPress={() => navigation.navigate("coordinatorBankDetailsScreen")}
+                >
+                  <Text style={styles.coordinatorSaveText}>Bank Details</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : null}
 

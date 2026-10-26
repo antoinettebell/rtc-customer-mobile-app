@@ -12,6 +12,7 @@ import {
   COORDINATOR_COMPLIANCE_DOCUMENTS,
   COORDINATOR_COMPLIANCE_OCR,
   COORDINATOR_COMPLIANCE_VERIFICATION,
+  COORDINATOR_BANK_DETAIL,
   MEDIA_UPLOAD,
   REMOVE_FAVORITE_FOODTRUCK,
   REVERSE_LOCATION,
@@ -179,6 +180,24 @@ export const getCoordinatorCompliance_API = async () => {
     const response = await apiClient.get(COORDINATOR_COMPLIANCE, {
       skipToken: false,
     });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const getCoordinatorBankDetail_API = async () => {
+  try {
+    const response = await apiClient.get(COORDINATOR_BANK_DETAIL, { skipToken: false });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const saveCoordinatorBankDetail_API = async (payload) => {
+  try {
+    const response = await apiClient.post(COORDINATOR_BANK_DETAIL, payload, { skipToken: false });
     return response?.data;
   } catch (error) {
     throw error?.response?.data || error;
