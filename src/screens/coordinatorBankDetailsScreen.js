@@ -117,7 +117,7 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
     if (missing) return Alert.alert("Bank Details", `${missing[0]} is required.`);
     const routingNumber = digits(form.routingNumber);
     if (!isWallet && routingNumber.length !== 9) return Alert.alert("Bank Details", "Routing number must be 9 digits.");
-    if (form.phoneNumber && !/^\+?[0-9() .-]{7,25}$/.test(form.phoneNumber.trim())) {
+    if (!/^\+?[0-9() .-]{7,25}$/.test(form.phoneNumber.trim())) {
       return Alert.alert("Bank Details", "Enter a valid phone number.");
     }
     const accountNumber = isMaskedAccount(form.accountNumber)
@@ -199,7 +199,7 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
       {loading ? <View style={styles.loading}><ActivityIndicator size="large" color={AppColor.primary} /></View> : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]} keyboardShouldPersistTaps="handled">
           <Text style={styles.copy}>These details are used only for approved Event Coordinator payouts.</Text>
-          {input("Phone Number", "phoneNumber", { placeholder: "Phone number for payment questions", keyboardType: "phone-pad" })}
+          {input("Phone Number *", "phoneNumber", { placeholder: "Phone number for payment questions", keyboardType: "phone-pad" })}
           <Text style={styles.label}>Payment Method *</Text>
           <View style={styles.choiceRow}>{PAYMENT_METHODS.map((method) => <TouchableOpacity key={method.value} style={[styles.choice, form.paymentMethod === method.value && styles.choiceActive]} onPress={() => set("paymentMethod", method.value)}><Text style={form.paymentMethod === method.value ? styles.choiceTextActive : styles.choiceText}>{method.label}</Text></TouchableOpacity>)}</View>
           {WALLET_METHODS.includes(form.paymentMethod) ? <>
