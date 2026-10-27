@@ -46,6 +46,14 @@ setup_permissions([
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Ensure Xcode Release archives use the production endpoint instead of the
+# development `.env` file. The React Native config pod reads this setting
+# while the archive is compiled.
+ENVFILES = {
+  'Debug' => '$(PODS_ROOT)/../../.env.debug',
+  'Release' => '$(PODS_ROOT)/../../.env.production',
+}
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -84,6 +92,12 @@ target 'foodtruck' do
     end
 
     installer.pods_project.targets.each do |pod_target|
+      if pod_target.name == 'react-native-config'
+        pod_target.build_configurations.each do |build_configuration|
+          build_configuration.build_settings['ENVFILE'] = ENVFILES[build_configuration.name]
+        end
+      end
+
       next unless ['React-jsi', 'ExpoModulesJSI'].include?(pod_target.name)
 
       pod_target.build_configurations.each do |build_configuration|
