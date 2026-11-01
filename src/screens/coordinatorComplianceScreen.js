@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ImagePicker from "react-native-image-crop-picker";
 import { pick, types } from "@react-native-documents/picker";
 import { RESULTS } from "react-native-permissions";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AppColor, Mulish400, Mulish700 } from "../utils/theme";
 import StatusBarManager from "../components/StatusBarManager";
@@ -22,6 +22,7 @@ import {
   startCoordinatorComplianceVerification_API,
   uploadCoordinatorComplianceDocument_API,
 } from "../apiFolder/appAPI";
+import { setUser } from "../redux/slices/userSlice";
 
 const entityTypes = ["SOLE_PROPRIETOR", "LLC", "CORPORATION", "PARTNERSHIP", "S_CORPORATION"];
 const W9_SIGNING_STORAGE_KEY = "coordinator-compliance-w9-envelope";
@@ -66,6 +67,7 @@ const getW9LifecycleText = (session = {}) => {
 
 const CoordinatorComplianceScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.userReducer);
   const [profile, setProfile] = useState(null);
   const [compliance, setCompliance] = useState(null);
@@ -107,6 +109,19 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
       if (typeof response?.data?.requires_payout_compliance === "boolean") {
         setRequiresPaidCompliance(response.data.requires_payout_compliance);
       }
+      // The backend reconciles this value after OCR/provider callbacks. Keep
+      // the signed-in user state synchronized with the polling response so
+      // the profile and Bank Details entry update without an app restart.
+      const payoutEligibility = response?.data?.payout_eligibility;
+      if (
+        ["ENABLED", "DISABLED"].includes(payoutEligibility) &&
+        user?.eventCoordinatorPayoutEligibility !== payoutEligibility
+      ) {
+        dispatch(setUser({
+          ...user,
+          eventCoordinatorPayoutEligibility: payoutEligibility,
+        }));
+      }
       // Refresh status while verification is pending, but never overwrite an
       // in-progress compliance edit with the previously saved profile.
       if (!formDirtyRef.current) {
@@ -129,7 +144,7 @@ const CoordinatorComplianceScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.firstName, user?.lastName]);
+  }, [dispatch, user]);
 
   useEffect(() => { load(); }, [load]);
 
