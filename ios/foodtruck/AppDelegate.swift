@@ -20,10 +20,6 @@ final class RTCApplePayButtonManager: RCTViewManager {
 }
 
 private final class RTCApplePayButtonView: UIView {
-  @objc var accessibilityLabel: NSString = "Apple Pay" {
-    didSet { applePayButton.accessibilityLabel = accessibilityLabel as String }
-  }
-
   @objc var buttonType: NSString = "plain" {
     didSet { replaceButton() }
   }
@@ -59,7 +55,6 @@ private final class RTCApplePayButtonView: UIView {
       applePayButton.topAnchor.constraint(equalTo: topAnchor),
       applePayButton.bottomAnchor.constraint(equalTo: bottomAnchor)
     ])
-    applePayButton.accessibilityLabel = accessibilityLabel as String
     applePayButton.isEnabled = !disabled
   }
 
