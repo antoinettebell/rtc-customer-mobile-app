@@ -19,6 +19,7 @@ import {
 } from "@rnw-community/react-native-payments";
 import AppHeader from "../components/AppHeader";
 import StatusBarManager from "../components/StatusBarManager";
+import ApplePayButton from "../components/ApplePayButton";
 import Config from "../config/env";
 import { AppColor } from "../utils/theme";
 import {
@@ -299,16 +300,12 @@ const MarketplacePaymentScreen = ({ navigation, route }) => {
               </View>
             ) : null}
             {Platform.OS === "ios" ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.button}
+              <ApplePayButton
+                buttonType={payment?.payment_type === "COORDINATOR_AWARD_FEE" ? "book" : "checkout"}
                 disabled={!!paymentLoading}
                 onPress={() => payWithWallet("applePay")}
-              >
-                <Text style={styles.buttonText}>
-                  {paymentLoading === "applePay" ? "Processing..." : "Apple Pay"}
-                </Text>
-              </TouchableOpacity>
+                style={styles.button}
+              />
             ) : (
               <TouchableOpacity
                 activeOpacity={0.7}

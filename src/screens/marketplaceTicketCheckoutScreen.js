@@ -20,6 +20,7 @@ import {
 } from "@rnw-community/react-native-payments";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import AppHeader from "../components/AppHeader";
+import ApplePayButton from "../components/ApplePayButton";
 import StatePickerModal from "../components/StatePickerModal";
 import StatusBarManager from "../components/StatusBarManager";
 import Config from "../config/env";
@@ -405,9 +406,18 @@ const MarketplaceTicketCheckoutScreen = ({ navigation, route }) => {
         />
       </View>
       <Text style={styles.meta}>{event?.is_free_event ? "Free registration confirms your ticket without a payment wallet." : "A 3.5% processing fee and applicable sales tax are shown in the wallet before payment."}</Text>
-      <TouchableOpacity style={[styles.button, loading && { opacity: 0.6 }]} disabled={loading} onPress={purchase}>
-        {loading ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.buttonText}>{event?.is_free_event ? "Complete Free Registration" : `Continue to ${Platform.OS === "ios" ? "Apple Pay" : "Google Pay"}`}</Text>}
-      </TouchableOpacity>
+      {event?.is_free_event || Platform.OS !== "ios" ? (
+        <TouchableOpacity style={[styles.button, loading && { opacity: 0.6 }]} disabled={loading} onPress={purchase}>
+          {loading ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.buttonText}>{event?.is_free_event ? "Complete Free Registration" : "Continue to Google Pay"}</Text>}
+        </TouchableOpacity>
+      ) : (
+        <ApplePayButton
+          buttonType="buy"
+          disabled={loading}
+          onPress={purchase}
+          style={styles.button}
+        />
+      )}
     </ScrollView>
   </View>;
 };

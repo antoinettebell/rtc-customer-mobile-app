@@ -41,7 +41,7 @@ import { clearCurrentOrder } from "../redux/slices/orderSlice";
 import moment from "moment";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
-import Apple_Pay_Mark from "../assets/images/Apple_Pay_Mark.svg";
+import ApplePayButton from "../components/ApplePayButton";
 import Tooltip from "react-native-walkthrough-tooltip";
 
 const APPLE_PAY_METHOD_DATA = {
@@ -586,19 +586,12 @@ const PaymentProcessingScreen = ({ navigation, route }) => {
                 onlinePyamentApplicablePlanList.includes(
                   foodTruckDetail?.plan?.slug,
                 ) && (
-                  <TouchableOpacity
+                  <ApplePayButton
+                    buttonType="order"
+                    disabled={paymentLoading === "applePay"}
                     onPress={() => handlePayment({ paymentMethod: "applePay" })}
-                    activeOpacity={0.7}
                     style={styles.paymentOption}
-                  >
-                    <View style={styles.paymentOptionContextContainer}>
-                      {paymentLoading === "applePay" ? (
-                        <ActivityIndicator color={AppColor.primary} />
-                      ) : (
-                        <Apple_Pay_Mark height={46} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
+                  />
                 )}
             </>
           </View>
