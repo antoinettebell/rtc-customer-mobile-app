@@ -36,6 +36,9 @@
         "API_URL": "https://api.rounddacornerapp.com",
         "API_PREFIX": "/api/v1"
       },
+        "android": {
+          "gradleCommand": ":app:bundleLiveGoogleRelease"
+        },
       "ios": {
         "image": "latest"
       }
