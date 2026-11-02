@@ -31,7 +31,7 @@
       }
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "env": {
         "API_URL": "https://api.rounddacornerapp.com",
         "API_PREFIX": "/api/v1"
