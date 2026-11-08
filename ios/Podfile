@@ -51,7 +51,16 @@ prepare_react_native_project!
 # while the archive is compiled.
 ENVFILES = {
   'Debug' => '$(PODS_ROOT)/../../.env.debug',
+  'DevRelease' => '$(PODS_ROOT)/../../.env.debug',
   'Release' => '$(PODS_ROOT)/../../.env.production',
+}
+
+# A signed, internally distributed dev build must still bundle JavaScript like
+# Release, while retaining the dev app identity and API configuration.
+project 'foodtruck.xcodeproj', {
+  'Debug' => :debug,
+  'DevRelease' => :release,
+  'Release' => :release,
 }
 
 linkage = ENV['USE_FRAMEWORKS']

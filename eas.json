@@ -17,6 +17,9 @@
       "env": {
         "API_URL": "https://api-dev.rounddacornerapp.com",
         "API_PREFIX": "/api/v1"
+      },
+      "ios": {
+        "buildConfiguration": "DevRelease"
       }
     },
     "testflight": {
@@ -27,7 +30,8 @@
         "APP_ENV": "production"
       },
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "buildConfiguration": "Release"
       }
     },
     "production": {
@@ -40,7 +44,8 @@
           "gradleCommand": ":app:bundleLiveGoogleRelease"
         },
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "buildConfiguration": "Release"
       }
     }
   },
