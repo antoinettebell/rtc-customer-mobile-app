@@ -134,6 +134,34 @@ const getTruckOpenLocationId = (foodTruck, truckUnitId) => {
   return openLocation?.locationId || null;
 };
 
+// A Food Truck business can have several truck units.  A generic card (for
+// example a favorite or Explore result) does not always carry the unit ID,
+// even though the business detail contains the unit that is currently open.
+// Resolve that unit before displaying or loading its menu so that the title,
+// location, menu, and cart all refer to the same truck.
+const getActiveTruckUnit = (foodTruck, preferredTruckUnitId, preferredLocationId) => {
+  const units = (foodTruck?.truck_units || []).filter((unit) => !unit.is_archived);
+  if (!units.length) return null;
+
+  const requestedUnit = units.find((unit) =>
+    idsMatch(unit._id, preferredTruckUnitId)
+  );
+  if (requestedUnit) return requestedUnit;
+
+  const openUnits = units.filter((unit) =>
+    (unit.open_locations || []).some((location) => location.isOrderingOpen)
+  );
+
+  const unitAtPreferredLocation = openUnits.find((unit) =>
+    (unit.open_locations || []).some(
+      (location) =>
+        location.isOrderingOpen && idsMatch(location.locationId, preferredLocationId)
+    )
+  );
+
+  return unitAtPreferredLocation || openUnits[0] || null;
+};
+
 const FoodTruckDetailScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -155,8 +183,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [menuLoading, setMenuLoading] = useState(true);
   const [foodTruckDetail, setFoodTruckDetail] = useState(null);
+  const [resolvedTruckUnit, setResolvedTruckUnit] = useState(null);
   const [menuTabs, setMenuTabs] = useState([]);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+
+  const activeTruckUnitId = selectedTruckUnitId || resolvedTruckUnit?._id || null;
+  const activeTruckUnitName = selectedTruckUnitName || resolvedTruckUnit?.name || null;
 
   const { isSignedIn } = useSelector((state) => state.authReducer);
   // Get favorites and loading state specific to favorite actions from Redux
@@ -177,15 +209,28 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     useCallback(() => {
       if (!item?._id) return undefined;
       fetchFoodTruckDetails();
-      fetchMenuDetails();
       if (isSignedIn) {
         dispatch(fetchFavorites());
       }
+    }, [dispatch, isSignedIn, item?._id, selectedTruckUnitId, selectedLocationId])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      // Never request an unscoped menu.  The backend applies the menu-item
+      // assignment rules only when it receives the active truck-unit ID.
+      if (!item?._id || !foodTruckDetail || !activeTruckUnitId) {
+        setMenuTabs([]);
+        setMenuLoading(false);
+        return undefined;
+      }
+
+      fetchMenuDetails(activeTruckUnitId);
       const menuRefreshInterval = setInterval(() => {
-        fetchMenuDetails(false);
+        fetchMenuDetails(activeTruckUnitId, false);
       }, 15000);
       return () => clearInterval(menuRefreshInterval);
-    }, [dispatch, isSignedIn, item?._id, selectedTruckUnitId])
+    }, [item?._id, foodTruckDetail, activeTruckUnitId])
   );
 
   const fetchFoodTruckDetails = async () => {
@@ -194,7 +239,11 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       const response = await getFoodTruckDetailById_API(item?._id);
       console.log("response => ", response);
       if (response?.success && response?.data) {
-        setFoodTruckDetail(response?.data?.foodtruck);
+        const detail = response?.data?.foodtruck;
+        setFoodTruckDetail(detail);
+        setResolvedTruckUnit(
+          getActiveTruckUnit(detail, selectedTruckUnitId, selectedLocationId)
+        );
       }
     } catch (error) {
       console.error("Error fetching food truck details:", error);
@@ -203,12 +252,12 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  const fetchMenuDetails = async (showLoading = true) => {
+  const fetchMenuDetails = async (truckUnitId, showLoading = true) => {
     if (showLoading) setMenuLoading(true);
     try {
       const response = await getFoodTruckMenuDetailById_API(
         item?._id,
-        selectedTruckUnitId
+        truckUnitId
       );
       console.log("response => ", response);
       if (response?.success && response?.data) {
@@ -256,7 +305,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
 
   const truckOpenLocationId = getTruckOpenLocationId(
     foodTruckDetail,
-    selectedTruckUnitId
+    activeTruckUnitId
   );
   const activeLocationId =
     selectedLocationId || truckOpenLocationId || foodTruckDetail?.currentLocation;
@@ -282,7 +331,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
       : "Closed Now";
   const isCurrentOrderContext =
     currentOrder.foodTruckId === item._id &&
-    idsMatch(currentOrder.truckUnitId || "", selectedTruckUnitId || "") &&
+    idsMatch(currentOrder.truckUnitId || "", activeTruckUnitId || "") &&
     idsMatch(currentOrder.locationId || "", activeLocationId || "");
 
   const images =
@@ -311,7 +360,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     const isDifferentOrderContext =
       currentOrder.foodTruckId &&
       (currentOrder.foodTruckId !== item._id ||
-        !idsMatch(currentOrder.truckUnitId || "", selectedTruckUnitId || "") ||
+        !idsMatch(currentOrder.truckUnitId || "", activeTruckUnitId || "") ||
         !idsMatch(currentOrder.locationId || "", activeLocationId || ""));
 
     if (
@@ -320,7 +369,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     ) {
       Alert.alert(
         "Different Food Truck",
-        `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${selectedTruckUnitName || item.name}?`,
+        `You already have items from ${currentOrder.foodTruckName}. Would you like to clear your current order and add items from ${activeTruckUnitName || item.name}?`,
         [
           {
             text: "Cancel",
@@ -355,9 +404,9 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
     dispatch(
       addItemToOrder({
         foodTruckId: item._id,
-        foodTruckName: selectedTruckUnitName || item.name,
+        foodTruckName: activeTruckUnitName || item.name,
         foodTruckLogo: item.logo,
-        truckUnitId: selectedTruckUnitId,
+        truckUnitId: activeTruckUnitId,
         locationId: activeLocationId,
         item: { ...menuItem },
       })
@@ -906,7 +955,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   />
                   <View style={styles.titleContainer}>
                     <Text style={styles.title} numberOfLines={2}>
-                      {selectedTruckUnitName || foodTruckDetail?.name}
+                      {activeTruckUnitName || foodTruckDetail?.name}
                     </Text>
                   </View>
                 </View>
@@ -1283,7 +1332,7 @@ const FoodTruckDetailScreen = ({ navigation, route }) => {
                   if (isSignedIn) {
                     navigation.navigate("checkoutScreen", {
                       foodTruckId: item?._id,
-                      truckUnitId: selectedTruckUnitId,
+                      truckUnitId: activeTruckUnitId,
                       locationId: activeLocationId,
                     });
                   } else {
