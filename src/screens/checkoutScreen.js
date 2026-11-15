@@ -396,7 +396,7 @@ const CheckoutScreen = ({ navigation, route }) => {
   );
   const deliverySavingsMessage = useMemo(() => {
     if (!isDelivery) return "";
-    return "Delivery fees are not governed by RTC. For this reason, 98% of all tips go directly to the driver, while the remaining 2% helps cover delivery service costs.";
+    return "Delivery fees decrease the more you order. Drivers take home 100% of the tips.";
   }, [isDelivery]);
   const deliveryFee = useMemo(
     () => (isDelivery ? customerFeeTier.deliveryFee : 0),
@@ -1395,7 +1395,7 @@ const CheckoutScreen = ({ navigation, route }) => {
                   ) : null}
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowItemTxt}>
-                      Payment Processing Fee
+                      Platform & Service Fee
                     </Text>
                     <Text style={styles.totalRowItemTxt}>
                       ${processingFeeAmount.toFixed(2)}
