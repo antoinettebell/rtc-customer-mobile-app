@@ -28,7 +28,7 @@ import ImagePicker from "react-native-image-crop-picker";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { AppColor, Mulish700, Mulish400 } from "../utils/theme";
 import { emailRegex, passwordRegex } from "../utils/constants";
-import { register_API } from "../apiFolder/authAPI";
+import { register_API, validateAmbassadorCode_API } from "../apiFolder/authAPI";
 import StatusBarManager from "../components/StatusBarManager";
 import { useSelector } from "react-redux";
 import MediaPickerDialog from "../components/MediaPickerDialog";
@@ -83,6 +83,7 @@ const SignupScreen = ({ navigation }) => {
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [countryCode, setCountryCode] = useState("+1");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [agreed, setAgreed] = useState(true);
   const [offGrid, setOffGrid] = useState(false);
   const [smsAgreed, setSmsAgreed] = useState(false);
@@ -103,6 +104,7 @@ const SignupScreen = ({ navigation }) => {
     email: "",
     password: "",
     mobileNumber: "",
+    referralCode: "",
     smsAgreed: "",
   });
 
@@ -119,6 +121,7 @@ const SignupScreen = ({ navigation }) => {
     setCountryPickerVisible(false);
     setCountryCode("+1");
     setMobileNumber("");
+    setReferralCode("");
     setAgreed(false);
     setSmsAgreed(false);
     setIsEventCoordinator(false);
@@ -128,6 +131,7 @@ const SignupScreen = ({ navigation }) => {
       email: "",
       password: "",
       mobileNumber: "",
+      referralCode: "",
       smsAgreed: "",
     });
   };
@@ -202,6 +206,20 @@ const SignupScreen = ({ navigation }) => {
       return;
     }
 
+    const normalizedReferralCode = referralCode.trim().toUpperCase();
+    if (normalizedReferralCode) {
+      try {
+        const validation = await validateAmbassadorCode_API(normalizedReferralCode);
+        if (!validation?.success || !validation?.data?.valid) {
+          setErrors((prev) => ({ ...prev, referralCode: "Referral code is invalid or inactive" }));
+          return;
+        }
+      } catch (error) {
+        setErrors((prev) => ({ ...prev, referralCode: error?.message || "Referral code is invalid or inactive" }));
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -211,6 +229,7 @@ const SignupScreen = ({ navigation }) => {
       formData.append("password", password);
       formData.append("countryCode", countryCode);
       formData.append("mobileNumber", mobileNumber);
+      if (normalizedReferralCode) formData.append("referralCode", normalizedReferralCode);
       formData.append("subscribedForOffGrid", offGrid);
       formData.append("isEventCoordinator", isEventCoordinator);
       if (isEventCoordinator) {
@@ -658,6 +677,27 @@ const SignupScreen = ({ navigation }) => {
                   {errors.mobileNumber}
                 </HelperText>
               ) : null}
+
+              <Text style={[styles.inputLabel, { marginTop: 16 }]}>Referral Code (optional)</Text>
+              <TextInput
+                dense
+                value={referralCode}
+                onChangeText={(value) => {
+                  setReferralCode(value.toUpperCase());
+                  setErrors((prev) => ({ ...prev, referralCode: "" }));
+                }}
+                style={styles.input}
+                contentStyle={styles.inputText}
+                placeholder="Enter ambassador referral code"
+                mode="outlined"
+                autoCapitalize="characters"
+                outlineColor={errors.referralCode ? AppColor.error : AppColor.border}
+                activeOutlineColor={AppColor.primary}
+                outlineStyle={{ borderRadius: 8 }}
+                theme={{ colors: { onSurfaceVariant: "#777" } }}
+              />
+              <Text style={styles.referralHelp}>Enter a code only if an ambassador referred you.</Text>
+              {errors.referralCode ? <HelperText type="error" visible style={styles.helper}>{errors.referralCode}</HelperText> : null}
 
               {/* Country picker modal */}
               <CountryPicker
@@ -1220,6 +1260,12 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
     paddingTop: 0,
     fontFamily: Mulish400,
+  },
+  referralHelp: {
+    color: AppColor.textHighlighter,
+    fontFamily: Mulish400,
+    fontSize: 12,
+    marginTop: 5,
   },
   signInButton: {
     height: 48,

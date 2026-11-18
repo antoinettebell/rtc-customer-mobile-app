@@ -9,6 +9,7 @@ import {
   RESEND_OTP,
   TNC,
   VERIFY_OTP,
+  VALIDATE_AMBASSADOR_CODE,
 } from "./apiEndPoint";
 
 // Login API
@@ -73,6 +74,18 @@ export const register_API = async ({ payload }) => {
     const response = await apiClient.post(URL, payload, {
       skipToken: true,
       formData: true,
+    });
+    return response?.data;
+  } catch (error) {
+    throw error?.response?.data || error;
+  }
+};
+
+export const validateAmbassadorCode_API = async (code) => {
+  try {
+    const response = await apiClient.get(VALIDATE_AMBASSADOR_CODE, {
+      params: { code },
+      skipToken: true,
     });
     return response?.data;
   } catch (error) {

@@ -4,6 +4,7 @@ export const FORGOT_PASSWORD = "/auth/forgot-password";
 export const CHANGE_PASSWORD = "/auth/change-password";
 export const REGISTER_USER = "/auth/register";
 export const RESEND_OTP = "/auth/resend-otp";
+export const VALIDATE_AMBASSADOR_CODE = "/public/ambassador-code/validate";
 export const CUISINE = "/cuisine";
 export const PUBLIC_CUISINE = "/public/cuisine";
 export const MEDIA_UPLOAD = "/file";
