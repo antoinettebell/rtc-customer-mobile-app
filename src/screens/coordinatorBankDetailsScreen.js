@@ -41,6 +41,7 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [savedAccountNumber, setSavedAccountNumber] = useState("");
   const [form, setForm] = useState({
     accountHolderName: "",
@@ -98,56 +99,39 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
   const save = async () => {
     const isWallet = WALLET_METHODS.includes(form.paymentMethod);
     const required = [
+      ["Account holder name", form.accountHolderName],
+      ["Bank name", form.bankName],
+      ["Account number", form.accountNumber],
+      ["Routing number", form.routingNumber],
+      ["Account type", form.accountType],
+      ["Bank address", form.bankAddressLine1],
+      ["Bank city", form.bankCity],
+      ["Bank state", form.bankState],
+      ["Bank postal code", form.bankPostal],
       ...(isWallet ? [
         ["Payment handle / account identifier", form.walletPaymentHandle],
         ["Payment email", form.remittanceEmail],
         ["Payment QR code", form.paymentQrCodeUrl],
-      ] : [
-        ["Account holder name", form.accountHolderName],
-        ["Bank name", form.bankName],
-        ["Account number", form.accountNumber],
-        ["Routing number", form.routingNumber],
-        ["Bank address", form.bankAddressLine1],
-        ["Bank city", form.bankCity],
-        ["Bank state", form.bankState],
-        ["Bank postal code", form.bankPostal],
-      ]),
+      ] : []),
     ];
     const missing = required.find(([, value]) => !String(value || "").trim());
     if (missing) return Alert.alert("Bank Details", `${missing[0]} is required.`);
     const routingNumber = digits(form.routingNumber);
-    if (!isWallet && routingNumber.length !== 9) return Alert.alert("Bank Details", "Routing number must be 9 digits.");
+    if (routingNumber.length !== 9) return Alert.alert("Bank Details", "Routing number must be 9 digits.");
     if (!/^\+?[0-9() .-]{7,25}$/.test(form.phoneNumber.trim())) {
       return Alert.alert("Bank Details", "Enter a valid phone number.");
     }
     const accountNumber = isMaskedAccount(form.accountNumber)
       ? savedAccountNumber
       : digits(form.accountNumber);
-    if (!isWallet && accountNumber.length < 8) return Alert.alert("Bank Details", "Enter a valid account number.");
+    if (accountNumber.length < 8) return Alert.alert("Bank Details", "Enter a valid account number.");
 
     setSaving(true);
     try {
       const response = await saveCoordinatorBankDetail_API({
         ...form,
-        ...(isWallet ? {
-          accountHolderName: "",
-          bankName: "",
-          accountNumber: "",
-          routingNumber: "",
-          accountType: "",
-          bankAddressLine1: "",
-          bankAddressLine2: "",
-          bankCity: "",
-          bankState: "",
-          bankPostal: "",
-        } : {
-          accountNumber,
-          routingNumber,
-          walletPaymentHandle: "",
-          remittanceEmail: "",
-          paymentQrCodeUrl: "",
-          currency: "",
-        }),
+        accountNumber,
+        routingNumber,
       });
       if (!response?.success) throw new Error(response?.message || "Could not save bank details.");
       Alert.alert("Bank Details", "Bank details saved.", [{ text: "OK", onPress: () => navigation.goBack() }]);
@@ -198,6 +182,7 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
       </View>
       {loading ? <View style={styles.loading}><ActivityIndicator size="large" color={AppColor.primary} /></View> : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]} keyboardShouldPersistTaps="handled">
+          <View pointerEvents={isEditing ? "auto" : "none"} style={{ opacity: isEditing ? 1 : 0.72 }}>
           <Text style={styles.copy}>These details are used only for approved Event Coordinator payouts.</Text>
           {input("Phone Number *", "phoneNumber", { placeholder: "Phone number for payment questions", keyboardType: "phone-pad" })}
           <Text style={styles.label}>Payment Method *</Text>
@@ -207,7 +192,8 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
             {input("Payment Email *", "remittanceEmail", { placeholder: "Email for payment", keyboardType: "email-address" })}
             <Text style={styles.label}>Payment QR Code *</Text>
             <TouchableOpacity style={styles.qrButton} onPress={uploadQr}><Text style={styles.qrButtonText}>{form.paymentQrCodeUrl ? "Replace QR Code" : "Upload QR Code"}</Text></TouchableOpacity>
-          </> : <>
+          </> : null}
+          <>
             {input("Account Holder Name *", "accountHolderName", { placeholder: "Name on the bank account" })}
             {input("Bank Name *", "bankName", { placeholder: "Bank name" })}
             {input("Account Number *", "accountNumber", { placeholder: "Account number", keyboardType: "number-pad", digits: true, maxLength: 17, secureTextEntry: !isMaskedAccount(form.accountNumber) })}
@@ -216,8 +202,9 @@ const CoordinatorBankDetailsScreen = ({ navigation }) => {
             <View style={styles.choiceRow}>{ACCOUNT_TYPES.map((type) => <TouchableOpacity key={type} style={[styles.choice, form.accountType === type && styles.choiceActive]} onPress={() => set("accountType", type)}><Text style={form.accountType === type ? styles.choiceTextActive : styles.choiceText}>{type[0] + type.slice(1).toLowerCase()}</Text></TouchableOpacity>)}</View>
             <Text style={styles.sectionTitle}>Bank Address</Text>
             {input("Address Line 1 *", "bankAddressLine1", { placeholder: "Street address" })}{input("Address Line 2", "bankAddressLine2", { placeholder: "Apartment, suite, or unit" })}{input("City *", "bankCity", { placeholder: "City" })}<View style={styles.field}><StatePickerModal label="State *" value={form.bankState} onChange={(value) => set("bankState", value)} /></View>{input("Postal Code *", "bankPostal", { placeholder: "ZIP code", keyboardType: "number-pad" })}
-          </>}
-          <TouchableOpacity style={[styles.save, saving && styles.disabled]} disabled={saving} onPress={save}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.saveText}>Save Bank Details</Text>}</TouchableOpacity>
+          </>
+          </View>
+          <TouchableOpacity style={[styles.save, saving && styles.disabled]} disabled={saving} onPress={isEditing ? save : () => setIsEditing(true)}>{saving ? <ActivityIndicator color={AppColor.white} /> : <Text style={styles.saveText}>{isEditing ? "Save Payment Details" : "Update Payment Details"}</Text>}</TouchableOpacity>
         </ScrollView>
       )}
     </View>
